@@ -1,6 +1,6 @@
 // src/config/apiKeys.ts
 
-// Helper functions to get API keys with fallback to localStorage
+
 export function getGeminiKey(): string {
   // Read from environment variable first
   const envKey = import.meta.env.VITE_GEMINI_API_KEY
