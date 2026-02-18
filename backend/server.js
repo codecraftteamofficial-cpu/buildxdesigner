@@ -6,7 +6,27 @@ const path = require('path');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+    process.env.LOCAL_FRONTEND_URL,
+    process.env.PROD_FRONTEND_URL,
+    process.env.FRONTEND_URL,
+    'http://localhost:3000',
+    'http://localhost:3001',
+].filter(Boolean);
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 

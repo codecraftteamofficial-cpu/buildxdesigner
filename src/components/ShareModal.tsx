@@ -1,30 +1,37 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, 
-  Share2, 
-  Copy, 
-  Mail, 
-  MessageCircle, 
-  Users, 
-  Eye, 
-  EyeOff, 
+import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  X,
+  Share2,
+  Copy,
+  Mail,
+  MessageCircle,
+  Users,
+  Eye,
+  EyeOff,
   Link2,
   Facebook,
   Twitter,
   Linkedin,
   QrCode,
-  Download
-} from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Switch } from './ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
-import { ComponentData } from '../App';
+  Download,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Switch } from "./ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { toast } from "sonner";
+import { ComponentData } from "../App";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -43,18 +50,32 @@ interface ShareSettings {
 export const ShareModal: React.FC<ShareModalProps> = ({
   isOpen,
   onClose,
-  components
+  components,
 }) => {
   const [shareSettings, setShareSettings] = useState<ShareSettings>({
     isPublic: true,
     allowComments: false,
     allowDownload: true,
-    expiresIn: 'never',
-    password: ''
+    expiresIn: "never",
+    password: "",
   });
-  
-  const [shareUrl] = useState('https://fulldevai.app/shared/abc123def456');
-  const [embedCode] = useState(`<iframe src="${shareUrl}/embed" width="100%" height="600" frameborder="0"></iframe>`);
+
+  const [shareUrl, setShareUrl] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window !== "undefined") {
+      setShareUrl(window.location.href);
+    }
+  }, [isOpen]);
+
+  const embedCode = useMemo(
+    () =>
+      shareUrl
+        ? `<iframe src="${shareUrl}" width="100%" height="500" frameborder="0" allowfullscreen></iframe>`
+        : "",
+    [shareUrl],
+  );
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -62,32 +83,37 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   const shareViaEmail = () => {
-    const subject = encodeURIComponent('Check out my FullDev AI project');
-    const body = encodeURIComponent(`I've created an amazing website using FullDev AI! Take a look: ${shareUrl}`);
+    const subject = encodeURIComponent("Check out my FullDev AI project");
+    const body = encodeURIComponent(
+      `I've created an amazing website using FullDev AI! Take a look: ${shareUrl}`,
+    );
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };
 
   const shareViaSocial = (platform: string) => {
-    const text = encodeURIComponent('Check out my amazing website built with FullDev AI!');
+    const text = encodeURIComponent(
+      "Check out my amazing website built with FullDev AI!",
+    );
     const url = encodeURIComponent(shareUrl);
-    
+
     const urls = {
       twitter: `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
       facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
     };
-    
-    window.open(urls[platform as keyof typeof urls], '_blank');
+
+    window.open(urls[platform as keyof typeof urls], "_blank");
   };
 
   const generateQRCode = () => {
     // In a real app, you would generate an actual QR code
-    toast.success('QR code generated! (This is a demo)');
+    toast.success("QR code generated! (This is a demo)");
   };
 
-  const handleSettingChange = (field: keyof ShareSettings) => (value: string | boolean) => {
-    setShareSettings(prev => ({ ...prev, [field]: value }));
-  };
+  const handleSettingChange =
+    (field: keyof ShareSettings) => (value: string | boolean) => {
+      setShareSettings((prev) => ({ ...prev, [field]: value }));
+    };
 
   if (!isOpen) return null;
 
@@ -119,15 +145,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               >
                 <X className="w-4 h-4" />
               </button>
-              
+
               <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <Share2 className="w-8 h-8 text-white" />
               </div>
-              
+
               <CardTitle className="text-2xl font-bold mb-2">
                 Share Your Project
               </CardTitle>
-              
+
               <p className="text-muted-foreground text-sm">
                 Share your FullDev AI project with others or embed it anywhere
               </p>
@@ -140,11 +166,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <Link2 className="w-4 h-4" />
                     Link
                   </TabsTrigger>
-                  <TabsTrigger value="social" className="flex items-center gap-2">
+                  <TabsTrigger
+                    value="social"
+                    className="flex items-center gap-2"
+                  >
                     <Users className="w-4 h-4" />
                     Social
                   </TabsTrigger>
-                  <TabsTrigger value="embed" className="flex items-center gap-2">
+                  <TabsTrigger
+                    value="embed"
+                    className="flex items-center gap-2"
+                  >
                     <QrCode className="w-4 h-4" />
                     Embed
                   </TabsTrigger>
@@ -154,38 +186,62 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   {/* Share Settings */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Share Settings</h3>
-                    
+
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label>Public Access</Label>
-                          <p className="text-sm text-muted-foreground">Anyone with the link can view</p>
+                          <Label>Visibility</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Choose who can view this project
+                          </p>
                         </div>
-                        <Switch
-                          checked={shareSettings.isPublic}
-                          onCheckedChange={(checked) => handleSettingChange('isPublic')(checked)}
-                        />
+                        <Select
+                          value={shareSettings.isPublic ? "public" : "private"}
+                          onValueChange={(next: string) => {
+                            if (next === "public" || next === "private") {
+                              handleSettingChange("isPublic")(next === "public");
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-[220px]">
+                            <SelectValue placeholder="Select visibility" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="public">
+                              Anyone with the link
+                            </SelectItem>
+                            <SelectItem value="private">Private</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Allow Comments</Label>
-                          <p className="text-sm text-muted-foreground">Viewers can leave feedback</p>
+                          <p className="text-sm text-muted-foreground">
+                            Viewers can leave feedback
+                          </p>
                         </div>
                         <Switch
                           checked={shareSettings.allowComments}
-                          onCheckedChange={(checked) => handleSettingChange('allowComments')(checked)}
+                          onCheckedChange={(checked) =>
+                            handleSettingChange("allowComments")(checked)
+                          }
                         />
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div>
                           <Label>Allow Download</Label>
-                          <p className="text-sm text-muted-foreground">Viewers can download the code</p>
+                          <p className="text-sm text-muted-foreground">
+                            Viewers can download the code
+                          </p>
                         </div>
                         <Switch
                           checked={shareSettings.allowDownload}
-                          onCheckedChange={(checked) => handleSettingChange('allowDownload')(checked)}
+                          onCheckedChange={(checked) =>
+                            handleSettingChange("allowDownload")(checked)
+                          }
                         />
                       </div>
                     </div>
@@ -193,13 +249,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                   {/* Password Protection */}
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password Protection (Optional)</Label>
+                    <Label htmlFor="password">
+                      Password Protection (Optional)
+                    </Label>
                     <Input
                       id="password"
                       type="password"
                       placeholder="Enter password to protect your project"
                       value={shareSettings.password}
-                      onChange={(e) => handleSettingChange('password')(e.target.value)}
+                      onChange={(e) =>
+                        handleSettingChange("password")(e.target.value)
+                      }
                     />
                   </div>
 
@@ -207,7 +267,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Share URL</Label>
-                      <Badge variant="secondary" className="flex items-center gap-1">
+                      <Badge
+                        variant="secondary"
+                        className="flex items-center gap-1"
+                      >
                         {shareSettings.isPublic ? (
                           <>
                             <Eye className="w-3 h-3" />
@@ -221,7 +284,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                         )}
                       </Badge>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <Input
                         value={shareUrl}
@@ -230,7 +293,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       />
                       <Button
                         variant="outline"
-                        onClick={() => copyToClipboard(shareUrl, 'Share URL')}
+                        onClick={() => copyToClipboard(shareUrl, "Share URL")}
                       >
                         <Copy className="w-4 h-4" />
                       </Button>
@@ -250,7 +313,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => copyToClipboard(shareUrl, 'Share URL')}
+                      onClick={() => copyToClipboard(shareUrl, "Share URL")}
                     >
                       <Copy className="w-4 h-4 mr-2" />
                       Copy Link
@@ -260,7 +323,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                 <TabsContent value="social" className="space-y-6 mt-6">
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Share on Social Media</h3>
+                    <h3 className="text-lg font-semibold">
+                      Share on Social Media
+                    </h3>
                     <p className="text-muted-foreground text-sm">
                       Share your amazing creation with your social networks
                     </p>
@@ -271,42 +336,48 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <Button
                       variant="outline"
                       className="w-full justify-start h-12 bg-blue-50 border-blue-200 hover:bg-blue-100"
-                      onClick={() => shareViaSocial('twitter')}
+                      onClick={() => shareViaSocial("twitter")}
                     >
                       <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
                         <Twitter className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <div className="font-medium">Share on Twitter</div>
-                        <div className="text-sm text-muted-foreground">Tweet about your project</div>
+                        <div className="text-sm text-muted-foreground">
+                          Tweet about your project
+                        </div>
                       </div>
                     </Button>
 
                     <Button
                       variant="outline"
                       className="w-full justify-start h-12 bg-blue-50 border-blue-200 hover:bg-blue-100"
-                      onClick={() => shareViaSocial('facebook')}
+                      onClick={() => shareViaSocial("facebook")}
                     >
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-3">
                         <Facebook className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <div className="font-medium">Share on Facebook</div>
-                        <div className="text-sm text-muted-foreground">Post to your timeline</div>
+                        <div className="text-sm text-muted-foreground">
+                          Post to your timeline
+                        </div>
                       </div>
                     </Button>
 
                     <Button
                       variant="outline"
                       className="w-full justify-start h-12 bg-blue-50 border-blue-200 hover:bg-blue-100"
-                      onClick={() => shareViaSocial('linkedin')}
+                      onClick={() => shareViaSocial("linkedin")}
                     >
                       <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center mr-3">
                         <Linkedin className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <div className="font-medium">Share on LinkedIn</div>
-                        <div className="text-sm text-muted-foreground">Share with your network</div>
+                        <div className="text-sm text-muted-foreground">
+                          Share with your network
+                        </div>
                       </div>
                     </Button>
                   </div>
@@ -347,7 +418,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     </div>
                     <Button
                       variant="outline"
-                      onClick={() => copyToClipboard(embedCode, 'Embed code')}
+                      onClick={() => copyToClipboard(embedCode, "Embed code")}
                       className="w-full"
                     >
                       <Copy className="w-4 h-4 mr-2" />
@@ -374,10 +445,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                           <QrCode className="w-4 h-4 mr-2" />
                           Generate QR
                         </Button>
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                        >
+                        <Button variant="outline" className="flex-1">
                           <Download className="w-4 h-4 mr-2" />
                           Download
                         </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useEffect, useState } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
@@ -19,6 +20,7 @@ import { MobilePropertiesModal } from "./MobilePropertiesModal";
 import { PreviewModal } from "./PreviewModal";
 import { CodeExportModal } from "./CodeExportModal";
 import { TemplateModal } from "./TemplateModal";
+import { PublishModal } from "./PublishModal";
 import { ShareModal } from "./ShareModal";
 import { RightSidebar } from "./RightSidebar";
 import { EditorFooter } from "./EditorFooter";
@@ -74,6 +76,34 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
     handleRightSplitterMouseDown,
     remoteCursors,
   } = editor;
+
+  const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false);
+
+  useEffect(() => {
+    const isChecking = state.currentProjectId && state.projectIsPublic === null;
+    if (!isChecking) {
+      setAccessCheckTimedOut(false);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setAccessCheckTimedOut(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timerId);
+  }, [state.currentProjectId, state.projectIsPublic]);
+
+  if (
+    state.currentProjectId &&
+    state.projectIsPublic === null &&
+    !accessCheckTimedOut
+  ) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background text-muted-foreground">
+        Checking project access...
+      </div>
+    );
+  }
 
   if (
     state.projectIsPublic === false &&
@@ -137,8 +167,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Left Sidebar */}
             <div
-              className={`flex-shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
-                }`}
+              className={`flex-shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${
+                state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
+              }`}
               style={{
                 width: state.isLeftSidebarVisible
                   ? `${state.leftSidebarWidth}px`
@@ -292,17 +323,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
                   {state.viewMode === "code" && (
                     <div className="flex-1 flex flex-col h-full overflow-hidden bg-card">
-                      <CodeViewEditor
-                        components={state.components}
-                        userProjectConfig={state.userProjectConfig}
-                        onCodeChange={(newComponents) =>
-                          setState((prev) => ({
-                            ...prev,
-                            components: newComponents,
-                            hasUnsavedChanges: true,
-                          }))
-                        }
-                      />
+                      <CodeViewEditor components={state.components} />
                     </div>
                   )}
                 </div>
@@ -337,8 +358,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Right Sidebar */}
             <div
-              className={`flex-shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${state.isRightSidebarVisible ? "" : "w-0 border-l-0"
-                }`}
+              className={`flex-shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${
+                state.isRightSidebarVisible ? "" : "w-0 border-l-0"
+              }`}
               style={{
                 width: state.isRightSidebarVisible
                   ? `${state.rightSidebarWidth}px`
@@ -369,10 +391,11 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "properties",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "properties"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
@@ -384,10 +407,11 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "ai-assistant",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "ai-assistant"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -545,7 +569,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               selectedComponent={selectedComponentObject}
               onUpdateComponent={updateComponent}
               propertiesPanelVisible={false}
-              onToggleProperties={() => { }}
+              onToggleProperties={() => {}}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
             />
