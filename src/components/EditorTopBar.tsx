@@ -170,8 +170,9 @@ export function EditorTopBar({
     const token = localStorage.getItem("supabase_integration_token")
     if (token) {
       setIsLoadingSupabase(true)
-      const isLocal = window.location.hostname === "localhost"
-      const backendBase = isLocal ? "http://localhost:4000" : ""
+      const hostname = window.location.hostname
+      const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
+      const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
 
       Promise.all([
         fetch(`${backendBase}/api/supabase/organizations`, {
@@ -213,8 +214,9 @@ export function EditorTopBar({
     if (!token) return
 
     setIsLoadingSupabase(true)
-    const isLocal = window.location.hostname === "localhost"
-    const backendBase = isLocal ? "http://localhost:4000" : ""
+    const hostname = window.location.hostname
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
+    const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
 
     Promise.all([
       fetch(`${backendBase}/api/supabase/organizations`, {
@@ -503,8 +505,9 @@ export function EditorTopBar({
                         try {
                           setIsLoadingSupabase(true)
                           const token = localStorage.getItem("supabase_integration_token")
-                          const isLocal = window.location.hostname === "localhost"
-                          const backendBase = isLocal ? "http://localhost:4000" : ""
+                          const hostname = window.location.hostname
+                          const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
+                          const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
 
                           const res = await fetch(`${backendBase}/api/supabase/projects/${newProjectId}/api-keys`, {
                             headers: { Authorization: `Bearer ${token}` }
