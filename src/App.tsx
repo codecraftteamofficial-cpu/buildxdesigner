@@ -345,12 +345,16 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   );
 }
 
+import { SubdomainRouter } from "./components/SubdomainRouter";
+
 export default function App() {
   const editor = useEditorState();
 
   return (
-    <Router>
-      <AppRoutes editor={editor} />
-    </Router>
+    <SubdomainRouter>
+      <Router>
+        <AppRoutes editor={editor} />
+      </Router>
+    </SubdomainRouter>
   );
 }

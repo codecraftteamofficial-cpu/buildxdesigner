@@ -35,7 +35,9 @@ interface CanvasProps {
     supabaseUrl: string;
     supabaseKey: string;
   };
+  readOnly?: boolean;
 }
+
 
 // Command interface for undo/redo
 interface Command {
@@ -64,7 +66,9 @@ export function Canvas({
   backgroundColor = "#ffffff",
   showGrid = false,
   userProjectConfig,
+  readOnly = false,
 }: CanvasProps) {
+
   const [draggingComponent, setDraggingComponent] = useState<string | null>(
     null,
   );
@@ -715,9 +719,10 @@ export function Canvas({
     e: React.MouseEvent,
     component: ComponentData,
   ) => {
-    // Don't start drag if clicking on resize handles or editable content
+    // Don't start drag if readOnly or clicking on resize handles or editable content
     const target = e.target as HTMLElement;
     if (
+      readOnly ||
       target.closest(".resize-handle") ||
       target.closest('[contenteditable="true"]') ||
       target.closest("button") ||
@@ -989,71 +994,78 @@ export function Canvas({
           }
         }}
       >
-        {/* Minimal Component Panel */}
-        <MinimalComponentPanel
-          onAddComponent={(component) => {
-            const event = new CustomEvent("addComponent", {
-              detail: component,
-            });
-            window.dispatchEvent(event);
-          }}
-        />
+        {/* Minimal Component Panel - Hide in Read Only */}
+        {!readOnly && (
+          <MinimalComponentPanel
+            onAddComponent={(component) => {
+              const event = new CustomEvent("addComponent", {
+                detail: component,
+              });
+              window.dispatchEvent(event);
+            }}
+          />
+        )}
 
-        <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-lg px-2 py-1.5 z-50">
-          <button
-            onClick={() =>
-              onZoomChange && onZoomChange(Math.max(50, canvasZoom - 10))
-            }
-            className="p-1 hover:bg-accent rounded transition-colors"
-            title="Zoom Out"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+
+        {/* Zoom Controls - Hide in Read Only */}
+        {!readOnly && (
+          <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-lg px-2 py-1.5 z-50">
+            <button
+              onClick={() =>
+                onZoomChange && onZoomChange(Math.max(50, canvasZoom - 10))
+              }
+              className="p-1 hover:bg-accent rounded transition-colors"
+              title="Zoom Out"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 12H4"
-              />
-            </svg>
-          </button>
-          <span className="text-xs font-medium text-muted-foreground min-w-[3rem] text-center">
-            {canvasZoom}%
-          </span>
-          <button
-            onClick={() =>
-              onZoomChange && onZoomChange(Math.min(200, canvasZoom + 10))
-            }
-            className="p-1 hover:bg-accent rounded transition-colors"
-            title="Zoom In"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 12H4"
+                />
+              </svg>
+            </button>
+            <span className="text-xs font-medium text-muted-foreground min-w-[3rem] text-center">
+              {canvasZoom}%
+            </span>
+            <button
+              onClick={() =>
+                onZoomChange && onZoomChange(Math.min(200, canvasZoom + 10))
+              }
+              className="p-1 hover:bg-accent rounded transition-colors"
+              title="Zoom In"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          </button>
-          <div className="w-px h-4 bg-border mx-0.5" />
-          <button
-            onClick={() => onZoomChange && onZoomChange(100)}
-            className="px-1.5 py-0.5 hover:bg-accent rounded transition-colors text-xs"
-            title="Reset Zoom"
-          >
-            Reset
-          </button>
-        </div>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
+            <div className="w-px h-4 bg-border mx-0.5" />
+            <button
+              onClick={() => onZoomChange && onZoomChange(100)}
+              className="px-1.5 py-0.5 hover:bg-accent rounded transition-colors text-xs"
+              title="Reset Zoom"
+            >
+              Reset
+            </button>
+          </div>
+        )}
+
 
         {/* Infinite Canvas Content */}
         <div
@@ -1115,11 +1127,11 @@ export function Canvas({
                   <div
                     key={component.id}
                     data-component-id={component.id}
-                    className={`absolute transition-shadow duration-200 ${
-                      isSelected
-                        ? "ring-2 ring-primary ring-offset-4 rounded component-selected shadow-2xl z-20"
-                        : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 rounded hover:shadow-lg z-10"
-                    } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+                    className={`absolute transition-shadow duration-200 ${isSelected
+                      ? "ring-2 ring-primary ring-offset-4 rounded component-selected shadow-2xl z-20"
+                      : readOnly ? "z-10" : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 rounded hover:shadow-lg z-10"
+                      } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
+
                     style={{
                       left: `${position.x}px`,
                       top: `${position.y}px`,
@@ -1127,12 +1139,11 @@ export function Canvas({
                       height: "fit-content",
                       pointerEvents: "auto",
                     }}
-                    onMouseDown={(e) => handleComponentMouseDown(e, component)}
-                    onTouchStart={(e) =>
-                      handleComponentTouchStart(e, component)
-                    }
-                    onClick={(e) => {
+                    onMouseDown={!readOnly ? (e) => handleComponentMouseDown(e, component) : undefined}
+                    onTouchStart={!readOnly ? (e) => handleComponentTouchStart(e, component) : undefined}
+                    onClick={!readOnly ? (e) => {
                       e.stopPropagation();
+
                       if (e.ctrlKey || e.metaKey) {
                         // Multi-select with Ctrl/Cmd key
                         const newSelection = new Set(selectedComponents);
@@ -1147,28 +1158,27 @@ export function Canvas({
                         setSelectedComponents(new Set([component.id]));
                       }
                       onSelectComponent(component);
-                    }}
-                    onContextMenu={(e) => {
+                    } : undefined}
+                    onContextMenu={!readOnly ? (e) => {
                       handleComponentContextMenu(e, component);
-                    }}
-                    onDoubleClick={(e) =>
-                      handleComponentDoubleClick(component, e)
-                    }
+                    } : undefined}
+                    onDoubleClick={!readOnly ? (e) => handleComponentDoubleClick(component, e) : undefined}
                   >
                     <RenderableComponent
                       component={component}
-                      isSelected={isSelected}
-                      onUpdate={(updates) =>
-                        onUpdateComponent(component.id, updates)
-                      }
-                      onDelete={() => onDeleteComponent(component.id)}
-                      editingComponentId={editingTextId}
+                      isSelected={readOnly ? false : isSelected}
+                      onUpdate={!readOnly ? (updates) => onUpdateComponent(component.id, updates) : () => { }}
+                      onDelete={!readOnly ? () => onDeleteComponent(component.id) : () => { }}
+
+                      editingComponentId={readOnly ? null : editingTextId}
                       onEditComponent={setEditingTextId}
                       userProjectConfig={userProjectConfig}
+                      isPreview={readOnly}
                     />
 
-                    {/* Desktop Selection Indicator */}
-                    {isSelected && (
+                    {/* Desktop Selection Indicator - Hide in Read Only */}
+                    {!readOnly && isSelected && (
+
                       <div className="hidden lg:block absolute -top-8 left-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full shadow-lg font-medium z-30 pointer-events-none">
                         <span className="flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
@@ -1178,15 +1188,17 @@ export function Canvas({
                       </div>
                     )}
 
-                    {/* Position Indicator */}
-                    {isSelected && (
+                    {/* Position Indicator - Hide in Read Only */}
+                    {!readOnly && isSelected && (
+
                       <div className="hidden lg:block absolute -bottom-8 left-0 bg-muted text-muted-foreground text-xs px-2 py-1 rounded shadow-md font-mono z-30 pointer-events-none">
                         x: {Math.round(position.x)} y: {Math.round(position.y)}
                       </div>
                     )}
 
-                    {/* Mobile Selection Indicator */}
-                    {isSelected && (
+                    {/* Mobile Selection Indicator - Hide in Read Only */}
+                    {!readOnly && isSelected && (
+
                       <div className="lg:hidden absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full shadow-md font-medium z-30 pointer-events-none">
                         {component.type}
                       </div>
@@ -1199,20 +1211,24 @@ export function Canvas({
         </div>
       </div>
 
-      {/* Canvas Context Menu */}
-      <CanvasContextMenu
-        position={contextMenu}
-        onClose={() => setContextMenu(null)}
-        onDuplicate={handleDuplicate}
-        onDelete={handleDelete}
-        onGroup={groupSelectedComponents}
-        onUngroup={ungroupSelected}
-        onBringToFront={bringToFront}
-        onSendToBack={sendToBack}
-        onCopy={() => copyToClipboard()}
-        canGroup={selectedComponents.size > 1}
-        canUngroup={selectedComponent?.type === "group"}
-      />
+      {/* Canvas Context Menu - Hide in Read Only */}
+      {!readOnly && (
+        <CanvasContextMenu
+
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDelete}
+          onGroup={groupSelectedComponents}
+          onUngroup={ungroupSelected}
+          onBringToFront={bringToFront}
+          onSendToBack={sendToBack}
+          onCopy={() => copyToClipboard()}
+          canGroup={selectedComponents.size > 1}
+          canUngroup={selectedComponent?.type === "group"}
+        />
+      )}
+
     </div>
   );
 }

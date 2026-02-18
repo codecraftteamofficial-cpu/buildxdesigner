@@ -38,7 +38,7 @@ export function setLocalProjectCache(
   try {
     const key = `project_cache:${projectId}`;
     localStorage.setItem(key, JSON.stringify(data));
-  } catch {}
+  } catch { }
 }
 
 export async function fetchProjectById(
@@ -52,7 +52,7 @@ export async function fetchProjectById(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at",
       )
       .eq("projects_id", id)
       .eq("user_id", user?.id) // Security filter
@@ -69,6 +69,9 @@ export async function fetchProjectById(
       type: data.type as Project["type"],
       status: data.status as Project["status"],
       project_layout: data.project_layout || [],
+      subdomain: data.subdomain,
+      isPublished: data.is_published,
+      lastPublishedAt: data.last_published_at,
     };
     return { data: project, error: null };
   } catch (err) {
@@ -92,7 +95,7 @@ export async function fetchUserProjects(): Promise<{
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at",
       )
       .eq("user_id", user.id) // ONLY fetch the logged-in user's projects
       .neq("status", "trash")
@@ -109,6 +112,9 @@ export async function fetchUserProjects(): Promise<{
       type: item.type as Project["type"],
       status: item.status as Project["status"],
       project_layout: item.project_layout || [],
+      subdomain: item.subdomain,
+      isPublished: item.is_published,
+      lastPublishedAt: item.last_published_at,
     }));
 
     return { data: mappedData, error: null };
@@ -329,5 +335,88 @@ export async function deleteComponentFromDb(
     return { error };
   } catch (err) {
     return { error: err };
+  }
+}
+
+export async function publishProject(
+  projectId: string,
+  subdomain: string,
+): Promise<{ url: string | null; error: any }> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { url: null, error: "Not authenticated" };
+    }
+
+    // Check if subdomain is already taken by another project
+    const { data: existing, error: checkError } = await supabase
+      .from("projects")
+      .select("projects_id")
+      .eq("subdomain", subdomain)
+      .neq("projects_id", projectId)
+      .maybeSingle();
+
+    if (checkError) {
+      return { url: null, error: "Failed to validate subdomain availability." };
+    }
+
+    if (existing) {
+      return { url: null, error: "Subdomain is already taken." };
+    }
+
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        subdomain: subdomain,
+        is_published: true,
+        last_published_at: new Date().toISOString(),
+      })
+      .eq("projects_id", projectId)
+      .eq("user_id", user.id);
+
+    if (updateError) {
+      return { url: null, error: updateError };
+    }
+
+    return { url: `https://${subdomain}.buildxdesigner.site`, error: null };
+  } catch (err) {
+    return { url: null, error: err };
+  }
+}
+
+export async function fetchProjectBySubdomain(
+  subdomain: string,
+): Promise<{ data: Project | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .select(
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at",
+      )
+      .eq("subdomain", subdomain)
+      .eq("is_published", true)
+      .single();
+
+    if (error) return { data: null, error };
+
+    const project: Project = {
+      id: data.projects_id,
+      name: data.project_name,
+      description: data.description || "",
+      thumbnail: data.thumbnail || "",
+      lastModified: data.last_modified,
+      type: data.type as Project["type"],
+      status: data.status as Project["status"],
+      project_layout: data.project_layout || [],
+      subdomain: data.subdomain,
+      isPublished: data.is_published,
+      lastPublishedAt: data.last_published_at,
+    };
+    return { data: project, error: null };
+  } catch (err) {
+    return { data: null, error: err };
   }
 }

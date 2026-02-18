@@ -57,4 +57,7 @@ export interface EditorState {
   };
   projectIsPublic: boolean | null;
   projectAuthorId: string | null;
+  projectSubdomain?: string;
+  projectIsPublished?: boolean;
+  projectLastPublishedAt?: string;
 }

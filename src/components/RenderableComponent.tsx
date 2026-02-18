@@ -738,7 +738,9 @@ export function RenderableComponent({
             className="group inline-block"
             minWidth={50}
             minHeight={20}
+            disabled={isPreview}
           >
+
             <EditableText
               id={props.elementId}
               text={props.content}
@@ -748,8 +750,9 @@ export function RenderableComponent({
               className={props.className || ''}
               placeholder="Sample Text"
               isSelected={isSelected}
-              disabled={disabled}
+              disabled={disabled || isPreview}
               isEditing={editingComponentId === component.id}
+
               onToggleEditing={(val) => onEditComponent?.(val ? component.id : null)}
             />
           </ResizeHandle>
@@ -769,7 +772,9 @@ export function RenderableComponent({
             className="group inline-block"
             minWidth={100}
             minHeight={30}
+            disabled={isPreview}
           >
+
             <EditableText
               id={props.elementId}
               text={props.content}
@@ -1221,6 +1226,7 @@ export function RenderableComponent({
             className="group"
             disabled={isPreview}
           >
+
             {props.src ? (
               <div
                 onDragOver={handleDragOver}
@@ -1266,7 +1272,9 @@ export function RenderableComponent({
             initialWidth={groupWidth}
             initialHeight={groupHeight}
             className="group"
+            disabled={isPreview}
           >
+
             <div
               style={{
                 ...combinedStyle,
@@ -1319,7 +1327,9 @@ export function RenderableComponent({
             initialWidth={containerWidth}
             initialHeight={containerHeight}
             className="group"
+            disabled={isPreview}
           >
+
             <div
               id={props.elementId}
               style={{
@@ -1341,8 +1351,9 @@ export function RenderableComponent({
                   onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
                   element="p"
                   isSelected={isSelected}
-                  disabled={disabled}
+                  disabled={disabled || isPreview}
                   isEditing={editingComponentId === component.id}
+
                   onToggleEditing={(val) => onEditComponent?.(val ? component.id : null)}
                 />
               </div>
@@ -1362,7 +1373,9 @@ export function RenderableComponent({
             className="group"
             minWidth={200}
             minHeight={40}
+            disabled={isPreview}
           >
+
             <nav
               id={props.elementId}
               style={{
@@ -1383,8 +1396,9 @@ export function RenderableComponent({
                   element="span"
                   placeholder=""
                   isSelected={isSelected}
-                  disabled={disabled}
+                  disabled={disabled || isPreview}
                 />
+
               </div>
               <div className="flex gap-4">
                 {(props.links || ['Home', 'About', 'Contact']).map((link: string, index: number) => (
@@ -1398,8 +1412,9 @@ export function RenderableComponent({
                       }}
                       element="span"
                       isSelected={isSelected}
-                      disabled={disabled}
+                      disabled={disabled || isPreview}
                     />
+
                   </a>
                 ))}
               </div>
@@ -1419,7 +1434,9 @@ export function RenderableComponent({
             className="group"
             minWidth={300}
             minHeight={200}
+            disabled={isPreview}
           >
+
             <div
               id={props.elementId}
               style={{
@@ -1444,8 +1461,9 @@ export function RenderableComponent({
                 className="mb-4"
                 placeholder="Welcome"
                 isSelected={isSelected}
-                disabled={disabled}
+                disabled={disabled || isPreview}
               />
+
               <EditableText
                 text={props.subtitle}
                 onTextChange={(newText) => onUpdate({ props: { ...props, subtitle: newText } })}
@@ -1453,8 +1471,9 @@ export function RenderableComponent({
                 className="mb-6"
                 placeholder="Build amazing websites with drag and drop"
                 isSelected={isSelected}
-                disabled={disabled}
+                disabled={disabled || isPreview}
               />
+
               <Button>
                 <EditableText
                   text={props.buttonText}
@@ -1462,8 +1481,9 @@ export function RenderableComponent({
                   element="span"
                   placeholder="Get Started"
                   isSelected={isSelected}
-                  disabled={disabled}
+                  disabled={disabled || isPreview}
                 />
+
               </Button>
             </div>
           </ResizeHandle>
@@ -1481,7 +1501,9 @@ export function RenderableComponent({
             className="group"
             minWidth={200}
             minHeight={50}
+            disabled={isPreview}
           >
+
             <footer
               id={props.elementId}
               style={{
@@ -1505,8 +1527,9 @@ export function RenderableComponent({
                 element="p"
                 placeholder=" 2024 Your Company"
                 isSelected={isSelected}
-                disabled={disabled}
+                disabled={disabled || isPreview}
               />
+
             </footer>
           </ResizeHandle>
         );
@@ -1721,7 +1744,9 @@ export function RenderableComponent({
             className="group"
             minWidth={300}
             minHeight={150}
+            disabled={isPreview}
           >
+
             <div
               ref={drop as unknown as React.RefObject<HTMLDivElement>}
               id={props.elementId}
@@ -1796,7 +1821,9 @@ export function RenderableComponent({
             className="group"
             minWidth={200}
             minHeight={150}
+            disabled={isPreview}
           >
+
             <div
               id={props.elementId}
               style={{ ...combinedStyle, width: '100%', height: '100%' }}

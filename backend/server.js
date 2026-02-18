@@ -46,14 +46,20 @@ const {
     SUPABASE_CLIENT_SECRET
 } = process.env;
 
+// Redirect for common OAuth URL mistake
+app.get('/v2/oauth/authorize', (req, res) => {
+    console.log('[REDIRECT] User tried to access /v2/oauth/authorize directly. Redirecting to /api/auth/supabase');
+    res.redirect('/api/auth/supabase');
+});
+
 app.get('/api/auth/supabase', (req, res) => {
     const rootUrl = 'https://api.supabase.com/v1/oauth/authorize';
     const options = {
         client_id: SUPABASE_CLIENT_ID,
         redirect_uri: CALLBACK_URL,
         response_type: 'code',
-        scope: 'organizations:read projects:read',
         state: 'optional-custom-state'
+        // Note: 'scope' parameter is deprecated. Scopes are now configured when creating the OAuth app in Supabase dashboard
     };
 
     const qs = new URLSearchParams(options).toString();
@@ -164,7 +170,7 @@ app.get('/api/supabase/schema', async (req, res) => {
 
     try {
         // Fetch OpenAPI spec from PostgREST root
-        const response = await axios.get(`${projectUrl}/rest/v1/?apikey=${anonKey}`, {
+        const response = await axios.get(`${projectUrl}/rest/v2/?apikey=${anonKey}`, {
             headers: { 'Accept': 'application/openapi+json' }
         });
 

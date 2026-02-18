@@ -1,4 +1,4 @@
-export interface Project { 
+export interface Project {
     id: string;
     name: string;
     description: string;
@@ -12,5 +12,8 @@ export interface Project {
     likes?: number;
     status?: 'draft' | 'team' | 'all' | 'trash';
     project_layout?: any[];
+    subdomain?: string;
+    isPublished?: boolean;
+    lastPublishedAt?: string;
 
 }

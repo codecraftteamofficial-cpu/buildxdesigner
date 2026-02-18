@@ -2,13 +2,6 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import Ably from "ably";
-import {
-  Awareness,
-  applyAwarenessUpdate,
-  encodeAwarenessUpdate,
-} from "y-protocols/awareness.js";
-import * as Y from "yjs";
 import type { ComponentData, EditorState } from "../types/editor";
 import { getSupabaseSession } from "../supabase/auth/authService";
 import { supabase } from "../supabase/config/supabaseClient";
@@ -119,19 +112,32 @@ export function useEditorState() {
   const collaboration = useCollaboration({
     setState,
     state,
+    projectSubdomain: undefined,
+    projectIsPublished: undefined,
+    projectLastPublishedAt: undefined,
   });
 
   const {
-    remoteCursors,
+    getOrInitDoc,
+    replaceComponents,
     addComponent,
     updateComponent,
     deleteComponent,
     selectComponent,
     reorderComponent,
     clearCanvas,
-    replaceComponents,
-    getOrInitDoc,
-  } = collaboration;
+    remoteCursors,
+  } = useCollaboration({
+    projectId: state.currentProjectId || "",
+    setState,
+    state,
+    currentProjectId: state.currentProjectId,
+  });
+
+  /*
+   * Removed duplicate Yjs/Awareness useEffect logic (lines 122-143)
+   * as it is now handled by useCollaboration
+   */
 
   // ==================== AUTH ====================
 
@@ -294,6 +300,71 @@ export function useEditorState() {
       localStorage.setItem("fulldev-ai-project-name", state.projectName);
     }
   }, [state.projectName]);
+
+  // ==================== PROJECT LOADING ====================
+
+  useEffect(() => {
+    if (!state.currentProjectId) return;
+
+    (async () => {
+      const { data: urlValidity, error: urlError } = await supabase
+        .from("projects")
+        .select("is_public, user_id")
+        .eq("projects_id", state.currentProjectId)
+        .maybeSingle();
+
+      if (urlError || !urlValidity) {
+        console.error("Project visibility check failed.", urlError);
+
+        // If we can't read visibility, check if we can read the project itself
+        // (owners can read their own projects even if the visibility query fails)
+        const { data: projectCheck } = await supabase
+          .from("projects")
+          .select("is_public, user_id")
+          .eq("projects_id", state.currentProjectId)
+          .maybeSingle();
+
+        if (projectCheck) {
+          // Successfully read project details
+          console.log("Fallback read succeeded:", projectCheck);
+          setState((prev) => ({
+            ...prev,
+            projectIsPublic: !!projectCheck.is_public,
+            projectAuthorId: projectCheck.user_id || null,
+          }));
+        } else {
+          // Can't read anything, treat as private
+          console.log("No access to project");
+          setState((prev) => ({
+            ...prev,
+            projectIsPublic: false,
+            projectAuthorId: null,
+          }));
+        }
+        return;
+      }
+
+      console.log("Visibility check succeeded:", urlValidity);
+      setState((prev) => ({
+        ...prev,
+        projectIsPublic: !!urlValidity?.is_public,
+        projectAuthorId: urlValidity?.user_id || null,
+      }));
+    })();
+  }, [state.currentProjectId]);
+
+  /*
+   * Removed auto-load project logic (lines 359-389)
+   * Removed Ably logic (lines 391-485)
+   * logic handled by useCollaboration
+   */
+
+  // ==================== AUTO-SAVE ====================
+
+  /*
+   * Removed auto-save logic (lines 489-537)
+   * handled by useCollaboration
+   */
 
   // ==================== THEME ====================
 

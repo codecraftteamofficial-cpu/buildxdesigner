@@ -61,6 +61,7 @@ import { PreferencesModal } from "./PreferencesModal"
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal"
 import { ExitConfirmationModal } from "./ExitConfirmationModal"
 import { PublishTemplateModal } from "./PublishTemplateModal"
+import { PublishSiteModal } from "./PublishSiteModal"
 import { AccountSettingsModal } from "./AccountSettingsModal"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
@@ -87,6 +88,7 @@ interface EditorTopBarProps {
   onThemeChange?: (theme: "light" | "dark" | "system") => void
   onManualSave?: () => void
   onPublishTemplate?: (isPublic: boolean) => void
+  currentProject?: any // Added for publish modal
   currentUser?: {
     id: string
     email: string
@@ -115,6 +117,7 @@ export function EditorTopBar({
   onThemeChange,
   onManualSave,
   onPublishTemplate,
+  currentProject,
   currentUser,
   isSupabaseConnected = false,
 }: EditorTopBarProps) {
@@ -129,6 +132,7 @@ export function EditorTopBar({
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
   const [showExitConfirmation, setShowExitConfirmation] = useState(false)
   const [showPublishTemplateModal, setShowPublishTemplateModal] = useState(false)
+  const [showPublishSiteModal, setShowPublishSiteModal] = useState(false)
   const [showShareDropdown, setShowShareDropdown] = useState(false)
   const [shareVisibility, setShareVisibility] = useState<"private" | "anyone">("private")
   const [accessLevel, setAccessLevel] = useState<"edit" | "view">("view")
@@ -268,7 +272,8 @@ export function EditorTopBar({
   }
 
   const handlePublishTemplateClick = () => {
-    setShowPublishTemplateModal(true)
+    // setShowPublishTemplateModal(true) // Old template modal
+    setShowPublishSiteModal(true)
   }
 
   const handlePublishTemplate = (isPublic: boolean) => {
@@ -718,6 +723,14 @@ export function EditorTopBar({
         onClose={() => setShowPublishTemplateModal(false)}
         onPublish={handlePublishTemplate}
         buttonRef={publishButtonRef}
+      />
+      <PublishSiteModal
+        isOpen={showPublishSiteModal}
+        onClose={() => setShowPublishSiteModal(false)}
+        project={currentProject}
+        onPublishSuccess={(url) => {
+
+        }}
       />
 
       {showShareDropdown && (
