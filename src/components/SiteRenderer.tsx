@@ -4,6 +4,7 @@ import { RenderableComponent } from "./RenderableComponent";
 
 interface SiteRendererProps {
     components: ComponentData[];
+    projectId?: string;
     userProjectConfig?: {
         supabaseUrl: string;
         supabaseKey: string;
@@ -14,6 +15,7 @@ interface SiteRendererProps {
 
 export function SiteRenderer({
     components,
+    projectId,
     userProjectConfig,
     backgroundColor = "#ffffff",
 }: SiteRendererProps) {
@@ -38,6 +40,7 @@ export function SiteRenderer({
             >
                 <RenderableComponent
                     component={component}
+                    projectId={projectId}
                     isSelected={false} // Never selected
                     onUpdate={() => { }} // No-op
                     onDelete={() => { }} // No-op

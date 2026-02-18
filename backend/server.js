@@ -200,35 +200,75 @@ app.get('/api/supabase/schema', async (req, res) => {
 // PayMongo Proxy Endpoint
 app.post('/api/paymongo/checkout', async (req, res) => {
     const accessToken = req.headers.authorization?.split(' ')[1];
-    if (!accessToken) return res.status(401).json({ error: "No access token provided" });
-
-    const { amount, description, currency = 'PHP' } = req.body;
+    const { amount, description, currency = 'PHP', projectId } = req.body;
 
     if (!amount) return res.status(400).json({ error: "Amount is required" });
 
     try {
         const supabaseUrl = process.env.SUPABASE_URL || 'https://odswfrqmqbybfkhpemsv.supabase.co';
         const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kc3dmcnFtcWJ5YmZraHBlbXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzc3ODYsImV4cCI6MjA3NDI1Mzc4Nn0.2iHmgFmD7LxXaXcPO2iOHsimgVt2uCVBFHkKCUTVA-E';
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        const userResponse = await axios.get(`${supabaseUrl}/auth/v1/user`, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                apikey: supabaseKey
+        let paymongoKey = null;
+        let customerData = {
+            name: "Customer",
+            email: "customer@example.com"
+        };
+
+        if (accessToken) {
+            // 1. Authenticated Merchant (Preview/Test mode)
+            const userResponse = await axios.get(`${supabaseUrl}/auth/v1/user`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    apikey: supabaseKey
+                }
+            });
+            const userData = userResponse.data;
+            paymongoKey = userData.user_metadata?.paymongo_key;
+            customerData = {
+                name: userData.user_metadata?.full_name || "Customer",
+                email: userData.email || "customer@example.com",
+                phone: userData.phone || userData.user_metadata?.phone
+            };
+        } else if (projectId) {
+            // 2. Anonymous Visitor on Published Site
+            if (!serviceRoleKey) {
+                return res.status(500).json({
+                    error: "Server configuration error: SUPABASE_SERVICE_ROLE_KEY is missing.",
+                    details: "Project owner credentials cannot be looked up for anonymous checkout."
+                });
             }
-        }).catch(async (err) => {
-            throw new Error("Failed to validate user session");
-        });
 
+            // Fetch the project to get the owner (user_id)
+            const projectResponse = await axios.get(`${supabaseUrl}/rest/v1/projects?projects_id=eq.${projectId}&select=user_id`, {
+                headers: {
+                    apikey: serviceRoleKey,
+                    Authorization: `Bearer ${serviceRoleKey}`
+                }
+            });
 
+            if (!projectResponse.data || projectResponse.data.length === 0) {
+                return res.status(404).json({ error: "Project not found" });
+            }
 
+            const userId = projectResponse.data[0].user_id;
 
-        const userData = userResponse.data;
-        console.log("Fetched User Data from Supabase:", JSON.stringify(userData, null, 2));
+            // Fetch the owner's metadata using Service Role (Admin client)
+            const ownerResponse = await axios.get(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+                headers: {
+                    apikey: serviceRoleKey,
+                    Authorization: `Bearer ${serviceRoleKey}`
+                }
+            });
 
-        const paymongoKey = userData.user_metadata?.paymongo_key;
+            const ownerData = ownerResponse.data;
+            paymongoKey = ownerData.user_metadata?.paymongo_key;
+        } else {
+            return res.status(401).json({ error: "Authentication required or projectId must be provided." });
+        }
 
         if (!paymongoKey) {
-            return res.status(400).json({ error: "PayMongo key not found in user account. Please set it in Account Settings." });
+            return res.status(400).json({ error: "PayMongo key not found for this project's owner." });
         }
 
         const isTestMode = paymongoKey.startsWith('sk_test_');
@@ -247,9 +287,9 @@ app.post('/api/paymongo/checkout', async (req, res) => {
             data: {
                 attributes: {
                     billing: {
-                        name: userData.user_metadata?.full_name || "Customer",
-                        email: userData.email || "customer@example.com",
-                        phone: userData.phone || userData.user_metadata?.phone || undefined
+                        name: customerData.name,
+                        email: customerData.email,
+                        phone: customerData.phone || undefined
                     },
                     line_items: [
                         {

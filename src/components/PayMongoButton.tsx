@@ -15,6 +15,7 @@ interface PayMongoButtonProps {
     disabled?: boolean;
     isPreview?: boolean;
     paymentMethodTypes?: string[];
+    projectId?: string;
 }
 
 export function PayMongoButton({
@@ -26,7 +27,8 @@ export function PayMongoButton({
     style,
     disabled,
     isPreview,
-    paymentMethodTypes
+    paymentMethodTypes,
+    projectId
 }: PayMongoButtonProps) {
     const [loading, setLoading] = useState(false);
 
@@ -35,15 +37,14 @@ export function PayMongoButton({
 
         if (disabled) return;
 
-
-
         setLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
-            if (!token) {
-                toast.error("Authentication Error", { description: "You must be logged in (Merchant) to test payments in Preview mode." });
+            // If no token, we ONLY allow if we have a projectId (published site)
+            if (!token && !projectId) {
+                toast.error("Authentication Error", { description: "You must be logged in to test payments in Preview mode." });
                 setLoading(false);
                 return;
             }
@@ -54,13 +55,14 @@ export function PayMongoButton({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({
                     amount,
                     description,
                     currency,
-                    payment_method_types: paymentMethodTypes
+                    payment_method_types: paymentMethodTypes,
+                    projectId
                 })
             });
 

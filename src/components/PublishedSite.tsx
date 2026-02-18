@@ -77,6 +77,7 @@ export function PublishedSite() {
     return (
         <DndProvider backend={HTML5Backend}>
             <SiteRenderer
+                projectId={project.id}
                 components={project.project_layout || []}
                 backgroundColor={project.backgroundColor || "#ffffff"}
             />

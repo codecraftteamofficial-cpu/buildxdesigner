@@ -148,7 +148,8 @@ const DraggableGridItem = ({ id, index, moveItem, children, isPreview }: Draggab
 
 interface RenderableComponentProps {
   component: ComponentData;
-  isSelected: boolean;
+  projectId?: string;
+  isSelected?: boolean;
   onUpdate: (updates: Partial<ComponentData>) => void;
   onDelete: () => void;
   disabled?: boolean;
@@ -163,6 +164,7 @@ interface RenderableComponentProps {
 
 export function RenderableComponent({
   component,
+  projectId,
   isSelected,
   onUpdate,
   onDelete,
@@ -968,6 +970,7 @@ export function RenderableComponent({
             disabled={isPreview}
           >
             <PayMongoButton
+              projectId={projectId}
               label={props.label || "Buy Now"}
               amount={props.amount || 100}
               description={props.description || "Product Purchase"}
