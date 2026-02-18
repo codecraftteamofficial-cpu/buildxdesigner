@@ -33,6 +33,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import { EditorLayout } from "./components/EditorLayout";
 import { GetOut } from "./components/UnexpectedEntry/UnexpectedEntry";
 import LoginAuthSessionChecker from "./services/useAuthenticator";
+import { CollaborationServiceProvider } from "./services/useCollaboration";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";

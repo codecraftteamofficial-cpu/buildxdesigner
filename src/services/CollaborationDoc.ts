@@ -10,7 +10,7 @@ export function initializeCollaborationDoc(
   const ydocRef = useRef<Y.Doc | null>(null);
   const yComponentsRef = useRef<Y.Array<ComponentData> | null>(null);
   const awarenessRef = useRef<Awareness | null>(null);
-  const localChangeRef = useRef(false);
+  const localChangeRef = { current: false };
 
   const getOrInitDoc = () => {
     if (!ydocRef.current) {
@@ -115,6 +115,12 @@ export function initializeCollaborationDoc(
     }));
   };
 
+  const consumeLocalChangeFlag = () => {
+    const localChange = localChangeRef.current;
+    localChangeRef.current = false;
+    return localChange;
+  };
+
   return {
     getOrInitDoc,
     replaceComponents,
@@ -124,5 +130,6 @@ export function initializeCollaborationDoc(
     selectComponent,
     reorderComponent,
     clearCanvas,
+    consumeLocalChangeFlag,
   };
 }

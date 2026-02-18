@@ -4,9 +4,7 @@ import {
   encodeAwarenessUpdate,
   applyAwarenessUpdate,
 } from "y-protocols/awareness";
-import type { ComponentData, EditorState } from "../types/editor";
-import type React from "react";
-import { useRef, useEffect } from "react";
+import Ably from "ably";
 
 const encodeUpdate = (update: Uint8Array) =>
   btoa(String.fromCharCode(...Array.from(update)));
@@ -22,7 +20,7 @@ export function initializeCollaborationTransport(
 ): () => void {
   const client = new Ably.Realtime({
     key: ablyKey,
-    clientId: clientIdRef.current,
+    clientId: `anon-${Math.random().toString(36).slice(2, 10)}`,
   });
   const channel = client.channels.get(`collab:${roomId}`);
 
@@ -88,7 +86,7 @@ export function initializeCollaborationTransport(
   channel.subscribe("yjs-request-sync", handleSyncRequest as any);
   channel.subscribe("yjs-awareness", handleRemoteAwareness as any);
 
-  channel.publish("yjs-request-sync", { clientId: clientIdRef.current });
+  channel.publish("yjs-request-sync", { clientId: client.clientId });
 
   return () => {
     if (updateTimeout) clearTimeout(updateTimeout);

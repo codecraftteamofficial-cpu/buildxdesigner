@@ -109,14 +109,6 @@ export function useEditorState() {
     projectAuthorId: null,
   });
 
-  const collaboration = useCollaboration({
-    setState,
-    state,
-    projectSubdomain: undefined,
-    projectIsPublished: undefined,
-    projectLastPublishedAt: undefined,
-  });
-
   const {
     getOrInitDoc,
     replaceComponents,
@@ -132,12 +124,10 @@ export function useEditorState() {
     setState,
     state,
     currentProjectId: state.currentProjectId,
+    projectSubdomain: state.projectSubdomain,
+    projectIsPublished: state.projectIsPublished,
+    projectLastPublishedAt: state.projectLastPublishedAt,
   });
-
-  /*
-   * Removed duplicate Yjs/Awareness useEffect logic (lines 122-143)
-   * as it is now handled by useCollaboration
-   */
 
   // ==================== AUTH ====================
 
