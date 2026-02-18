@@ -14,14 +14,14 @@ interface AuthOperationResult {
 export async function initiateGoogleSignIn(redirectPath: string = '/dashboard'): Promise<AuthOperationResult> {
 
     const baseUrl = window.location.origin;
-    
-    const fullRedirectUrl = baseUrl + redirectPath;
 
+    const fullRedirectUrl = baseUrl + redirectPath;
+    console.log('[Auth Debug] Redirecting to:', fullRedirectUrl);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google' as SupabaseProvider, 
+        provider: 'google' as SupabaseProvider,
         options: {
-            redirectTo: fullRedirectUrl, 
+            redirectTo: fullRedirectUrl,
         },
     });
 
@@ -36,14 +36,14 @@ export async function initiateGoogleSignIn(redirectPath: string = '/dashboard'):
 
 // Function for Email Sign-Up
 export async function signUpWithEmail(email: string, password: string, name: string = ''): Promise<AuthOperationResult> {
-    
+
     const userData = name ? { full_name: name } : {};
 
     const { data, error } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
-            data: userData, 
+            data: userData,
         }
     });
 
@@ -53,9 +53,9 @@ export async function signUpWithEmail(email: string, password: string, name: str
     }
 
     if (data.user && !data.session) {
-        return { 
-            success: true, 
-            message: 'Sign-up successful! Check your email to confirm your account.' 
+        return {
+            success: true,
+            message: 'Sign-up successful! Check your email to confirm your account.'
         };
     }
 
@@ -81,9 +81,9 @@ export async function signInWithEmail(email: string, password: string): Promise<
 
 // Function to send the OTP (verification code)
 export async function sendPhoneOtp(phone: string, type: 'signup' | 'signin'): Promise<AuthOperationResult> {
-    
+
     const shouldCreate = type === 'signup';
-    
+
     const { error } = await supabase.auth.signInWithOtp({
         phone: phone,
         options: {

@@ -221,11 +221,11 @@ app.post('/api/paymongo/checkout', async (req, res) => {
 
 
 
-        const tokenParts = accessToken.split('.');
-        if (tokenParts.length !== 3) return res.status(400).json({ error: "Invalid token format" });
 
-        const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-        const paymongoKey = payload.user_metadata?.paymongo_key;
+        const userData = userResponse.data;
+        console.log("Fetched User Data from Supabase:", JSON.stringify(userData, null, 2));
+
+        const paymongoKey = userData.user_metadata?.paymongo_key;
 
         if (!paymongoKey) {
             return res.status(400).json({ error: "PayMongo key not found in user account. Please set it in Account Settings." });
@@ -247,9 +247,9 @@ app.post('/api/paymongo/checkout', async (req, res) => {
             data: {
                 attributes: {
                     billing: {
-                        name: payload.user_metadata?.full_name || "Customer",
-                        email: payload.email || "customer@example.com",
-                        phone: payload.phone || payload.user_metadata?.phone || undefined
+                        name: userData.user_metadata?.full_name || "Customer",
+                        email: userData.email || "customer@example.com",
+                        phone: userData.phone || userData.user_metadata?.phone || undefined
                     },
                     line_items: [
                         {
@@ -336,4 +336,7 @@ const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Environment: ${isProd ? 'Production' : 'Development'}`);
+    console.log(`FRONTEND_URL: ${FRONTEND_URL}`);
+    console.log(`CALLBACK_URL: ${CALLBACK_URL}`);
 });
