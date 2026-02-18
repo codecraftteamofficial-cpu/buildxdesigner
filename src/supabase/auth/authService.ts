@@ -15,7 +15,13 @@ export async function initiateGoogleSignIn(redirectPath: string = '/dashboard'):
 
     const baseUrl = window.location.origin;
 
-    const fullRedirectUrl = baseUrl + redirectPath;
+    // Explicitly force the production URL if we are on the production domain
+    // This handles cases where baseUrl might be slightly off or we just want to be 100% sure
+    let fullRedirectUrl = baseUrl + redirectPath;
+    if (baseUrl.includes('buildxdesigner.site') || baseUrl.includes('buildxdesigner.duckdns.org')) {
+        fullRedirectUrl = 'https://buildxdesigner.site' + redirectPath;
+    }
+
     console.log('[Auth Debug] Redirecting to:', fullRedirectUrl);
 
     const { data, error } = await supabase.auth.signInWithOAuth({

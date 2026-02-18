@@ -34,11 +34,11 @@ app.use((req, res, next) => {
 const isProd = process.env.NODE_ENV === 'production';
 
 const FRONTEND_URL = isProd
-    ? process.env.PROD_FRONTEND_URL
+    ? 'https://buildxdesigner.site'
     : process.env.LOCAL_FRONTEND_URL;
 
 const CALLBACK_URL = isProd
-    ? process.env.PROD_CALLBACK_URL
+    ? 'https://buildxdesigner.duckdns.org/api/auth/callback'
     : process.env.LOCAL_CALLBACK_URL;
 
 const {
