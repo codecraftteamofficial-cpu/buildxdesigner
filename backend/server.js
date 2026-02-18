@@ -262,8 +262,8 @@ app.post('/api/paymongo/checkout', async (req, res) => {
                         }
                     ],
                     payment_method_types: paymentMethodTypes,
-                    success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/success`,
-                    cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/cancel`,
+                    success_url: `${FRONTEND_URL}/success`,
+                    cancel_url: `${FRONTEND_URL}/cancel`,
                     send_email_receipt: true,
                     show_description: true,
                     show_line_items: true,
