@@ -689,15 +689,26 @@ export function RenderableComponent({
                   return true;
                 `);
                 return handlerFn(event, componentProps);
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Error executing action handler:', error);
+                if (isPreview) {
+                  toast.error("Custom Script Error", {
+                    description: error.message
+                  });
+                }
                 return false;
               }
             }
 
             return false;
-          } catch (error) {
+          } catch (error: any) {
             console.error('Error executing action:', error);
+            // Show toast error in preview mode so user knows something failed
+            if (isPreview) {
+              toast.error("Action Execution Failed", {
+                description: error.message || "An error occurred while running the action."
+              });
+            }
             return false;
           }
         };

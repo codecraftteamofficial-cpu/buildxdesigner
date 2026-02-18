@@ -12,6 +12,7 @@ export interface Project {
     likes?: number;
     status?: 'draft' | 'team' | 'all' | 'trash';
     project_layout?: any[];
+    published_layout?: any[];
     subdomain?: string;
     isPublished?: boolean;
     lastPublishedAt?: string;

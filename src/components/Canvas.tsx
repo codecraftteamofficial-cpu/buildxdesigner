@@ -508,7 +508,11 @@ export function Canvas({
   );
 
   // Save components to localStorage and debounce-persist to Supabase whenever they change
+  // Save components to localStorage and debounce-persist to Supabase whenever they change
   useEffect(() => {
+    // DO NOT save to local storage or DB if in readOnly mode (e.g. published site view)
+    if (readOnly) return;
+
     try {
       if (projectId) {
         setLocalProjectCache(projectId, {
@@ -546,11 +550,12 @@ export function Canvas({
         if (syncError) {
           console.error("Autosave components failed:", syncError);
         } else {
-          // Also save metadata (name, etc)
+          // Also save metadata (name, etc) AND the JSON layout for fetchProjectById compatibility
           await saveProjectMetadata({
             id: projectId,
             name: projectName,
             user_id,
+            project_layout: components, // Pass the layout to be saved to the JSON column
           });
         }
       } catch (e) {
@@ -563,7 +568,7 @@ export function Canvas({
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [components, projectId, projectName]);
+  }, [components, projectId, projectName, readOnly]);
 
   // Load components from localStorage on initial render
   useEffect(() => {

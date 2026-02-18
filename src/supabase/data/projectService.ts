@@ -199,6 +199,7 @@ export async function saveProjectMetadata(metadata: {
   description?: string;
   thumbnail?: string;
   user_id: string;
+  project_layout?: any[];
 }): Promise<{ error: any }> {
   try {
     const payload: any = {
@@ -210,6 +211,8 @@ export async function saveProjectMetadata(metadata: {
       payload.description = metadata.description;
     if (metadata.thumbnail !== undefined)
       payload.thumbnail = metadata.thumbnail;
+    if (metadata.project_layout !== undefined)
+      payload.project_layout = metadata.project_layout;
 
     const { error } = await supabase
       .from("projects")
@@ -367,12 +370,19 @@ export async function publishProject(
       return { url: null, error: "Subdomain is already taken." };
     }
 
+    const { data: currentProject, error: fetchError } = await fetchProjectById(projectId);
+
+    if (fetchError || !currentProject) {
+      return { url: null, error: fetchError || "Project not found" };
+    }
+
     const { error: updateError } = await supabase
       .from("projects")
       .update({
         subdomain: subdomain,
         is_published: true,
         last_published_at: new Date().toISOString(),
+        published_layout: currentProject.project_layout, // Save snapshot of current layout
       })
       .eq("projects_id", projectId)
       .eq("user_id", user.id);
@@ -394,7 +404,7 @@ export async function fetchProjectBySubdomain(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, published_layout, subdomain, is_published, last_published_at",
       )
       .eq("subdomain", subdomain)
       .eq("is_published", true)
@@ -410,7 +420,7 @@ export async function fetchProjectBySubdomain(
       lastModified: data.last_modified,
       type: data.type as Project["type"],
       status: data.status as Project["status"],
-      project_layout: data.project_layout || [],
+      project_layout: data.published_layout || data.project_layout || [],
       subdomain: data.subdomain,
       isPublished: data.is_published,
       lastPublishedAt: data.last_published_at,
