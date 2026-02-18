@@ -109,14 +109,6 @@ export function useEditorState() {
     projectAuthorId: null,
   });
 
-  const collaboration = useCollaboration({
-    setState,
-    state,
-    projectSubdomain: undefined,
-    projectIsPublished: undefined,
-    projectLastPublishedAt: undefined,
-  });
-
   const {
     getOrInitDoc,
     replaceComponents,
@@ -132,12 +124,10 @@ export function useEditorState() {
     setState,
     state,
     currentProjectId: state.currentProjectId,
+    projectSubdomain: state.projectSubdomain,
+    projectIsPublished: state.projectIsPublished,
+    projectLastPublishedAt: state.projectLastPublishedAt,
   });
-
-  /*
-   * Removed duplicate Yjs/Awareness useEffect logic (lines 122-143)
-   * as it is now handled by useCollaboration
-   */
 
   // ==================== AUTH ====================
 
@@ -305,66 +295,102 @@ export function useEditorState() {
 
   useEffect(() => {
     if (!state.currentProjectId) return;
+    if (state.currentView !== "editor") return;
+
+    let isCancelled = false;
+    const requestedProjectId = state.currentProjectId;
+
+    const timeoutId = window.setTimeout(() => {
+      if (isCancelled) return;
+      setState((prev) => {
+        if (
+          prev.currentProjectId !== requestedProjectId ||
+          prev.projectIsPublic !== null
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          projectIsPublic: false,
+          projectAuthorId: null,
+        };
+      });
+    }, 8000);
 
     (async () => {
-      const { data: urlValidity, error: urlError } = await supabase
-        .from("projects")
-        .select("is_public, user_id")
-        .eq("projects_id", state.currentProjectId)
-        .maybeSingle();
-
-      if (urlError || !urlValidity) {
-        console.error("Project visibility check failed.", urlError);
-
-        // If we can't read visibility, check if we can read the project itself
-        // (owners can read their own projects even if the visibility query fails)
-        const { data: projectCheck } = await supabase
+      try {
+        const { data: urlValidity, error: urlError } = await supabase
           .from("projects")
           .select("is_public, user_id")
-          .eq("projects_id", state.currentProjectId)
+          .eq("projects_id", requestedProjectId)
           .maybeSingle();
 
-        if (projectCheck) {
-          // Successfully read project details
-          console.log("Fallback read succeeded:", projectCheck);
-          setState((prev) => ({
+        if (isCancelled) return;
+
+        if (urlError || !urlValidity) {
+          console.error("Project visibility check failed.", urlError);
+
+          // If we can't read visibility, check if we can read the project itself
+          const { data: projectCheck } = await supabase
+            .from("projects")
+            .select("is_public, user_id")
+            .eq("projects_id", requestedProjectId)
+            .maybeSingle();
+
+          if (isCancelled) return;
+
+          if (projectCheck) {
+            setState((prev) => {
+              if (prev.currentProjectId !== requestedProjectId) return prev;
+              return {
+                ...prev,
+                projectIsPublic: !!projectCheck.is_public,
+                projectAuthorId: projectCheck.user_id || null,
+              };
+            });
+          } else {
+            setState((prev) => {
+              if (prev.currentProjectId !== requestedProjectId) return prev;
+              return {
+                ...prev,
+                projectIsPublic: false,
+                projectAuthorId: null,
+              };
+            });
+          }
+          return;
+        }
+
+        setState((prev) => {
+          if (prev.currentProjectId !== requestedProjectId) return prev;
+          return {
             ...prev,
-            projectIsPublic: !!projectCheck.is_public,
-            projectAuthorId: projectCheck.user_id || null,
-          }));
-        } else {
-          // Can't read anything, treat as private
-          console.log("No access to project");
-          setState((prev) => ({
+            projectIsPublic: !!urlValidity?.is_public,
+            projectAuthorId: urlValidity?.user_id || null,
+          };
+        });
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("Unexpected visibility check error:", error);
+        setState((prev) => {
+          if (prev.currentProjectId !== requestedProjectId) return prev;
+          return {
             ...prev,
             projectIsPublic: false,
             projectAuthorId: null,
-          }));
-        }
-        return;
+          };
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
       }
-
-      console.log("Visibility check succeeded:", urlValidity);
-      setState((prev) => ({
-        ...prev,
-        projectIsPublic: !!urlValidity?.is_public,
-        projectAuthorId: urlValidity?.user_id || null,
-      }));
     })();
-  }, [state.currentProjectId]);
 
-  /*
-   * Removed auto-load project logic (lines 359-389)
-   * Removed Ably logic (lines 391-485)
-   * logic handled by useCollaboration
-   */
-
-  // ==================== AUTO-SAVE ====================
-
-  /*
-   * Removed auto-save logic (lines 489-537)
-   * handled by useCollaboration
-   */
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [state.currentProjectId, state.currentView, setState]);
 
   // ==================== THEME ====================
 
@@ -468,6 +494,8 @@ export function useEditorState() {
       currentView: "dashboard",
       currentPage: "dashboard",
       currentProjectId: null,
+      projectIsPublic: null,
+      projectAuthorId: null,
     }));
   const goToAdminLogin = () =>
     setState((prev) => ({
@@ -498,12 +526,13 @@ export function useEditorState() {
   };
 
   const openProject = (projectId: string, projectName?: string) => {
-    replaceComponents([], false);
     setState((prev) => ({
       ...prev,
       currentView: "editor",
       currentPage: "editor",
       currentProjectId: projectId,
+      projectIsPublic: null,
+      projectAuthorId: null,
       projectName: projectName ?? "Untitled Project",
       selectedComponent: null,
       hasUnsavedChanges: false,

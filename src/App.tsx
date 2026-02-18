@@ -33,6 +33,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import { EditorLayout } from "./components/EditorLayout";
 import { GetOut } from "./components/UnexpectedEntry/UnexpectedEntry";
 import LoginAuthSessionChecker from "./services/useAuthenticator";
+import { CollaborationServiceProvider } from "./services/useCollaboration";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -96,8 +97,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     authorId?: string,
   ) => {
     openProject(projectId, projectName);
-    const isAuthor = state.currentUser?.id === authorId;
-    const itShouldGoPrivate = isPublic === false && !isAuthor;
+    const itShouldGoPrivate = isPublic === false;
     const targetPath = projectId
       ? `/editor/${projectId}${itShouldGoPrivate ? "/private" : ""}`
       : "/editor";
@@ -113,8 +113,29 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     }
   };
 
-  const routeMatch = matchPath("/editor/:projectId/*", location.pathname);
-  const routeProjectId = routeMatch?.params?.projectId ?? null;
+  const routeMatch =
+    matchPath("/editor/:projectId/*", location.pathname) ||
+    matchPath("/editor/:projectId", location.pathname);
+  const matchedProjectId = routeMatch?.params?.projectId ?? null;
+  const routeProjectId =
+    matchedProjectId && matchedProjectId !== "private"
+      ? matchedProjectId
+      : null;
+
+  useEffect(() => {
+    if (location.pathname !== "/editor/private") return;
+
+    const fallbackProjectId =
+      state.currentProjectId ||
+      localStorage.getItem("fulldev-ai-current-project-id");
+
+    if (fallbackProjectId && fallbackProjectId !== "private") {
+      navigate(`/editor/${fallbackProjectId}/private`, { replace: true });
+      return;
+    }
+
+    navigate("/editor", { replace: true });
+  }, [location.pathname, navigate, state.currentProjectId]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -168,22 +189,21 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     if (state.projectIsPublic === null) return;
 
     const isPrivate = state.projectIsPublic === false;
-    const isAuthor = state.currentUser?.id === state.projectAuthorId;
     const targetPath = `/editor/${routeProjectId}/private`;
+    const basePath = `/editor/${routeProjectId}`;
 
-    const isBaseEditorPath = location.pathname === `/editor/${routeProjectId}`;
+    const isBaseEditorPath = location.pathname === basePath;
+    const isPrivatePath = location.pathname === targetPath;
 
-    if (isPrivate && !isAuthor && isBaseEditorPath) {
+    if (isPrivate && !isPrivatePath) {
       navigate(targetPath, { replace: true });
+      return;
     }
-  }, [
-    routeProjectId,
-    state.projectIsPublic,
-    state.currentUser,
-    state.projectAuthorId,
-    location.pathname,
-    navigate,
-  ]);
+
+    if (!isPrivate && isPrivatePath) {
+      navigate(basePath, { replace: true });
+    }
+  }, [routeProjectId, state.projectIsPublic, location.pathname, navigate]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -209,9 +229,15 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       if (
         viewFromPath === "editor" &&
         routeProjectId &&
-        routeProjectId !== prev.currentProjectId
+        (routeProjectId !== prev.currentProjectId ||
+          prev.currentView !== "editor")
       ) {
-        next = { ...next, currentProjectId: routeProjectId };
+        next = {
+          ...next,
+          currentProjectId: routeProjectId,
+          projectIsPublic: null,
+          projectAuthorId: null,
+        };
         changed = true;
       }
 
