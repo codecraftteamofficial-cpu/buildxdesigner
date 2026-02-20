@@ -178,57 +178,13 @@ export function EditorTopBar({
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  useEffect(() => {
-    // Try to load if we have a token, regardless of the prop status (handles manual reconnects/local dev)
-    const token = localStorage.getItem("supabase_integration_token");
-    if (token) {
-      setIsLoadingSupabase(true)
-      const hostname = window.location.hostname
-      const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
-      const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
-
-      Promise.all([
-        fetch(`${backendBase}/api/supabase/organizations`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then((res) => {
-          if (!res.ok) throw new Error("Failed to fetch organizations");
-          return res.json();
-        }),
-        fetch(`${backendBase}/api/supabase/projects`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then((res) => {
-          if (!res.ok) throw new Error("Failed to fetch projects");
-          return res.json();
-        }),
-      ])
-        .then(([orgsData, projectsData]) => {
-          // Robust data handling: check if array, or if wrapped in 'data' or 'items'
-          const orgs = Array.isArray(orgsData)
-            ? orgsData
-            : Array.isArray(orgsData?.data)
-              ? orgsData.data
-              : [];
-          const projs = Array.isArray(projectsData)
-            ? projectsData
-            : Array.isArray(projectsData?.data)
-              ? projectsData.data
-              : [];
-
-          setOrganizations(orgs);
-          setSupabaseProjects(projs);
-
-          // Auto-select first org if none selected
-          if (orgs.length > 0 && !selectedOrgId) {
-            setSelectedOrgId(orgs[0].id);
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to fetch Supabase data:", err);
-          // Optionally clear invalid token if 401
-        })
-        .finally(() => setIsLoadingSupabase(false));
+  // Fetch data only when the popover is opened
+  const handleOpenPopover = (open: boolean) => {
+    if (open && organizations.length === 0 && !isLoadingSupabase) {
+      handleRefreshSupabaseData();
     }
-  }, [isSupabaseConnected]); // Keep dependency to retry if connection status changes
+  };
+
 
   const handleRefreshSupabaseData = () => {
     const token = localStorage.getItem("supabase_integration_token");
@@ -242,10 +198,20 @@ export function EditorTopBar({
     Promise.all([
       fetch(`${backendBase}/api/supabase/organizations`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then((res) => res.json()),
+      }).then((res) => {
+        if (res.status === 401 || res.status === 500) {
+          localStorage.removeItem("supabase_integration_token");
+          throw new Error("Invalid or expired integration token");
+        }
+        if (!res.ok) throw new Error("Failed to fetch organizations");
+        return res.json();
+      }),
       fetch(`${backendBase}/api/supabase/projects`, {
         headers: { Authorization: `Bearer ${token}` },
-      }).then((res) => res.json()),
+      }).then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch projects");
+        return res.json();
+      }),
     ])
       .then(([orgsData, projectsData]) => {
         const orgs = Array.isArray(orgsData)
@@ -263,6 +229,13 @@ export function EditorTopBar({
         setSupabaseProjects(projs);
         if (orgs.length > 0 && !selectedOrgId) {
           setSelectedOrgId(orgs[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to refresh Supabase data:", err);
+        if (err.message === "Invalid or expired integration token") {
+          toast.error("Supabase integration session expired. Please reconnect.");
+          setSupabaseIntegrationToken(null);
         }
       })
       .finally(() => setIsLoadingSupabase(false));
@@ -537,8 +510,8 @@ export function EditorTopBar({
                 size="sm"
                 onClick={() => onViewModeChange("design")}
                 className={`h-8 px-3 rounded transition-all ${viewMode === "design"
-                    ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
                   }`}
               >
                 <Eye className="w-4 h-4" />
@@ -554,8 +527,8 @@ export function EditorTopBar({
                 size="sm"
                 onClick={() => onViewModeChange("code")}
                 className={`h-8 px-3 rounded transition-all ${viewMode === "code"
-                    ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                  ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
                   }`}
               >
                 <Code className="w-4 h-4" />
@@ -578,7 +551,7 @@ export function EditorTopBar({
         {(isSupabaseConnected ||
           localStorage.getItem("supabase_integration_token")) && (
             <>
-              <Popover>
+              <Popover onOpenChange={handleOpenPopover}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={

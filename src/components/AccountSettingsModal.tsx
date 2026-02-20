@@ -81,6 +81,7 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
     const [isPasswordChanging, setIsPasswordChanging] = useState(false);
 
     const [isConnectingSupabase, setIsConnectingSupabase] = useState(false);
+    const [isDisconnectingSupabase, setIsDisconnectingSupabase] = useState(false);
 
     // --- Data Fetching Effect ---
     useEffect(() => {
@@ -111,6 +112,19 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
             setIsLoading(false);
         }
         loadProfile();
+    }, [isOpen]);
+
+    // Safety effect to ensure pointer events are restored when dialog closes abruptly
+    useEffect(() => {
+        if (!isOpen) {
+            // Force remove Radix UI locks
+            document.body.style.pointerEvents = '';
+            document.body.removeAttribute('data-scroll-locked');
+        }
+        return () => {
+            document.body.style.pointerEvents = '';
+            document.body.removeAttribute('data-scroll-locked');
+        };
     }, [isOpen]);
 
     // Check if the user is a social login user (e.g., 'google', 'github', 'discord')
@@ -231,8 +245,22 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
 
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden p-0">
+        <Dialog open={isOpen} onOpenChange={(open) => {
+            if (!open) {
+                // Force remove Radix UI locks immediately on close request
+                document.body.style.pointerEvents = '';
+                document.body.removeAttribute('data-scroll-locked');
+                onClose();
+            }
+        }}>
+            <DialogContent
+                className="max-w-3xl max-h-[85vh] overflow-hidden p-0"
+                onInteractOutside={(e) => {
+                    // Prevent default Radix behavior that might re-lock the screen
+                    document.body.style.pointerEvents = '';
+                    document.body.removeAttribute('data-scroll-locked');
+                }}
+            >
                 <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
                     <DialogTitle>Account Settings</DialogTitle>
                     <DialogDescription className="sr-only">
@@ -675,23 +703,39 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
                                                                 variant="destructive"
                                                                 size="sm"
                                                                 className="shrink-0"
-                                                                onClick={async () => {
-                                                                    const { data: { user } } = await supabase.auth.getUser();
-                                                                    if (user) {
-                                                                        await supabase
-                                                                            .from("profiles")
-                                                                            .update({ isConnected: 0 })
-                                                                            .eq("user_id", user.id);
-                                                                    }
-                                                                    // Clear local storage items related to Supabase
-                                                                    localStorage.removeItem("supabase_integration_token");
-                                                                    localStorage.removeItem("target_supabase_url");
-                                                                    localStorage.removeItem("target_supabase_key");
+                                                                disabled={isDisconnectingSupabase}
+                                                                onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setIsDisconnectingSupabase(true);
+                                                                    try {
+                                                                        const { data: { user } } = await supabase.auth.getUser();
+                                                                        if (user) {
+                                                                            await supabase
+                                                                                .from("profiles")
+                                                                                .update({ isConnected: 0 })
+                                                                                .eq("user_id", user.id);
+                                                                        }
+                                                                        // Clear local storage items related to Supabase
+                                                                        localStorage.removeItem("supabase_integration_token");
+                                                                        localStorage.removeItem("target_supabase_url");
+                                                                        localStorage.removeItem("target_supabase_key");
 
-                                                                    window.location.reload();
+                                                                        window.location.reload();
+                                                                    } catch (err) {
+                                                                        console.error("Failed to disconnect:", err);
+                                                                        setIsDisconnectingSupabase(false);
+                                                                    }
                                                                 }}
                                                             >
-                                                                Disconnect
+                                                                {isDisconnectingSupabase ? (
+                                                                    <>
+                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                        Disconnecting...
+                                                                    </>
+                                                                ) : (
+                                                                    "Disconnect"
+                                                                )}
                                                             </Button>
                                                         ) : (
                                                             <Button
@@ -726,7 +770,13 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
 
                     {/* Footer Actions */}
                     <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
-                        <Button variant="outline" onClick={onClose}>
+                        <Button variant="outline" onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.body.style.pointerEvents = '';
+                            document.body.removeAttribute('data-scroll-locked');
+                            onClose();
+                        }}>
                             Close
                         </Button>
                         <Button

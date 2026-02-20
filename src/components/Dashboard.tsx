@@ -238,16 +238,16 @@ export function Dashboard({
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-        const { error } = await supabase
-          .from("profiles")
-          .update({ isConnected: 1 })
-          .eq("user_id", user.id);
+          const { error } = await supabase
+            .from("profiles")
+            .update({ isConnected: 1 })
+            .eq("user_id", user.id);
 
-        if (error) {
-          console.error("❌ Failed to update connection status:", error);
-        } else {
-          console.log("✅ Deferred Supabase Connection Update Complete");
-        }
+          if (error) {
+            console.error("❌ Failed to update connection status:", error);
+          } else {
+            console.log("✅ Deferred Supabase Connection Update Complete");
+          }
         }
       })();
     }
@@ -260,7 +260,10 @@ export function Dashboard({
 
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
+    let mounted = true;
+
     const loadUserData = async () => {
+      if (!mounted) return;
       setAuthLoading(true);
       setAuthError(null);
 
@@ -268,9 +271,13 @@ export function Dashboard({
         data: { session },
       } = await getSupabaseSession();
 
+      if (!mounted) return;
+
       if (session?.user) {
         const { data: fullProfile, error: profileError } =
           await fetchUserProfile();
+
+        if (!mounted) return;
 
         if (profileError || !fullProfile) {
           const user = session.user;
@@ -299,46 +306,55 @@ export function Dashboard({
       setAuthLoading(false);
     };
 
+    loadUserData();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
       if (session?.user || event === "SIGNED_OUT" || event === "USER_UPDATED") {
         loadUserData();
       }
     });
 
-    loadUserData();
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [onLogout]);
 
-  useEffect(
-    () => {
-      const loadUserProjects = async () => {
-        setProjectsLoading(true);
-        setProjectsError(null);
+  useEffect(() => {
+    let mounted = true;
+    const loadUserProjects = async () => {
+      if (!mounted) return;
+      setProjectsLoading(true);
+      setProjectsError(null);
 
-        const { data, error } = await fetchUserProjects();
+      const { data, error } = await fetchUserProjects();
 
-        if (error) {
-          console.error("Failed to load user projects:", error);
-          setProjectsError("Failed to load projects. Please try again.");
-          setProjects([]);
-        } else if (data) {
-          setProjects(data);
-        }
+      if (!mounted) return;
 
-        setProjectsLoading(false);
-      };
+      if (error) {
+        console.error("Failed to load user projects:", error);
+        setProjectsError("Failed to load projects. Please try again.");
+        setProjects([]);
+      } else if (data) {
+        setProjects(data);
+      }
 
+      setProjectsLoading(false);
+    };
+
+    // Only load projects if the user's profile has been fetched (i.e. we have their email/fullName)
+    // This avoids fetching projects immediately before we even know if they are logged in.
+    if (profileData.email) {
       loadUserProjects();
-    },
-    [
-      /* Add dependencies that trigger project reload, e.g., active user ID from profileData */
-    ],
-  );
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [profileData.email]);
 
   // --- AUTH LOGOUT HANDLER ---
   const handleLogout = async () => {
@@ -1517,11 +1533,10 @@ export function Dashboard({
           <nav className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "new-chat"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>New chat</span>
@@ -1530,11 +1545,10 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "drafts"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Folder className="w-4 h-4" />
               <span>Drafts</span>
@@ -1548,11 +1562,10 @@ export function Dashboard({
             {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "all"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Layout className="w-4 h-4" />
               <span>All projects</span>
@@ -1561,11 +1574,10 @@ export function Dashboard({
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "trash"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Trash2 className="w-4 h-4" />
               <span>Trash</span>
