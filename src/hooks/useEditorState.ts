@@ -107,6 +107,9 @@ export function useEditorState() {
     userProjectConfig: getInitialUserProjectConfig(),
     projectIsPublic: null,
     projectAuthorId: null,
+    projectSubdomain: undefined as string | undefined,
+    projectIsPublished: undefined as boolean | undefined,
+    projectLastPublishedAt: undefined as string | undefined,
   });
 
   const {
@@ -322,7 +325,7 @@ export function useEditorState() {
       try {
         const { data: urlValidity, error: urlError } = await supabase
           .from("projects")
-          .select("is_public, user_id")
+          .select("is_public, user_id, subdomain, is_published, last_published_at")
           .eq("projects_id", requestedProjectId)
           .maybeSingle();
 
@@ -334,7 +337,7 @@ export function useEditorState() {
           // If we can't read visibility, check if we can read the project itself
           const { data: projectCheck } = await supabase
             .from("projects")
-            .select("is_public, user_id")
+            .select("is_public, user_id, subdomain, is_published, last_published_at")
             .eq("projects_id", requestedProjectId)
             .maybeSingle();
 
@@ -347,6 +350,9 @@ export function useEditorState() {
                 ...prev,
                 projectIsPublic: !!projectCheck.is_public,
                 projectAuthorId: projectCheck.user_id || null,
+                projectSubdomain: projectCheck.subdomain || undefined,
+                projectIsPublished: !!projectCheck.is_published,
+                projectLastPublishedAt: projectCheck.last_published_at || undefined,
               };
             });
           } else {
@@ -368,6 +374,9 @@ export function useEditorState() {
             ...prev,
             projectIsPublic: !!urlValidity?.is_public,
             projectAuthorId: urlValidity?.user_id || null,
+            projectSubdomain: urlValidity?.subdomain || undefined,
+            projectIsPublished: !!urlValidity?.is_published,
+            projectLastPublishedAt: urlValidity?.last_published_at || undefined,
           };
         });
       } catch (error) {

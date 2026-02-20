@@ -341,6 +341,25 @@ export async function deleteComponentFromDb(
   }
 }
 
+export async function checkSubdomainAvailability(
+  subdomain: string,
+  currentProjectId: string,
+): Promise<{ available: boolean; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .select("projects_id")
+      .eq("subdomain", subdomain)
+      .neq("projects_id", currentProjectId)
+      .maybeSingle();
+
+    if (error) return { available: false, error };
+    return { available: !data, error: null };
+  } catch (err) {
+    return { available: false, error: err };
+  }
+}
+
 export async function publishProject(
   projectId: string,
   subdomain: string,

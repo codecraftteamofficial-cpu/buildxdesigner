@@ -12,6 +12,11 @@ import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
 interface CodeViewEditorProps {
   components: ComponentData[]
   projectName?: string
+  userProjectConfig?: {
+    supabaseUrl: string
+    supabaseKey: string
+  }
+  onCodeChange?: (newComponents: ComponentData[]) => void
 }
 
 interface FileNode {
@@ -58,11 +63,11 @@ const camelToKebab = (str: string): string => {
 // Helper function to extract and format CSS properties
 const extractStyles = (style: Record<string, any> = {}): string => {
   const cssProperties: Record<string, string> = {}
-  
+
   Object.entries(style).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       const kebabKey = camelToKebab(key)
-      
+
       // Handle numeric values that need px
       if (typeof value === 'number' && !['opacity', 'zIndex', 'fontWeight', 'lineHeight', 'flex', 'order'].includes(key)) {
         cssProperties[kebabKey] = `${value}px`
@@ -71,7 +76,7 @@ const extractStyles = (style: Record<string, any> = {}): string => {
       }
     }
   })
-  
+
   return Object.entries(cssProperties)
     .map(([key, value]) => `${key}: ${value}`)
     .join('; ')
@@ -83,7 +88,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
     const position = comp.position || { x: 0, y: 0 }
     const style = comp.style || {}
     const props = comp.props || {}
-    
+
     // Build complete style object with positioning
     const completeStyle: Record<string, any> = {
       ...(isNested ? {} : {
@@ -93,10 +98,10 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
       }),
       ...style
     }
-    
+
     const styleStr = extractStyles(completeStyle)
     const indent = '  '.repeat(depth + 2)
-    
+
     let content = ''
     let tag = 'div'
     let attributes: string[] = []
@@ -106,12 +111,12 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         tag = 'p'
         content = props.content || props.text || 'Text'
         break
-        
+
       case 'heading':
         tag = `h${props.level || 1}`
         content = props.content || props.text || 'Heading'
         break
-        
+
       case 'button':
         tag = 'button'
         content = props.content || props.text || props.label || 'Button'
@@ -119,7 +124,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           attributes.push(`onclick="${props.onClick}"`)
         }
         break
-        
+
       case 'image':
         tag = 'img'
         const imgSrc = props.src || props.url || 'https://via.placeholder.com/300x200'
@@ -127,7 +132,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         attributes.push(`src="${imgSrc}"`)
         attributes.push(`alt="${imgAlt}"`)
         break
-        
+
       case 'input':
         tag = 'input'
         const inputType = props.type || 'text'
@@ -143,7 +148,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           attributes.push(`name="${props.name}"`)
         }
         break
-        
+
       case 'textarea':
         tag = 'textarea'
         content = props.value || props.content || ''
@@ -157,7 +162,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           attributes.push(`cols="${props.cols}"`)
         }
         break
-        
+
       case 'link':
         tag = 'a'
         content = props.content || props.text || 'Link'
@@ -168,7 +173,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           attributes.push(`target="${props.target}"`)
         }
         break
-        
+
       case 'container':
       case 'group':
       case 'div':
@@ -179,14 +184,14 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         // Handle children properly
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         } else {
           content = props.content || props.text || ''
         }
         break
-        
+
       case 'section':
         tag = 'section'
         if (props.className) {
@@ -194,12 +199,12 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         }
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         }
         break
-        
+
       case 'form':
         tag = 'form'
         if (props.action) {
@@ -210,27 +215,27 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         }
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         }
         break
-        
+
       case 'list':
         tag = props.ordered ? 'ol' : 'ul'
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         }
         break
-        
+
       case 'listItem':
         tag = 'li'
         content = props.content || props.text || 'List Item'
         break
-        
+
       case 'video':
         tag = 'video'
         if (props.src) {
@@ -246,7 +251,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           attributes.push('loop')
         }
         break
-        
+
       case 'audio':
         tag = 'audio'
         if (props.src) {
@@ -263,7 +268,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         attributes.push(`class="navbar"`)
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         } else {
@@ -277,7 +282,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
         attributes.push(`class="footer"`)
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         } else {
@@ -285,12 +290,12 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
           content = props.content || props.text || ''
         }
         break
-        
+
       default:
         tag = 'div'
         if (comp.children && comp.children.length > 0) {
           const childIndent = '  '.repeat(depth + 3)
-          content = '\n' + comp.children.map(child => 
+          content = '\n' + comp.children.map(child =>
             childIndent + renderComponent(child, true, depth + 1)
           ).join('\n') + '\n' + indent
         } else {
@@ -300,7 +305,7 @@ const generateHTMLFromComponents = (components: ComponentData[]): string => {
 
     // Build the attributes string
     const attrsStr = attributes.length > 0 ? ' ' + attributes.join(' ') : ''
-    
+
     // Self-closing tags
     if (['img', 'input', 'br', 'hr'].includes(tag)) {
       return `<${tag}${attrsStr} style="${styleStr}" />`
@@ -332,7 +337,7 @@ ${componentsHTML}
 const generateCSSFromComponents = (components: ComponentData[]): string => {
   // Collect all unique class names and their styles
   const classStyles: Record<string, string[]> = {}
-  
+
   const extractComponentStyles = (comp: ComponentData): void => {
     // Extract class-based styles
     if (comp.props?.className) {
@@ -340,18 +345,18 @@ const generateCSSFromComponents = (components: ComponentData[]): string => {
       if (!classStyles[className]) {
         classStyles[className] = []
       }
-      
+
       // Add component-specific styles
       if (comp.style) {
         Object.entries(comp.style).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== '') {
             const kebabKey = camelToKebab(key)
             let cssValue = value
-            
+
             if (typeof value === 'number' && !['opacity', 'zIndex', 'fontWeight', 'lineHeight', 'flex', 'order'].includes(key)) {
               cssValue = `${value}px`
             }
-            
+
             const styleRule = `${kebabKey}: ${cssValue};`
             if (!classStyles[className].includes(styleRule)) {
               classStyles[className].push(styleRule)
@@ -360,7 +365,7 @@ const generateCSSFromComponents = (components: ComponentData[]): string => {
         })
       }
     }
-    
+
     // Recursively process children
     if (comp.children) {
       comp.children.forEach(child => extractComponentStyles(child))
@@ -610,14 +615,14 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
     ]
 
     setFileStructure(structure)
-    
+
     const contents: Record<string, string> = {
       "index.html": htmlContent,
       "css/styles.css": cssContent,
       "js/main.js": jsContent,
       "README.md": `# ${projectName}\n\nGenerated from canvas design.\n\n## Getting Started\n\nOpen index.html in your browser to view the project.\n\n## Project Structure\n\n- index.html - Main HTML file\n- css/styles.css - Stylesheet\n- js/main.js - JavaScript functionality\n\n## Components\n\nThis project contains ${components.length} component(s).\n\n## Features\n\n- Responsive design\n- Clean, semantic HTML\n- Modern CSS styling\n- Interactive JavaScript\n`
     }
-    
+
     setFileContents(contents)
   }, [components, projectName])
 
@@ -646,7 +651,7 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
       return
     }
 
-    const newPath = selectedFile.includes('/') 
+    const newPath = selectedFile.includes('/')
       ? `${selectedFile.split('/')[0]}/${newFileName}`
       : newFileName
 
@@ -664,7 +669,7 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
     }
 
     setFileContents(prev => ({ ...prev, [newPath]: "" }))
-    
+
     // Add to structure
     setFileStructure(prev => {
       const updated = [...prev]
@@ -759,9 +764,8 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
           </>
         ) : (
           <div
-            className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 rounded transition-colors group ${
-              selectedFile === node.path ? "bg-muted" : ""
-            }`}
+            className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-muted/50 rounded transition-colors group ${selectedFile === node.path ? "bg-muted" : ""
+              }`}
             style={{ paddingLeft: `${depth * 16 + 28}px` }}
             onClick={() => {
               setSelectedFile(node.path)
@@ -818,7 +822,7 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
       const zip = Object.entries(fileContents)
         .map(([path, content]) => `File: ${path}\n${'='.repeat(50)}\n${content}\n\n`)
         .join('\n')
-      
+
       const blob = new Blob([zip], { type: 'text/plain' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -826,7 +830,7 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
       a.download = `${projectName}-code.txt`
       a.click()
       URL.revokeObjectURL(url)
-      
+
       toast.success("Project files downloaded!")
     } catch (error) {
       console.error("Download error:", error)
@@ -869,7 +873,7 @@ export function CodeViewEditor({ components, projectName = "web-project" }: Code
               </button>
             </div>
           </div>
-          
+
           {/* New File Dialog */}
           {showNewFileDialog && (
             <div className="mb-2 p-2 bg-muted rounded">

@@ -99,6 +99,7 @@ interface EditorTopBarProps {
     avatar_url?: string;
   } | null;
   isSupabaseConnected?: boolean;
+  onPublishSuccess?: (subdomain: string) => void;
 }
 
 export function EditorTopBar({
@@ -123,6 +124,7 @@ export function EditorTopBar({
   currentProject,
   currentUser,
   isSupabaseConnected = false,
+  onPublishSuccess,
 }: EditorTopBarProps) {
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState(projectName);
@@ -534,11 +536,10 @@ export function EditorTopBar({
                 variant="ghost"
                 size="sm"
                 onClick={() => onViewModeChange("design")}
-                className={`h-8 px-3 rounded transition-all ${
-                  viewMode === "design"
+                className={`h-8 px-3 rounded transition-all ${viewMode === "design"
                     ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 <Eye className="w-4 h-4" />
               </Button>
@@ -552,11 +553,10 @@ export function EditorTopBar({
                 variant="ghost"
                 size="sm"
                 onClick={() => onViewModeChange("code")}
-                className={`h-8 px-3 rounded transition-all ${
-                  viewMode === "code"
+                className={`h-8 px-3 rounded transition-all ${viewMode === "code"
                     ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 <Code className="w-4 h-4" />
               </Button>
@@ -577,215 +577,215 @@ export function EditorTopBar({
 
         {(isSupabaseConnected ||
           localStorage.getItem("supabase_integration_token")) && (
-          <>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={
-                    localStorage.getItem("target_supabase_url")
-                      ? "outline"
-                      : "ghost"
-                  }
-                  size="sm"
-                  className={`h-9 px-3 gap-2 ${localStorage.getItem("target_supabase_url") ? "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-muted-foreground"}`}
-                >
-                  <Database className="w-4 h-4" />
-                  {localStorage.getItem("target_supabase_url") ? (
-                    <span className="text-xs font-medium max-w-[100px] truncate">
-                      {
-                        new URL(localStorage.getItem("target_supabase_url")!)
-                          .hostname
-                      }
-                    </span>
-                  ) : (
-                    <span className="text-xs">Connect DB</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-4" align="end">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium leading-none">
-                      Database Connection
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      Select a project to write data to.
-                    </p>
-                  </div>
-
-                  {targetSupabaseUrl && (
-                    <div className="flex items-center justify-between text-[10px] bg-green-100 dark:bg-green-900/30 px-2 py-1.5 rounded text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900">
-                      <span className="truncate max-w-[200px]">
-                        Target: {new URL(targetSupabaseUrl).hostname}
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={
+                      localStorage.getItem("target_supabase_url")
+                        ? "outline"
+                        : "ghost"
+                    }
+                    size="sm"
+                    className={`h-9 px-3 gap-2 ${localStorage.getItem("target_supabase_url") ? "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-muted-foreground"}`}
+                  >
+                    <Database className="w-4 h-4" />
+                    {localStorage.getItem("target_supabase_url") ? (
+                      <span className="text-xs font-medium max-w-[100px] truncate">
+                        {
+                          new URL(localStorage.getItem("target_supabase_url")!)
+                            .hostname
+                        }
                       </span>
-                      <button
-                        className="ml-2 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          localStorage.removeItem("target_supabase_url");
-                          localStorage.removeItem("target_supabase_key");
-                          setTargetSupabaseUrl(null);
-                          window.location.reload();
-                        }}
-                        title="Disconnect Target"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                    ) : (
+                      <span className="text-xs">Connect DB</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">
+                        Database Connection
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Select a project to write data to.
+                      </p>
                     </div>
-                  )}
 
-                  <div className="grid gap-2">
-                    <Select
-                      value={selectedOrgId}
-                      onValueChange={setSelectedOrgId}
-                      disabled={
-                        !isSupabaseConnected && !supabaseIntegrationToken
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Organization" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Organizations</SelectLabel>
-                          <SelectItem value="ALL">All Organizations</SelectItem>
-                          {organizations.map((org) => (
-                            <SelectItem key={org.id} value={org.id}>
-                              {org.name}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    {targetSupabaseUrl && (
+                      <div className="flex items-center justify-between text-[10px] bg-green-100 dark:bg-green-900/30 px-2 py-1.5 rounded text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900">
+                        <span className="truncate max-w-[200px]">
+                          Target: {new URL(targetSupabaseUrl).hostname}
+                        </span>
+                        <button
+                          className="ml-2 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            localStorage.removeItem("target_supabase_url");
+                            localStorage.removeItem("target_supabase_key");
+                            setTargetSupabaseUrl(null);
+                            window.location.reload();
+                          }}
+                          title="Disconnect Target"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
 
-                    <Select
-                      value={selectedSupabaseProjectId}
-                      onValueChange={(newProjectId: string) => {
-                        setSelectedSupabaseProjectId(newProjectId);
-                      }}
-                      disabled={
-                        (!isSupabaseConnected && !supabaseIntegrationToken) ||
-                        isLoadingSupabase
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Project" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Projects</SelectLabel>
-                          {supabaseProjects
-                            .filter(
-                              (p) =>
-                                !selectedOrgId ||
-                                selectedOrgId === "ALL" ||
-                                p.organization_id === selectedOrgId,
-                            )
-                            .map((project) => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.name}
+                    <div className="grid gap-2">
+                      <Select
+                        value={selectedOrgId}
+                        onValueChange={setSelectedOrgId}
+                        disabled={
+                          !isSupabaseConnected && !supabaseIntegrationToken
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Organization" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Organizations</SelectLabel>
+                            <SelectItem value="ALL">All Organizations</SelectItem>
+                            {organizations.map((org) => (
+                              <SelectItem key={org.id} value={org.id}>
+                                {org.name}
                               </SelectItem>
                             ))}
-                          {supabaseProjects.length === 0 && (
-                            <SelectItem value="none" disabled>
-                              No projects found
-                            </SelectItem>
-                          )}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
 
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-8 text-xs bg-blue-600 hover:bg-blue-700 w-full"
-                      disabled={
-                        !selectedSupabaseProjectId ||
-                        selectedSupabaseProjectId === "none" ||
-                        isLoadingSupabase
-                      }
-                      onClick={async () => {
-                        const newProjectId = selectedSupabaseProjectId;
-                        if (!newProjectId || newProjectId === "none") return;
-
-                        try {
-                          setIsLoadingSupabase(true)
-                          const token = localStorage.getItem("supabase_integration_token")
-                          const hostname = window.location.hostname
-                          const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
-                          const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
-
-                          const res = await fetch(`${backendBase}/api/supabase/projects/${newProjectId}/api-keys`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                          })
-
-                          if (!res.ok) throw new Error("Failed to fetch project keys: " + res.status)
-                          const keysData = await res.json()
-
-                          const anonKeyObj = keysData.find((k: any) => k.name === 'anon' || k.tags?.includes('anon'))
-
-                          if (anonKeyObj) {
-                            const newUrl = `https://${newProjectId}.supabase.co`;
-                            const newKey = anonKeyObj.api_key;
-
-                            console.log(
-                              "Switching TARGET to project:",
-                              newProjectId,
-                            );
-                            localStorage.setItem("target_supabase_url", newUrl);
-                            localStorage.setItem("target_supabase_key", newKey);
-
-                            toast.success(
-                              `Successfully connected to: ${newProjectId}`,
-                              {
-                                description:
-                                  "The connection will be used for data operations.",
-                                duration: 4000,
-                              },
-                            );
-                            setTimeout(() => window.location.reload(), 1000);
-                          } else {
-                            toast.error(
-                              "Could not find 'anon' key for this project.",
-                              {
-                                description:
-                                  "Please check your project configuration.",
-                              },
-                            );
-                          }
-                        } catch (err: any) {
-                          console.error("Failed to switch:", err);
-                          toast.error("Connection Failed", {
-                            description: err.message,
-                          });
-                        } finally {
-                          setIsLoadingSupabase(false);
+                      <Select
+                        value={selectedSupabaseProjectId}
+                        onValueChange={(newProjectId: string) => {
+                          setSelectedSupabaseProjectId(newProjectId);
+                        }}
+                        disabled={
+                          (!isSupabaseConnected && !supabaseIntegrationToken) ||
+                          isLoadingSupabase
                         }
-                      }}
-                    >
-                      Connect
-                    </Button>
-                  </div>
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Projects</SelectLabel>
+                            {supabaseProjects
+                              .filter(
+                                (p) =>
+                                  !selectedOrgId ||
+                                  selectedOrgId === "ALL" ||
+                                  p.organization_id === selectedOrgId,
+                              )
+                              .map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                  {project.name}
+                                </SelectItem>
+                              ))}
+                            {supabaseProjects.length === 0 && (
+                              <SelectItem value="none" disabled>
+                                No projects found
+                              </SelectItem>
+                            )}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
 
-                  <div className="pt-2 border-t flex justify-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-full max-w-[100px]"
-                      onClick={handleRefreshSupabaseData}
-                      title="Refresh Data"
-                      disabled={isLoadingSupabase}
-                    >
-                      <RotateCcw
-                        className={`w-3.5 h-3.5 ${isLoadingSupabase ? "animate-spin" : ""}`}
-                      />
-                    </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-8 text-xs bg-blue-600 hover:bg-blue-700 w-full"
+                        disabled={
+                          !selectedSupabaseProjectId ||
+                          selectedSupabaseProjectId === "none" ||
+                          isLoadingSupabase
+                        }
+                        onClick={async () => {
+                          const newProjectId = selectedSupabaseProjectId;
+                          if (!newProjectId || newProjectId === "none") return;
+
+                          try {
+                            setIsLoadingSupabase(true)
+                            const token = localStorage.getItem("supabase_integration_token")
+                            const hostname = window.location.hostname
+                            const isLocal = hostname === "localhost" || hostname === "127.0.0.1"
+                            const backendBase = isLocal ? "http://localhost:4000" : (hostname === 'buildxdesigner.site' ? "https://buildxdesigner.duckdns.org" : "")
+
+                            const res = await fetch(`${backendBase}/api/supabase/projects/${newProjectId}/api-keys`, {
+                              headers: { Authorization: `Bearer ${token}` }
+                            })
+
+                            if (!res.ok) throw new Error("Failed to fetch project keys: " + res.status)
+                            const keysData = await res.json()
+
+                            const anonKeyObj = keysData.find((k: any) => k.name === 'anon' || k.tags?.includes('anon'))
+
+                            if (anonKeyObj) {
+                              const newUrl = `https://${newProjectId}.supabase.co`;
+                              const newKey = anonKeyObj.api_key;
+
+                              console.log(
+                                "Switching TARGET to project:",
+                                newProjectId,
+                              );
+                              localStorage.setItem("target_supabase_url", newUrl);
+                              localStorage.setItem("target_supabase_key", newKey);
+
+                              toast.success(
+                                `Successfully connected to: ${newProjectId}`,
+                                {
+                                  description:
+                                    "The connection will be used for data operations.",
+                                  duration: 4000,
+                                },
+                              );
+                              setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                              toast.error(
+                                "Could not find 'anon' key for this project.",
+                                {
+                                  description:
+                                    "Please check your project configuration.",
+                                },
+                              );
+                            }
+                          } catch (err: any) {
+                            console.error("Failed to switch:", err);
+                            toast.error("Connection Failed", {
+                              description: err.message,
+                            });
+                          } finally {
+                            setIsLoadingSupabase(false);
+                          }
+                        }}
+                      >
+                        Connect
+                      </Button>
+                    </div>
+
+                    <div className="pt-2 border-t flex justify-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-full max-w-[100px]"
+                        onClick={handleRefreshSupabaseData}
+                        title="Refresh Data"
+                        disabled={isLoadingSupabase}
+                      >
+                        <RotateCcw
+                          className={`w-3.5 h-3.5 ${isLoadingSupabase ? "animate-spin" : ""}`}
+                        />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </>
-        )}
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -965,7 +965,13 @@ export function EditorTopBar({
         isOpen={showPublishSiteModal}
         onClose={() => setShowPublishSiteModal(false)}
         project={currentProject}
-        onPublishSuccess={(url) => {}}
+        onPublishSuccess={(url) => {
+          if (onPublishSuccess) {
+            // Extract subdomain from URL like https://subdomain.buildxdesigner.site
+            const match = url.match(/https:\/\/([^.]+)\.buildxdesigner\.site/);
+            if (match) onPublishSuccess(match[1]);
+          }
+        }}
       />
 
       {showShareDropdown && (
@@ -981,7 +987,7 @@ export function EditorTopBar({
                 : 0,
               right: shareButtonRef.current
                 ? window.innerWidth -
-                  shareButtonRef.current.getBoundingClientRect().right
+                shareButtonRef.current.getBoundingClientRect().right
                 : 0,
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1062,9 +1068,8 @@ export function EditorTopBar({
                   {showVisibilityDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-card border-border rounded-lg shadow-lg z-10">
                       <div
-                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
-                          shareVisibility === "private" ? "bg-blue-500/10" : ""
-                        }`}
+                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${shareVisibility === "private" ? "bg-blue-500/10" : ""
+                          }`}
                         onClick={() =>
                           void applyShareVisibilityChange("private")
                         }
@@ -1077,9 +1082,8 @@ export function EditorTopBar({
                         </div>
                       </div>
                       <div
-                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
-                          shareVisibility === "anyone" ? "bg-blue-500/10" : ""
-                        }`}
+                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${shareVisibility === "anyone" ? "bg-blue-500/10" : ""
+                          }`}
                         onClick={() =>
                           void applyShareVisibilityChange("anyone")
                         }

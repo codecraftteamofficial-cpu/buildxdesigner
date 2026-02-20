@@ -19,37 +19,33 @@ export function SiteRenderer({
     userProjectConfig,
     backgroundColor = "#ffffff",
 }: SiteRendererProps) {
-    // Recursively render components
-    const renderComponentTree = (component: ComponentData) => {
-        const position = component.position || { x: 0, y: 0 };
+    // Sort components top-to-bottom by their canvas Y position, then left-to-right by X
+    const sorted = [...components].sort((a, b) => {
+        const ay = a.position?.y ?? 0;
+        const by = b.position?.y ?? 0;
+        if (ay !== by) return ay - by;
+        return (a.position?.x ?? 0) - (b.position?.x ?? 0);
+    });
 
+    const renderComponentTree = (component: ComponentData) => {
         return (
             <div
                 key={component.id}
-                id={component.id} // Ensure ID is present for anchor links/scripts
+                id={component.id}
                 data-component-id={component.id}
-                style={{
-                    position: "absolute",
-                    left: `${position.x}px`,
-                    top: `${position.y}px`,
-                    width: "fit-content",
-                    height: "fit-content",
-                    // Removing pointer-events: auto wrapper logic. Let the component handle it.
-                }}
-                className="site-component"
+                className="site-component w-full"
             >
                 <RenderableComponent
                     component={component}
                     projectId={projectId}
-                    isSelected={false} // Never selected
-                    onUpdate={() => { }} // No-op
-                    onDelete={() => { }} // No-op
-                    disabled={false} // Interactive
-                    isPreview={true} // Enable preview/live mode behavior
+                    isSelected={false}
+                    onUpdate={() => { }}
+                    onDelete={() => { }}
+                    disabled={false}
+                    isPreview={true}
                     userProjectConfig={userProjectConfig}
-                    onEditComponent={() => { }} // No-op
+                    onEditComponent={() => { }}
                 />
-                {/* Render children recursively if any (e.g., for groups/containers) */}
                 {component.children &&
                     component.children.map((child) => renderComponentTree(child))}
             </div>
@@ -58,13 +54,10 @@ export function SiteRenderer({
 
     return (
         <div
-            className="w-full min-h-screen relative overflow-x-hidden"
-            style={{
-                backgroundColor: backgroundColor,
-                // Ensure no transform scaling here. Just pure layout.
-            }}
+            className="w-full min-h-screen"
+            style={{ backgroundColor }}
         >
-            {components.map((component) => renderComponentTree(component))}
+            {sorted.map((component) => renderComponentTree(component))}
         </div>
     );
 }

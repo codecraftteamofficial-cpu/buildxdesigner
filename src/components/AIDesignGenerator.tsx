@@ -102,7 +102,7 @@ export function AIDesignGenerator({
       // Step 2: Call Gemini API
       setCurrentStep('Connecting to AI models...');
       setGenerationProgress(40);
-      
+
       const components = await callGeminiForUIGeneration(userPrompt);
 
       // Step 3: Processing response
@@ -234,7 +234,7 @@ Generate a complete, professional website structure based on this prompt:`;
 
     // Mock Gemini-style intelligent response based on prompt analysis
     const components = await generateIntelligentComponents(prompt);
-    
+
     // Validate and ensure proper structure
     return components.map((comp, index) => ({
       ...comp,
@@ -245,10 +245,10 @@ Generate a complete, professional website structure based on this prompt:`;
   const generateIntelligentComponents = async (prompt: string): Promise<ComponentData[]> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     const lowerPrompt = prompt.toLowerCase();
     const components: ComponentData[] = [];
-    
+
     // Intelligent component generation based on Gemini-like analysis
     if (lowerPrompt.includes('landing') || lowerPrompt.includes('homepage') || lowerPrompt.includes('website')) {
       // Full page structure
@@ -263,7 +263,7 @@ Generate a complete, professional website structure based on this prompt:`;
       });
 
       components.push({
-        id: '2', 
+        id: '2',
         type: 'hero',
         props: {
           title: generateIntelligentTitle(prompt),
@@ -366,12 +366,12 @@ Generate a complete, professional website structure based on this prompt:`;
       components.push({
         id: (components.length + 1).toString(),
         type: 'button',
-        props: { 
-          text: generateIntelligentCTA(prompt), 
-          variant: 'default' 
+        props: {
+          text: generateIntelligentCTA(prompt),
+          variant: 'default'
         },
-        style: { 
-          margin: '3rem auto 4rem', 
+        style: {
+          margin: '3rem auto 4rem',
           display: 'block',
           padding: '1rem 2rem',
           fontSize: '1.1rem'
@@ -397,7 +397,7 @@ Generate a complete, professional website structure based on this prompt:`;
   const extractIntelligentBrand = (prompt: string): string => {
     // Extract or generate brand name from context
     const words = prompt.toLowerCase().split(' ');
-    
+
     if (words.includes('fitness') || words.includes('gym')) return 'FitPro';
     if (words.includes('saas') || words.includes('software')) return 'CloudFlow';
     if (words.includes('restaurant') || words.includes('food')) return 'Bistro';
@@ -408,13 +408,13 @@ Generate a complete, professional website structure based on this prompt:`;
     if (words.includes('event') || words.includes('conference')) return 'EventPro';
     if (words.includes('education') || words.includes('learning')) return 'EduHub';
     if (words.includes('medical') || words.includes('health')) return 'HealthCare';
-    
+
     return 'YourBrand';
   };
 
   const generateIntelligentNavigation = (prompt: string): string[] => {
     const lowerPrompt = prompt.toLowerCase();
-    
+
     if (lowerPrompt.includes('saas') || lowerPrompt.includes('software')) {
       return ['Features', 'Pricing', 'About', 'Contact'];
     }
@@ -433,13 +433,13 @@ Generate a complete, professional website structure based on this prompt:`;
     if (lowerPrompt.includes('event') || lowerPrompt.includes('conference')) {
       return ['Schedule', 'Speakers', 'Tickets', 'Contact'];
     }
-    
+
     return ['Home', 'About', 'Services', 'Contact'];
   };
 
   const generateIntelligentTitle = (prompt: string): string => {
     const lowerPrompt = prompt.toLowerCase();
-    
+
     if (lowerPrompt.includes('fitness') || lowerPrompt.includes('gym')) {
       return 'Transform Your Fitness Journey';
     }
@@ -464,13 +464,13 @@ Generate a complete, professional website structure based on this prompt:`;
     if (lowerPrompt.includes('medical') || lowerPrompt.includes('health')) {
       return 'Your Health, Our Priority';
     }
-    
+
     return 'Welcome to Innovation';
   };
 
   const generateIntelligentSubtitle = (prompt: string): string => {
     const lowerPrompt = prompt.toLowerCase();
-    
+
     if (lowerPrompt.includes('fitness')) {
       return 'Join thousands who have achieved their fitness goals with our personalized training programs and expert guidance.';
     }
@@ -489,20 +489,20 @@ Generate a complete, professional website structure based on this prompt:`;
     if (lowerPrompt.includes('education')) {
       return 'Unlock your potential with world-class courses designed by industry experts and thought leaders.';
     }
-    
+
     return 'Experience innovation that transforms possibilities into reality.';
   };
 
   const generateIntelligentCTA = (prompt: string): string => {
     const lowerPrompt = prompt.toLowerCase();
-    
+
     if (lowerPrompt.includes('signup') || lowerPrompt.includes('register')) return 'Sign Up Now';
     if (lowerPrompt.includes('trial') || lowerPrompt.includes('saas')) return 'Start Free Trial';
     if (lowerPrompt.includes('shop') || lowerPrompt.includes('buy')) return 'Shop Now';
     if (lowerPrompt.includes('contact') || lowerPrompt.includes('quote')) return 'Get In Touch';
     if (lowerPrompt.includes('learn') || lowerPrompt.includes('course')) return 'Start Learning';
     if (lowerPrompt.includes('book') || lowerPrompt.includes('reservation')) return 'Book Now';
-    
+
     return 'Get Started';
   };
 
@@ -770,192 +770,194 @@ Generate a complete, professional website structure based on this prompt:`;
             <span className="sr-only">Close</span>
           </Button>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-y-auto p-2">
           <div className="max-w-full mx-auto space-y-6">
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-semibold">
-              AI Design Generator
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Describe your vision and let our AI create a
-              professional website design tailored to your
-              needs. Be as detailed as possible for the best
-              results.
-            </p>
-          </div>
-
-          {/* Input Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-500" />
-                Describe Your Design
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Textarea
-                placeholder="Example: Create a modern landing page for a fitness app with a hero section showcasing workout videos, testimonials from users, pricing plans, and a download section..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className="min-h-[120px] resize-none"
-                disabled={isGenerating}
-              />
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {prompt.length}/500 characters
-                </div>
-                <Button
-                  onClick={() =>
-                    generateDesignFromPrompt(prompt)
-                  }
-                  disabled={
-                    !prompt.trim() ||
-                    isGenerating ||
-                    prompt.length > 500
-                  }
-                  className="flex items-center gap-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      Generate Design
-                    </>
-                  )}
-                </Button>
+            {/* Header */}
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-8 h-8 text-white" />
               </div>
-
-              {isGenerating && (
-                <div className="space-y-3">
-                  <Progress
-                    value={generationProgress}
-                    className="w-full progress-glow"
-                  />
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-medium text-blue-600">
-                      AI is creating your design...
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {generationProgress}% complete
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Example Prompts */}
-          {!isGenerating && !generatedDesign && (
-            <div className="space-y-4">
-              <h3 className="font-medium flex items-center gap-2">
-                <Zap className="w-4 h-4 text-blue-500" />
-                Try These Examples
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {examplePrompts.map((example, index) => {
-                  const Icon = example.icon;
-                  return (
-                    <Card
-                      key={index}
-                      className="cursor-pointer hover:shadow-md transition-all duration-200 hover:border-blue-300"
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Icon className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="space-y-2 flex-1">
-                            <Badge
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              {example.category}
-                            </Badge>
-                            <p
-                              className="text-sm leading-relaxed cursor-pointer hover:text-blue-600 transition-colors"
-                              onClick={() =>
-                                setPrompt(example.prompt)
-                              }
-                            >
-                              {example.prompt}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+              <h2 className="text-2xl font-semibold">
+                AI Design Generator
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Describe your vision and let our AI create a
+                professional website design tailored to your
+                needs. Be as detailed as possible for the best
+                results.
+              </p>
             </div>
-          )}
 
-          {/* Generated Design Preview */}
-          {generatedDesign && !isGenerating && (
+            {/* Input Section */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-green-500" />
-                    Your AI-Generated Design
-                  </div>
-                  <Badge className="bg-green-100 text-green-700 border-green-200">
-                    ✨ Ready
-                  </Badge>
+                <CardTitle className="flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-yellow-500" />
+                  Describe Your Design
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">
-                    Generated Components:
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {generatedDesign.map((comp, index) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="capitalize"
-                      >
-                        {comp.type}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <Textarea
+                  placeholder="Example: Create a modern landing page for a fitness app with a hero section showcasing workout videos, testimonials from users, pricing plans, and a download section..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="min-h-[120px] resize-none"
+                  disabled={isGenerating}
+                />
 
-                <div className="flex gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    {prompt.length}/500 characters
+                  </div>
                   <Button
                     onClick={() =>
-                      onGenerateDesign(generatedDesign)
+                      generateDesignFromPrompt(prompt)
                     }
-                    className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                    disabled={
+                      !prompt.trim() ||
+                      isGenerating ||
+                      prompt.length > 500
+                    }
+                    className="flex items-center gap-2"
                   >
-                    <Layout className="w-4 h-4 mr-2" />
-                    Use This Design
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setGeneratedDesign(null);
-                      setPrompt("");
-                    }}
-                  >
-                    Try Again
+                    {isGenerating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Generate Design
+                      </>
+                    )}
                   </Button>
                 </div>
+
+                {isGenerating && (
+                  <div className="space-y-3">
+                    <Progress
+                      value={generationProgress}
+                      className="w-full progress-glow"
+                    />
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-medium text-blue-600">
+                        AI is creating your design...
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {generationProgress}% complete
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Example Prompts */}
+            {!isGenerating && !generatedDesign && (
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-500" />
+                  Try These Examples
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {examplePrompts.map((example, index) => {
+                    const Icon = example.icon;
+                    return (
+                      <Card
+                        key={index}
+                        className="cursor-pointer hover:shadow-md transition-all duration-200 hover:border-blue-300"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div className="space-y-2 flex-1">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {example.category}
+                              </Badge>
+                              <p
+                                className="text-sm leading-relaxed cursor-pointer hover:text-blue-600 transition-colors"
+                                onClick={() =>
+                                  setPrompt(example.prompt)
+                                }
+                              >
+                                {example.prompt}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Generated Design Preview */}
+            {generatedDesign && !isGenerating && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Palette className="w-5 h-5 text-green-500" />
+                      Your AI-Generated Design
+                    </div>
+                    <Badge className="bg-green-100 text-green-700 border-green-200">
+                      ✨ Ready
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">
+                      Generated Components:
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {generatedDesign.map((comp, index) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="capitalize"
+                        >
+                          {comp.type}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() =>
+                        onGenerate(generatedDesign)
+                      }
+                      className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                    >
+                      <Layout className="w-4 h-4 mr-2" />
+                      Use This Design
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setGeneratedDesign(null);
+                        setPrompt("");
+                      }}
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+

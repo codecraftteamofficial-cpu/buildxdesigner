@@ -149,6 +149,14 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               isPublished: state.projectIsPublished,
               lastPublishedAt: state.projectLastPublishedAt,
             }}
+            onPublishSuccess={(subdomain: string) => {
+              setState((prev) => ({
+                ...prev,
+                projectSubdomain: subdomain,
+                projectIsPublished: true,
+                projectLastPublishedAt: new Date().toISOString(),
+              }));
+            }}
           />
 
           <div className="flex-1 overflow-hidden flex min-h-0 relative">
@@ -167,9 +175,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Left Sidebar */}
             <div
-              className={`flex-shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${
-                state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
-              }`}
+              className={`flex-shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
+                }`}
               style={{
                 width: state.isLeftSidebarVisible
                   ? `${state.leftSidebarWidth}px`
@@ -323,7 +330,17 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
                   {state.viewMode === "code" && (
                     <div className="flex-1 flex flex-col h-full overflow-hidden bg-card">
-                      <CodeViewEditor components={state.components} />
+                      <CodeViewEditor
+                        components={state.components}
+                        userProjectConfig={state.userProjectConfig}
+                        onCodeChange={(newComponents) =>
+                          setState((prev) => ({
+                            ...prev,
+                            components: newComponents,
+                            hasUnsavedChanges: true,
+                          }))
+                        }
+                      />
                     </div>
                   )}
                 </div>
@@ -358,9 +375,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Right Sidebar */}
             <div
-              className={`flex-shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${
-                state.isRightSidebarVisible ? "" : "w-0 border-l-0"
-              }`}
+              className={`flex-shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${state.isRightSidebarVisible ? "" : "w-0 border-l-0"
+                }`}
               style={{
                 width: state.isRightSidebarVisible
                   ? `${state.rightSidebarWidth}px`
@@ -391,11 +407,10 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "properties",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
-                          state.rightSidebarTab === "properties"
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
                             ? "bg-card text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
-                        }`}
+                          }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
@@ -407,11 +422,10 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "ai-assistant",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
-                          state.rightSidebarTab === "ai-assistant"
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
                             ? "bg-card text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
-                        }`}
+                          }`}
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -545,13 +559,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             }
           />
 
-          {state.showPublishModal && (
-            <PublishModal
-              components={state.components}
-              isOpen={state.showPublishModal}
-              onClose={togglePublishModal}
-            />
-          )}
+          {/* PublishModal removed - publishing is handled by EditorTopBar's PublishSiteModal */}
 
           {state.showShareModal && (
             <ShareModal
@@ -569,7 +577,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               selectedComponent={selectedComponentObject}
               onUpdateComponent={updateComponent}
               propertiesPanelVisible={false}
-              onToggleProperties={() => {}}
+              onToggleProperties={() => { }}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
             />

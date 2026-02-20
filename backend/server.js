@@ -29,6 +29,16 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
 
+// Health check to verify backend version
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        version: 'v2.0.2-final-fix',
+        message: 'Backend is updated and supporting anonymous checkout',
+        timestamp: new Date()
+    });
+});
+
 
 app.use((req, res, next) => {
     const start = Date.now();
@@ -379,9 +389,6 @@ app.get('/', (req, res) => {
     });
 });
 
-app.get('/api/health', (req, res) => {
-    res.json({ status: "healthy", timestamp: new Date().toISOString() });
-});
 
 app.use((req, res) => {
     console.log(`[404 MATCH FAILURE] Method: ${req.method} URL: ${req.originalUrl || req.url}`);
