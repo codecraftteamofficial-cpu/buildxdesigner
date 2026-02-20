@@ -40,8 +40,11 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
         })
         : null
 
+    const wasOpenRef = useRef(false)
+
     useEffect(() => {
-        if (isOpen && project) {
+        // Only initialize when modal transitions from closed → open
+        if (isOpen && !wasOpenRef.current && project) {
             if (project.subdomain) {
                 setSubdomain(project.subdomain)
                 setPublishedUrl(`https://${project.subdomain}.buildxdesigner.site`)
@@ -57,6 +60,7 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
             setError(null)
             setAvailability("idle")
         }
+        wasOpenRef.current = isOpen
     }, [isOpen, project])
 
     const validateSubdomain = (value: string) => {
