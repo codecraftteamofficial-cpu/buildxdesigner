@@ -26,7 +26,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('/{*path}', cors(corsOptions));
 app.use(express.json());
 
 // Health check to verify backend version
