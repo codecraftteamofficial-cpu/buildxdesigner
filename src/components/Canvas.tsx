@@ -523,7 +523,7 @@ export function Canvas({
       } else {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(components));
       }
-      console.log("Components saved to localStorage:", components);
+      
     } catch (error) {
       console.error("Error saving components to localStorage:", error);
     }
@@ -1036,7 +1036,7 @@ export function Canvas({
                 />
               </svg>
             </button>
-            <span className="text-xs font-medium text-muted-foreground min-w-[3rem] text-center">
+            <span className="text-xs font-medium text-muted-foreground min-w-12 text-center">
               {canvasZoom}%
             </span>
             <button
