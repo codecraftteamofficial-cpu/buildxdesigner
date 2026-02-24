@@ -79,7 +79,6 @@ export async function fetchProjectById(
   }
 }
 
-console.log("projectService.ts loaded", getLocalCanvasComponents());
 
 export async function fetchUserProjects(): Promise<{
   data: Project[] | null;

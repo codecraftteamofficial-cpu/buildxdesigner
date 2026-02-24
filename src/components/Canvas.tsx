@@ -523,7 +523,6 @@ export function Canvas({
       } else {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(components));
       }
-      console.log("Components saved to localStorage:", components);
     } catch (error) {
       console.error("Error saving components to localStorage:", error);
     }
