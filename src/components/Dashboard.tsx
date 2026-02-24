@@ -1491,14 +1491,16 @@ export function Dashboard({
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 text-left">
-                  {/* Use fetched full name and email */}
-                  <p className="text-sm text-foreground">{userName}</p>
-                  <p className="text-xs text-muted-foreground break-all">
-                    {userEmail}
-                  </p>
+                  <div className="flex-1 text-left min-w-0">
+                    {/* Use fetched full name and email */}
+                    <p className="text-sm text-foreground truncate">{userName}</p>
+                    
+                    {/* Replaced break-all with truncate */}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {userEmail}
+                    </p>
                   <ChevronDown className="w-3 h-3 text-muted-foreground inline" />
-                </div>
+                  </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
