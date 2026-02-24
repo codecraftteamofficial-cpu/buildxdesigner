@@ -16,5 +16,7 @@ export interface Project {
     subdomain?: string;
     isPublished?: boolean;
     lastPublishedAt?: string;
+    pages?: any[];
+    published_pages?: any[];
 
 }

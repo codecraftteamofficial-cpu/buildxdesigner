@@ -229,6 +229,8 @@ function useCollaborationLogic({
             (projectData as any)?.name ??
             prev.projectName,
           components: finalComponents,
+          pages: (projectData as any)?.pages ?? prev.pages,
+          activePageId: prev.activePageId, // Might be better to keep as is, or switch to the first page if 'home' is not in the list
           hasUnsavedChanges: false,
         }));
       } finally {

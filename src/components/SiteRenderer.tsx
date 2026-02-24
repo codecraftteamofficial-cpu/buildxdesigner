@@ -11,6 +11,8 @@ interface SiteRendererProps {
     };
     backgroundColor?: string;
     showGrid?: boolean; // Kept for compatibility but ignored
+    activePageId?: string;
+    navigate?: (path: string) => void;
 }
 
 export function SiteRenderer({
@@ -18,10 +20,21 @@ export function SiteRenderer({
     projectId,
     userProjectConfig,
     backgroundColor = "#ffffff",
+    activePageId = 'home',
+    navigate,
 }: SiteRendererProps) {
+    // Filter components by activePageId or 'all'
+    const filteredComponents = components.filter(c => {
+        const componentPageId = c.page_id || 'home';
+        const activeId = activePageId || 'home';
+
+        if (c.page_id === 'all') return true;
+        return componentPageId === activeId;
+    });
+
     // Compute the canvas height needed so the container is tall enough to show all
     // absolutely-positioned components (matching Canvas.tsx behaviour).
-    const canvasHeight = components.reduce((maxY, comp) => {
+    const canvasHeight = filteredComponents.reduce((maxY, comp) => {
         const y = comp.position?.y ?? 0;
         const h =
             Number.parseFloat(String(comp.style?.height || "100").replace("px", "")) || 100;
@@ -36,7 +49,7 @@ export function SiteRenderer({
             className="w-full relative"
             style={{ backgroundColor, minHeight: `${containerHeight}px`, height: `${containerHeight}px` }}
         >
-            {components.map((component) => {
+            {filteredComponents.map((component) => {
                 const position = component.position || { x: 0, y: 0 };
                 return (
                     <div
@@ -61,6 +74,7 @@ export function SiteRenderer({
                             isPreview={true}
                             userProjectConfig={userProjectConfig}
                             onEditComponent={() => { }}
+                            navigate={navigate}
                         />
                     </div>
                 );

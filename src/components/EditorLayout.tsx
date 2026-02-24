@@ -142,12 +142,18 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onThemeChange={handleThemeChange}
             onManualSave={handleManualSave}
             onPublishTemplate={handlePublishTemplate}
+            pages={state.pages}
+            activePageId={state.activePageId}
+            onSwitchPage={editor.switchPage}
+            onAddPage={editor.addPage}
             currentProject={{
-              id: state.currentProjectId,
+              id: state.currentProjectId!,
               name: state.projectName,
               subdomain: state.projectSubdomain,
               isPublished: state.projectIsPublished,
               lastPublishedAt: state.projectLastPublishedAt,
+              project_layout: state.components,
+              pages: state.pages,
             }}
             onPublishSuccess={(subdomain: string) => {
               setState((prev) => ({
@@ -319,6 +325,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                         projectName={state.projectName}
                         backgroundColor={state.canvasBackgroundColor}
                         showGrid={state.showCanvasGrid}
+                        activePageId={state.activePageId}
+                        pages={state.pages}
                         userProjectConfig={state.userProjectConfig}
                       />
                       <RemoteCursors
@@ -331,7 +339,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                   {state.viewMode === "code" && (
                     <div className="flex-1 flex flex-col h-full overflow-hidden bg-card">
                       <CodeViewEditor
-                        components={state.components}
+                        components={state.components.filter(c => c.page_id === state.activePageId || c.page_id === 'all' || (!c.page_id && state.activePageId === 'home'))}
                         userProjectConfig={state.userProjectConfig}
                         onCodeChange={(newComponents) =>
                           setState((prev) => ({
@@ -408,8 +416,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                           }))
                         }
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
@@ -423,8 +431,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                           }))
                         }
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         <svg
@@ -449,6 +457,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                   <div className="flex-1 overflow-hidden w-full max-w-full">
                     {state.rightSidebarTab === "properties" && (
                       <PropertiesPanel
+                        pages={state.pages}
+                        activePageId={state.activePageId}
                         selectedComponent={selectedComponentObject}
                         onUpdateComponent={updateComponent}
                         onUpdateStyle={(id, style) => {
@@ -532,13 +542,15 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             <PreviewModal
               components={state.components}
               onClose={togglePreview}
+              activePageId={state.activePageId}
+              pages={state.pages}
               userProjectConfig={state.userProjectConfig}
             />
           )}
 
           {state.showCodeExport && (
             <CodeExportModal
-              components={state.components}
+              components={state.components.filter(c => c.page_id === state.activePageId || c.page_id === 'all' || (!c.page_id && state.activePageId === 'home'))}
               onClose={toggleCodeExport}
             />
           )}

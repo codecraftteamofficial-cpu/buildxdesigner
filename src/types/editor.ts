@@ -3,6 +3,12 @@
  * Extracted from App.tsx for better organization and reusability.
  */
 
+export interface Page {
+  id: string;
+  name: string;
+  path: string;
+}
+
 export interface ComponentData {
   id: string;
   type: string;
@@ -11,11 +17,14 @@ export interface ComponentData {
   style?: Record<string, any>;
   position?: { x: number; y: number };
   project_layout?: any[];
+  page_id?: string;
 }
 
 export interface EditorState {
   currentView: "landing" | "dashboard" | "editor" | "admin-login" | "admin";
   currentPage: "landing" | "dashboard" | "editor" | "admin-login" | "admin";
+  pages: Page[];
+  activePageId: string;
   components: ComponentData[];
   selectedComponent: string | null;
   showPreview: boolean;

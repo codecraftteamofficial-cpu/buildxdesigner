@@ -123,7 +123,12 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
         setError(null)
 
         try {
-            const result = await publishProject(project!.id, subdomain)
+            const result = await publishProject(
+                project!.id,
+                subdomain,
+                project!.project_layout || [],
+                project!.pages || []
+            )
 
             if (result.error) {
                 throw new Error(typeof result.error === "string" ? result.error : result.error.message || "Failed to publish")

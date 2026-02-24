@@ -162,6 +162,7 @@ interface RenderableComponentProps {
     supabaseUrl: string;
     supabaseKey: string;
   };
+  navigate?: (path: string) => void;
 }
 
 export function RenderableComponent({
@@ -174,7 +175,8 @@ export function RenderableComponent({
   isPreview = false,
   editingComponentId,
   onEditComponent,
-  userProjectConfig
+  userProjectConfig,
+  navigate
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
@@ -552,8 +554,16 @@ export function RenderableComponent({
             if (action.handlerType === 'navigate' && action.url) {
               const absoluteUrl = formatUrl(action.url);
               console.log(`Executing navigate action to: ${action.url} -> ${absoluteUrl}`);
-              // For navigation, we can use the parent window directly
-              window.open(absoluteUrl, action.target || '_blank');
+
+              const isInternal = action.url.startsWith('/') || action.url.startsWith('./');
+
+              if (isInternal && navigate && (!action.target || action.target === '_self')) {
+                console.log(`Using internal navigate for ${action.url}`);
+                navigate(action.url);
+              } else {
+                // For navigation, we can use the parent window directly
+                window.open(absoluteUrl, action.target || '_blank');
+              }
               return true;
             }
 
