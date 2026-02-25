@@ -2,7 +2,9 @@ import React, { useState, useRef } from 'react';
 import { GripHorizontal, GripVertical, CornerDownRight } from 'lucide-react';
 
 interface ResizeHandleProps {
-  onResize: (width: number, height: number) => void;
+  onResize: (newX: number, newY: number, newWidth: number, newHeight: number) => void;
+  initialX?: number;
+  initialY?: number;
   initialWidth?: number;
   initialHeight?: number;
   minWidth?: number;
@@ -16,6 +18,8 @@ interface ResizeHandleProps {
 
 export function ResizeHandle({
   onResize,
+  initialX = 0,
+  initialY = 0,
   initialWidth = 300,
   initialHeight = 200,
   minWidth = 50,
@@ -27,30 +31,32 @@ export function ResizeHandle({
   onResizeEnd
 }: ResizeHandleProps) {
   const [dimensions, setDimensions] = useState({
+    x: initialX,
+    y: initialY,
     width: initialWidth,
     height: initialHeight
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState<'width' | 'height' | 'both' | null>(null);
+  const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const startPos = useRef({ x: 0, y: 0 });
-  const startDimensions = useRef({ width: 0, height: 0 });
+  const startDimensions = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   // Refs to track state in event listeners (avoiding stale closures)
-  const currentDimensions = useRef(dimensions);
-  const activeResizeDirection = useRef<'width' | 'height' | 'both' | null>(null);
+  const currentDimensions = useRef({ x: initialX, y: initialY, width: initialWidth, height: initialHeight });
+  const activeResizeDirection = useRef<'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | null>(null);
 
   // Update dimensions when initialWidth or initialHeight changes
   React.useEffect(() => {
     // Prevent the parent state from fighting the local state while dragging
     if (!isResizing) {
-      const newDims = { width: initialWidth, height: initialHeight };
+      const newDims = { x: initialX, y: initialY, width: initialWidth, height: initialHeight };
       setDimensions(newDims);
       currentDimensions.current = newDims;
     }
-  }, [initialWidth, initialHeight, isResizing]);
+  }, [initialX, initialY, initialWidth, initialHeight, isResizing]);
 
-  const handleMouseDown = (e: React.MouseEvent, direction: 'width' | 'height' | 'both') => {
+  const handleMouseDown = (e: React.MouseEvent, direction: 'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
     if (disabled) return;
     e.preventDefault();
     e.stopPropagation();
@@ -66,9 +72,16 @@ export function ResizeHandle({
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = direction === 'both' ? 'nw-resize' :
-      direction === 'width' ? 'ew-resize' : 'ns-resize';
+    document.body.style.cursor = getCursorStyle(direction);
     document.body.style.userSelect = 'none';
+  };
+
+  const getCursorStyle = (direction: string) => {
+    if (direction === 'left' || direction === 'right') return 'ew-resize';
+    if (direction === 'top' || direction === 'bottom') return 'ns-resize';
+    if (direction === 'topLeft' || direction === 'bottomRight') return 'nwse-resize';
+    if (direction === 'topRight' || direction === 'bottomLeft') return 'nesw-resize';
+    return 'auto';
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -79,19 +92,41 @@ export function ResizeHandle({
 
     let newWidth = startDimensions.current.width;
     let newHeight = startDimensions.current.height;
+    let newX = startDimensions.current.x;
+    let newY = startDimensions.current.y;
 
-    if (activeResizeDirection.current === 'width' || activeResizeDirection.current === 'both') {
+    const direction = activeResizeDirection.current;
+
+    if (direction.includes('right')) {
       newWidth = Math.max(minWidth, startDimensions.current.width + deltaX);
+    } else if (direction.includes('left')) {
+      const potentialWidth = startDimensions.current.width - deltaX;
+      if (potentialWidth >= minWidth) {
+        newWidth = potentialWidth;
+        newX = startDimensions.current.x + deltaX;
+      } else {
+        newWidth = minWidth;
+        newX = startDimensions.current.x + (startDimensions.current.width - minWidth);
+      }
     }
 
-    if (activeResizeDirection.current === 'height' || activeResizeDirection.current === 'both') {
+    if (direction.includes('bottom')) {
       newHeight = Math.max(minHeight, startDimensions.current.height + deltaY);
+    } else if (direction.includes('top')) {
+      const potentialHeight = startDimensions.current.height - deltaY;
+      if (potentialHeight >= minHeight) {
+        newHeight = potentialHeight;
+        newY = startDimensions.current.y + deltaY;
+      } else {
+        newHeight = minHeight;
+        newY = startDimensions.current.y + (startDimensions.current.height - minHeight);
+      }
     }
 
-    const newDims = { width: newWidth, height: newHeight };
+    const newDims = { x: newX, y: newY, width: newWidth, height: newHeight };
     setDimensions(newDims);
     currentDimensions.current = newDims;
-    onResize(newWidth, newHeight); // <-- ADDED THIS FOR LIVE UPDATES
+    onResize(newX, newY, newWidth, newHeight);
   };
 
   const handleMouseUp = () => {
@@ -101,7 +136,7 @@ export function ResizeHandle({
       activeResizeDirection.current = null;
       onResizeEnd?.();
 
-      onResize(currentDimensions.current.width, currentDimensions.current.height);
+      onResize(currentDimensions.current.x, currentDimensions.current.y, currentDimensions.current.width, currentDimensions.current.height);
 
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -110,7 +145,7 @@ export function ResizeHandle({
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent, direction: 'width' | 'height' | 'both') => {
+  const handleTouchStart = (e: React.TouchEvent, direction: 'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
     if (disabled) return;
     
     // REMOVED e.preventDefault() here! CSS touch-none handles this now.
@@ -140,19 +175,41 @@ export function ResizeHandle({
 
     let newWidth = startDimensions.current.width;
     let newHeight = startDimensions.current.height;
+    let newX = startDimensions.current.x;
+    let newY = startDimensions.current.y;
 
-    if (activeResizeDirection.current === 'width' || activeResizeDirection.current === 'both') {
+    const direction = activeResizeDirection.current;
+
+    if (direction.includes('right')) {
       newWidth = Math.max(minWidth, startDimensions.current.width + deltaX);
+    } else if (direction.includes('left')) {
+      const potentialWidth = startDimensions.current.width - deltaX;
+      if (potentialWidth >= minWidth) {
+        newWidth = potentialWidth;
+        newX = startDimensions.current.x + deltaX;
+      } else {
+        newWidth = minWidth;
+        newX = startDimensions.current.x + (startDimensions.current.width - minWidth);
+      }
     }
 
-    if (activeResizeDirection.current === 'height' || activeResizeDirection.current === 'both') {
+    if (direction.includes('bottom')) {
       newHeight = Math.max(minHeight, startDimensions.current.height + deltaY);
+    } else if (direction.includes('top')) {
+      const potentialHeight = startDimensions.current.height - deltaY;
+      if (potentialHeight >= minHeight) {
+        newHeight = potentialHeight;
+        newY = startDimensions.current.y + deltaY;
+      } else {
+        newHeight = minHeight;
+        newY = startDimensions.current.y + (startDimensions.current.height - minHeight);
+      }
     }
 
-    const newDims = { width: newWidth, height: newHeight };
+    const newDims = { x: newX, y: newY, width: newWidth, height: newHeight };
     setDimensions(newDims);
     currentDimensions.current = newDims;
-    onResize(newWidth, newHeight); // <-- ADDED THIS FOR LIVE UPDATES
+    onResize(newX, newY, newWidth, newHeight);
   };
 
   const handleTouchEnd = () => {
@@ -161,7 +218,7 @@ export function ResizeHandle({
       setResizeDirection(null);
       activeResizeDirection.current = null;
 
-      onResize(currentDimensions.current.width, currentDimensions.current.height);
+      onResize(currentDimensions.current.x, currentDimensions.current.y, currentDimensions.current.width, currentDimensions.current.height);
 
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
@@ -183,12 +240,32 @@ export function ResizeHandle({
 
       {/* Resize handles - visible on hover and when selected */}
       {!disabled && (
-        <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto transition-opacity">
+        <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto transition-opacity z-10">
+          {/* Top handle */}
+          <div
+            className="absolute -top-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-t-2 border-transparent hover:border-primary touch-none"
+            onMouseDown={(e) => handleMouseDown(e, 'top')}
+            onTouchStart={(e) => handleTouchStart(e, 'top')}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="h-1 w-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+          </div>
+
+          {/* Left handle */}
+          <div
+            className="absolute top-0 -left-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-l-2 border-transparent hover:border-primary touch-none"
+            onMouseDown={(e) => handleMouseDown(e, 'left')}
+            onTouchStart={(e) => handleTouchStart(e, 'left')}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="w-1 h-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+          </div>
+
           {/* Right handle (width) */}
           <div
             className="absolute top-0 -right-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-r-2 border-transparent hover:border-primary touch-none"
-            onMouseDown={(e) => handleMouseDown(e, 'width')}
-            onTouchStart={(e) => handleTouchStart(e, 'width')}
+            onMouseDown={(e) => handleMouseDown(e, 'right')}
+            onTouchStart={(e) => handleTouchStart(e, 'right')}
             style={{ pointerEvents: 'auto' }}
           >
             <div className="w-1 h-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
@@ -197,18 +274,42 @@ export function ResizeHandle({
           {/* Bottom handle (height) */}
           <div
             className="absolute -bottom-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-b-2 border-transparent hover:border-primary touch-none"
-            onMouseDown={(e) => handleMouseDown(e, 'height')}
-            onTouchStart={(e) => handleTouchStart(e, 'height')}
+            onMouseDown={(e) => handleMouseDown(e, 'bottom')}
+            onTouchStart={(e) => handleTouchStart(e, 'bottom')}
             style={{ pointerEvents: 'auto' }}
           >
             <div className="h-1 w-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
           </div>
 
-          {/* Corner handle (both) - most prominent */}
+          {/* Top-Left handle */}
+          <div
+            className="absolute -top-2 -left-2 w-4 h-4 cursor-nwse-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            onMouseDown={(e) => handleMouseDown(e, 'topLeft')}
+            onTouchStart={(e) => handleTouchStart(e, 'topLeft')}
+            style={{ pointerEvents: 'auto' }}
+          ></div>
+
+          {/* Top-Right handle */}
+          <div
+            className="absolute -top-2 -right-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            onMouseDown={(e) => handleMouseDown(e, 'topRight')}
+            onTouchStart={(e) => handleTouchStart(e, 'topRight')}
+            style={{ pointerEvents: 'auto' }}
+          ></div>
+
+          {/* Bottom-Left handle */}
+          <div
+            className="absolute -bottom-2 -left-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            onMouseDown={(e) => handleMouseDown(e, 'bottomLeft')}
+            onTouchStart={(e) => handleTouchStart(e, 'bottomLeft')}
+            style={{ pointerEvents: 'auto' }}
+          ></div>
+
+          {/* Bottom-Right handle (both) - most prominent */}
           <div
             className="absolute -bottom-2 -right-2 w-5 h-5 cursor-nwse-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
-            onMouseDown={(e) => handleMouseDown(e, 'both')}
-            onTouchStart={(e) => handleTouchStart(e, 'both')}
+            onMouseDown={(e) => handleMouseDown(e, 'bottomRight')}
+            onTouchStart={(e) => handleTouchStart(e, 'bottomRight')}
             style={{ pointerEvents: 'auto' }}
           >
             <CornerDownRight className="w-3 h-3 text-white" />

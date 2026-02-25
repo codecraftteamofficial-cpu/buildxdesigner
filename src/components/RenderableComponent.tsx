@@ -369,12 +369,13 @@ export function RenderableComponent({
       isOver: monitor.isOver({ shallow: true }),
     }),
   });
-  const handleResize = (width: number, height: number) => {
+  const handleResize = (newX: number, newY: number, newWidth: number, newHeight: number) => {
     onUpdate({
+      position: { x: newX, y: newY },
       style: {
         ...component.style,
-        width: `${width}px`,
-        height: `${height}px`
+        width: `${newWidth}px`,
+        height: `${newHeight}px`
       }
     });
   };
@@ -770,6 +771,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={textWidth}
             initialHeight={textHeight}
             className="group inline-block"
@@ -806,6 +809,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={headingWidth}
             initialHeight={headingHeight}
             className="group inline-block"
@@ -839,6 +844,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={buttonWidth}
             initialHeight={buttonHeight}
             className="group inline-block"
@@ -993,6 +1000,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={pmWidth}
             initialHeight={pmHeight}
             className="group inline-block"
@@ -1030,6 +1039,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={tableWidth}
             initialHeight={tableHeight}
             className="group inline-block"
@@ -1320,6 +1331,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={groupWidth}
             initialHeight={groupHeight}
             className="group"
@@ -1378,6 +1391,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={containerWidth}
             initialHeight={containerHeight}
             className="group"
@@ -1424,6 +1439,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={navWidth}
             initialHeight={navHeight}
             className="group"
@@ -1487,6 +1504,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={heroWidth}
             initialHeight={heroHeight}
             className="group"
@@ -1556,6 +1575,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={footerWidth}
             initialHeight={footerHeight}
             className="group"
@@ -1603,6 +1624,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={inputWidth}
             initialHeight={inputHeight}
             className="group"
@@ -1654,6 +1677,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={textareaWidth}
             initialHeight={textareaHeight}
             className="group"
@@ -1701,6 +1726,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={formWidth}
             initialHeight={formHeight}
             className="group"
@@ -1807,6 +1834,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={gridWidth}
             initialHeight={gridHeight}
             className="group"
@@ -1887,6 +1916,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={videoWidth}
             initialHeight={videoHeight}
             className="group"
@@ -1924,6 +1955,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={cardWidth}
             initialHeight={cardHeight}
             className="group"
@@ -2016,6 +2049,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={sectionHeadingWidth}
             initialHeight={sectionHeadingHeight}
             className="group"
@@ -2072,6 +2107,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={paragraphWidth}
             initialHeight={paragraphHeight}
             className="group"
@@ -2113,6 +2150,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={galleryWidth}
             initialHeight={galleryHeight}
             className="group"
@@ -2187,6 +2226,8 @@ const onResizeEnd = () => {
         return (
           <ResizeHandle
             onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
             initialWidth={carouselWidth}
             initialHeight={carouselHeight}
             className="group relative overflow-hidden"
