@@ -10,6 +10,8 @@ interface ResizeHandleProps {
   className?: string;
   children: React.ReactNode;
   disabled?: boolean;
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
 }
 
 export function ResizeHandle({
@@ -20,7 +22,9 @@ export function ResizeHandle({
   minHeight = 30,
   className = '',
   children,
-  disabled = false
+  disabled = false,
+  onResizeStart,
+  onResizeEnd
 }: ResizeHandleProps) {
   const [dimensions, setDimensions] = useState({
     width: initialWidth,
@@ -54,6 +58,7 @@ export function ResizeHandle({
     setIsResizing(true);
     setResizeDirection(direction);
     activeResizeDirection.current = direction;
+    onResizeStart?.();
 
     startPos.current = { x: e.clientX, y: e.clientY };
     startDimensions.current = { ...dimensions };
@@ -94,6 +99,7 @@ export function ResizeHandle({
       setIsResizing(false);
       setResizeDirection(null);
       activeResizeDirection.current = null;
+      onResizeEnd?.();
 
       onResize(currentDimensions.current.width, currentDimensions.current.height);
 

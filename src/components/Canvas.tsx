@@ -97,6 +97,81 @@ export function Canvas({
     gridSize: 20,
     gridColor: "#e5e5e5",
   });
+  const [alignmentGuides, setAlignmentGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+  const [resizingComponentId, setResizingComponentId] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+
+  const getComponentRect = useCallback((comp: ComponentData) => {
+    const x = comp.position?.x || 0;
+    const y = comp.position?.y || 0;
+    const width = Number.parseFloat(String(comp.style?.width || "200").replace("px", "")) || 200;
+    const height = Number.parseFloat(String(comp.style?.height || "100").replace("px", "")) || 100;
+    return {
+      left: x,
+      right: x + width,
+      top: y,
+      bottom: y + height,
+      centerX: x + width / 2,
+      centerY: y + height / 2,
+    };
+  }, []);
+
+  const calculateResizeGuides = useCallback((id: string, width: number, height: number) => {
+    const comp = components.find(c => c.id === id);
+    if (!comp) return { x: null, y: null, snappedWidth: width, snappedHeight: height };
+
+    const x = comp.position?.x || 0;
+    const y = comp.position?.y || 0;
+    const right = x + width;
+    const bottom = y + height;
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+
+    const newGuides: { x: number | null; y: number | null } = { x: null, y: null };
+    let snappedWidth = width;
+    let snappedHeight = height;
+    const threshold = 5;
+
+    for (const other of components) {
+      if (other.id === id) continue;
+      const otherRect = getComponentRect(other);
+
+      // Check X alignment (right edge or center)
+      const xPoints = [
+        { val: otherRect.left, target: right, type: 'right' },
+        { val: otherRect.right, target: right, type: 'right' },
+        { val: otherRect.centerX, target: centerX, type: 'center' }
+      ];
+
+      for (const point of xPoints) {
+        if (Math.abs(point.val - point.target) < threshold) {
+          newGuides.x = point.val;
+          if (point.type === 'right') snappedWidth = point.val - x;
+          else if (point.type === 'center') snappedWidth = (point.val - x) * 2;
+          break;
+        }
+      }
+
+      // Check Y alignment (bottom edge or center)
+      const yPoints = [
+        { val: otherRect.top, target: bottom, type: 'bottom' },
+        { val: otherRect.bottom, target: bottom, type: 'bottom' },
+        { val: otherRect.centerY, target: centerY, type: 'center' }
+      ];
+
+      for (const point of yPoints) {
+        if (Math.abs(point.val - point.target) < threshold) {
+          newGuides.y = point.val;
+          if (point.type === 'bottom') snappedHeight = point.val - y;
+          else if (point.type === 'center') snappedHeight = (point.val - y) * 2;
+          break;
+        }
+      }
+      if (newGuides.x !== null && newGuides.y !== null) break;
+    }
+
+    return { ...newGuides, snappedWidth, snappedHeight };
+  }, [components, getComponentRect]);
 
   useEffect(() => {
     setCanvasProperties((prev) => ({
@@ -603,8 +678,14 @@ export function Canvas({
         const scrollTop = canvasRef.current.scrollTop;
 
         // Calculate the actual position in the canvas coordinate system
-        const x = (offset.x - canvasRect.left + scrollLeft) / scale;
-        const y = (offset.y - canvasRect.top + scrollTop) / scale;
+        let x = (offset.x - canvasRect.left + scrollLeft) / scale;
+        let y = (offset.y - canvasRect.top + scrollTop) / scale;
+
+        // Snap to grid if enabled
+        if (canvasProperties.showGrid) {
+          x = Math.round(x / canvasProperties.gridSize) * canvasProperties.gridSize;
+          y = Math.round(y / canvasProperties.gridSize) * canvasProperties.gridSize;
+        }
 
         const newComponent: ComponentData = {
           id: Date.now().toString(),
@@ -729,7 +810,6 @@ export function Canvas({
       readOnly ||
       target.closest(".resize-handle") ||
       target.closest('[contenteditable="true"]') ||
-      target.closest("button") ||
       target.closest("input") ||
       target.closest("textarea")
     ) {
@@ -763,7 +843,6 @@ export function Canvas({
     if (
       target.closest(".resize-handle") ||
       target.closest('[contenteditable="true"]') ||
-      target.closest("button") ||
       target.closest("input") ||
       target.closest("textarea")
     ) {
@@ -826,19 +905,83 @@ export function Canvas({
       const scrollLeft = canvasRef.current.scrollLeft;
       const scrollTop = canvasRef.current.scrollTop;
 
-      const x =
+      let x =
         (touch.clientX - canvasRect.left + scrollLeft) / scale - dragOffset.x;
-      const y =
+      let y =
         (touch.clientY - canvasRect.top + scrollTop) / scale - dragOffset.y;
 
+      // Smart Guides Logic
+      let snappedX = x;
+      let snappedY = y;
+      const newGuides: { x: number | null; y: number | null } = { x: null, y: null };
+      const threshold = 5;
+
+      const draggingComp = components.find(c => c.id === draggingComponent);
+      if (draggingComp) {
+        const width = Number.parseFloat(String(draggingComp.style?.width || "200").replace("px", "")) || 200;
+        const height = Number.parseFloat(String(draggingComp.style?.height || "100").replace("px", "")) || 100;
+
+        for (const other of components) {
+          if (other.id === draggingComponent) continue;
+          const otherRect = getComponentRect(other);
+          
+          if (newGuides.x === null) {
+            const xPoints = [
+              { val: otherRect.left, target: x },
+              { val: otherRect.right, target: x + width },
+              { val: otherRect.centerX, target: x + width / 2 },
+              { val: otherRect.left, target: x + width },
+              { val: otherRect.right, target: x }
+            ];
+            for (const point of xPoints) {
+              if (Math.abs(point.val - point.target) < threshold) {
+                newGuides.x = point.val;
+                if (point.target === x) snappedX = point.val;
+                else if (point.target === x + width) snappedX = point.val - width;
+                else if (point.target === x + width / 2) snappedX = point.val - width / 2;
+                break;
+              }
+            }
+          }
+
+          if (newGuides.y === null) {
+            const yPoints = [
+              { val: otherRect.top, target: y },
+              { val: otherRect.bottom, target: y + height },
+              { val: otherRect.centerY, target: y + height / 2 },
+              { val: otherRect.top, target: y + height },
+              { val: otherRect.bottom, target: y }
+            ];
+            for (const point of yPoints) {
+              if (Math.abs(point.val - point.target) < threshold) {
+                newGuides.y = point.val;
+                if (point.target === y) snappedY = point.val;
+                else if (point.target === y + height) snappedY = point.val - height;
+                else if (point.target === y + height / 2) snappedY = point.val - height / 2;
+                break;
+              }
+            }
+          }
+          if (newGuides.x !== null && newGuides.y !== null) break;
+        }
+      }
+
+      if (canvasProperties.showGrid) {
+        if (newGuides.x === null) snappedX = Math.round(snappedX / canvasProperties.gridSize) * canvasProperties.gridSize;
+        if (newGuides.y === null) snappedY = Math.round(snappedY / canvasProperties.gridSize) * canvasProperties.gridSize;
+      }
+
+      setAlignmentGuides(newGuides);
       updateComponentWithHistory(draggingComponent, {
-        position: { x, y },
+        position: { x: snappedX, y: snappedY },
       });
     }
   };
 
   const handleTouchEnd = () => {
     setDraggingComponent(null);
+    setAlignmentGuides({ x: null, y: null });
+    setMousePos({ x: null, y: null });
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -848,19 +991,123 @@ export function Canvas({
       const scrollLeft = canvasRef.current.scrollLeft;
       const scrollTop = canvasRef.current.scrollTop;
 
-      const x =
+      let x =
         (e.clientX - canvasRect.left + scrollLeft) / scale - dragOffset.x;
-      const y = (e.clientY - canvasRect.top + scrollTop) / scale - dragOffset.y;
+      let y = (e.clientY - canvasRect.top + scrollTop) / scale - dragOffset.y;
+      setMousePos({ x: x + dragOffset.x, y: y + dragOffset.y });
 
+      // Smart Guides Logic
+      let snappedX = x;
+      let snappedY = y;
+      const newGuides: { x: number | null; y: number | null } = { x: null, y: null };
+      const threshold = 5;
+
+      const draggingComp = components.find(c => c.id === draggingComponent);
+      if (draggingComp) {
+        const width = Number.parseFloat(String(draggingComp.style?.width || "200").replace("px", "")) || 200;
+        const height = Number.parseFloat(String(draggingComp.style?.height || "100").replace("px", "")) || 100;
+
+        for (const other of components) {
+          if (other.id === draggingComponent) continue;
+          const otherRect = getComponentRect(other);
+          
+          if (newGuides.x === null) {
+            const xPoints = [
+              { val: otherRect.left, target: x },
+              { val: otherRect.right, target: x + width },
+              { val: otherRect.centerX, target: x + width / 2 },
+              { val: otherRect.left, target: x + width },
+              { val: otherRect.right, target: x }
+            ];
+            for (const point of xPoints) {
+              if (Math.abs(point.val - point.target) < threshold) {
+                newGuides.x = point.val;
+                if (point.target === x) snappedX = point.val;
+                else if (point.target === x + width) snappedX = point.val - width;
+                else if (point.target === x + width / 2) snappedX = point.val - width / 2;
+                break;
+              }
+            }
+          }
+
+          if (newGuides.y === null) {
+            const yPoints = [
+              { val: otherRect.top, target: y },
+              { val: otherRect.bottom, target: y + height },
+              { val: otherRect.centerY, target: y + height / 2 },
+              { val: otherRect.top, target: y + height },
+              { val: otherRect.bottom, target: y }
+            ];
+            for (const point of yPoints) {
+              if (Math.abs(point.val - point.target) < threshold) {
+                newGuides.y = point.val;
+                if (point.target === y) snappedY = point.val;
+                else if (point.target === y + height) snappedY = point.val - height;
+                else if (point.target === y + height / 2) snappedY = point.val - height / 2;
+                break;
+              }
+            }
+          }
+          if (newGuides.x !== null && newGuides.y !== null) break;
+        }
+      }
+
+      if (canvasProperties.showGrid) {
+        if (newGuides.x === null) snappedX = Math.round(snappedX / canvasProperties.gridSize) * canvasProperties.gridSize;
+        if (newGuides.y === null) snappedY = Math.round(snappedY / canvasProperties.gridSize) * canvasProperties.gridSize;
+      }
+
+      setAlignmentGuides(newGuides);
       updateComponentWithHistory(draggingComponent, {
-        position: { x, y },
+        position: { x: snappedX, y: snappedY },
       });
     }
   };
 
   const handleMouseUp = () => {
     setDraggingComponent(null);
+    setAlignmentGuides({ x: null, y: null });
+    setMousePos({ x: null, y: null });
   };
+
+  React.useEffect(() => {
+    if (resizingComponentId) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        if (canvasRef.current) {
+          const rect = canvasRef.current.getBoundingClientRect();
+          const scale = canvasZoom / 100;
+          const x = (e.clientX - rect.left + canvasRef.current.scrollLeft) / scale;
+          const y = (e.clientY - rect.top + canvasRef.current.scrollTop) / scale;
+          setMousePos({ x, y });
+        }
+      };
+      document.addEventListener("mousemove", handleGlobalMouseMove);
+      return () => document.removeEventListener("mousemove", handleGlobalMouseMove);
+    }
+  }, [resizingComponentId, canvasZoom]);
+
+  const handleUpdateComponentWithGuides = useCallback((id: string, updates: Partial<ComponentData>) => {
+    let finalUpdates = updates;
+    
+    if (resizingComponentId === id && updates.style) {
+      const width = parseFloat(String(updates.style.width || "0").replace("px", ""));
+      const height = parseFloat(String(updates.style.height || "0").replace("px", ""));
+      
+      if (width > 0 || height > 0) {
+        const guides = calculateResizeGuides(id, width, height);
+        setAlignmentGuides({ x: guides.x, y: guides.y });
+        finalUpdates = {
+          ...updates,
+          style: {
+            ...updates.style,
+            width: `${guides.snappedWidth}px`,
+            height: `${guides.snappedHeight}px`
+          }
+        };
+      }
+    }
+    onUpdateComponent(id, finalUpdates);
+  }, [resizingComponentId, calculateResizeGuides, onUpdateComponent]);
 
   React.useEffect(() => {
     if (draggingComponent) {
@@ -1085,6 +1332,32 @@ export function Canvas({
             ...canvasStyle,
           }}
         >
+          {/* Mouse Crosshair */}
+          {!readOnly && (draggingComponent || resizingComponentId) && mousePos.x !== null && (
+            <div
+              className="absolute top-0 bottom-0 w-px bg-blue-400/20 z-40 pointer-events-none"
+              style={{ left: `${mousePos.x}px`, height: '300vh' }}
+            />
+          )}
+          {!readOnly && (draggingComponent || resizingComponentId) && mousePos.y !== null && (
+            <div
+              className="absolute left-0 right-0 h-px bg-blue-400/20 z-40 pointer-events-none"
+              style={{ top: `${mousePos.y}px`, width: '300vw' }}
+            />
+          )}
+          {/* Alignment Guides */}
+          {!readOnly && alignmentGuides.x !== null && (
+            <div
+              className="absolute top-0 bottom-0 w-px bg-purple-500 z-50 pointer-events-none"
+              style={{ left: `${alignmentGuides.x}px`, height: '300vh' }}
+            />
+          )}
+          {!readOnly && alignmentGuides.y !== null && (
+            <div
+              className="absolute left-0 right-0 h-px bg-purple-500 z-50 pointer-events-none"
+              style={{ top: `${alignmentGuides.y}px`, width: '300vw' }}
+            />
+          )}
           {components.length === 0 ? (
             <div
               className="absolute flex items-center justify-center text-muted-foreground text-center px-4"
@@ -1171,9 +1444,10 @@ export function Canvas({
                     <RenderableComponent
                       component={component}
                       isSelected={readOnly ? false : isSelected}
-                      onUpdate={!readOnly ? (updates) => onUpdateComponent(component.id, updates) : () => { }}
+                      onUpdate={!readOnly ? (updates) => handleUpdateComponentWithGuides(component.id, updates) : () => { }}
                       onDelete={!readOnly ? () => onDeleteComponent(component.id) : () => { }}
-
+                      onResizeStart={() => setResizingComponentId(component.id)}
+                      onResizeEnd={() => { setResizingComponentId(null); setAlignmentGuides({ x: null, y: null }); }}
                       editingComponentId={readOnly ? null : editingTextId}
                       onEditComponent={setEditingTextId}
                       userProjectConfig={userProjectConfig}

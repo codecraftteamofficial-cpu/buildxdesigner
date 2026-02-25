@@ -162,6 +162,8 @@ interface RenderableComponentProps {
     supabaseUrl: string;
     supabaseKey: string;
   };
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
 }
 
 export function RenderableComponent({
@@ -174,7 +176,9 @@ export function RenderableComponent({
   isPreview = false,
   editingComponentId,
   onEditComponent,
-  userProjectConfig
+  userProjectConfig,
+  onResizeStart,
+  onResizeEnd
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
@@ -755,6 +759,8 @@ export function RenderableComponent({
             minWidth={50}
             minHeight={20}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <EditableText
@@ -789,6 +795,8 @@ export function RenderableComponent({
             minWidth={100}
             minHeight={30}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <EditableText
@@ -820,6 +828,8 @@ export function RenderableComponent({
             minWidth={60}
             minHeight={30}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <Button
               id={props.elementId}
@@ -972,6 +982,8 @@ export function RenderableComponent({
             minWidth={100}
             minHeight={30}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <PayMongoButton
               projectId={projectId}
@@ -1007,6 +1019,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={100}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <Card
               className="w-full h-full overflow-hidden flex flex-col"
@@ -1243,6 +1257,8 @@ export function RenderableComponent({
             initialHeight={imgHeight}
             className="group"
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             {props.src ? (
@@ -1291,6 +1307,8 @@ export function RenderableComponent({
             initialHeight={groupHeight}
             className="group"
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <div
@@ -1347,6 +1365,8 @@ export function RenderableComponent({
             initialHeight={containerHeight}
             className="group"
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <div
@@ -1393,6 +1413,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={40}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <nav
@@ -1454,6 +1476,8 @@ export function RenderableComponent({
             minWidth={300}
             minHeight={200}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <div
@@ -1521,6 +1545,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={50}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <footer
@@ -1566,6 +1592,8 @@ export function RenderableComponent({
             minWidth={100}
             minHeight={30}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div className="relative w-full h-full">
               <Input
@@ -1615,6 +1643,8 @@ export function RenderableComponent({
             minWidth={150}
             minHeight={60}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div className="relative w-full h-full">
               <Textarea
@@ -1657,6 +1687,8 @@ export function RenderableComponent({
             initialWidth={formWidth}
             initialHeight={formHeight}
             className="group"
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <Card
               id={props.elementId}
@@ -1764,6 +1796,8 @@ export function RenderableComponent({
             minWidth={300}
             minHeight={150}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <div
@@ -1842,6 +1876,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={150}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
 
             <div
@@ -1877,6 +1913,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={200}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <Card
               id={props.elementId}
@@ -1967,6 +2005,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={80}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div
               id={props.elementId}
@@ -2021,6 +2061,8 @@ export function RenderableComponent({
             minWidth={200}
             minHeight={40}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div
               id={props.elementId}
@@ -2060,6 +2102,8 @@ export function RenderableComponent({
             minWidth={300}
             minHeight={200}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div
               id={props.elementId}
@@ -2132,6 +2176,8 @@ export function RenderableComponent({
             minWidth={300}
             minHeight={200}
             disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
           >
             <div
               className="relative w-full h-full"
