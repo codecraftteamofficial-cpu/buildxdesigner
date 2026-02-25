@@ -15,7 +15,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   type: 'login' | 'signup';
-  onSuccess: () => void;
+  onSuccess: (isSignup?: boolean) => void;
 }
 
 type AuthMethod = 'email' | 'phone';
@@ -119,7 +119,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 setAuthMessage(result.message || (currentType === 'login' ? 'Login successful!' : 'Sign-up successful!'));
 
                 setTimeout(() => {
-                    onSuccess();
+                    onSuccess(currentType === 'signup');
                     onClose();
                     setFormData({ name: '', email: '', phone: '', password: '', confirmPassword: '', verificationCode: '' });
                     
@@ -174,7 +174,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 setAuthMessage(result.message || 'Verification successful. Redirecting...');
                 
                 setTimeout(() => {
-                    onSuccess();
+                    onSuccess(currentType === 'signup');
                     onClose();
                     setFormData({ name: '', email: '', phone: '', password: '', confirmPassword: '', verificationCode: '' });
                     setShowVerification(false);
@@ -216,7 +216,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   const handleGoogleAuth = async () => {
     try {
       await googleSignIn();
-      onSuccess();
+      // For Google, we can't easily know if it's a signup or login here
+      // We'll handle the onboarding check in App.tsx based on user metadata
+      onSuccess(false); 
       onClose();
       
       // Reset form

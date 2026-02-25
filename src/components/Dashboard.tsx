@@ -1762,10 +1762,16 @@ export function Dashboard({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {recommendedTemplates.map((template) => (
+                         {recommendedTemplates
+                            .filter(
+                              (template) =>
+                               
+                                template.id !== "getting-started-guide",
+                            )
+                            .map((template) => (
                             <div
                               key={template.id}
-                              className="group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                             className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
                               onClick={() => handleQuickTemplateClick(template)}
                             >
                               <div className="aspect-video bg-muted relative overflow-hidden">

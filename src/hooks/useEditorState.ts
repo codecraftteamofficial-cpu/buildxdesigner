@@ -60,6 +60,7 @@ export function useEditorState() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string>("/index.html");
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -244,6 +245,15 @@ export function useEditorState() {
       }
 
       setIsAuthenticated(loggedIn);
+      
+      // Check onboarding status
+      if (loggedIn && session?.user) {
+        const onboardingCompleted = session.user.user_metadata?.onboarding_completed;
+        if (!onboardingCompleted) {
+          setShowOnboarding(true);
+        }
+      }
+      
       setAuthLoading(false);
 
       const savedView = localStorage.getItem("fulldev-ai-current-view");
@@ -1100,5 +1110,8 @@ export function useEditorState() {
     addPage,
     deletePage,
     updatePage,
+    // Onboarding
+    showOnboarding,
+    setShowOnboarding,
   };
 }

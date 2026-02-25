@@ -21,8 +21,8 @@ export interface ComponentData {
 }
 
 export interface EditorState {
-  currentView: "landing" | "dashboard" | "editor" | "admin-login" | "admin";
-  currentPage: "landing" | "dashboard" | "editor" | "admin-login" | "admin";
+  currentView: "landing" | "dashboard" | "editor" | "admin-login" | "admin" | "onboarding";
+  currentPage: "landing" | "dashboard" | "editor" | "admin-login" | "admin" | "onboarding";
   pages: Page[];
   activePageId: string;
   components: ComponentData[];
