@@ -1452,7 +1452,7 @@ export function Dashboard({
 
   return (
     // Use flex h-screen and allow page scrolling so gallery and bottom content are reachable
-    <div className="flex h-screen bg-background overflow-auto">
+    <div className="dashboard-gradient-surface flex h-screen overflow-auto">
       {/* Mobile Overlay */}
       {sidebarVisible && (
         <div
@@ -1481,7 +1481,7 @@ export function Dashboard({
                 className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 disabled={authLoading}
               >
-                <Avatar className="h-8 w-8 ring-2 ring-blue-500/50">
+                <Avatar className="h-8 w-8 ring-2 ring-blue-500/50 shrink-0">
                   {/* Use actual avatar URL from Supabase Storage */}
                   <AvatarImage
                     src={userAvatarUrl || undefined}
@@ -1491,16 +1491,15 @@ export function Dashboard({
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
-                  <div className="flex-1 text-left min-w-0">
-                    {/* Use fetched full name and email */}
-                    <p className="text-sm text-foreground truncate">{userName}</p>
-                    
-                    {/* Replaced break-all with truncate */}
-                    <p className="text-xs text-muted-foreground truncate">
-                      {userEmail}
-                    </p>
-                  <ChevronDown className="w-3 h-3 text-muted-foreground inline" />
-                  </div>
+                 <div className="min-w-0 flex-1 text-left">
+                  {/* Use fetched full name and email */}
+                   <p className="text-sm text-foreground truncate">{userName}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {userEmail}
+                  </p>
+                 
+                </div>
+                   <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
@@ -1764,10 +1763,16 @@ export function Dashboard({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {recommendedTemplates.map((template) => (
+                         {recommendedTemplates
+                            .filter(
+                              (template) =>
+                               
+                                template.id !== "getting-started-guide",
+                            )
+                            .map((template) => (
                             <div
                               key={template.id}
-                              className="group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                             className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
                               onClick={() => handleQuickTemplateClick(template)}
                             >
                               <div className="aspect-video bg-muted relative overflow-hidden">

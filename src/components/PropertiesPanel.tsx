@@ -61,6 +61,8 @@ interface PropertiesPanelProps {
   showCanvasGrid?: boolean
   onUpdateCanvasBackground?: (color: string) => void
   onToggleCanvasGrid?: (show: boolean) => void
+  pages?: { id: string; name: string }[]
+  activePageId?: string
 }
 
 export function PropertiesPanel({
@@ -73,6 +75,8 @@ export function PropertiesPanel({
   showCanvasGrid = true,
   onUpdateCanvasBackground,
   onToggleCanvasGrid,
+  pages,
+  activePageId,
 }: PropertiesPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState("content")
@@ -2120,6 +2124,25 @@ export function PropertiesPanel({
                   />
                   <p className="text-[10px] text-muted-foreground">Separate multiple classes with spaces.</p>
                 </div>
+                {pages && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Page Assignment</Label>
+                    <Select
+                      value={selectedComponent.page_id || activePageId || "home"}
+                      onValueChange={(val: string) => onUpdateComponent(selectedComponent.id, { page_id: val })}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-full bg-accent/20 border-accent/40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Global (All Pages)</SelectItem>
+                        {pages.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               {renderPropertyInputs()}
             </div>

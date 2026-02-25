@@ -28,6 +28,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
     setAuthType(type);
     setShowAuthModal(true);
   };
+
+  const handleAuthSuccess = (isSignup?: boolean) => {
+    if (isSignup) {
+      // We can pass a flag or just let App.tsx handle it
+      // For now, we just call onEnterEditor
+      onEnterEditor();
+    } else {
+      onEnterEditor();
+    }
+  };
+
   useAuthRedirect(onEnterEditor);
 
   const handleStartBuilding = async () => {
@@ -169,7 +180,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
   }
 
   return (
-    <div className="min-h-screen landing-theme-bg">
+    <div className="min-h-screen dashboard-gradient-surface landing-dark-theme">
       <Toaster position="top-center" />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-blue-100">
@@ -368,7 +379,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
             alt="Abstract technology background"
             className="w-full h-full object-cover opacity-20"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/85 via-white/90 to-blue-100/85"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-[#070b26]/85 via-[#11163a]/80 to-[#1b2050]/85"></div>
         </div>
         
         {/* Floating Animation Elements */}
@@ -1212,7 +1223,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         type={authType}
-        onSuccess={onEnterEditor}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );

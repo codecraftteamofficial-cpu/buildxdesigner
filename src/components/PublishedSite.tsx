@@ -12,18 +12,41 @@ export function PublishedSite() {
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [activePageId, setActivePageId] = useState<string>('home');
+
+    const getActivePageFromPath = (path: string, pages: any[]) => {
+        if (!pages || pages.length === 0) return 'home';
+
+        // Normalize path for comparison
+        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+        // Handle root path or /home alias
+        if (normalizedPath === '/' || normalizedPath === '/home') {
+            return 'home';
+        }
+
+        // Find page by path
+        const page = pages.find(p => {
+            const pagePathNormalized = p.path.startsWith('/') ? p.path : `/${p.path}`;
+            return pagePathNormalized === normalizedPath;
+        });
+
+        return page ? page.id : 'home';
+    };
+
+    const navigate = (path: string) => {
+        window.history.pushState({}, '', path);
+        const newPageId = getActivePageFromPath(path, project?.pages || []);
+        setActivePageId(newPageId);
+    };
 
     useEffect(() => {
         const loadProject = async () => {
             const hostname = window.location.hostname;
-            // Extract subdomain: "mysite.buildxdesigner.site" -> "mysite"
-            // For localhost testing, we might need a different logic or manual override
-            // Assuming structure is [subdomain].[domain].[tld]
             const parts = hostname.split(".");
             let subdomain = "";
 
             if (process.env.NODE_ENV === "development" && hostname.includes("localhost")) {
-                // Allow testing with query param in dev: http://localhost:3000/?subdomain=mysite
                 const params = new URLSearchParams(window.location.search);
                 const override = params.get("subdomain");
                 if (override) {
@@ -34,7 +57,6 @@ export function PublishedSite() {
             }
 
             if (!subdomain || subdomain === "www" || subdomain === "app") {
-                // Should have been handled by App.tsx routing, but just in case
                 setError("No subdomain found");
                 setLoading(false);
                 return;
@@ -56,6 +78,20 @@ export function PublishedSite() {
 
         loadProject();
     }, []);
+
+    useEffect(() => {
+        if (!project) return;
+
+        const handlePopState = () => {
+            setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
+        };
+
+        // Initial detection
+        setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [project]);
 
     if (loading) {
         return (
@@ -80,6 +116,8 @@ export function PublishedSite() {
                 projectId={project.id}
                 components={project.project_layout || []}
                 backgroundColor={project.backgroundColor || "#ffffff"}
+                activePageId={activePageId}
+                navigate={navigate}
             />
         </DndProvider>
     );

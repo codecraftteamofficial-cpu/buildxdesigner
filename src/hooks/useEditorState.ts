@@ -9,6 +9,8 @@ import {
   saveProject,
   fetchProjectById,
   fetchProjectComponents,
+  syncProjectComponents,
+  saveProjectMetadata,
 } from "../supabase/data/projectService";
 import useCollaboration from "../services/useCollaboration";
 
@@ -58,6 +60,7 @@ export function useEditorState() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string>("/index.html");
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<{
     id: string;
@@ -69,6 +72,8 @@ export function useEditorState() {
   const [state, setState] = useState<EditorState>({
     currentView: getInitialView(),
     currentPage: getInitialView(),
+    pages: [{ id: 'home', name: 'Home', path: '/' }],
+    activePageId: 'home',
     components: [],
     selectedComponent: null,
     showPreview: false,
@@ -115,7 +120,7 @@ export function useEditorState() {
   const {
     getOrInitDoc,
     replaceComponents,
-    addComponent,
+    addComponent: rawAddComponent,
     updateComponent,
     deleteComponent,
     selectComponent,
@@ -131,6 +136,37 @@ export function useEditorState() {
     projectIsPublished: state.projectIsPublished,
     projectLastPublishedAt: state.projectLastPublishedAt,
   });
+
+  const addComponent = (component: ComponentData) => {
+    rawAddComponent({
+      ...component,
+      page_id: component.page_id || state.activePageId
+    });
+  };
+
+  // ==================== AUTO-SAVE METADATA ====================
+  // Save metadata like pages and project name whenever they change
+  useEffect(() => {
+    if (!state.currentProjectId || !isAuthenticated) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        console.log("Autosaving project metadata (pages, etc)...");
+        await saveProjectMetadata({
+          id: state.currentProjectId!,
+          name: state.projectName,
+          user_id: currentUser?.id || "",
+          pages: state.pages,
+          // We also include components from state to keep the JSON column in sync
+          project_layout: state.components,
+        });
+      } catch (err) {
+        console.error("Failed to autosave metadata:", err);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [state.pages, state.projectName, state.currentProjectId, isAuthenticated, currentUser?.id, state.components]);
 
   // ==================== AUTH ====================
 
@@ -209,6 +245,15 @@ export function useEditorState() {
       }
 
       setIsAuthenticated(loggedIn);
+      
+      // Check onboarding status
+      if (loggedIn && session?.user) {
+        const onboardingCompleted = session.user.user_metadata?.onboarding_completed;
+        if (!onboardingCompleted) {
+          setShowOnboarding(true);
+        }
+      }
+      
       setAuthLoading(false);
 
       const savedView = localStorage.getItem("fulldev-ai-current-view");
@@ -815,7 +860,7 @@ export function useEditorState() {
         handleAddComponent as EventListener,
       );
     };
-  }, []);
+  }, [addComponent]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -953,6 +998,46 @@ export function useEditorState() {
     };
   }, [state.selectedComponent]);
 
+  // ==================== PAGE MANAGEMENT ====================
+
+  const switchPage = (pageId: string) => {
+    setState((prev) => ({ ...prev, activePageId: pageId, selectedComponent: null }));
+  };
+
+  const addPage = (name: string, path: string) => {
+    const newPage = { id: `page-${Date.now().toString()}`, name, path };
+    setState((prev) => ({
+      ...prev,
+      pages: [...prev.pages, newPage],
+      activePageId: newPage.id,
+      selectedComponent: null,
+      hasUnsavedChanges: true,
+    }));
+  };
+
+  const deletePage = (pageId: string) => {
+    setState((prev) => {
+      if (prev.pages.length <= 1) return prev; // Cannot delete last page
+      const newPages = prev.pages.filter(p => p.id !== pageId);
+      const newActiveId = prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
+      return {
+        ...prev,
+        pages: newPages,
+        activePageId: newActiveId,
+        selectedComponent: null,
+        hasUnsavedChanges: true,
+      };
+    });
+  };
+
+  const updatePage = (pageId: string, updates: Partial<{ name: string; path: string }>) => {
+    setState((prev) => ({
+      ...prev,
+      pages: prev.pages.map(p => p.id === pageId ? { ...p, ...updates } : p),
+      hasUnsavedChanges: true,
+    }));
+  };
+
   // ==================== RETURN ====================
 
   return {
@@ -1019,5 +1104,14 @@ export function useEditorState() {
     // Sidebar resize
     handleLeftSplitterMouseDown,
     handleRightSplitterMouseDown,
+
+    // Page Management
+    switchPage,
+    addPage,
+    deletePage,
+    updatePage,
+    // Onboarding
+    showOnboarding,
+    setShowOnboarding,
   };
 }

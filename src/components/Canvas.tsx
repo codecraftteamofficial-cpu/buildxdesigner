@@ -12,6 +12,7 @@ import {
 import { setLocalProjectCache } from "../supabase/data/projectService";
 import { MinimalComponentPanel } from "./MinimalComponentPanel";
 import { CanvasContextMenu } from "./CanvasContextMenu";
+import { Plus, Loader2 } from "lucide-react";
 
 // Constants
 
@@ -36,6 +37,8 @@ interface CanvasProps {
     supabaseKey: string;
   };
   readOnly?: boolean;
+  activePageId?: string;
+  pages?: { id: string; name: string; path: string }[];
 }
 
 
@@ -67,6 +70,8 @@ export function Canvas({
   showGrid = false,
   userProjectConfig,
   readOnly = false,
+  activePageId = 'home',
+  pages = [{ id: 'home', name: 'Home', path: '/' }],
 }: CanvasProps) {
 
   const [draggingComponent, setDraggingComponent] = useState<string | null>(
@@ -181,6 +186,11 @@ export function Canvas({
     }));
   }, [backgroundColor, showGrid]);
 
+  // Clear selection when changing pages
+  useEffect(() => {
+    setSelectedComponents(new Set());
+  }, [activePageId]);
+
   // Add command to history
   const addToHistory = useCallback(
     (command: Command) => {
@@ -262,6 +272,7 @@ export function Canvas({
           x: (clipboard.position?.x || 0) + 20, // Offset slightly from original
           y: (clipboard.position?.y || 0) + 20,
         },
+        page_id: activePageId,
       };
 
       const execute = () => {
@@ -281,7 +292,7 @@ export function Canvas({
       addToHistory(command);
       execute();
     }
-  }, [clipboard, addToHistory, onSelectComponent]);
+  }, [clipboard, addToHistory, onSelectComponent, activePageId]);
 
   // Group selected components
   const groupSelectedComponents = useCallback(() => {
@@ -331,6 +342,7 @@ export function Canvas({
           y: (comp.position?.y || 0) - minY,
         },
       })),
+      page_id: activePageId,
     };
 
     // Create a command for grouping
@@ -370,6 +382,7 @@ export function Canvas({
     onUpdateComponent,
     onSelectComponent,
     addToHistory,
+    activePageId,
   ]);
 
   // Ungroup selected group
@@ -392,6 +405,7 @@ export function Canvas({
           x: (child.position?.x || 0) + groupPos.x,
           y: (child.position?.y || 0) + groupPos.y,
         },
+        page_id: activePageId,
       };
       // Use addComponent event
       const event = new CustomEvent("addComponent", { detail: newChild });
@@ -402,7 +416,7 @@ export function Canvas({
     onDeleteComponent(group.id);
     setSelectedComponents(new Set());
     onSelectComponent(null);
-  }, [selectedComponent, onDeleteComponent, onSelectComponent]);
+  }, [selectedComponent, onDeleteComponent, onSelectComponent, activePageId]);
 
   // Bring to Front
   const bringToFront = useCallback(() => {
@@ -594,6 +608,7 @@ export function Canvas({
           id: projectId,
           name: projectName,
           project_layout: components,
+          pages: pages,
         });
       } else {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(components));
@@ -623,14 +638,6 @@ export function Canvas({
 
         if (syncError) {
           console.error("Autosave components failed:", syncError);
-        } else {
-          // Also save metadata (name, etc) AND the JSON layout for fetchProjectById compatibility
-          await saveProjectMetadata({
-            id: projectId,
-            name: projectName,
-            user_id,
-            project_layout: components, // Pass the layout to be saved to the JSON column
-          });
         }
       } catch (e) {
         console.error("Unexpected error during autosave:", e);
@@ -693,6 +700,7 @@ export function Canvas({
           props: item.props,
           style: item.style || {},
           position: { x, y },
+          page_id: activePageId,
         };
 
         const event = new CustomEvent("addComponent", { detail: newComponent });
@@ -1250,7 +1258,7 @@ export function Canvas({
           <MinimalComponentPanel
             onAddComponent={(component) => {
               const event = new CustomEvent("addComponent", {
-                detail: component,
+                detail: { ...component, page_id: activePageId },
               });
               window.dispatchEvent(event);
             }}
@@ -1319,180 +1327,182 @@ export function Canvas({
 
 
         {/* Infinite Canvas Content */}
-        <div
-          ref={contentRef}
-          className="relative"
-          style={{
-            transform: `scale(${canvasZoom / 100})`,
-            transformOrigin: "top left",
-            minWidth: "300vw",
-            minHeight: "300vh",
-            width: "300vw",
-            height: "300vh",
-            ...canvasStyle,
-          }}
-        >
-          {/* Mouse Crosshair */}
-          {!readOnly && (draggingComponent || resizingComponentId) && mousePos.x !== null && (
+        {(() => {
+          const activeColor = "#a855f7"; // Reusing the purple primary color
+          const filteredComponents = components.filter(c =>
+            c.page_id === activePageId ||
+            c.page_id === 'all' ||
+            (!c.page_id && activePageId === 'home')
+          );
+
+          return (
             <div
-              className="absolute top-0 bottom-0 w-px bg-blue-400/20 z-40 pointer-events-none"
-              style={{ left: `${mousePos.x}px`, height: '300vh' }}
-            />
-          )}
-          {!readOnly && (draggingComponent || resizingComponentId) && mousePos.y !== null && (
-            <div
-              className="absolute left-0 right-0 h-px bg-blue-400/20 z-40 pointer-events-none"
-              style={{ top: `${mousePos.y}px`, width: '300vw' }}
-            />
-          )}
-          {/* Alignment Guides */}
-          {!readOnly && alignmentGuides.x !== null && (
-            <div
-              className="absolute top-0 bottom-0 w-px bg-purple-500 z-50 pointer-events-none"
-              style={{ left: `${alignmentGuides.x}px`, height: '300vh' }}
-            />
-          )}
-          {!readOnly && alignmentGuides.y !== null && (
-            <div
-              className="absolute left-0 right-0 h-px bg-purple-500 z-50 pointer-events-none"
-              style={{ top: `${alignmentGuides.y}px`, width: '300vw' }}
-            />
-          )}
-          {components.length === 0 ? (
-            <div
-              className="absolute flex items-center justify-center text-muted-foreground text-center px-4"
+              ref={contentRef}
+              className="relative"
               style={{
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "400px",
+                transform: `scale(${canvasZoom / 100})`,
+                transformOrigin: "top left",
+                minWidth: "300vw",
+                minHeight: "300vh",
+                width: "300vw",
+                height: "300vh",
+                ...canvasStyle,
               }}
             >
-              <div>
-                <p className="mb-2">Drop components here to start building</p>
-                <p className="text-xs text-muted-foreground">
-                  Desktop: Drag & drop components, then drag to move them
-                  anywhere
-                </p>
-                <div className="hidden lg:block mt-4 text-xs">
-                  <p>Keyboard shortcuts:</p>
-                  <div className="flex flex-wrap gap-2 justify-center mt-2">
-                    <span className="bg-muted px-2 py-1 rounded">
-                      Ctrl+Wheel - Zoom
-                    </span>
-                    <span className="bg-muted px-2 py-1 rounded">
-                      Del - Delete
-                    </span>
-                    <span className="bg-muted px-2 py-1 rounded">
-                      Esc - Deselect
-                    </span>
-                    <span className="bg-muted px-2 py-1 rounded">
-                      Drag - Move
-                    </span>
+              {filteredComponents.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center p-8 pointer-events-none">
+                  <div className="text-center animate-in fade-in zoom-in duration-500">
+                    <div
+                      className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/10 flex items-center justify-center"
+                      style={{
+                        background: `linear-gradient(135deg, ${activeColor}20, ${activeColor}10)`,
+                      }}
+                    >
+                      <Plus
+                        className="w-10 h-10"
+                        style={{ color: activeColor }}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-2">Drop components here to start building</p>
+                      <p className="text-xs text-muted-foreground">
+                        Desktop: Drag & drop components, then drag to move them
+                        anywhere
+                      </p>
+                      <div className="hidden lg:block mt-4 text-xs">
+                        <p>Keyboard shortcuts:</p>
+                        <div className="flex flex-wrap gap-2 justify-center mt-2">
+                          <span className="bg-muted px-2 py-1 rounded">
+                            Ctrl+Wheel - Zoom
+                          </span>
+                          <span className="bg-muted px-2 py-1 rounded">
+                            Del - Delete
+                          </span>
+                          <span className="bg-muted px-2 py-1 rounded">
+                            Esc - Deselect
+                          </span>
+                          <span className="bg-muted px-2 py-1 rounded">
+                            Drag - Move
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {filteredComponents.map((component) => {
+                    const position = component.position || { x: 100, y: 100 };
+                    const isSelected = selectedComponents.has(component.id);
+                    const isDragging = draggingComponent === component.id;
+
+                    return (
+                      <div
+                        key={component.id}
+                        data-component-id={component.id}
+                        className={`absolute transition-shadow duration-200 ${isSelected
+                          ? "ring-2 ring-primary ring-offset-4 rounded component-selected shadow-2xl z-20"
+                          : readOnly ? "z-10" : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 rounded hover:shadow-lg z-10"
+                          } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
+
+                        style={{
+                          left: `${position.x}px`,
+                          top: `${position.y}px`,
+                          width: "fit-content",
+                          height: "fit-content",
+                          pointerEvents: "auto",
+                        }}
+                        onMouseDown={!readOnly ? (e) => handleComponentMouseDown(e, component) : undefined}
+                        onTouchStart={!readOnly ? (e) => handleComponentTouchStart(e, component) : undefined}
+                        onClick={!readOnly ? (e) => {
+                          e.stopPropagation();
+
+                          if (e.ctrlKey || e.metaKey) {
+                            // Multi-select with Ctrl/Cmd key
+                            const newSelection = new Set(selectedComponents);
+                            if (newSelection.has(component.id)) {
+                              newSelection.delete(component.id);
+                            } else {
+                              newSelection.add(component.id);
+                            }
+                            setSelectedComponents(newSelection);
+                          } else {
+                            // Single select
+                            setSelectedComponents(new Set([component.id]));
+                          }
+                          onSelectComponent(component);
+                        } : undefined}
+                        onContextMenu={!readOnly ? (e) => {
+                          handleComponentContextMenu(e, component);
+                        } : undefined}
+                        onDoubleClick={!readOnly ? (e) => handleComponentDoubleClick(component, e) : undefined}
+                      >
+                        <RenderableComponent
+                          component={component}
+                          isSelected={readOnly ? false : isSelected}
+                          onUpdate={!readOnly ? (updates) => onUpdateComponent(component.id, updates) : () => { }}
+                          onDelete={!readOnly ? () => onDeleteComponent(component.id) : () => { }}
+
+                          editingComponentId={readOnly ? null : editingTextId}
+                          onEditComponent={setEditingTextId}
+                          userProjectConfig={userProjectConfig}
+                          isPreview={readOnly}
+                        />
+
+                        {/* Desktop Selection Indicator - Hide in Read Only */}
+                        {!readOnly && isSelected && (
+
+                          <div className="hidden lg:block absolute -top-8 left-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full shadow-lg font-medium z-30 pointer-events-none">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                              {component.type.charAt(0).toUpperCase() +
+                                component.type.slice(1)}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Position Indicator - Hide in Read Only */}
+                        {!readOnly && isSelected && (
+
+                          <div className="hidden lg:block absolute -bottom-8 left-0 bg-muted text-muted-foreground text-xs px-2 py-1 rounded shadow-md font-mono z-30 pointer-events-none">
+                            x: {Math.round(position.x)} y: {Math.round(position.y)}
+                          </div>
+                        )}
+
+                        {/* Mobile Selection Indicator - Hide in Read Only */}
+                        {!readOnly && isSelected && (
+
+                          <div className="lg:hidden absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full shadow-md font-medium z-30 pointer-events-none">
+                            {component.type}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
-          ) : (
-            <>
-              {components.map((component) => {
-                const position = component.position || { x: 100, y: 100 };
-                const isSelected = selectedComponents.has(component.id);
-                const isDragging = draggingComponent === component.id;
-
-                return (
-                  <div
-                    key={component.id}
-                    data-component-id={component.id}
-                    className={`absolute transition-shadow duration-200 ${isSelected
-                      ? "ring-2 ring-primary ring-offset-4 rounded component-selected shadow-2xl z-20"
-                      : readOnly ? "z-10" : "hover:ring-2 hover:ring-primary/30 hover:ring-offset-2 rounded hover:shadow-lg z-10"
-                      } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
-
-                    style={{
-                      left: `${position.x}px`,
-                      top: `${position.y}px`,
-                      width: "fit-content",
-                      height: "fit-content",
-                      pointerEvents: "auto",
-                    }}
-                    onMouseDown={!readOnly ? (e) => handleComponentMouseDown(e, component) : undefined}
-                    onTouchStart={!readOnly ? (e) => handleComponentTouchStart(e, component) : undefined}
-                    onClick={!readOnly ? (e) => {
-                      e.stopPropagation();
-
-                      if (e.ctrlKey || e.metaKey) {
-                        // Multi-select with Ctrl/Cmd key
-                        const newSelection = new Set(selectedComponents);
-                        if (newSelection.has(component.id)) {
-                          newSelection.delete(component.id);
-                        } else {
-                          newSelection.add(component.id);
-                        }
-                        setSelectedComponents(newSelection);
-                      } else {
-                        // Single select
-                        setSelectedComponents(new Set([component.id]));
-                      }
-                      onSelectComponent(component);
-                    } : undefined}
-                    onContextMenu={!readOnly ? (e) => {
-                      handleComponentContextMenu(e, component);
-                    } : undefined}
-                    onDoubleClick={!readOnly ? (e) => handleComponentDoubleClick(component, e) : undefined}
-                  >
-                    <RenderableComponent
-                      component={component}
-                      isSelected={readOnly ? false : isSelected}
-                      onUpdate={!readOnly ? (updates) => handleUpdateComponentWithGuides(component.id, updates) : () => { }}
-                      onDelete={!readOnly ? () => onDeleteComponent(component.id) : () => { }}
-                      onResizeStart={() => setResizingComponentId(component.id)}
-                      onResizeEnd={() => { setResizingComponentId(null); setAlignmentGuides({ x: null, y: null }); }}
-                      editingComponentId={readOnly ? null : editingTextId}
-                      onEditComponent={setEditingTextId}
-                      userProjectConfig={userProjectConfig}
-                      isPreview={readOnly}
-                    />
-
-                    {/* Desktop Selection Indicator - Hide in Read Only */}
-                    {!readOnly && isSelected && (
-
-                      <div className="hidden lg:block absolute -top-8 left-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full shadow-lg font-medium z-30 pointer-events-none">
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                          {component.type.charAt(0).toUpperCase() +
-                            component.type.slice(1)}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Position Indicator - Hide in Read Only */}
-                    {!readOnly && isSelected && (
-
-                      <div className="hidden lg:block absolute -bottom-8 left-0 bg-muted text-muted-foreground text-xs px-2 py-1 rounded shadow-md font-mono z-30 pointer-events-none">
-                        x: {Math.round(position.x)} y: {Math.round(position.y)}
-                      </div>
-                    )}
-
-                    {/* Mobile Selection Indicator - Hide in Read Only */}
-                    {!readOnly && isSelected && (
-
-                      <div className="lg:hidden absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full shadow-md font-medium z-30 pointer-events-none">
-                        {component.type}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
+          );
+        })()}
+        
+        {/* Alignment Guides */}
+        {alignmentGuides.x !== null && (
+          <div 
+            className="absolute border-l border-primary z-50 pointer-events-none"
+            style={{ left: alignmentGuides.x, top: 0, bottom: 0, width: '1px' }}
+          />
+        )}
+        {alignmentGuides.y !== null && (
+          <div 
+            className="absolute border-t border-primary z-50 pointer-events-none"
+            style={{ top: alignmentGuides.y, left: 0, right: 0, height: '1px' }}
+          />
+        )}
       </div>
 
       {/* Canvas Context Menu - Hide in Read Only */}
       {!readOnly && (
         <CanvasContextMenu
-
           position={contextMenu}
           onClose={() => setContextMenu(null)}
           onDuplicate={handleDuplicate}
@@ -1506,7 +1516,6 @@ export function Canvas({
           canUngroup={selectedComponent?.type === "group"}
         />
       )}
-
     </div>
   );
 }

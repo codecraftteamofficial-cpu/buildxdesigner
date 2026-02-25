@@ -47,6 +47,8 @@ import { scrollToTarget } from '../utils/scrollUtils';
 interface PreviewModalProps {
   components: ComponentData[];
   onClose: () => void;
+  activePageId?: string;
+  pages?: { id: string; name: string; path: string }[];
   userProjectConfig?: {
     supabaseUrl: string;
     supabaseKey: string;
@@ -56,7 +58,7 @@ interface PreviewModalProps {
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
 type FitMode = 'fit' | 'fill' | 'actual';
 
-export function PreviewModal({ components, onClose, userProjectConfig }: PreviewModalProps) {
+export function PreviewModal({ components, onClose, activePageId = 'home', pages = [], userProjectConfig }: PreviewModalProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
   const [fitMode, setFitMode] = useState<FitMode>('fit');
   const [zoom, setZoom] = useState(1);
@@ -64,6 +66,45 @@ export function PreviewModal({ components, onClose, userProjectConfig }: Preview
   const [isPickingElement, setIsPickingElement] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [localComponents, setLocalComponents] = useState<ComponentData[]>(components);
+  const [localActivePageId, setLocalActivePageId] = useState<string>(activePageId);
+
+  // Update local active page when prop changes
+  useEffect(() => {
+    setLocalActivePageId(activePageId);
+  }, [activePageId]);
+
+  const handleNavigate = useCallback((path: string) => {
+    console.log('Preview internal navigation to:', path);
+    if (!pages || pages.length === 0) return;
+
+    // Handle root path or /home alias
+    const getActivePageFromPath = (path: string, pages: { id: string; name: string; path: string }[]): string | null => {
+      if (!pages || pages.length === 0) return 'home'; // If no pages, default to home
+
+      // Normalize path for comparison
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+      // Handle root path or /home alias
+      if (normalizedPath === '/' || normalizedPath === '/home') {
+        return 'home';
+      }
+
+      // Find page by path
+      const page = pages.find(p => {
+        const pagePathNormalized = p.path.startsWith('/') ? p.path : `/${p.path}`;
+        return pagePathNormalized === normalizedPath;
+      });
+
+      return page ? page.id : null;
+    };
+
+    const newActivePageId = getActivePageFromPath(path, pages);
+    if (newActivePageId) {
+      setLocalActivePageId(newActivePageId);
+    } else {
+      console.warn('Page not found for path:', path);
+    }
+  }, [pages]);
 
   // Sync local components when props change
   useEffect(() => {
@@ -332,7 +373,13 @@ export function PreviewModal({ components, onClose, userProjectConfig }: Preview
       const navigateAction = onClickActions.find((a: any) => a.handlerType === 'navigate');
       if (navigateAction && navigateAction.url) {
         console.log('Executing navigation action:', navigateAction);
-        window.open(navigateAction.url, navigateAction.target || '_blank');
+
+        const isInternal = navigateAction.url.startsWith('/') || navigateAction.url.startsWith('./');
+        if (isInternal && (!navigateAction.target || navigateAction.target === '_self')) {
+          handleNavigate(navigateAction.url);
+        } else {
+          window.open(navigateAction.url, navigateAction.target || '_blank');
+        }
         return;
       }
 
@@ -829,77 +876,82 @@ export function PreviewModal({ components, onClose, userProjectConfig }: Preview
                 style={{
                   minHeight: '100%',
                   height: Math.max(
-                    ...localComponents.map(c => (c.position?.y || 0) + (parseInt(String(c.style?.height || 0)) || 100)),
+                    ...localComponents
+                      .filter(c => c.page_id === localActivePageId || c.page_id === 'all' || (!c.page_id && localActivePageId === 'home'))
+                      .map(c => (c.position?.y || 0) + (parseInt(String(c.style?.height || 0)) || 100)),
                     800 // Minimum height
                   ) + 'px'
                   // Ensure dark background for content
                 }}
               >
-                {localComponents.map((component, index) => {
-                  const position = component.position || { x: 100, y: 100 };
-                  const isLastComponent = index === localComponents.length - 1;
+                {localComponents
+                  .filter(c => c.page_id === localActivePageId || c.page_id === 'all' || (!c.page_id && localActivePageId === 'home'))
+                  .map((component, index) => {
+                    const position = component.position || { x: 100, y: 100 };
+                    const isLastComponent = index === localComponents.length - 1;
 
-                  return (
-                    <div
-                      key={component.id}
-                      data-component-id={component.id}
-                      className="absolute transition-shadow duration-200"
-                      style={{
-                        left: `${position.x}px`,
-                        top: `${position.y}px`,
-                        width: component.style?.width || (typeof component.props?.width === 'number' ? `${component.props.width}px` : component.props?.width) || 'max-content',
-                        height: component.style?.height || (typeof component.props?.height === 'number' ? `${component.props.height}px` : component.props?.height) || 'max-content',
-                        pointerEvents: 'auto',
-                        zIndex: 10,
-                        minWidth: '100px', // Fallback
-                        minHeight: '40px' // Fallback
-                      }}
-                      onClick={(e) => {
-                        // Don't interfere with table interactions
-                        if (component.type === 'table') {
-                          return;
-                        }
-
-                        // Handle button clicks directly
-                        if (component.type === 'button') {
-                          handleButtonClick(e, component);
-                        }
-                        e.stopPropagation();
-                      }}
-                    >
+                    return (
                       <div
+                        key={component.id}
+                        data-component-id={component.id}
+                        className="absolute transition-shadow duration-200"
                         style={{
-                          width: '100%',
-                          height: '100%',
+                          left: `${position.x}px`,
+                          top: `${position.y}px`,
+                          width: component.style?.width || (typeof component.props?.width === 'number' ? `${component.props.width}px` : component.props?.width) || 'max-content',
+                          height: component.style?.height || (typeof component.props?.height === 'number' ? `${component.props.height}px` : component.props?.height) || 'max-content',
+                          pointerEvents: 'auto',
+                          zIndex: 10,
+                          minWidth: '100px', // Fallback
+                          minHeight: '40px' // Fallback
+                        }}
+                        onClick={(e) => {
+                          // Don't interfere with table interactions
+                          if (component.type === 'table') {
+                            return;
+                          }
+
+                          // Handle button clicks directly
+                          if (component.type === 'button') {
+                            handleButtonClick(e, component);
+                          }
+                          e.stopPropagation();
                         }}
                       >
-                        <RenderableComponent
-                          key={`preview-${component.id}`}
-                          component={component}
-                          isSelected={false}
-                          onUpdate={(updates) => handleUpdate(component.id, updates)}
-                          onDelete={() => { }}
-                          isPreview={true}
-                          userProjectConfig={userProjectConfig}
-                        />
-                      </div>
-
-                      {/* Interactive element overlay to ensure clicks are captured in preview */}
-                      {(component.type === 'button') && (
                         <div
-                          className="absolute inset-0 z-50 cursor-pointer"
-                          style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
-                          onClick={(e) => {
-                            console.log('Preview overlay clicked for component:', component.id);
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleButtonClick(e, component);
+                          style={{
+                            width: '100%',
+                            height: '100%',
                           }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                        >
+                          <RenderableComponent
+                            key={`preview-${component.id}`}
+                            component={component}
+                            isSelected={false}
+                            onUpdate={(updates) => handleUpdate(component.id, updates)}
+                            onDelete={() => { }}
+                            isPreview={true}
+                            userProjectConfig={userProjectConfig}
+                            navigate={handleNavigate}
+                          />
+                        </div>
+
+                        {/* Interactive element overlay to ensure clicks are captured in preview */}
+                        {(component.type === 'button') && (
+                          <div
+                            className="absolute inset-0 z-50 cursor-pointer"
+                            style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
+                            onClick={(e) => {
+                              console.log('Preview overlay clicked for component:', component.id);
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleButtonClick(e, component);
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </div>

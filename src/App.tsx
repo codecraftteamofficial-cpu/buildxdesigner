@@ -31,6 +31,7 @@ import { Dashboard } from "./components/Dashboard";
 import { AdminLogin } from "./components/AdminLogin";
 import AdminDashboard from "./components/AdminDashboard";
 import { EditorLayout } from "./components/EditorLayout";
+import { OnboardingPage } from "./components/OnboardingPage";
 import { GetOut } from "./components/UnexpectedEntry/UnexpectedEntry";
 import LoginAuthSessionChecker from "./services/useAuthenticator";
 import { CollaborationServiceProvider } from "./services/useCollaboration";
@@ -87,6 +88,8 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     createFromScratch,
     toggleTemplates,
     openProject,
+    showOnboarding,
+    setShowOnboarding,
   } = editor;
 
   const openProjectAndRoute = (
@@ -261,6 +264,14 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   // Ito is protected by the LoginAuthSessionChecker na ginawa ko. Kung walang valid session, hindi niya ipapakita yung LandingPage at magre-render lang siya ng children niya ulit (which is yung LandingPage).
   // Kapag may valid session naman, saka niya ipapakita yung LandingPage. Sa LandingPage, may button na "Enter Editor" na kapag pinindot, tatawagin niya yung enterDashboard function (na galing sa useEditorState)
   // para i-set yung currentView sa "dashboard". Sa effect ng useEditorState, kapag nakita niyang nagbago yung currentView to "dashboard", saka niya ipapakita yung Dashboard component.
+  
+  if (showOnboarding) {
+    return <OnboardingPage onComplete={() => {
+      setShowOnboarding(false);
+      enterDashboard();
+    }} />;
+  }
+
   return (
     <Routes>
       <Route

@@ -69,6 +69,7 @@ import { Label } from "./ui/label";
 import { supabase } from "../supabase/config/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { PageSelector } from "./PageSelector";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -100,6 +101,10 @@ interface EditorTopBarProps {
   } | null;
   isSupabaseConnected?: boolean;
   onPublishSuccess?: (subdomain: string) => void;
+  pages?: { id: string; name: string; path: string }[];
+  activePageId?: string;
+  onSwitchPage?: (pageId: string) => void;
+  onAddPage?: (name: string, path: string) => void;
 }
 
 export function EditorTopBar({
@@ -125,6 +130,10 @@ export function EditorTopBar({
   currentUser,
   isSupabaseConnected = false,
   onPublishSuccess,
+  pages,
+  activePageId,
+  onSwitchPage,
+  onAddPage,
 }: EditorTopBarProps) {
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState(projectName);
@@ -478,6 +487,15 @@ export function EditorTopBar({
         </Button>
 
         <div className="w-px h-6 bg-border" />
+
+        {pages && activePageId && onSwitchPage && (
+          <PageSelector
+            pages={pages}
+            activePageId={activePageId}
+            onSwitchPage={onSwitchPage}
+            onAddPage={onAddPage}
+          />
+        )}
 
         {isEditingProjectName ? (
           <input

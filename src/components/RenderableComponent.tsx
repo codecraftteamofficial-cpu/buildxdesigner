@@ -162,8 +162,7 @@ interface RenderableComponentProps {
     supabaseUrl: string;
     supabaseKey: string;
   };
-  onResizeStart?: () => void;
-  onResizeEnd?: () => void;
+  navigate?: (path: string) => void;
 }
 
 export function RenderableComponent({
@@ -177,8 +176,7 @@ export function RenderableComponent({
   editingComponentId,
   onEditComponent,
   userProjectConfig,
-  onResizeStart,
-  onResizeEnd
+  navigate
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
@@ -381,6 +379,17 @@ export function RenderableComponent({
     });
   };
 
+  // Add these two handlers
+const onResizeStart = () => {
+  // Logic to run when resizing begins (e.g., locking other UI elements)
+  console.log('Resize started');
+};
+
+const onResizeEnd = () => {
+  // Logic to run when resizing finishes
+  console.log('Resize ended');
+};
+
   const parseSize = (size: string | number | undefined, defaultValue: number): number => {
     if (typeof size === 'number') return size;
     if (typeof size === 'string') {
@@ -556,8 +565,16 @@ export function RenderableComponent({
             if (action.handlerType === 'navigate' && action.url) {
               const absoluteUrl = formatUrl(action.url);
               console.log(`Executing navigate action to: ${action.url} -> ${absoluteUrl}`);
-              // For navigation, we can use the parent window directly
-              window.open(absoluteUrl, action.target || '_blank');
+
+              const isInternal = action.url.startsWith('/') || action.url.startsWith('./');
+
+              if (isInternal && navigate && (!action.target || action.target === '_self')) {
+                console.log(`Using internal navigate for ${action.url}`);
+                navigate(action.url);
+              } else {
+                // For navigation, we can use the parent window directly
+                window.open(absoluteUrl, action.target || '_blank');
+              }
               return true;
             }
 
