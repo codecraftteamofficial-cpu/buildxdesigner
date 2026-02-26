@@ -148,7 +148,7 @@ export function useEditorState() {
   // ==================== AUTO-SAVE METADATA ====================
   // Save metadata like pages and project name whenever they change
   useEffect(() => {
-    if (!state.currentProjectId || !isAuthenticated) return;
+    if (!state.currentProjectId || !isAuthenticated || !state.hasUnsavedChanges) return;
 
     const timer = setTimeout(async () => {
       try {
