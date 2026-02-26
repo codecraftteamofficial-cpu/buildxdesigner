@@ -108,18 +108,7 @@ export function Sidebar({
   ]
 
   return (
-    <div id="sidebar-palette" className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact relative">
-      {/* Updated Toggle Button Section */}
-      {onToggle && (
-        <button
-          onClick={onToggle}
-          className="absolute top-3 right-3 z-20 p-1 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          title="Collapse sidebar (Ctrl+B)"
-        >
-          <ChevronLeft className="w-10 h-4" />
-        </button>
-      )}
-
+    <div id="sidebar-palette" className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact">
       <Tabs defaultValue="blocks" className="flex flex-col h-full overflow-hidden">
         <div className="border-b p-3 shrink-0">
           <TabsList className="grid w-full grid-cols-3 h-8">

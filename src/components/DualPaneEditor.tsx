@@ -1,3 +1,5 @@
+// src/components/DualPaneEditor.tsx
+
 import React, { useState } from 'react';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable';
 import { Button } from './ui/button';
@@ -13,7 +15,7 @@ import { ComponentData } from '../App';
 import { Canvas } from './Canvas';
 import { FileExplorer } from './FileExplorer';
 import { CodeEditorPane } from './CodeEditorPane';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface DualPaneEditorProps {
   components: ComponentData[];
@@ -21,6 +23,12 @@ interface DualPaneEditorProps {
   onSelectComponent: (component: ComponentData | null) => void;
   onUpdateComponent: (id: string, updates: Partial<ComponentData>) => void;
   onDeleteComponent: (id: string) => void;
+  // ADD THESE NEW PROPS TO THE INTERFACE:
+  onReorderComponent: (id: string, direction: 'front' | 'back') => void;
+  onMoveLayer: (id: string, action: 'forward' | 'backward') => void;
+  onZoomChange: (zoom: number) => void;
+  projectId: string | null;
+  projectName: string;
   canvasZoom?: number;
 }
 
@@ -30,6 +38,12 @@ export function DualPaneEditor({
   onSelectComponent,
   onUpdateComponent,
   onDeleteComponent,
+  // DESTRUCTURE THE NEW PROPS HERE:
+  onReorderComponent,
+  onMoveLayer,
+  onZoomChange,
+  projectId,
+  projectName,
   canvasZoom = 100
 }: DualPaneEditorProps) {
   const [viewMode, setViewMode] = useState<'design' | 'split' | 'code'>('design');
@@ -38,7 +52,6 @@ export function DualPaneEditor({
 
   const handleComponentChange = () => {
     if (isCodeSyncing) {
-      // Trigger code regeneration
       setIsCodeSyncing(false);
       setTimeout(() => setIsCodeSyncing(true), 100);
     }
@@ -55,7 +68,7 @@ export function DualPaneEditor({
   };
 
   const renderViewControls = () => (
-    <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-card flex-shrink-0">
+    <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-card shrink-0">
       <div className="flex items-center gap-1">
         <Button
           variant={viewMode === 'design' ? 'default' : 'outline'}
@@ -116,7 +129,7 @@ export function DualPaneEditor({
 
   const renderDesignPane = () => (
     <div className="flex flex-col h-full">
-      <div className="border-b p-3 bg-card flex-shrink-0">
+      <div className="border-b p-3 bg-card shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="font-medium">Visual Designer</h3>
           <div className="flex items-center gap-2">
@@ -145,6 +158,12 @@ export function DualPaneEditor({
             onDeleteComponent(id);
             handleComponentChange();
           }}
+          // PASS THE NEW PROPS TO THE CANVAS HERE:
+          onReorderComponent={onReorderComponent}
+          onMoveLayer={onMoveLayer}
+          onZoomChange={onZoomChange}
+          projectId={projectId}
+          projectName={projectName}
           canvasZoom={canvasZoom}
         />
       </div>
@@ -153,8 +172,7 @@ export function DualPaneEditor({
 
   const renderCodePane = () => (
     <div className="flex h-full">
-      {/* File Explorer */}
-      <div className="w-64 flex-shrink-0 border-r">
+      <div className="w-64 shrink-0 border-r">
         <FileExplorer
           onFileSelect={(file) => {
             setSelectedFile(file.path);
@@ -163,7 +181,6 @@ export function DualPaneEditor({
         />
       </div>
       
-      {/* Code Editor */}
       <div className="flex-1 min-w-0">
         <CodeEditorPane
           components={components}

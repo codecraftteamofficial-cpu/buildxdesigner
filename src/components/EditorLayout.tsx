@@ -182,21 +182,29 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Left Sidebar */}
             <div
-              className={`shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
-                }`}
+              className={`shrink-0 bg-card border-r border-border overflow-hidden relative transition-all duration-300 ease-in-out ${
+                state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
+              }`}
               style={{
-                width: state.isLeftSidebarVisible
-                  ? `${state.leftSidebarWidth}px`
-                  : "0px",
+                width: state.isLeftSidebarVisible ? `${state.leftSidebarWidth}px` : "0px",
               }}
             >
               {state.isLeftSidebarVisible && (
                 <>
-                  <div className="flex-1 overflow-auto h-full">
+                  {/* SYMMETRY BUTTON: Positioned top-right to match Right Sidebar's top-left */}
+                  <button
+                    onClick={() => setState((prev) => ({ ...prev, isLeftSidebarVisible: false }))}
+                    className="absolute right-2 top-2 z-20 p-1 rounded-md hover:bg-accent text-muted-foreground transition-colors"
+                    title="Hide Sidebar"
+                  >
+                    <ChevronLeft className="w-10 h-4" />
+                  </button>
+
+                  {/* Sidebar Content: pt-0 ensures no extra top space */}
+                  <div className="flex-1 overflow-auto h-full pt-0"> 
                     <Sidebar 
                       onAddComponent={addComponent} 
-                      onToggle={() => setState(prev => ({ ...prev, isLeftSidebarVisible: false }))}
-                      // ADD THESE NEW PROPS:
+                      // REMOVED onToggle here because we handle it in the layout now
                       components={state.components}
                       selectedId={state.selectedComponent}
                       onSelect={selectComponent}
