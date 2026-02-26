@@ -100,7 +100,7 @@ export async function fetchUserProjects(): Promise<{
         "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at, pages, published_pages",
       )
       .eq("user_id", user.id) // ONLY fetch the logged-in user's projects
-      .neq("status", "trash")
+    
       .order("last_modified", { ascending: false });
 
     if (error) return { data: null, error };
