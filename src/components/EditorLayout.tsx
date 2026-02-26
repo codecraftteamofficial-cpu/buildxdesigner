@@ -155,6 +155,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               lastPublishedAt: state.projectLastPublishedAt,
               project_layout: state.components,
               pages: state.pages,
+              siteTitle: state.siteTitle,
+              siteLogoUrl: state.siteLogoUrl,
             }}
             onPublishSuccess={(subdomain: string) => {
               setState((prev) => ({
