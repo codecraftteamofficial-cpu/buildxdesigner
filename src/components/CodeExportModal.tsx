@@ -1,277 +1,249 @@
-import React, { useMemo, useState } from "react";
+"use client"
+
+import React, { useMemo, useState } from "react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Copy, Download, X } from "lucide-react";
-import { ComponentData } from "../App";
-import { toast } from "sonner";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
+} from "./ui/dialog"
+import { Button } from "./ui/button"
+import { 
+  Copy, 
+  Download, 
+  FileCode, 
+  ChevronRight, 
+  ChevronDown,
+  FolderOpen,
+  Folder,
+  BarChart3,
+  AlignLeft,
+  Files,
+  Cpu
+} from "lucide-react"
+import { ComponentData } from "../App"
+import { toast } from "sonner"
+import JSZip from "jszip"
+import { saveAs } from "file-saver"
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
+import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
+// Import the shared logic
+import { generateProjectFiles, slugify } from "../lib/code-generator"
 
 interface CodeExportModalProps {
-  components: ComponentData[];
-  onClose: () => void;
+  components: ComponentData[]
+  projectName?: string
+  pages: { id: string; name: string; path: string }[]
+  onClose: () => void
 }
 
-const toKebab = (s: string) => s.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+interface FileNode {
+  name: string
+  path: string
+  type: "file" | "folder"
+  children?: FileNode[]
+}
 
-const styleObjToCss = (obj?: Record<string, any>) => {
-  if (!obj || typeof obj !== "object") return "";
-  return Object.entries(obj)
-    .map(([k, v]) => `${toKebab(k)}: ${v};`)
-    .join(" ");
-};
-
-export function CodeExportModal({ components, onClose }: CodeExportModalProps) {
-  const [activeTab, setActiveTab] = useState<"html" | "css" | "js">("html");
-
-  // generate consistent className for component
-  const getClassName = (comp: ComponentData, idx: number) =>
-    comp.props?.className || `component-${comp.type}-${comp.id ?? idx}`;
-
-  const generateHTML = () => {
-    const componentHTML = components
-      .map((comp, idx) => {
-        const cls = getClassName(comp, idx);
-        switch (comp.type) {
-          case "text":
-            return `    <p class="${cls} text">${comp.props?.content || "Sample text"}</p>`;
-          case "heading": {
-            const level = comp.props?.level || 1;
-            return `    <h${level} class="${cls} heading">${comp.props?.content || "Heading"}</h${level}>`;
-          }
-          case "button":
-            return `    <button class="${cls} btn btn-${comp.props?.variant || "default"}">${comp.props?.text || "Button"}</button>`;
-          case "image":
-            return `    <img class="${cls}" src="${comp.props?.src || ""}" alt="${comp.props?.alt || ""}" width="${comp.props?.width || 300}" height="${comp.props?.height || 200}" />`;
-          case "navbar": {
-            const links = (comp.props?.links || ["Home", "About", "Contact"])
-              .map((l: string) => `        <a href="#" class="nav-link">${l}</a>`)
-              .join("\n");
-            return `    <nav class="${cls} navbar">
-      <div class="nav-brand">${comp.props?.brand || "Brand"}</div>
-      <div class="nav-links">
-${links}
-      </div>
-    </nav>`;
-          }
-          case "hero":
-            return `    <section class="${cls} hero">
-      <h1>${comp.props?.title || "Welcome"}</h1>
-      <p>${comp.props?.subtitle || ""}</p>
-    </section>`;
-          case "card":
-            return `    <div class="${cls} card">
-      <h3>${comp.props?.title || "Card Title"}</h3>
-      <p>${comp.props?.content || "Card content"}</p>
-    </div>`;
-          case "input":
-            return `    <input class="${cls} input" type="${comp.props?.type || "text"}" placeholder="${comp.props?.placeholder || ""}" />`;
-          case "footer":
-            return `    <footer class="${cls} footer">
-      <p>${comp.props?.copyright || "© Company"}</p>
-    </footer>`;
-          case "grid": {
-            const cols = comp.props?.columns || 3;
-            const items = Array.from({ length: cols })
-              .map((_, i) => `        <div class="grid-item">Item ${i + 1}</div>`)
-              .join("\n");
-            return `    <div class="${cls} grid grid-cols-${cols}">
-${items}
-    </div>`;
-          }
-          default:
-            return `    <div class="${cls}">Unknown component: ${comp.type}</div>`;
+const buildFileTree = (paths: string[]): FileNode[] => {
+  const root: FileNode[] = []
+  paths.forEach(path => {
+    const parts = path.split("/")
+    let currentLevel = root
+    parts.forEach((part, i) => {
+      const isFile = i === parts.length - 1
+      let existingNode = currentLevel.find(node => node.name === part)
+      if (!existingNode) {
+        existingNode = { 
+          name: part, 
+          path: parts.slice(0, i + 1).join("/"), 
+          type: isFile ? "file" : "folder", 
+          children: isFile ? undefined : [] 
         }
-      })
-      .join("\n\n");
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Generated Project</title>
-  <link rel="stylesheet" href="css/style.css" />
-</head>
-<body>
-  <div class="container">
-${componentHTML || "    <!-- No components added -->"}
-  </div>
-
-  <script src="js/main.js"></script>
-</body>
-</html>`;
-  };
-
-  const generateCSS = () => {
-    const base = `/* Reset & base styles */
-*{box-sizing:border-box}
-body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;line-height:1.6;color:#111;background:#f8fafc}
-.container{max-width:1100px;margin:0 auto;padding:24px}
-.btn{padding:10px 16px;border-radius:8px;border:0;cursor:pointer;font-size:14px}
-.btn-primary{background:#2563eb;color:#fff}
-.heading{font-size:clamp(1.25rem,2.5vw,2rem);margin:0 0 16px;font-weight:600}
-.card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.text{margin:0 0 12px;line-height:1.6}
-.input{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;font-family:inherit}`;
-
-    const componentRules = components
-      .map((comp, idx) => {
-        const cls = getClassName(comp, idx);
-        if (comp.style && typeof comp.style === "object") {
-          const css = styleObjToCss(comp.style);
-          if (css) return `.${cls}{${css}}`;
-        }
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
-
-    return `${base}\n\n/* Component-specific styles */\n${componentRules || "/* No component-specific styles */"}`;
-  };
-
-  const generateJS = () => {
-    return `// Generated script
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.btn').forEach(b => {
-    if (!b.type || b.type !== 'submit') {
-      b.addEventListener('click', () => console.log('Button clicked'))
-    }
+        currentLevel.push(existingNode)
+      }
+      if (existingNode.children) currentLevel = existingNode.children
+    })
   })
-})`;
-  };
+  return root
+}
 
-  const generateSchema = () => {
-    return `-- schema.sql
-CREATE TABLE users (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`;
-  };
+export function CodeExportModal({ components, projectName = "leumar", pages, onClose }: CodeExportModalProps) {
+  const [selectedFile, setSelectedFile] = useState<string>("public/index.php")
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/views", "public", "public/assets", "public/assets/css"]))
 
-  const getCode = useMemo(() => {
-    return {
-      html: generateHTML(),
-      css: generateCSS(),
-      js: generateJS(),
-      schema: generateSchema(),
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [components]);
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(getCode[activeTab]);
-      toast.success("Code copied to clipboard!");
-    } catch {
-      toast.error("Failed to copy code");
-    }
-  };
-
-  const downloadFile = () => {
-    const map: Record<string, string> = { html: "index.html", css: "css/style.css", js: "js/main.js" };
-    const filename = map[activeTab] || "file.txt";
-    const code = getCode[activeTab];
-
-    const blob = new Blob([code], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast.success(`${filename} downloaded!`);
-  };
+  // Use the shared generator ONLY - do not redeclare this variable later
+  const getFiles = useMemo(() => 
+    generateProjectFiles(components, pages, projectName), 
+    [components, pages, projectName]
+  );
 
   const downloadAll = async () => {
     try {
-      const zip = new JSZip();
-      zip.file("index.html", getCode.html);
-      zip.folder("css")?.file("style.css", getCode.css);
-      zip.folder("js")?.file("main.js", getCode.js);
-      zip.folder("database")?.file("schema.sql", getCode.schema);
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      saveAs(blob, "export.zip");
-      toast.success("export.zip downloaded");
-    } catch {
-      toast.error("Failed to create zip");
+      const zip = new JSZip()
+      Object.entries(getFiles).forEach(([path, content]) => { 
+        zip.file(path, content) 
+      })
+      const blob = await zip.generateAsync({ type: "blob" })
+      saveAs(blob, `${slugify(projectName)}_export.zip`)
+      toast.success("Project bundle downloaded!")
+    } catch (error) {
+      toast.error("Failed to create zip")
     }
-  };
+  }
+
+  const copyEntireProject = async () => {
+    const fullText = Object.entries(getFiles)
+      .map(([path, content]) => `--- FILE: ${path} ---\n${content}\n`)
+      .join("\n")
+    try {
+      await navigator.clipboard.writeText(fullText)
+      toast.success("Entire project copied to clipboard!")
+    } catch {
+      toast.error("Failed to copy project")
+    }
+  }
+
+  const fileTree = useMemo(() => buildFileTree(Object.keys(getFiles)), [getFiles])
+
+  const stats = useMemo(() => {
+    const totalFiles = Object.keys(getFiles).length
+    const totalLines = Object.values(getFiles).reduce((sum, content) => sum + content.split('\n').length, 0)
+    return { totalFiles, totalLines }
+  }, [getFiles])
+
+  const frameworkLabel = useMemo(() => {
+    const ext = selectedFile.split('.').pop()
+    switch (ext) {
+      case 'php': return { name: 'PHP Engine', color: 'text-[#8892bf]' }
+      case 'css': return { name: 'CSS3 Styles', color: 'text-[#38bdf8]' }
+      case 'js': return { name: 'JavaScript ES6', color: 'text-[#facc15]' }
+      case 'sql': return { name: 'PostgreSQL', color: 'text-[#336791]' }
+      default: return { name: 'Plain Text', color: 'text-white/60' }
+    }
+  }, [selectedFile])
+
+  const renderTree = (nodes: FileNode[], depth = 0) => {
+    return nodes.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1)).map(node => {
+      const isExpanded = expandedFolders.has(node.path)
+      const isSelected = selectedFile === node.path
+
+      return (
+        <div key={node.path}>
+          <div 
+            onClick={() => {
+              if (node.type === "folder") {
+                const next = new Set(expandedFolders)
+                next.has(node.path) ? next.delete(node.path) : next.add(node.path)
+                setExpandedFolders(next)
+              } else {
+                setSelectedFile(node.path)
+              }
+            }}
+            className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-sm mb-0.5 ${
+              isSelected ? 'bg-[#37373d] text-white' : 'text-gray-400 hover:bg-[#2a2d2e] hover:text-gray-200'
+            }`}
+            style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          >
+            {node.type === "folder" ? (
+              <>
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                {isExpanded ? <FolderOpen className="w-4 h-4 text-blue-400/80" /> : <Folder className="w-4 h-4 text-blue-400/80" />}
+              </>
+            ) : (
+              <FileCode className={`w-4 h-4 ${node.path.endsWith('.php') ? 'text-blue-400' : node.path.endsWith('.css') ? 'text-blue-300' : 'text-yellow-400'}`} />
+            )}
+            <span className="truncate">{node.name}</span>
+          </div>
+          {node.type === "folder" && isExpanded && node.children && renderTree(node.children, depth + 1)}
+        </div>
+      )
+    })
+  }
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent
-        className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden"
-        aria-describedby="export-code-description"
+      <DialogContent 
+        className="max-w-6xl w-[95vw] h-[90vh] p-0 gap-0 flex flex-col overflow-hidden border-[#333] shadow-2xl !opacity-100 text-white backdrop-blur-none"
+        style={{ backgroundColor: "#1e1e1e" }}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Export Code</DialogTitle>
-          <DialogDescription id="export-code-description">Export your design as HTML/CSS/JS</DialogDescription>
+            <DialogTitle>Export Code</DialogTitle>
         </DialogHeader>
 
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-card flex-shrink-0">
-          <h2 className="text-lg font-semibold">Export Code</h2>
-
-          {/* Single close button (only one X) */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#252526] shrink-0" style={{ backgroundColor: "#252526" }}>
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 px-2 py-0.5 rounded text-white font-bold text-[10px]">BUILDX</div>
+            <h2 className="text-sm font-medium text-gray-200 uppercase tracking-widest">Export Project: {projectName}</h2>
+          </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={copyToClipboard}>
-              <Copy className="w-4 h-4 mr-1" />
-              Copy
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#333]" onClick={copyEntireProject}>
+              <Files className="w-4 h-4 mr-2" /> Copy Project
             </Button>
-
-            <Button variant="outline" size="sm" onClick={downloadFile}>
-              <Download className="w-4 h-4 mr-1" />
-              Download
+            <Button size="sm" onClick={downloadAll} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95">
+              <Download className="w-4 h-4 mr-2" /> Download .zip
             </Button>
-
-            <Button size="sm" onClick={downloadAll} className="bg-blue-600 hover:bg-blue-700">
-              <Download className="w-4 h-4 mr-1" />
-              Download All
-            </Button>
-
-          
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex flex-col flex-1 min-h-0">
-          <div className="px-6 pt-4 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-3 h-10">
-              <TabsTrigger value="html">HTML</TabsTrigger>
-              <TabsTrigger value="css">CSS</TabsTrigger>
-              <TabsTrigger value="js">JavaScript</TabsTrigger>
-            </TabsList>
+        <div className="flex-1 flex overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
+          <div className="w-64 border-r border-[#333] bg-[#181818] flex flex-col shrink-0 overflow-y-auto" style={{ backgroundColor: "#181818" }}>
+            <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 mb-2">Explorer</div>
+            <div className="flex-1 px-1">{renderTree(fileTree)}</div>
           </div>
 
-          <TabsContent value="html" className="flex-1 min-h-0 m-0 p-6 pt-4">
-            <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto h-full text-sm font-mono whitespace-pre-wrap">
-              <code>{getCode.html}</code>
-            </pre>
-          </TabsContent>
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
+            <div className="flex items-center gap-2 px-4 py-2 bg-[#2d2d2d] text-xs text-gray-300 border-b border-[#1e1e1e] justify-between" style={{ backgroundColor: "#2d2d2d" }}>
+              <div className="flex items-center gap-2">
+                <FileCode className={`w-3.5 h-3.5 ${selectedFile.endsWith('.php') ? 'text-blue-400' : 'text-blue-300'}`} />
+                <span className="font-mono">{selectedFile}</span>
+              </div>
+              <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-white/10" onClick={() => { navigator.clipboard.writeText(getFiles[selectedFile]); toast.success("File copied!"); }}>
+                <Copy className="w-3 h-3" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-auto" style={{ backgroundColor: "#1e1e1e" }}>
+              <SyntaxHighlighter
+                language={selectedFile.endsWith('.css') ? 'css' : selectedFile.endsWith('.js') ? 'javascript' : selectedFile.endsWith('.sql') ? 'sql' : 'php'}
+                style={okaidia}
+                showLineNumbers
+                customStyle={{ 
+                  margin: 0, 
+                  padding: '24px', 
+                  backgroundColor: '#1e1e1e', 
+                  fontSize: "13px", 
+                  lineHeight: "1.6", 
+                  minHeight: "100%",
+                  width: '100%' 
+                }}
+              >
+                {getFiles[selectedFile] || "// No content"}
+              </SyntaxHighlighter>
+            </div>
+          </div>
+        </div>
 
-          <TabsContent value="css" className="flex-1 min-h-0 m-0 p-6 pt-4">
-            <pre className="bg-gray-900 text-blue-300 p-4 rounded-lg overflow-auto h-full text-sm font-mono whitespace-pre-wrap">
-              <code>{getCode.css}</code>
-            </pre>
-          </TabsContent>
-
-          <TabsContent value="js" className="flex-1 min-h-0 m-0 p-6 pt-4">
-            <pre className="bg-gray-900 text-yellow-300 p-4 rounded-lg overflow-auto h-full text-sm font-mono whitespace-pre-wrap">
-              <code>{getCode.js}</code>
-            </pre>
-          </TabsContent>
-        </Tabs>
+        <div className="h-7 bg-[#007acc] text-white flex items-center px-4 justify-between shrink-0 text-[11px] font-medium" style={{ backgroundColor: "#007acc" }}>
+          <div className="flex items-center h-full">
+            <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full border-r border-white/10">
+              <BarChart3 className="w-3 h-3" />
+              <span>{stats.totalFiles} Files</span>
+            </div>
+            <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full border-r border-white/10">
+              <AlignLeft className="w-3 h-3" />
+              <span>{stats.totalLines} Lines</span>
+            </div>
+            <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full">
+              <Cpu className={`w-3 h-3 ${frameworkLabel.color}`} />
+              <span className={frameworkLabel.color}>{frameworkLabel.name}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 px-3">
+            <span className="opacity-90">UTF-8</span>
+            <span className="opacity-90 uppercase font-bold">{selectedFile.split('.').pop()}</span>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

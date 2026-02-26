@@ -70,6 +70,7 @@ import { supabase } from "../supabase/config/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { PageSelector } from "./PageSelector";
+import { CodeExportModal } from "./CodeExportModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -169,6 +170,7 @@ export function EditorTopBar({
   const [supabaseIntegrationToken, setSupabaseIntegrationToken] = useState<
     string | null
   >(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
@@ -869,16 +871,25 @@ export function EditorTopBar({
           </Button>
         )}
 
-        {onExport && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onExport}
-            className="h-9 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-        )}
+{onExport && (
+  <Button
+    variant="ghost"
+    size="sm"
+    onClick={() => setIsExportModalOpen(true)} // Open the modal here
+    className="h-9 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors"
+  >
+    <Download className="w-4 h-4" />
+  </Button>
+)}
+
+{isExportModalOpen && (
+  <CodeExportModal 
+    components={currentProject?.components || []}
+    projectName={projectName}
+    pages={pages || []} // <--- ADD THIS LINE
+    onClose={() => setIsExportModalOpen(false)} 
+  />
+)}
 
         {isSupabaseConnected ? (
           <Button

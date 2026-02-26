@@ -562,7 +562,12 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
           {state.showCodeExport && (
             <CodeExportModal
-              components={state.components.filter(c => c.page_id === state.activePageId || c.page_id === 'all' || (!c.page_id && state.activePageId === 'home'))}
+              // Pass ALL components so the modal can generate files for every page
+              components={state.components} 
+              // Pass the pages array to define the folder structure
+              pages={state.pages} 
+              // Pass the project name for the ZIP filename
+              projectName={state.projectName}
               onClose={toggleCodeExport}
             />
           )}

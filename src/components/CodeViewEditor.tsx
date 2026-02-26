@@ -8,50 +8,26 @@ import {
   ChevronRight,
   ChevronDown,
   File,
-  Save,
-  Edit,
-  Link as LinkIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
+// Import the shared logic
+import { generateProjectFiles, slugify } from "../lib/code-generator"
 
 // --- VS CODE DARK MODERN THEME OVERRIDES ---
 const customSyntaxTheme = {
   ...okaidia,
   'comment': { color: "#6a9955", fontStyle: "italic" },
-  'prolog': { color: "#6a9955" },
-  'doctype': { color: "#6a9955" },
   'punctuation': { color: "#d4d4d4" },
-  'namespace': { opacity: .7 },
   'property': { color: "#9cdcfe" },
   'tag': { color: "#569cd6" },
-  'boolean': { color: "#569cd6" },
-  'number': { color: "#b5cea8" },
-  'constant': { color: "#9cdcfe" },
-  'symbol': { color: "#b5cea8" },
-  'deleted': { color: "#ce9178" },
-  'selector': { color: "#d7ba7d" },
-  'attr-name': { color: "#9cdcfe" },
   'string': { color: "#ce9178" },
-  'char': { color: "#ce9178" },
-  'builtin': { color: "#4ec9b0" },
-  'inserted': { color: "#b5cea8" },
-  'operator': { color: "#d4d4d4" },
-  'entity': { color: "#4ec9b0", cursor: "help" },
-  'url': { color: "#9cdcfe" },
-  'variable': { color: "#9cdcfe" },
-  'atrule': { color: "#c586c0" },
-  'attr-value': { color: "#ce9178" },
   'function': { color: "#dcdcaa" },
   'keyword': { color: "#c586c0" },
-  'regex': { color: "#d16969" },
-  'important': { color: "#569cd6", fontWeight: "bold" },
-  'bold': { fontWeight: "bold" },
-  'italic': { fontStyle: "italic" },
 };
 
-// --- TYPES & INTERFACES ---
+// --- TYPES ---
 export interface ComponentData {
   id: string
   type: string
@@ -67,7 +43,7 @@ interface CodeViewEditorProps {
   projectName?: string
   pages: { id: string; name: string; path: string }[]
   activePageId: string
-  onCodeChange?: (newComponents: ComponentData[]) => void
+  onCodeChange?: (newComponents: ComponentData[]) => void 
 }
 
 interface FileNode {
@@ -77,47 +53,12 @@ interface FileNode {
   children?: FileNode[]
 }
 
-// --- ICONS & HELPERS ---
-const PHPIcon = () => <span className="text-[10px] font-bold text-[#8892bf] shrink-0">PHP</span>
+// --- ICONS ---
+const PHPIcon = () => <span className="text-[10px] font-bold text-[#8892bf] shrink-0 mr-1">PHP</span>
+const CSSIcon = () => <span className="text-[10px] font-bold text-[#3fa9f5] shrink-0 mr-1">CSS</span>
+const JSIcon = () => <span className="text-[10px] font-bold text-[#f7df1e] shrink-0 mr-1">JS</span>
 
-const camelToKebab = (value: string): string => value.replace(/([A-Z])/g, "-$1").toLowerCase()
-const isUnitless = (key: string) => ["opacity", "zIndex", "fontWeight", "lineHeight", "flex", "order"].includes(key)
-const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "page"
-
-const toCssInline = (style: Record<string, any> = {}): string =>
-  Object.entries(style)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
-    .map(([key, value]) => `${camelToKebab(key)}: ${typeof value === "number" && !isUnitless(key) ? `${value}px` : value}`)
-    .join("; ")
-
-// --- GENERATORS ---
-const renderComponentToPHP = (component: ComponentData, depth = 0, nested = false): string => {
-  const indent = "  ".repeat(depth)
-  const position = component.position ?? { x: 0, y: 0 }
-  const styles = {
-    ...(nested ? {} : { position: "absolute", left: `${position.x}px`, top: `${position.y}px` }),
-    ...(component.style ?? {}),
-  }
-  const styleAttr = toCssInline(styles)
-  const attrs: string[] = styleAttr ? [`style="${styleAttr}"`] : []
-  const props = component.props ?? {}
-  const childOutput = (component.children ?? []).map((child) => renderComponentToPHP(child, depth + 1, true)).join("\n")
-
-  switch (component.type) {
-    case "heading": return `${indent}<h${Math.min(6, Math.max(1, Number(props.level || 1)))} ${attrs.join(" ")}>${props.content || props.text || "Heading"}</h${Math.min(6, Math.max(1, Number(props.level || 1)))}>`
-    case "text": return `${indent}<p ${attrs.join(" ")}>${props.content || props.text || "Text"}</p>`
-    case "button": return `${indent}<button type="button" ${attrs.join(" ")}>${props.content || props.text || props.label || "Button"}</button>`
-    case "image": return `${indent}<img src="${props.src || "https://via.placeholder.com/320x180"}" alt="${props.alt || "Image"}" ${attrs.join(" ")} />`
-    default: return `${indent}<div ${attrs.join(" ")}>\n${childOutput || `${indent}  ${props.content || props.text || component.type}`}\n${indent}</div>`
-  }
-}
-
-const generatePagePHP = (components: ComponentData[], pageId: string): string => {
-  const pageComponents = components.filter(c => c.page_id === pageId || c.page_id === 'all' || (!c.page_id && pageId === 'home'));
-  const body = pageComponents.length ? pageComponents.map((comp) => renderComponentToPHP(comp, 1)).join("\n") : "  <div>Empty page.</div>"
-  return `<?php\n/**\n * Auto-generated view for ${pageId}\n */\n?>\n<div class="canvas-container">\n${body}\n</div>\n`
-}
-
+// --- HELPERS ---
 const buildTreeFromPaths = (paths: string[]): FileNode[] => {
   const root: FileNode = { name: "root", type: "folder", path: "", children: [] }
   paths.forEach((path) => {
@@ -138,32 +79,24 @@ const buildTreeFromPaths = (paths: string[]): FileNode[] => {
   return (root.children ?? []).sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1))
 }
 
-// --- MAIN COMPONENT ---
 export function CodeViewEditor({ components, projectName = "php-builder", pages, activePageId }: CodeViewEditorProps) {
   const [selectedFile, setSelectedFile] = useState<string>("")
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/views", "public"]))
-  const [fileContents, setFileContents] = useState<Record<string, string>>({})
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState("")
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/views", "public", "public/assets", "public/assets/css", "public/assets/js"]))
 
+  // Use the SAME shared generator as the Modal
+  const fileContents = useMemo(() => 
+    generateProjectFiles(components, pages, projectName), 
+    [components, pages, projectName]
+  );
+
+  // Auto-select the file for the currently active page in the designer
   useEffect(() => {
     const activePage = pages.find(p => p.id === activePageId) || pages[0];
-    const generated: Record<string, string> = {
-      "public/index.php": `<?php require_once __DIR__ . '/../app/views/layout.php'; ?>`,
-      "app/views/layout.php": `<?php // Layout for ${projectName} ?>`,
-      "public/assets/css/styles.css": `* { box-sizing: border-box; }`,
-      "README.md": `# ${projectName}`,
-    };
-
-    pages.forEach(page => {
-      generated[`app/views/${slugify(page.name)}.php`] = generatePagePHP(components, page.id);
-    });
-
-    setFileContents(generated);
-    if (!selectedFile || !generated[selectedFile]) {
-      setSelectedFile(`app/views/${slugify(activePage.name)}.php`);
+    const defaultFile = `app/views/${slugify(activePage.name)}.php`;
+    if (!selectedFile || !fileContents[selectedFile]) {
+      setSelectedFile(defaultFile);
     }
-  }, [components, projectName, pages, activePageId, selectedFile]);
+  }, [fileContents, activePageId, pages, selectedFile]);
 
   const fileStructure = useMemo(() => buildTreeFromPaths(Object.keys(fileContents)), [fileContents])
 
@@ -171,91 +104,47 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
     nodes.map((node) => (
       <div key={node.path} className="group">
         <div 
-          className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/40 transition-colors ${selectedFile === node.path ? "bg-muted" : ""}`} 
+          className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-muted/40 transition-colors ${selectedFile === node.path ? "bg-muted text-white" : "text-muted-foreground"}`} 
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          onClick={() => { 
-            if (node.type === "folder") { 
-              const n = new Set(expandedFolders); 
-              n.has(node.path) ? n.delete(node.path) : n.add(node.path); 
-              setExpandedFolders(n); 
-            } else { 
-              setSelectedFile(node.path); 
-              setIsEditing(false); 
-            } 
-          }}
+          onClick={() => node.type === "folder" ? setExpandedFolders(prev => {
+            const next = new Set(prev);
+            next.has(node.path) ? next.delete(node.path) : next.add(node.path);
+            return next;
+          }) : setSelectedFile(node.path)}
         >
-          {node.type === "folder" ? (expandedFolders.has(node.path) ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />) : (
-            node.path.endsWith(".php") ? <PHPIcon /> : <File className="w-3.5 h-3.5" />
+          {node.type === "folder" ? (expandedFolders.has(node.path) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />) : (
+            node.path.endsWith(".php") ? <PHPIcon /> : node.path.endsWith(".css") ? <CSSIcon /> : node.path.endsWith(".js") ? <JSIcon /> : <File className="w-3 h-3" />
           )}
-          <span className="text-sm truncate flex-1">{node.name}</span>
-          <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(node.path); toast.success("Path copied"); }} className="opacity-0 group-hover:opacity-100 p-1">
-            <LinkIcon className="w-3 h-3 text-muted-foreground" />
-          </button>
+          <span className="text-sm truncate">{node.name}</span>
         </div>
         {node.type === "folder" && expandedFolders.has(node.path) && node.children && renderTree(node.children, depth + 1)}
       </div>
     ))
 
   return (
-    <div className="w-full h-full flex gap-4 p-4">
-      {/* Sidebar Explorer */}
-      <div className="w-64 border rounded-md p-2 flex flex-col bg-card h-full">
-        <div className="px-2 py-2 border-b mb-2 text-xs font-bold uppercase text-muted-foreground flex items-center justify-between">
-          Explorer
-          <File className="w-3 h-3 opacity-50" />
-        </div>
-        <div className="overflow-auto flex-1">{renderTree(fileStructure)}</div>
+    <div className="w-full h-full flex gap-4 p-4 bg-background">
+      <div className="w-64 border rounded-md flex flex-col bg-[#181818] h-full overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#2b2b2b] text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Explorer</div>
+        <div className="flex-1 overflow-auto p-2 custom-scrollbar">{renderTree(fileStructure)}</div>
       </div>
       
-      {/* Editor Surface */}
-      <div className="flex-1 border rounded-md overflow-hidden flex flex-col bg-card h-full">
-        <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
-          <div className="flex items-center gap-2 overflow-hidden">
-             <span className="text-xs text-muted-foreground opacity-50 shrink-0">Viewing:</span>
-             <span className="text-sm font-medium truncate">{selectedFile}</span>
-          </div>
-          <div className="flex gap-2">
-            {isEditing ? (
-              <Button size="sm" onClick={() => { setFileContents({...fileContents, [selectedFile]: editContent}); setIsEditing(false); toast.success("Saved"); }}>
-                <Save className="w-3 h-3 mr-1" />Save
-              </Button>
-            ) : (
-              <Button size="sm" variant="ghost" onClick={() => { setIsEditing(true); setEditContent(fileContents[selectedFile]); }}>
-                <Edit className="w-3 h-3 mr-1" />Edit
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(fileContents[selectedFile]); toast.success("Code copied"); }}>
-              <Copy className="w-3 h-3" />
-            </Button>
-          </div>
+      <div className="flex-1 border rounded-md overflow-hidden flex flex-col bg-[#1f1f1f] h-full">
+        <div className="px-4 py-2 border-b border-[#2b2b2b] bg-[#181818] flex items-center justify-between">
+          <span className="text-xs font-mono text-muted-foreground">{selectedFile}</span>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { navigator.clipboard.writeText(fileContents[selectedFile]); toast.success("Copied!"); }}>
+            <Copy className="h-3 w-3" />
+          </Button>
         </div>
 
-        {/* EDITOR AREA - bg fills the remaining space */}
         <div className="flex-1 overflow-auto bg-[#1f1f1f]">
-          {isEditing ? (
-            <textarea 
-              className="w-full h-full p-4 bg-transparent text-[#cccccc] font-mono text-sm outline-none resize-none" 
-              value={editContent} 
-              onChange={(e) => setEditContent(e.target.value)} 
-              spellCheck={false}
-            />
-          ) : (
-            <SyntaxHighlighter 
-              language={selectedFile.endsWith(".css") ? "css" : "php"} 
-              style={customSyntaxTheme} 
-              showLineNumbers
-              customStyle={{ 
-                margin: 0, 
-                padding: "20px",
-                backgroundColor: "#1f1f1f", 
-                fontSize: "13px",
-                lineHeight: "1.5",
-                minHeight: "100%" // Ensure the black/grey background fills the height
-              }}
-            >
-              {fileContents[selectedFile] || "/* No content */"}
-            </SyntaxHighlighter>
-          )}
+          <SyntaxHighlighter 
+            language={selectedFile.endsWith(".css") ? "css" : selectedFile.endsWith(".js") ? "javascript" : "php"} 
+            style={customSyntaxTheme} 
+            showLineNumbers
+            customStyle={{ margin: 0, padding: "24px", backgroundColor: "#1f1f1f", fontSize: "13px", lineHeight: "1.6", minHeight: "100%" }}
+          >
+            {fileContents[selectedFile] || "// No content"}
+          </SyntaxHighlighter>
         </div>
       </div>
     </div>
