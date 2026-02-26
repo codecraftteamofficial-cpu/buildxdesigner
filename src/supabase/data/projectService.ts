@@ -147,6 +147,8 @@ export async function saveProject(
     user_id: project.user_id,
     project_layout: project.project_layout,
     pages: project.pages,
+    site_title: project.siteTitle,
+    site_logo_url: project.siteLogoUrl,
     last_modified: new Date().toISOString(),
   };
 
@@ -213,6 +215,8 @@ export async function saveProjectMetadata(metadata: {
   user_id: string;
   project_layout?: any[];
   pages?: any[];
+  siteTitle?: string;
+  siteLogoUrl?: string;
 }): Promise<{ error: any }> {
   try {
     const payload: any = {
@@ -228,6 +232,10 @@ export async function saveProjectMetadata(metadata: {
       payload.project_layout = metadata.project_layout;
     if (metadata.pages !== undefined)
       payload.pages = metadata.pages;
+    if (metadata.siteTitle !== undefined)
+      payload.site_title = metadata.siteTitle;
+    if (metadata.siteLogoUrl !== undefined)
+      payload.site_logo_url = metadata.siteLogoUrl;
 
     const { error } = await supabase
       .from("projects")
@@ -467,11 +475,11 @@ export async function fetchProjectBySubdomain(
       lastModified: data.last_modified,
       type: data.type as Project["type"],
       status: data.status as Project["status"],
-      project_layout: data.published_layout || data.project_layout || [],
+      project_layout: (data.published_layout && data.published_layout.length > 0) ? data.published_layout : (data.project_layout || []),
       subdomain: data.subdomain,
       isPublished: data.is_published,
       lastPublishedAt: data.last_published_at,
-      pages: data.published_pages || data.pages || [{ id: 'home', name: 'Home', path: '/' }],
+      pages: (data.published_pages && data.published_pages.length > 0) ? data.published_pages : (data.pages || [{ id: 'home', name: 'Home', path: '/' }]),
       published_pages: data.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
       siteLogoUrl: data.site_logo_url,
       siteTitle: data.site_title,

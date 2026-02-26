@@ -230,7 +230,9 @@ function useCollaborationLogic({
             prev.projectName,
           components: finalComponents,
           pages: (projectData as any)?.pages ?? prev.pages,
-          activePageId: prev.activePageId, // Might be better to keep as is, or switch to the first page if 'home' is not in the list
+          siteTitle: (projectData as any)?.site_title ?? (projectData as any)?.siteTitle,
+          siteLogoUrl: (projectData as any)?.site_logo_url ?? (projectData as any)?.siteLogoUrl,
+          activePageId: prev.activePageId,
           hasUnsavedChanges: false,
         }));
       } finally {
@@ -304,6 +306,9 @@ function useCollaborationLogic({
             name: state.projectName || "Untitled Project",
             user_id,
             project_layout: currentComponents,
+            pages: state.pages,
+            siteTitle: state.siteTitle,
+            siteLogoUrl: state.siteLogoUrl,
           });
 
           persisted = !saveError;
@@ -364,6 +369,9 @@ function useCollaborationLogic({
     state.currentView,
     state.currentProjectId,
     state.projectName,
+    state.pages,
+    state.siteTitle,
+    state.siteLogoUrl,
     state.hasUnsavedChanges,
     state.isSaving,
   ]);

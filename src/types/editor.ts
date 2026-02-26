@@ -69,4 +69,6 @@ export interface EditorState {
   projectSubdomain?: string;
   projectIsPublished?: boolean;
   projectLastPublishedAt?: string;
+  siteTitle?: string;
+  siteLogoUrl?: string;
 }

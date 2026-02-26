@@ -157,6 +157,8 @@ export function useEditorState() {
           name: state.projectName,
           user_id: currentUser?.id || "",
           pages: state.pages,
+          siteTitle: state.siteTitle,
+          siteLogoUrl: state.siteLogoUrl,
           // We also include components from state to keep the JSON column in sync
           project_layout: state.components,
         });
@@ -166,7 +168,7 @@ export function useEditorState() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [state.pages, state.projectName, state.currentProjectId, isAuthenticated, currentUser?.id, state.components]);
+  }, [state.pages, state.projectName, state.siteTitle, state.siteLogoUrl, state.currentProjectId, isAuthenticated, currentUser?.id, state.components]);
 
   // ==================== AUTH ====================
 
@@ -245,7 +247,7 @@ export function useEditorState() {
       }
 
       setIsAuthenticated(loggedIn);
-      
+
       // Check onboarding status
       if (loggedIn && session?.user) {
         const onboardingCompleted = session.user.user_metadata?.onboarding_completed;
@@ -253,7 +255,7 @@ export function useEditorState() {
           setShowOnboarding(true);
         }
       }
-      
+
       setAuthLoading(false);
 
       const savedView = localStorage.getItem("fulldev-ai-current-view");
@@ -740,6 +742,9 @@ export function useEditorState() {
           name: state.projectName || "Untitled Project",
           user_id,
           project_layout: currentComponents,
+          pages: state.pages,
+          siteTitle: state.siteTitle,
+          siteLogoUrl: state.siteLogoUrl,
         });
 
         setState((prev) => ({
