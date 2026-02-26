@@ -839,7 +839,7 @@ const onResizeEnd = () => {
           </ResizeHandle>
         );
 
-      case 'button':
+case 'button':
         const buttonWidth = parseSize(style?.width, 120);
         const buttonHeight = parseSize(style?.height, 40);
 
@@ -866,119 +866,48 @@ const onResizeEnd = () => {
                 ...combinedStyle,
                 width: '100%',
                 height: '100%',
+                // In editor, if selected, we disable pointer events so the user can drag/resize
                 pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
                 zIndex: isPreview ? 20 : 'auto'
               }}
               className={`${props.className || ''} ${isSelected ? 'relative' : ''}`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                console.log('Button clicked in preview mode:', isPreview);
-                console.log('Button props:', props);
-
                 e.preventDefault();
                 e.stopPropagation();
 
-                if (!isPreview && isSelected) {
-                  console.log('In edit mode and selected, preventing action execution');
+                // 1. Safety check for Editor Mode
+                if (!isPreview) {
+                  console.log('Action blocked: Toggle Preview Mode to test buttons.');
                   return;
                 }
 
-                // Handle onClick actions
-                const onClickActions = ((props.actions as Action[]) || []).filter((a: Action) => a.type === 'onClick');
-                console.log('Filtered onClick actions:', onClickActions);
-
-                // Handle navigation actions immediately
-                const navigateAction = onClickActions.find(a => a.handlerType === 'navigate');
-                if (navigateAction && navigateAction.url) {
-                  const absoluteUrl = formatUrl(navigateAction.url);
-                  console.log(`Executing navigation action: ${navigateAction.url} -> ${absoluteUrl}`);
-                  window.open(absoluteUrl, navigateAction.target || '_blank');
-                  return;
-                }
-
-                // Handle copy to clipboard actions
-                const copyAction = onClickActions.find(a => a.handlerType === 'copy' && a.textToCopy);
-                if (copyAction) {
-                  console.log('Executing copy action:', copyAction);
-                  navigator.clipboard.writeText(copyAction.textToCopy || '').then(() => {
-                    console.log('Text copied to clipboard');
-                  }).catch(err => {
-                    console.error('Failed to copy text:', err);
+                // 2. Combine formal actions + legacy onClick string
+                const allActions = [...((props.actions as Action[]) || [])];
+                
+                // If there's a raw string in props.onClick, convert it to a temporary Action
+                if (typeof props.onClick === 'string' && props.onClick.trim() !== '') {
+                  allActions.push({
+                    id: 'legacy-click',
+                    type: 'onClick',
+                    handlerType: 'custom',
+                    handler: props.onClick
                   });
-                  return;
                 }
 
-                // Handle scroll actions
-                const scrollAction = onClickActions.find(a => a.handlerType === 'scroll' && a.selector);
-                if (scrollAction?.selector) {
-                  console.log('Executing scroll action via event:', scrollAction);
+                const onClickActions = allActions.filter((a: Action) => a.type === 'onClick');
 
-                  const elementId = scrollAction.selector.startsWith('#')
-                    ? scrollAction.selector.substring(1)
-                    : scrollAction.selector;
-
-                  const scrollEvent = new CustomEvent('scrollToElement', {
-                    detail: { elementId }
-                  });
-                  window.dispatchEvent(scrollEvent);
-                  return;
-                }
-
-                // Handle toggle actions
-                const toggleAction = onClickActions.find(a => a.handlerType === 'toggle' && a.selector);
-                if (toggleAction?.selector) {
-                  console.log('Executing toggle action:', toggleAction);
-                  try {
-                    if (toggleAction.handler) {
-                      const handlerFn = new Function('event', 'props', toggleAction.handler);
-                      handlerFn(e, props);
-                      return;
-                    }
-
-                    const selector = toggleAction.selector;
-                    const cleanId = selector.startsWith('#') ? selector.substring(1) : selector;
-                    const cleanSelector = selector.replace(/'/g, "\\'");
-
-                    let elements = document.querySelectorAll(selector);
-
-                    if (elements.length === 0) {
-                      elements = document.querySelectorAll(`[id="${cleanId}"], [data-component-id="${cleanId}"]`);
-                      if (elements.length === 0 && !selector.startsWith('#') && !selector.startsWith('.')) {
-                        elements = document.querySelectorAll(`#${cleanSelector}`);
-                      }
-                    }
-
-                    elements.forEach(el => {
-                      if (el instanceof HTMLElement) {
-                        el.style.display = el.style.display === 'none' ? '' : 'none';
-                      }
-                    });
-                  } catch (err) {
-                    console.error('Error toggling element:', err);
-                  }
-                  return;
-                }
-
+                // 3. Execute through your central handler
                 if (onClickActions.length > 0) {
-                  console.log('Executing custom actions');
+                  console.log('Executing actions:', onClickActions);
                   executeActions(onClickActions, e);
                 } else {
-                  console.log('No onClick actions found or no valid action handlers');
+                  console.warn('No actions defined for this button.');
                 }
               }}
               onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-                if (!isPreview && isSelected) return;
+                if (!isPreview) return;
                 const hoverActions = ((props.actions as Action[]) || []).filter((a: Action) => a.type === 'onHover');
                 executeActions(hoverActions, e);
-              }}
-              onFocus={(e: React.FocusEvent<HTMLButtonElement>) => {
-                if (!isPreview && isSelected) return;
-                const focusActions = ((props.actions as Action[]) || []).filter((a: Action) => a.type === 'onFocus');
-                executeActions(focusActions, e);
-              }}
-              onBlur={(e: React.FocusEvent<HTMLButtonElement>) => {
-                if (!isPreview && isSelected) return;
-                const blurActions = ((props.actions as Action[]) || []).filter((a: Action) => a.type === 'onBlur');
-                executeActions(blurActions, e);
               }}
             >
               <EditableText
