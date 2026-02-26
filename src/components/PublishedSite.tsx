@@ -133,6 +133,8 @@ export function PublishedSite() {
                 activePageId={activePageId}
                 navigate={navigate}
                 userProjectConfig={project.userProjectConfig}
+                siteTitle={project.siteTitle}
+                siteLogoUrl={project.siteLogoUrl}
             />
         </DndProvider>
     );

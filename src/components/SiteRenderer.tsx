@@ -13,6 +13,8 @@ interface SiteRendererProps {
     showGrid?: boolean; // Kept for compatibility but ignored
     activePageId?: string;
     navigate?: (path: string) => void;
+    siteTitle?: string;
+    siteLogoUrl?: string;
 }
 
 export function SiteRenderer({
@@ -22,7 +24,25 @@ export function SiteRenderer({
     backgroundColor = "#ffffff",
     activePageId = 'home',
     navigate,
+    siteTitle,
+    siteLogoUrl,
 }: SiteRendererProps) {
+    // Update document title and favicon if siteTitle/siteLogoUrl are provided
+    React.useEffect(() => {
+        if (siteTitle) {
+            document.title = siteTitle;
+        }
+
+        if (siteLogoUrl) {
+            let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }
+            link.href = siteLogoUrl;
+        }
+    }, [siteTitle, siteLogoUrl]);
     // Filter components by activePageId or 'all'
     const filteredComponents = components.filter(c => {
         const componentPageId = c.page_id || 'home';

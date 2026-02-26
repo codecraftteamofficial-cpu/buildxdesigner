@@ -18,5 +18,6 @@ export interface Project {
     lastPublishedAt?: string;
     pages?: any[];
     published_pages?: any[];
-
+    siteLogoUrl?: string;
+    siteTitle?: string;
 }

@@ -53,7 +53,7 @@ export async function fetchProjectById(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("projects_id", id)
       .eq("user_id", user?.id) // Security filter
@@ -75,6 +75,8 @@ export async function fetchProjectById(
       lastPublishedAt: data.last_published_at,
       pages: data.pages || [{ id: 'home', name: 'Home', path: '/' }],
       published_pages: data.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      siteLogoUrl: data.site_logo_url,
+      siteTitle: data.site_title,
     };
     return { data: project, error: null };
   } catch (err) {
@@ -98,10 +100,10 @@ export async function fetchUserProjects(): Promise<{
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at, pages, published_pages",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("user_id", user.id) // ONLY fetch the logged-in user's projects
-    
+
       .order("last_modified", { ascending: false });
 
     if (error) return { data: null, error };
@@ -120,6 +122,8 @@ export async function fetchUserProjects(): Promise<{
       lastPublishedAt: item.last_published_at,
       pages: item.pages || [{ id: 'home', name: 'Home', path: '/' }],
       published_pages: item.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      siteLogoUrl: item.site_logo_url,
+      siteTitle: item.site_title,
     }));
 
     return { data: mappedData, error: null };
@@ -377,7 +381,9 @@ export async function publishProject(
   projectId: string,
   subdomain: string,
   components: any[],
-  pages: any[]
+  pages: any[],
+  siteTitle?: string,
+  siteLogoUrl?: string
 ): Promise<{ url: string | null; error: any }> {
   try {
     const {
@@ -396,6 +402,8 @@ export async function publishProject(
         last_published_at: new Date().toISOString(),
         published_layout: components,
         published_pages: pages,
+        site_title: siteTitle,
+        site_logo_url: siteLogoUrl,
       })
       .eq("projects_id", projectId)
       .eq("user_id", user.id);
@@ -443,7 +451,7 @@ export async function fetchProjectBySubdomain(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, published_layout, subdomain, is_published, last_published_at, pages, published_pages",
+        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, published_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("subdomain", subdomain)
       .eq("is_published", true)
@@ -465,6 +473,8 @@ export async function fetchProjectBySubdomain(
       lastPublishedAt: data.last_published_at,
       pages: data.published_pages || data.pages || [{ id: 'home', name: 'Home', path: '/' }],
       published_pages: data.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      siteLogoUrl: data.site_logo_url,
+      siteTitle: data.site_title,
     };
     return { data: project, error: null };
   } catch (err) {

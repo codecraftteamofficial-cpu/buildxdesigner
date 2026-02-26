@@ -2,10 +2,11 @@ import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "./ui/button"
-import { X, Globe, Check, Loader2, AlertCircle, RefreshCw, ExternalLink, Calendar, CheckCircle2 } from "lucide-react"
+import { X, Globe, Check, Loader2, AlertCircle, RefreshCw, ExternalLink, Calendar, CheckCircle2, Upload, Trash2, Image as ImageIcon } from "lucide-react"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { publishProject, checkSubdomainAvailability, unpublishProject } from "../supabase/data/projectService"
+import { supabase } from "../supabase/config/supabaseClient"
 import { toast } from "sonner"
 import { Project } from "../supabase/types/project"
 
@@ -30,6 +31,12 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
     const [showTakedownConfirm, setShowTakedownConfirm] = useState(false)
     const [takedownInput, setTakedownInput] = useState("")
     const [isTakingDown, setIsTakingDown] = useState(false)
+
+    // Site Branding state
+    const [siteTitle, setSiteTitle] = useState("")
+    const [siteLogoUrl, setSiteLogoUrl] = useState("")
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const isAlreadyPublished = !!project?.isPublished
     const currentSubdomain = project?.subdomain ?? ""
@@ -60,11 +67,12 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                 setSubdomain(suggested)
                 setPublishedUrl(null)
             }
-            setError(null)
             setAvailability("idle")
             setShowTakedownConfirm(false)
             setTakedownInput("")
             setIsTakingDown(false)
+            setSiteTitle(project.siteTitle || "")
+            setSiteLogoUrl(project.siteLogoUrl || "")
         }
         wasOpenRef.current = isOpen
     }, [isOpen, project])
@@ -108,6 +116,50 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
         }, 600)
     }
 
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !project) return
+
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please upload an image file")
+            return
+        }
+
+        setIsUploadingLogo(true)
+        try {
+            const fileExt = file.name.split(".").pop()
+            const fileName = `${project.id}/logo-${Date.now()}.${fileExt}`
+
+            const { data, error: uploadError } = await supabase.storage
+                .from("project-assets")
+                .upload(fileName, file, {
+                    cacheControl: "3600",
+                    upsert: true,
+                })
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from("project-assets")
+                .getPublicUrl(data.path)
+
+            setSiteLogoUrl(publicUrl)
+            toast.success("Logo uploaded successfully")
+        } catch (error: any) {
+            console.error("Logo upload failed:", error)
+            toast.error("Logo upload failed: " + (error.message || "Unknown error"))
+        } finally {
+            setIsUploadingLogo(false)
+        }
+    }
+
+    const handleRemoveLogo = () => {
+        setSiteLogoUrl("")
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""
+        }
+    }
+
     const handlePublish = async () => {
         const validationError = validateSubdomain(subdomain)
         if (validationError) {
@@ -147,7 +199,9 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                 project!.id,
                 subdomain,
                 layoutToPublish,
-                project!.pages || []
+                project!.pages || [],
+                siteTitle,
+                siteLogoUrl
             )
 
             if (result.error) {
@@ -254,6 +308,72 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                         )}
                     </div>
                 )}
+
+                {/* Site Branding */}
+                <div className="grid gap-4 py-2">
+                    <div className="grid gap-2">
+                        <Label htmlFor="siteTitle">Website Title</Label>
+                        <Input
+                            id="siteTitle"
+                            value={siteTitle}
+                            onChange={(e) => setSiteTitle(e.target.value)}
+                            placeholder="My Awesome Website"
+                            disabled={isPublishing || isTakingDown}
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                            This title will appear in the browser tab.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Website Logo</Label>
+                        <div className="flex items-center gap-4">
+                            <div
+                                className="w-16 h-16 rounded-lg border-2 border-dashed border-muted flex items-center justify-center overflow-hidden bg-muted/20 cursor-pointer hover:border-blue-400 transition-colors"
+                                onClick={() => !isUploadingLogo && fileInputRef.current?.click()}
+                            >
+                                {siteLogoUrl ? (
+                                    <img src={siteLogoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                ) : isUploadingLogo ? (
+                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                ) : (
+                                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-2"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingLogo || isPublishing}
+                                >
+                                    <Upload className="w-3 h-3" />
+                                    {siteLogoUrl ? "Change Logo" : "Upload Logo"}
+                                </Button>
+                                {siteLogoUrl && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 gap-2 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        onClick={handleRemoveLogo}
+                                        disabled={isUploadingLogo || isPublishing}
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                        Remove
+                                    </Button>
+                                )}
+                            </div>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 {/* Subdomain Input */}
                 <div className="grid gap-4">
