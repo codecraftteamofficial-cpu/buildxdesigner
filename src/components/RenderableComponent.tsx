@@ -651,8 +651,22 @@ const onResizeEnd = () => {
                   if (operation === 'insert') {
                     result = await client.from(table).insert(recordData);
                   } else if (operation === 'select') {
-                    result = await client.from(table).select('*');
+                    let query = client.from(table).select('*');
+
+                    Object.entries(recordData).forEach(([key, value]) => {
+                      if (value) {
+                        query = query.eq(key, value);
+                      }
+                    });
+
+                    result = await query;
                     console.log('Supabase Select Result:', result.data);
+
+                    if (result.data) {
+                      toast.success('Select Query Successful', {
+                        description: `Found ${result.data.length} records.`
+                      });
+                    }
                   } else if (operation === 'update') {
                     if (recordData.id) {
                       const { id, ...updateData } = recordData;

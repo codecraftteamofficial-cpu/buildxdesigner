@@ -67,7 +67,21 @@ export function PublishedSite() {
                 if (error || !data) {
                     setError("Site not found");
                 } else {
-                    setProject(data);
+                    const configNode = data.project_layout?.find((c: any) => c.type === 'project-config');
+                    let extractedConfig = undefined;
+
+                    if (configNode?.props?.supabaseUrl && configNode?.props?.supabaseKey) {
+                        extractedConfig = {
+                            supabaseUrl: configNode.props.supabaseUrl,
+                            supabaseKey: configNode.props.supabaseKey
+                        };
+                    }
+
+                    if (data.project_layout) {
+                        data.project_layout = data.project_layout.filter((c: any) => c.type !== 'project-config');
+                    }
+
+                    setProject({ ...data, userProjectConfig: extractedConfig });
                 }
             } catch (err) {
                 setError("Failed to load site");
@@ -118,6 +132,7 @@ export function PublishedSite() {
                 backgroundColor={project.backgroundColor || "#ffffff"}
                 activePageId={activePageId}
                 navigate={navigate}
+                userProjectConfig={project.userProjectConfig}
             />
         </DndProvider>
     );

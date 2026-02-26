@@ -122,11 +122,31 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
         setIsPublishing(true)
         setError(null)
 
+        const layoutToPublish = [...(project!.project_layout || [])];
+        const targetUrl = localStorage.getItem("target_supabase_url");
+        const targetKey = localStorage.getItem("target_supabase_key");
+
+        if (targetUrl && targetKey) {
+            const configIndex = layoutToPublish.findIndex((c: any) => c.type === 'project-config');
+            const configNode = {
+                id: 'project-config',
+                type: 'project-config',
+                props: { supabaseUrl: targetUrl, supabaseKey: targetKey },
+                style: { display: 'none' },
+                position: { x: 0, y: 0 }
+            };
+            if (configIndex >= 0) {
+                layoutToPublish[configIndex] = configNode;
+            } else {
+                layoutToPublish.push(configNode);
+            }
+        }
+
         try {
             const result = await publishProject(
                 project!.id,
                 subdomain,
-                project!.project_layout || [],
+                layoutToPublish,
                 project!.pages || []
             )
 
