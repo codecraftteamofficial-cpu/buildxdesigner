@@ -119,7 +119,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
-       <div className="editor-gradient-surface h-screen flex flex-col overflow-hidden">
+        <div className="editor-gradient-surface h-screen flex flex-col overflow-hidden">
           {/* Editor Top Bar */}
           <EditorTopBar
             currentUser={state.currentUser}
@@ -146,6 +146,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             activePageId={state.activePageId}
             onSwitchPage={editor.switchPage}
             onAddPage={editor.addPage}
+            onDeletePage={editor.deletePage}
             currentProject={{
               id: state.currentProjectId!,
               name: state.projectName,

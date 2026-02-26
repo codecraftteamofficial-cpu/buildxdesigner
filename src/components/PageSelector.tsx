@@ -9,7 +9,7 @@ import {
     SelectSeparator,
 } from './ui/select';
 import { Button } from './ui/button';
-import { Plus, Layout } from 'lucide-react';
+import { Plus, Layout, X } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -32,9 +32,10 @@ interface PageSelectorProps {
     activePageId: string;
     onSwitchPage: (pageId: string) => void;
     onAddPage?: (name: string, path: string) => void;
+    onRemovePage?: (pageId: string) => void;
 }
 
-export function PageSelector({ pages, activePageId, onSwitchPage, onAddPage }: PageSelectorProps) {
+export function PageSelector({ pages, activePageId, onSwitchPage, onAddPage, onRemovePage }: PageSelectorProps) {
     const [showAddPage, setShowAddPage] = useState(false);
     const [newPageName, setNewPageName] = useState('');
     const [newPagePath, setNewPagePath] = useState('');
@@ -65,9 +66,25 @@ export function PageSelector({ pages, activePageId, onSwitchPage, onAddPage }: P
                     <SelectContent>
                         <SelectGroup>
                             {pages?.map((page) => (
-                                <SelectItem key={page.id} value={page.id} className="cursor-pointer">
-                                    {page.name} <span className="text-muted-foreground text-xs ml-2">{page.path}</span>
-                                </SelectItem>
+                                <div key={page.id} className="relative group flex items-center pr-2">
+                                    <SelectItem value={page.id} className="flex-1 cursor-pointer pr-10">
+                                        {page.name} <span className="text-muted-foreground text-xs ml-2">{page.path}</span>
+                                    </SelectItem>
+                                    {page.id !== 'home' && onRemovePage && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-50 text-muted-foreground hover:text-destructive"
+                                            onClick={(e: React.MouseEvent) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onRemovePage(page.id);
+                                            }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                </div>
                             ))}
                         </SelectGroup>
                         {onAddPage && (

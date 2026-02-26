@@ -1083,11 +1083,12 @@ export function Canvas({
         {/* Infinite Canvas Content */}
         {(() => {
           const activeColor = "#a855f7"; // Reusing the purple primary color
-          const filteredComponents = components.filter(c =>
-            c.page_id === activePageId ||
-            c.page_id === 'all' ||
-            (!c.page_id && activePageId === 'home')
-          );
+          const filteredComponents = components.filter(c => {
+            if (c.page_id === 'all') return true;
+            const compId = c.page_id || 'home';
+            const activeId = activePageId || 'home';
+            return compId === activeId;
+          });
 
           return (
             <div

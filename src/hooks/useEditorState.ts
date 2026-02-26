@@ -1025,9 +1025,13 @@ export function useEditorState() {
       if (prev.pages.length <= 1) return prev; // Cannot delete last page
       const newPages = prev.pages.filter(p => p.id !== pageId);
       const newActiveId = prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
+      // Also remove components belonging to this page
+      const newComponents = prev.components.filter(c => c.page_id !== pageId);
+
       return {
         ...prev,
         pages: newPages,
+        components: newComponents,
         activePageId: newActiveId,
         selectedComponent: null,
         hasUnsavedChanges: true,
