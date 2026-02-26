@@ -45,11 +45,10 @@ export function SiteRenderer({
     }, [siteTitle, siteLogoUrl]);
     // Filter components by activePageId or 'all'
     const filteredComponents = components.filter(c => {
-        const componentPageId = c.page_id || 'home';
-        const activeId = activePageId || 'home';
-
         if (c.page_id === 'all') return true;
-        return componentPageId === activeId;
+        const compId = c.page_id || 'home';
+        const activeId = activePageId || 'home';
+        return compId === activeId;
     });
 
     // Compute the canvas height needed so the container is tall enough to show all
