@@ -28,10 +28,10 @@ export function EditTooltip() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-5">
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-lg shadow-2xl max-w-md">
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-100 animate-in slide-in-from-bottom-5">
+      <div className="bg-linear-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-lg shadow-2xl max-w-md">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 text-2xl">✏️</div>
+          <div className="shrink-0 text-2xl">✏️</div>
           <div className="flex-1">
             <h3 className="font-semibold mb-1 text-sm">💡 Edit Text Easily</h3>
             <p className="text-xs mb-3 leading-relaxed opacity-90">
@@ -45,7 +45,7 @@ export function EditTooltip() {
           </div>
           <button
             onClick={handleDismiss}
-            className="flex-shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
+            className="shrink-0 hover:bg-white/20 rounded p-1 transition-colors"
             aria-label="Dismiss"
           >
             <X className="w-4 h-4" />

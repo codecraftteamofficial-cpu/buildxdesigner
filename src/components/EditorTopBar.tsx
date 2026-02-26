@@ -471,7 +471,7 @@ export function EditorTopBar({
   return (
     <div
       id="toolbar-top"
-      className="h-14 bg-card border-b border-border flex items-center justify-between px-4 relative z-[100]"
+      className="h-14 bg-card border-b border-border flex items-center justify-between px-4 relative z-100"
     >
       <div className="flex items-center gap-3 min-w-0">
         <Button
@@ -930,7 +930,7 @@ export function EditorTopBar({
             className="w-9 h-9 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
           />
         ) : (
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity">
+          <div className="w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity">
             {currentUser?.name?.[0]?.toUpperCase() ||
               currentUser?.email?.[0]?.toUpperCase() ||
               "U"}
@@ -1007,7 +1007,7 @@ export function EditorTopBar({
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
                         {currentUser?.name?.[0]?.toUpperCase() ||
                           currentUser?.email?.[0]?.toUpperCase() ||
                           "U"}

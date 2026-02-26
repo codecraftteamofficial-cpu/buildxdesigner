@@ -211,6 +211,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                       onDelete={deleteComponent}
                       onReorder={reorderComponent}
                       onMoveLayer={editor.moveLayer}
+                      activePageId={state.activePageId}
                     />
                   </div>
                 </>

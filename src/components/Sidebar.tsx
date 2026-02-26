@@ -21,7 +21,6 @@ import {
   Code2,
   CreditCard,
   Layers,
-  ChevronLeft, // Ensure this is imported
 } from "lucide-react"
 import type { ComponentData } from "../App"
 
@@ -67,6 +66,7 @@ interface SidebarProps {
   onDelete: (id: string) => void
   onReorder: (id: string, direction: 'front' | 'back') => void
   onMoveLayer: (id: string, action: 'forward' | 'backward') => void
+  activePageId: string // New prop to track the current page
 }
 
 export function Sidebar({ 
@@ -77,9 +77,17 @@ export function Sidebar({
   onSelect,
   onDelete,
   onReorder,
-  onMoveLayer
+  onMoveLayer,
+  activePageId
 }: SidebarProps) {
   const [searchTerm, setSearchTerm] = useState("")
+
+  // Filter layers to only show components belonging to the active page
+  const filteredLayers = components.filter(c => 
+    c.page_id === activePageId || 
+    c.page_id === 'all' || 
+    (!c.page_id && activePageId === 'home')
+  );
 
   const basicComponents = [
     { type: "text", icon: <Type className="w-3.5 h-3.5" />, label: "Text", props: { content: "Sample Text" } },
@@ -190,7 +198,7 @@ export function Sidebar({
 
         <TabsContent value="layers" className="flex-1 mt-0 border-0 overflow-hidden">
           <LayerPanel 
-            components={components}
+            components={filteredLayers} // Only pass components for the active page
             selectedId={selectedId}
             onSelect={(id) => {
               const component = components.find(c => c.id === id) || null;

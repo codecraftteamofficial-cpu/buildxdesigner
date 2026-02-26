@@ -62,7 +62,7 @@ export function PagesPanel({
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-card border-t z-30 h-24 flex items-center px-4 gap-3">
       {/* Pages Title */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <span className="text-sm font-medium text-muted-foreground">Pages</span>
       </div>
 
@@ -71,7 +71,7 @@ export function PagesPanel({
         {pages.map((page) => (
           <div
             key={page.id}
-            className={`flex-shrink-0 w-32 h-16 rounded-lg border-2 cursor-pointer transition-all ${page.id === currentPageId
+            className={`shrink-0 w-32 h-16 rounded-lg border-2 cursor-pointer transition-all ${page.id === currentPageId
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
               : 'border-border hover:border-blue-300 dark:hover:border-blue-700 bg-background'
               }`}
@@ -154,7 +154,7 @@ export function PagesPanel({
         variant="outline"
         size="sm"
         onClick={onPageAdd}
-        className="flex-shrink-0 h-16 w-16 flex flex-col items-center justify-center gap-1"
+        className="shrink-0 h-16 w-16 flex flex-col items-center justify-center gap-1"
       >
         <Plus className="w-4 h-4" />
         <span className="text-xs">Page</span>
