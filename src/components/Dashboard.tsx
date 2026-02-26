@@ -213,6 +213,9 @@ export function Dashboard({
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false); // Start hidden on mobile
 
+   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [pendingDeleteProject, setPendingDeleteProject] = useState<Project | null>(null);
+
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
     const shouldUpdateStatus = localStorage.getItem("update_supabase_status");
@@ -632,14 +635,7 @@ export function Dashboard({
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this project? This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
-
+    
     try {
       setProjectsLoading(true);
 
@@ -653,6 +649,8 @@ export function Dashboard({
       }
 
       await reloadProjects();
+       setShowDeleteConfirmDialog(false);
+      setPendingDeleteProject(null);
     } catch (err) {
       console.error("Failed to delete project:", err);
       setProjectsLoading(false);
@@ -660,6 +658,11 @@ export function Dashboard({
     }
   };
 
+   const openDeleteProjectDialog = (project: Project) => {
+    setPendingDeleteProject(project);
+    setShowDeleteConfirmDialog(true);
+  };
+  
    const handleMoveProjectToStatus = async (
     projectId: string,
     status: Project["status"],
@@ -2025,18 +2028,33 @@ export function Dashboard({
                                       Move to draft
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={(
-                                        e: React.MouseEvent<HTMLDivElement>,
-                                      ) => {
-                                        e.stopPropagation();
-                                        handleMoveProjectToStatus(project.id, "trash");
-                                      }}
-                                      className="text-red-500"
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Move to trash
-                                    </DropdownMenuItem>
+                                   {activeSection === "trash" ? (
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          openDeleteProjectDialog(project);
+                                        }}
+                                        className="text-red-500"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete forever
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleMoveProjectToStatus(project.id, "trash");
+                                        }}
+                                        className="text-red-500"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Move to trash
+                                      </DropdownMenuItem>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
 
@@ -2177,6 +2195,45 @@ export function Dashboard({
           setShowNameProjectDialog(true);
         }}
       />
+
+      <Dialog
+        open={showDeleteConfirmDialog}
+        onOpenChange={(open) => {
+          setShowDeleteConfirmDialog(open);
+          if (!open) setPendingDeleteProject(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete project forever?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete "{pendingDeleteProject?.name || "this project"}".
+              This action cannot be undone or restored from trash.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteConfirmDialog(false);
+                setPendingDeleteProject(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!pendingDeleteProject || projectsLoading}
+              onClick={() => {
+                if (!pendingDeleteProject) return;
+                handleDeleteProject(pendingDeleteProject.id);
+              }}
+            >
+              {projectsLoading ? "Deleting..." : "Delete forever"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Name Project Dialog */}
       <Dialog
