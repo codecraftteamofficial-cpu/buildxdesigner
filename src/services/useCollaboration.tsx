@@ -10,7 +10,7 @@ import {
   syncProjectComponents,
 } from "../supabase/data/projectService";
 import type { ComponentData, EditorState } from "../types/editor";
-import { initializeCollaborationDoc } from "./CollaborationDoc";
+import { useCollaborationDoc } from "./CollaborationDoc";
 import { initializeCollaborationTransport } from "./CollaborationTransport";
 
 type CollaborationContextType = ReturnType<typeof useCollaborationLogic>;
@@ -41,9 +41,7 @@ function useCollaborationLogic({
   const userColorRef = useRef<string | null>(null);
   const cursorPosRef = useRef({ x: 0, y: 0 });
 
-  const initCollaborationDoc = useRef(
-    initializeCollaborationDoc(setState),
-  ).current;
+  const initCollaborationDoc = useCollaborationDoc(setState);
 
   const {
     getOrInitDoc,
@@ -93,22 +91,70 @@ function useCollaborationLogic({
     const { yComponents, yPages } = getOrInitDoc();
 
     const handleYComponentsChange = () => {
-      const components = yComponents.toArray();
+      const allComponents = yComponents.toArray();
+      const uniqueComponents: ComponentData[] = [];
+      const seenIds = new Set<string>();
+      const duplicateIndices: number[] = [];
+
+      for (let i = 0; i < allComponents.length; i++) {
+        const comp = allComponents[i];
+        if (!seenIds.has(comp.id)) {
+          uniqueComponents.push(comp);
+          seenIds.add(comp.id);
+        } else {
+          duplicateIndices.push(i);
+        }
+      }
+
+      if (duplicateIndices.length > 0) {
+        console.warn(`Detected ${duplicateIndices.length} duplicate components in Yjs. Cleaning up...`);
+        yComponents.doc?.transact(() => {
+          for (let i = duplicateIndices.length - 1; i >= 0; i--) {
+            yComponents.delete(duplicateIndices[i], 1);
+          }
+        });
+        return;
+      }
+
       const isLocalChanges = consumeLocalChangeFlag();
-      if (isHydratingRef.current && components.length === 0) return;
+      if (isHydratingRef.current && uniqueComponents.length === 0) return;
       setState((prev) => ({
         ...prev,
-        components: components,
+        components: uniqueComponents,
         hasUnsavedChanges: isLocalChanges ? true : prev.hasUnsavedChanges,
       }));
     };
 
     const handleYPagesChange = () => {
-      const pages = yPages.toArray();
-      if (isHydratingRef.current && pages.length === 0) return;
+      const allPages = yPages.toArray();
+      const uniquePages: any[] = [];
+      const seenIds = new Set<string>();
+      const duplicateIndices: number[] = [];
+
+      for (let i = 0; i < allPages.length; i++) {
+        const p = allPages[i];
+        if (!seenIds.has(p.id)) {
+          uniquePages.push(p);
+          seenIds.add(p.id);
+        } else {
+          duplicateIndices.push(i);
+        }
+      }
+
+      if (duplicateIndices.length > 0) {
+        console.warn(`Detected ${duplicateIndices.length} duplicate pages in Yjs. Cleaning up...`);
+        yPages.doc?.transact(() => {
+          for (let i = duplicateIndices.length - 1; i >= 0; i--) {
+            yPages.delete(duplicateIndices[i], 1);
+          }
+        });
+        return;
+      }
+
+      if (isHydratingRef.current && uniquePages.length === 0) return;
       setState((prev) => ({
         ...prev,
-        pages: pages.length > 0 ? pages : prev.pages,
+        pages: uniquePages.length > 0 ? uniquePages : prev.pages,
       }));
     };
 
@@ -245,12 +291,36 @@ function useCollaborationLogic({
 
         hydratedProjectRef.current = activeProjectId;
 
-        setState((prev) => ({
-          ...prev,
-          components: yComponents.toArray(),
-          pages: yPages.length > 0 ? yPages.toArray() : (projectData?.pages || prev.pages),
-          hasUnsavedChanges: false,
-        }));
+        setState((prev) => {
+          const allComponents = yComponents.toArray();
+          const uniqueComponents: ComponentData[] = [];
+          const seenCompIds = new Set<string>();
+          allComponents.forEach(c => {
+            if (!seenCompIds.has(c.id)) {
+              uniqueComponents.push(c);
+              seenCompIds.add(c.id);
+            }
+          });
+
+          const allPages = yPages.toArray();
+          const uniquePages: any[] = [];
+          const seenPageIds = new Set<string>();
+          // Combine yPages with projectData.pages if yPages is still getting synced
+          const combinedPages = allPages.length > 0 ? allPages : (projectData?.pages || prev.pages);
+          combinedPages.forEach((p: any) => {
+            if (!seenPageIds.has(p.id)) {
+              uniquePages.push(p);
+              seenPageIds.add(p.id);
+            }
+          });
+
+          return {
+            ...prev,
+            components: uniqueComponents,
+            pages: uniquePages,
+            hasUnsavedChanges: false,
+          };
+        });
       } finally {
         if (!cancelled) {
           const { yComponents } = getOrInitDoc();
