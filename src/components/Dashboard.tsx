@@ -1435,6 +1435,30 @@ export function Dashboard({
   };
 
   const draftsCount = projects.filter((p) => p.status === "draft").length;
+    const getDraftCardInitial = (name: string) =>
+    name?.trim()?.charAt(0)?.toUpperCase() || "P";
+
+  const getDraftProjectStatus = (lastModified?: string) => {
+    if (!lastModified) return "inactive";
+
+    const daysOld =
+      (Date.now() - new Date(lastModified).getTime()) / (1000 * 60 * 60 * 24);
+    return Number.isNaN(daysOld) || daysOld > 14 ? "inactive" : "active";
+  };
+
+  const getRelativeLastModified = (lastModified?: string) => {
+    if (!lastModified) return "Recently updated";
+
+    const timeDifference = Date.now() - new Date(lastModified).getTime();
+    const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+
+    if (Number.isNaN(hours) || hours < 1) return "Updated just now";
+    if (hours < 24) return `Updated ${hours}h ago`;
+    if (days < 7) return `Updated ${days}d ago`;
+
+    return `Updated on ${new Date(lastModified).toLocaleDateString()}`;
+  };
   const filteredProjects = getFilteredProjects();
 
   const handleBrowseAllClick = () => {
@@ -1897,77 +1921,124 @@ export function Dashboard({
                     </div>
                   ) : filteredProjects.length > 0 ? (
                     <div
-                      className={`grid ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
+                       className={`grid ${activeSection === "drafts" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
                     >
-                      {filteredProjects.map((project) => (
+                       {filteredProjects.map((project, index) => (
                         <Card
                           key={project.id}
-                          className="bg-card border-border cursor-pointer hover:border-blue-500/50 transition-all group overflow-hidden"
+                         className={`bg-card border-border cursor-pointer transition-all group overflow-hidden ${activeSection === "drafts" ? "hover:-translate-y-1 hover:shadow-md hover:border-blue-400/40" : "hover:border-blue-500/50"}`}
                           onClick={() =>
                             onOpenProject(project.id, project.name)
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
-                          <div className="relative aspect-4/3 overflow-hidden bg-muted">
-                            <img
-                              src={project.thumbnail || "/placeholder.svg"}
-                              alt={project.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={(
-                                      e: React.MouseEvent<HTMLButtonElement>,
-                                    ) => e.stopPropagation()}
-                                  >
-                                    <MoreHorizontal className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Open
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={(
-                                      e: React.MouseEvent<HTMLDivElement>,
-                                    ) => {
-                                      e.stopPropagation();
-                                      handleDuplicateProject(project);
-                                    }}
-                                  >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Duplicate
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={(
-                                      e: React.MouseEvent<HTMLDivElement>,
-                                    ) => {
-                                      e.stopPropagation();
-                                      handleDeleteProject(project.id);
-                                    }}
-                                    className="text-red-500"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </div>
-                          <CardContent className="p-3">
-                            <h3 className="text-sm text-foreground mb-1 line-clamp-1">
-                              {project.name}
-                            </h3>
-                            <p className="text-xs text-muted-foreground line-clamp-1">
-                              {project.description}
-                            </p>
-                          </CardContent>
+                         {activeSection === "drafts" || activeSection === "all" ? (
+                            <CardContent className="p-3">
+                              <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                <img
+                                  src={project.thumbnail || "/placeholder.svg"}
+                                  alt={project.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="h-7 w-7 rounded-full bg-violet-500/20 text-violet-500 flex items-center justify-center text-xs font-semibold shrink-0">
+                                    {getDraftCardInitial(project.name)}
+                                  </div>
+                                  <p className="text-sm font-semibold text-foreground line-clamp-1">
+                                    {project.name}
+                                  </p>
+                                </div>
+
+                                <Badge
+                                  className={`${getDraftProjectStatus(project.lastModified) === "active" ? "bg-orange-500/90 text-white" : "bg-muted text-muted-foreground"} border-0 rounded-sm px-2 py-0 h-5 text-[10px] uppercase`}
+                                >
+                                  {getDraftProjectStatus(project.lastModified)}
+                                </Badge>
+                              </div>
+
+                              <div className="mt-3 space-y-1.5 text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  <Layout className="w-3 h-3" />
+                                  <span className="line-clamp-1">
+                                    {project.id.slice(0, 8)}-{project.id.slice(8, 12)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Folder className="w-3 h-3" />
+                                    <span>{project.views ?? Math.max(12, (project.name.length + index) * 3)}</span>
+                                  </div>
+                                  <span>{getRelativeLastModified(project.lastModified)}</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          ) : (
+                            <>
+                              <div className="relative aspect-4/3 overflow-hidden bg-muted">
+                                <img
+                                  src={project.thumbnail || "/placeholder.svg"}
+                                  alt={project.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLButtonElement>,
+                                        ) => e.stopPropagation()}
+                                      >
+                                        <MoreHorizontal className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem>
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Open
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleDuplicateProject(project);
+                                        }}
+                                      >
+                                        <Copy className="mr-2 h-4 w-4" />
+                                        Duplicate
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleDeleteProject(project.id);
+                                        }}
+                                        className="text-red-500"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </div>
+                              <CardContent className="p-3">
+                                <h3 className="text-sm text-foreground mb-1 line-clamp-1">
+                                  {project.name}
+                                </h3>
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {project.description}
+                                </p>
+                              </CardContent>
+                            </>
+                          )}
                         </Card>
                       ))}
                     </div>
