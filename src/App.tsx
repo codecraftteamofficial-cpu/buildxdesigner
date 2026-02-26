@@ -92,6 +92,17 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     setShowOnboarding,
   } = editor;
 
+  const handleAuthenticatedSession = (session?: { user?: { user_metadata?: Record<string, unknown> } }) => {
+    const onboardingCompleted = session?.user?.user_metadata?.onboarding_completed === true;
+
+    if (!onboardingCompleted) {
+      setShowOnboarding(true);
+      return;
+    }
+
+    enterDashboard();
+  };
+
   const openProjectAndRoute = (
     projectId: string,
     projectName: string,
@@ -277,7 +288,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       <Route
         path="/"
         element={
-          <LoginAuthSessionChecker onAuthenticated={enterDashboard}>
+          <LoginAuthSessionChecker onAuthenticated={handleAuthenticatedSession}>
             <LandingPage onEnterEditor={enterDashboard} />
             <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50" />
           </LoginAuthSessionChecker>
