@@ -25,7 +25,7 @@ interface CanvasProps {
   onSelectComponent: (component: ComponentData | null) => void;
   onUpdateComponent: (id: string, updates: Partial<ComponentData>) => void;
   onDeleteComponent: (id: string) => void;
-  onReorderComponent: (id: string, direction: 'front' | 'back') => void;
+  onReorderComponent: (id: string, direction: "front" | "back") => void;
   canvasZoom: number;
   onZoomChange: (zoom: number) => void;
   projectId: string | null;
@@ -39,9 +39,8 @@ interface CanvasProps {
   readOnly?: boolean;
   activePageId?: string;
   pages?: { id: string; name: string; path: string }[];
-  onMoveLayer: (id: string, action: 'forward' | 'backward') => void;
+  onMoveLayer: (id: string, action: "forward" | "backward") => void;
 }
-
 
 // Command interface for undo/redo
 interface Command {
@@ -71,11 +70,10 @@ export function Canvas({
   showGrid = false,
   userProjectConfig,
   readOnly = false,
-  activePageId = 'home',
-  pages = [{ id: 'home', name: 'Home', path: '/' }],
+  activePageId = "home",
+  pages = [{ id: "home", name: "Home", path: "/" }],
   onMoveLayer,
 }: CanvasProps) {
-
   const [draggingComponent, setDraggingComponent] = useState<string | null>(
     null,
   );
@@ -104,7 +102,8 @@ export function Canvas({
     gridSize: 20,
     gridColor: "#e5e5e5",
   });
-  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const generateId = () =>
+    `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   useEffect(() => {
     setCanvasProperties((prev) => ({
@@ -1011,7 +1010,6 @@ export function Canvas({
           />
         )}
 
-
         {/* Zoom Controls - Hide in Read Only */}
         {!readOnly && (
           <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-lg px-2 py-1.5 z-50">
@@ -1071,14 +1069,13 @@ export function Canvas({
           </div>
         )}
 
-
         {/* Infinite Canvas Content */}
         {(() => {
           const activeColor = "#a855f7"; // Reusing the purple primary color
-          const filteredComponents = components.filter(c => {
-            if (c.page_id === 'all') return true;
-            const compId = c.page_id || 'home';
-            const activeId = activePageId || 'home';
+          const filteredComponents = components.filter((c) => {
+            if (c.page_id === "all") return true;
+            const compId = c.page_id || "home";
+            const activeId = activePageId || "home";
             return compId === activeId;
           });
 
@@ -1111,7 +1108,9 @@ export function Canvas({
                       />
                     </div>
                     <div>
-                      <p className="mb-2">Drop components here to start building</p>
+                      <p className="mb-2">
+                        Drop components here to start building
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Desktop: Drag & drop components, then drag to move them
                         anywhere
@@ -1161,37 +1160,69 @@ export function Canvas({
                           height: "fit-content",
                           pointerEvents: "auto",
                         }}
-                        onMouseDown={!readOnly ? (e) => handleComponentMouseDown(e, component) : undefined}
-                        onTouchStart={!readOnly ? (e) => handleComponentTouchStart(e, component) : undefined}
-                        onClick={!readOnly ? (e) => {
-                          e.stopPropagation();
+                        onMouseDown={
+                          !readOnly
+                            ? (e) => handleComponentMouseDown(e, component)
+                            : undefined
+                        }
+                        onTouchStart={
+                          !readOnly
+                            ? (e) => handleComponentTouchStart(e, component)
+                            : undefined
+                        }
+                        onClick={
+                          !readOnly
+                            ? (e) => {
+                                e.stopPropagation();
 
-                          if (e.ctrlKey || e.metaKey) {
-                            // Multi-select with Ctrl/Cmd key
-                            const newSelection = new Set(selectedComponents);
-                            if (newSelection.has(component.id)) {
-                              newSelection.delete(component.id);
-                            } else {
-                              newSelection.add(component.id);
-                            }
-                            setSelectedComponents(newSelection);
-                          } else {
-                            // Single select
-                            setSelectedComponents(new Set([component.id]));
-                          }
-                          onSelectComponent(component);
-                        } : undefined}
-                        onContextMenu={!readOnly ? (e) => {
-                          handleComponentContextMenu(e, component);
-                        } : undefined}
-                        onDoubleClick={!readOnly ? (e) => handleComponentDoubleClick(component, e) : undefined}
+                                if (e.ctrlKey || e.metaKey) {
+                                  // Multi-select with Ctrl/Cmd key
+                                  const newSelection = new Set(
+                                    selectedComponents,
+                                  );
+                                  if (newSelection.has(component.id)) {
+                                    newSelection.delete(component.id);
+                                  } else {
+                                    newSelection.add(component.id);
+                                  }
+                                  setSelectedComponents(newSelection);
+                                } else {
+                                  // Single select
+                                  setSelectedComponents(
+                                    new Set([component.id]),
+                                  );
+                                }
+                                onSelectComponent(component);
+                              }
+                            : undefined
+                        }
+                        onContextMenu={
+                          !readOnly
+                            ? (e) => {
+                                handleComponentContextMenu(e, component);
+                              }
+                            : undefined
+                        }
+                        onDoubleClick={
+                          !readOnly
+                            ? (e) => handleComponentDoubleClick(component, e)
+                            : undefined
+                        }
                       >
                         <RenderableComponent
                           component={component}
                           isSelected={readOnly ? false : isSelected}
-                          onUpdate={!readOnly ? (updates) => onUpdateComponent(component.id, updates) : () => { }}
-                          onDelete={!readOnly ? () => onDeleteComponent(component.id) : () => { }}
-
+                          onUpdate={
+                            !readOnly
+                              ? (updates) =>
+                                  onUpdateComponent(component.id, updates)
+                              : () => {}
+                          }
+                          onDelete={
+                            !readOnly
+                              ? () => onDeleteComponent(component.id)
+                              : () => {}
+                          }
                           editingComponentId={readOnly ? null : editingTextId}
                           onEditComponent={setEditingTextId}
                           userProjectConfig={userProjectConfig}
@@ -1200,7 +1231,6 @@ export function Canvas({
 
                         {/* Desktop Selection Indicator - Hide in Read Only */}
                         {!readOnly && isSelected && (
-
                           <div className="hidden lg:block absolute -top-8 left-0 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full shadow-lg font-medium z-30 pointer-events-none">
                             <span className="flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
@@ -1212,15 +1242,14 @@ export function Canvas({
 
                         {/* Position Indicator - Hide in Read Only */}
                         {!readOnly && isSelected && (
-
                           <div className="hidden lg:block absolute -bottom-8 left-0 bg-muted text-muted-foreground text-xs px-2 py-1 rounded shadow-md font-mono z-30 pointer-events-none">
-                            x: {Math.round(position.x)} y: {Math.round(position.y)}
+                            x: {Math.round(position.x)} y:{" "}
+                            {Math.round(position.y)}
                           </div>
                         )}
 
                         {/* Mobile Selection Indicator - Hide in Read Only */}
                         {!readOnly && isSelected && (
-
                           <div className="lg:hidden absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full shadow-md font-medium z-30 pointer-events-none">
                             {component.type}
                           </div>
@@ -1238,7 +1267,6 @@ export function Canvas({
       {/* Canvas Context Menu - Hide in Read Only */}
       {!readOnly && (
         <CanvasContextMenu
-
           position={contextMenu}
           onClose={() => setContextMenu(null)}
           onDuplicate={handleDuplicate}
@@ -1247,14 +1275,17 @@ export function Canvas({
           onUngroup={ungroupSelected}
           onBringToFront={bringToFront}
           onSendToBack={sendToBack}
-          onMoveForward={() => selectedComponent && onMoveLayer(selectedComponent.id, 'forward')}
-          onMoveBackward={() => selectedComponent && onMoveLayer(selectedComponent.id, 'backward')}
+          onMoveForward={() =>
+            selectedComponent && onMoveLayer(selectedComponent.id, "forward")
+          }
+          onMoveBackward={() =>
+            selectedComponent && onMoveLayer(selectedComponent.id, "backward")
+          }
           onCopy={() => copyToClipboard()}
           canGroup={selectedComponents.size > 1}
           canUngroup={selectedComponent?.type === "group"}
         />
       )}
-
     </div>
   );
 }

@@ -54,6 +54,7 @@ function useCollaborationLogic({
     reorderComponent,
     clearCanvas,
     consumeLocalChangeFlag,
+    replaceProjectName,
   } = initCollaborationDoc;
 
   const [remoteCursors, setRemoteCursors] = useState<
@@ -65,6 +66,25 @@ function useCollaborationLogic({
   const hydratedProjectRef = useRef<string | null>(null);
   const docProjectIdRef = useRef<string | null>(null);
   const isHydratingRef = useRef(false);
+
+  useEffect(() => {
+    const { yMeta } = getOrInitDoc();
+    const handleMetaChange = () => {
+      const incoming = yMeta.get("projectName");
+      if (typeof incoming !== "string" || !incoming.trim()) return;
+
+      setState((prev) =>
+        prev.projectName === incoming
+          ? prev
+          : { ...prev, projectName: incoming },
+      );
+    };
+
+    yMeta.observe(handleMetaChange);
+    handleMetaChange();
+
+    return () => yMeta.unobserve(handleMetaChange);
+  }, [getOrInitDoc, setState]);
 
   useEffect(() => {
     if (state.currentView !== "editor") {
@@ -92,6 +112,27 @@ function useCollaborationLogic({
   }, [state.currentView, activeProjectId]);
 
   useEffect(() => {
+    const { yMeta } = getOrInitDoc();
+    const handleMetaChange = () => {
+      const incoming = yMeta.get("projectName");
+      if (typeof incoming !== "string" || !incoming.trim()) return;
+
+      setState((prev) =>
+        prev.projectName === incoming
+          ? prev
+          : { ...prev, projectName: incoming },
+      );
+    };
+
+    yMeta.observe(handleMetaChange);
+    handleMetaChange();
+
+    return () => {
+      yMeta.unobserve(handleMetaChange);
+    };
+  }, [getOrInitDoc, setState]);
+
+  useEffect(() => {
     const { yComponents, yPages } = getOrInitDoc();
 
     const handleYComponentsChange = () => {
@@ -111,7 +152,9 @@ function useCollaborationLogic({
       }
 
       if (duplicateIndices.length > 0) {
-        console.warn(`Detected ${duplicateIndices.length} duplicate components in Yjs. Cleaning up...`);
+        console.warn(
+          `Detected ${duplicateIndices.length} duplicate components in Yjs. Cleaning up...`,
+        );
         yComponents.doc?.transact(() => {
           for (let i = duplicateIndices.length - 1; i >= 0; i--) {
             yComponents.delete(duplicateIndices[i], 1);
@@ -156,7 +199,9 @@ function useCollaborationLogic({
       }
 
       if (duplicateIndices.length > 0) {
-        console.warn(`Detected ${duplicateIndices.length} duplicate pages in Yjs. Cleaning up...`);
+        console.warn(
+          `Detected ${duplicateIndices.length} duplicate pages in Yjs. Cleaning up...`,
+        );
         yPages.doc?.transact(() => {
           for (let i = duplicateIndices.length - 1; i >= 0; i--) {
             yPages.delete(duplicateIndices[i], 1);
@@ -167,10 +212,19 @@ function useCollaborationLogic({
 
       if (isHydratingRef.current && uniquePages.length === 0) return;
 
-      setState((prev) => ({
-        ...prev,
-        pages: uniquePages.length > 0 ? uniquePages : prev.pages,
-      }));
+      setState((prev) => {
+        const nextPages = uniquePages.length > 0 ? uniquePages : prev.pages;
+        const fallbackPageId = nextPages[0]?.id ?? "home";
+        const hasActive = nextPages.some(
+          (page: any) => page.id === prev.activePageId,
+        );
+
+        return {
+          ...prev,
+          pages: nextPages,
+          activePageId: hasActive ? prev.activePageId : fallbackPageId,
+        };
+      });
     };
 
     yComponents.observe(handleYComponentsChange);
@@ -273,14 +327,27 @@ function useCollaborationLogic({
 
         // Always set basic metadata regardless of Yjs state
         if (projectData) {
+          const { yMeta } = getOrInitDoc();
+          const currentMetaName = yMeta.get("projectName");
+
+          if (
+            typeof projectData.name === "string" &&
+            projectData.name.trim() &&
+            currentMetaName !== projectData.name
+          ) {
+            replaceProjectName(projectData.name, false);
+          }
+
           setState((prev) => ({
             ...prev,
             projectName: projectData.name || prev.projectName,
             siteTitle: projectData.siteTitle || prev.siteTitle,
             siteLogoUrl: projectData.siteLogoUrl || prev.siteLogoUrl,
             projectSubdomain: projectData.subdomain || prev.projectSubdomain,
-            projectIsPublished: projectData.isPublished || prev.projectIsPublished,
-            projectLastPublishedAt: projectData.lastPublishedAt || prev.projectLastPublishedAt,
+            projectIsPublished:
+              projectData.isPublished || prev.projectIsPublished,
+            projectLastPublishedAt:
+              projectData.lastPublishedAt || prev.projectLastPublishedAt,
           }));
         }
 
@@ -310,7 +377,7 @@ function useCollaborationLogic({
           const allComponents = yComponents.toArray();
           const uniqueComponents: ComponentData[] = [];
           const seenCompIds = new Set<string>();
-          allComponents.forEach(c => {
+          allComponents.forEach((c) => {
             if (!seenCompIds.has(c.id)) {
               uniqueComponents.push(c);
               seenCompIds.add(c.id);
@@ -321,7 +388,8 @@ function useCollaborationLogic({
           const uniquePages: any[] = [];
           const seenPageIds = new Set<string>();
           // Combine yPages with projectData.pages if yPages is still getting synced
-          const combinedPages = allPages.length > 0 ? allPages : (projectData?.pages || prev.pages);
+          const combinedPages =
+            allPages.length > 0 ? allPages : projectData?.pages || prev.pages;
           combinedPages.forEach((p: any) => {
             if (!seenPageIds.has(p.id)) {
               uniquePages.push(p);
@@ -488,6 +556,7 @@ function useCollaborationLogic({
     reorderComponent,
     clearCanvas,
     remoteCursors,
+    replaceProjectName,
   };
 }
 

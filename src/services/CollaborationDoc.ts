@@ -12,6 +12,7 @@ export function useCollaborationDoc(
   const yPagesRef = useRef<Y.Array<any> | null>(null);
   const awarenessRef = useRef<Awareness | null>(null);
   const localChangeRef = useRef(false);
+  const yMetaRef = useRef<Y.Map<any> | null>(null);
 
   const getOrInitDoc = useCallback(() => {
     if (!ydocRef.current) {
@@ -20,14 +21,25 @@ export function useCollaborationDoc(
         ydocRef.current.getArray<ComponentData>("components");
       yPagesRef.current = ydocRef.current.getArray<any>("pages");
       awarenessRef.current = new Awareness(ydocRef.current);
+      yMetaRef.current = ydocRef.current.getMap<any>("meta");
     }
     return {
       ydoc: ydocRef.current,
       yComponents: yComponentsRef.current!,
       yPages: yPagesRef.current!,
+      yMeta: yMetaRef.current!,
       awareness: awarenessRef.current!,
     };
   }, []);
+
+  const replaceProjectName = useCallback(
+    (name: string, markLocal = true) => {
+      const { yMeta } = getOrInitDoc();
+      if (markLocal) localChangeRef.current = true;
+      yMeta.set("projectName", name);
+    },
+    [getOrInitDoc],
+  );
 
   const replaceComponents = useCallback(
     (components: ComponentData[], markLocal = true) => {
@@ -168,6 +180,7 @@ export function useCollaborationDoc(
       reorderComponent,
       clearCanvas,
       consumeLocalChangeFlag,
+      replaceProjectName,
     }),
     [
       getOrInitDoc,
@@ -180,6 +193,7 @@ export function useCollaborationDoc(
       reorderComponent,
       clearCanvas,
       consumeLocalChangeFlag,
+      replaceProjectName,
     ],
   );
 }

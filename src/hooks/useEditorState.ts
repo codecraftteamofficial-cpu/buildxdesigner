@@ -73,8 +73,8 @@ export function useEditorState() {
   const [state, setState] = useState<EditorState>({
     currentView: getInitialView(),
     currentPage: getInitialView(),
-    pages: [{ id: 'home', name: 'Home', path: '/' }],
-    activePageId: 'home',
+    pages: [{ id: "home", name: "Home", path: "/" }],
+    activePageId: "home",
     components: [],
     selectedComponent: null,
     showPreview: false,
@@ -130,6 +130,7 @@ export function useEditorState() {
     reorderComponent: collaborationReorder,
     clearCanvas,
     remoteCursors,
+    replaceProjectName,
   } = useCollaboration({
     projectId: state.currentProjectId || "",
     setState,
@@ -143,14 +144,15 @@ export function useEditorState() {
   const addComponent = (component: ComponentData) => {
     rawAddComponent({
       ...component,
-      page_id: component.page_id || state.activePageId
+      page_id: component.page_id || state.activePageId,
     });
   };
 
   // ==================== AUTO-SAVE METADATA ====================
   // Save metadata like pages and project name whenever they change
   useEffect(() => {
-    if (!state.currentProjectId || !isAuthenticated || !state.hasUnsavedChanges) return;
+    if (!state.currentProjectId || !isAuthenticated || !state.hasUnsavedChanges)
+      return;
 
     const timer = setTimeout(async () => {
       try {
@@ -171,7 +173,16 @@ export function useEditorState() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [state.pages, state.projectName, state.siteTitle, state.siteLogoUrl, state.currentProjectId, isAuthenticated, currentUser?.id, state.components]);
+  }, [
+    state.pages,
+    state.projectName,
+    state.siteTitle,
+    state.siteLogoUrl,
+    state.currentProjectId,
+    isAuthenticated,
+    currentUser?.id,
+    state.components,
+  ]);
 
   // ==================== AUTH ====================
 
@@ -253,7 +264,8 @@ export function useEditorState() {
 
       // Check onboarding status
       if (loggedIn && session?.user) {
-        const onboardingCompleted = session.user.user_metadata?.onboarding_completed;
+        const onboardingCompleted =
+          session.user.user_metadata?.onboarding_completed;
         if (!onboardingCompleted) {
           setShowOnboarding(true);
         }
@@ -375,7 +387,9 @@ export function useEditorState() {
       try {
         const { data: urlValidity, error: urlError } = await supabase
           .from("projects")
-          .select("is_public, user_id, subdomain, is_published, last_published_at")
+          .select(
+            "is_public, user_id, subdomain, is_published, last_published_at",
+          )
           .eq("projects_id", requestedProjectId)
           .maybeSingle();
 
@@ -387,7 +401,9 @@ export function useEditorState() {
           // If we can't read visibility, check if we can read the project itself
           const { data: projectCheck } = await supabase
             .from("projects")
-            .select("is_public, user_id, subdomain, is_published, last_published_at")
+            .select(
+              "is_public, user_id, subdomain, is_published, last_published_at",
+            )
             .eq("projects_id", requestedProjectId)
             .maybeSingle();
 
@@ -402,7 +418,8 @@ export function useEditorState() {
                 projectAuthorId: projectCheck.user_id || null,
                 projectSubdomain: projectCheck.subdomain || undefined,
                 projectIsPublished: !!projectCheck.is_published,
-                projectLastPublishedAt: projectCheck.last_published_at || undefined,
+                projectLastPublishedAt:
+                  projectCheck.last_published_at || undefined,
               };
             });
           } else {
@@ -494,16 +511,16 @@ export function useEditorState() {
   const togglePreview = () =>
     setState((prev) => ({ ...prev, showPreview: !prev.showPreview }));
   const toggleCodeExport = () => {
-  const { yComponents } = getOrInitDoc();
-  const snapshot = yComponents.toArray();
-  const captured = snapshot.length > 0 ? snapshot : state.components;
-  
-  setState((prev) => ({ 
-    ...prev, 
-    showCodeExport: !prev.showCodeExport,
-    exportSnapshot: !prev.showCodeExport ? captured : prev.exportSnapshot
-  }));
-};
+    const { yComponents } = getOrInitDoc();
+    const snapshot = yComponents.toArray();
+    const captured = snapshot.length > 0 ? snapshot : state.components;
+
+    setState((prev) => ({
+      ...prev,
+      showCodeExport: !prev.showCodeExport,
+      exportSnapshot: !prev.showCodeExport ? captured : prev.exportSnapshot,
+    }));
+  };
   const toggleTemplates = () =>
     setState((prev) => ({ ...prev, showTemplates: !prev.showTemplates }));
   const togglePublishModal = () =>
@@ -617,6 +634,7 @@ export function useEditorState() {
       projectName: name,
       hasUnsavedChanges: true,
     }));
+    replaceProjectName(name);
     localStorage.setItem("fulldev-ai-project-name", name);
   };
 
@@ -1018,7 +1036,11 @@ export function useEditorState() {
   // ==================== PAGE MANAGEMENT ====================
 
   const switchPage = (pageId: string) => {
-    setState((prev) => ({ ...prev, activePageId: pageId, selectedComponent: null }));
+    setState((prev) => ({
+      ...prev,
+      activePageId: pageId,
+      selectedComponent: null,
+    }));
   };
 
   const addPage = (name: string, path: string) => {
@@ -1037,10 +1059,11 @@ export function useEditorState() {
   const deletePage = (pageId: string) => {
     setState((prev) => {
       if (prev.pages.length <= 1) return prev; // Cannot delete last page
-      const newPages = prev.pages.filter(p => p.id !== pageId);
-      const newActiveId = prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
+      const newPages = prev.pages.filter((p) => p.id !== pageId);
+      const newActiveId =
+        prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
       // Also remove components belonging to this page
-      const newComponents = prev.components.filter(c => c.page_id !== pageId);
+      const newComponents = prev.components.filter((c) => c.page_id !== pageId);
 
       replacePages(newPages);
 
@@ -1055,77 +1078,95 @@ export function useEditorState() {
     });
   };
 
-  const updatePage = (pageId: string, updates: Partial<{ name: string; path: string }>) => {
-    setState((prev) => ({
-      ...prev,
-      pages: prev.pages.map(p => p.id === pageId ? { ...p, ...updates } : p),
-      hasUnsavedChanges: true,
-    }));
+  const updatePage = (
+    pageId: string,
+    updates: Partial<{ name: string; path: string }>,
+  ) => {
+    setState((prev) => {
+      const newPages = prev.pages.map((p) =>
+        p.id === pageId ? { ...p, ...updates } : p,
+      );
+
+      replacePages(newPages);
+
+      return {
+        ...prev,
+        pages: newPages,
+        hasUnsavedChanges: true,
+      };
+    });
   };
 
-// src/hooks/useEditorState.ts
+  // src/hooks/useEditorState.ts
 
-const handleReorderComponent = (id: string, target: 'front' | 'back' | string) => {
-  // 1. Calculate the new order using the CURRENT state
-  const currentComponents = [...state.components];
-  const index = currentComponents.findIndex((c) => c.id === id);
-  
-  if (index === -1) return;
+  const handleReorderComponent = (
+    id: string,
+    target: "front" | "back" | string,
+  ) => {
+    // 1. Calculate the new order using the CURRENT state
+    const currentComponents = [...state.components];
+    const index = currentComponents.findIndex((c) => c.id === id);
 
-  const [movedItem] = currentComponents.splice(index, 1);
+    if (index === -1) return;
 
-  if (target === 'front') {
-    currentComponents.push(movedItem);
-  } else if (target === 'back') {
-    currentComponents.unshift(movedItem);
-  } else {
-    const dropIndex = currentComponents.findIndex(c => c.id === target);
-    currentComponents.splice(dropIndex, 0, movedItem);
-  }
+    const [movedItem] = currentComponents.splice(index, 1);
 
-  // 2. Update the local React state
-  setState((prev) => ({
-    ...prev,
-    components: currentComponents,
-    hasUnsavedChanges: true,
-  }));
+    if (target === "front") {
+      currentComponents.push(movedItem);
+    } else if (target === "back") {
+      currentComponents.unshift(movedItem);
+    } else {
+      const dropIndex = currentComponents.findIndex((c) => c.id === target);
+      currentComponents.splice(dropIndex, 0, movedItem);
+    }
 
-  // 3. Update the collaboration "truth" (Yjs/Supabase)
-  // This ensures the move is permanent and won't be overwritten by a sync pulse
-  replaceComponents(currentComponents);
-};
+    // 2. Update the local React state
+    setState((prev) => ({
+      ...prev,
+      components: currentComponents,
+      hasUnsavedChanges: true,
+    }));
 
-// src/hooks/useEditorState.ts
+    // 3. Update the collaboration "truth" (Yjs/Supabase)
+    // This ensures the move is permanent and won't be overwritten by a sync pulse
+    replaceComponents(currentComponents);
+  };
 
-const handleMoveLayer = (id: string, action: 'forward' | 'backward') => {
-  const currentComponents = [...state.components];
-  const index = currentComponents.findIndex((c) => c.id === id);
+  // src/hooks/useEditorState.ts
 
-  if (index === -1) return;
+  const handleMoveLayer = (id: string, action: "forward" | "backward") => {
+    const currentComponents = [...state.components];
+    const index = currentComponents.findIndex((c) => c.id === id);
 
-  // Bring Forward: Swap with the item to the right (higher index)
-  if (action === 'forward' && index < currentComponents.length - 1) {
-    [currentComponents[index], currentComponents[index + 1]] = 
-    [currentComponents[index + 1], currentComponents[index]];
-  } 
-  // Send Backward: Swap with the item to the left (lower index)
-  else if (action === 'backward' && index > 0) {
-    [currentComponents[index], currentComponents[index - 1]] = 
-    [currentComponents[index - 1], currentComponents[index]];
-  } else {
-    return; // Boundary reached, do nothing
-  }
+    if (index === -1) return;
 
-  // Update local state
-  setState((prev) => ({
-    ...prev,
-    components: currentComponents,
-    hasUnsavedChanges: true,
-  }));
+    // Bring Forward: Swap with the item to the right (higher index)
+    if (action === "forward" && index < currentComponents.length - 1) {
+      [currentComponents[index], currentComponents[index + 1]] = [
+        currentComponents[index + 1],
+        currentComponents[index],
+      ];
+    }
+    // Send Backward: Swap with the item to the left (lower index)
+    else if (action === "backward" && index > 0) {
+      [currentComponents[index], currentComponents[index - 1]] = [
+        currentComponents[index - 1],
+        currentComponents[index],
+      ];
+    } else {
+      return; // Boundary reached, do nothing
+    }
 
-  // Sync with collaboration service/Supabase
-  replaceComponents(currentComponents);
-};
+    // Update local state
+    setState((prev) => ({
+      ...prev,
+      components: currentComponents,
+      hasUnsavedChanges: true,
+    }));
+
+    // Sync with collaboration service/Supabase
+    replaceComponents(currentComponents);
+  };
 
   // ==================== RETURN ====================
 
@@ -1141,7 +1182,7 @@ const handleMoveLayer = (id: string, action: 'forward' | 'backward') => {
     remoteCursors,
     getOrInitDoc,
     // In the return:
-exportSnapshot: exportSnapshotRef.current,
+    exportSnapshot: exportSnapshotRef.current,
 
     // Component operations
     addComponent,

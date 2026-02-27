@@ -120,7 +120,8 @@ export function initializeCollaborationTransport(
   });
 
   return () => {
-    if (updateTimeout) clearTimeout(updateTimeout);pendingUpdates = [];
+    if (updateTimeout) clearTimeout(updateTimeout);
+    pendingUpdates = [];
     if (awarenessTimeout) clearTimeout(awarenessTimeout);
     channel.unsubscribe("yjs-update", handleRemoteUpdate as any);
     channel.unsubscribe("yjs-sync", handleRemoteUpdate as any);
@@ -129,14 +130,11 @@ export function initializeCollaborationTransport(
     ydoc.off("update", handleDocUpdate);
     awareness.off("update", handleAwarenessUpdate);
 
-    // Guard against closing an already-closed/closing connection
     const state = client.connection.state;
     if (state !== "closed" && state !== "closing" && state !== "failed") {
       try {
         client.close();
-      } catch {
-        // Ignore cleanup errors on unmount
-      }
+      } catch {}
     }
   };
 }
