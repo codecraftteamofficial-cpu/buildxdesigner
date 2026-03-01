@@ -21,8 +21,20 @@ export interface ComponentData {
 }
 
 export interface EditorState {
-  currentView: "landing" | "dashboard" | "editor" | "admin-login" | "admin" | "onboarding";
-  currentPage: "landing" | "dashboard" | "editor" | "admin-login" | "admin" | "onboarding";
+  currentView:
+    | "landing"
+    | "dashboard"
+    | "editor"
+    | "admin-login"
+    | "admin"
+    | "onboarding";
+  currentPage:
+    | "landing"
+    | "dashboard"
+    | "editor"
+    | "admin-login"
+    | "admin"
+    | "onboarding";
   pages: Page[];
   activePageId: string;
   components: ComponentData[];
@@ -69,6 +81,7 @@ export interface EditorState {
   projectSubdomain?: string;
   projectIsPublished?: boolean;
   projectLastPublishedAt?: string;
+  projectTemplatePublished?: boolean;
   siteTitle?: string;
   siteLogoUrl?: string;
   exportSnapshot: ComponentData[];
