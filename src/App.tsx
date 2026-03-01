@@ -13,8 +13,9 @@
  */
 
 import { useEffect, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Monitor, Smartphone } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
+import { useIsMobile } from "./components/ui/use-mobile";
 import {
   BrowserRouter as Router,
   Routes,
@@ -79,6 +80,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     state,
     setState,
     authLoading,
+    currentUser,
     enterDashboard,
     goToLanding,
     goToAdmin,
@@ -92,8 +94,11 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     setShowOnboarding,
   } = editor;
 
-  const handleAuthenticatedSession = (session?: { user?: { user_metadata?: Record<string, unknown> } }) => {
-    const onboardingCompleted = session?.user?.user_metadata?.onboarding_completed === true;
+  const handleAuthenticatedSession = (session?: {
+    user?: { user_metadata?: Record<string, unknown> };
+  }) => {
+    const onboardingCompleted =
+      session?.user?.user_metadata?.onboarding_completed === true;
 
     if (!onboardingCompleted) {
       setShowOnboarding(true);
@@ -112,8 +117,14 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   ) => {
     openProject(projectId, projectName);
     const itShouldGoPrivate = isPublic === false;
+    const isProjectOwner =
+      !!currentUser?.id && !!authorId && currentUser.id === authorId;
     const targetPath = projectId
-      ? `/editor/${projectId}${itShouldGoPrivate ? "/private" : ""}`
+      ? itShouldGoPrivate && !isProjectOwner
+        ? `/project-private/${projectId}`
+        : itShouldGoPrivate && isProjectOwner
+          ? `/editor/${projectId}/private`
+          : `/editor/${projectId}`
       : "/editor";
     if (location.pathname !== targetPath) {
       navigate(targetPath, { replace: true });
@@ -135,6 +146,12 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     matchedProjectId && matchedProjectId !== "private"
       ? matchedProjectId
       : null;
+  const privateAccessPath = routeProjectId
+    ? `/project-private/${routeProjectId}`
+    : "/project-private";
+  const ownerPrivateEditorPath = routeProjectId
+    ? `/editor/${routeProjectId}/private`
+    : "/editor/private";
 
   useEffect(() => {
     if (location.pathname !== "/editor/private") return;
@@ -144,11 +161,11 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       localStorage.getItem("fulldev-ai-current-project-id");
 
     if (fallbackProjectId && fallbackProjectId !== "private") {
-      navigate(`/editor/${fallbackProjectId}/private`, { replace: true });
+      navigate(`/project-private/${fallbackProjectId}`, { replace: true });
       return;
     }
 
-    navigate("/editor", { replace: true });
+    navigate("/project-private", { replace: true });
   }, [location.pathname, navigate, state.currentProjectId]);
 
   useEffect(() => {
@@ -164,7 +181,10 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       return;
     }
 
-    if (location.pathname.startsWith("/editor/")) {
+    if (
+      location.pathname.startsWith("/editor/") ||
+      location.pathname.startsWith("/project-private")
+    ) {
       return;
     }
 
@@ -203,21 +223,39 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     if (state.projectIsPublic === null) return;
 
     const isPrivate = state.projectIsPublic === false;
-    const targetPath = `/editor/${routeProjectId}/private`;
+    const isProjectOwner =
+      !!currentUser?.id &&
+      !!state.projectAuthorId &&
+      currentUser.id === state.projectAuthorId;
     const basePath = `/editor/${routeProjectId}`;
 
-    const isBaseEditorPath = location.pathname === basePath;
-    const isPrivatePath = location.pathname === targetPath;
+    const isPrivatePath = location.pathname === privateAccessPath;
+    const isOwnerPrivateEditorPath =
+      location.pathname === ownerPrivateEditorPath;
 
-    if (isPrivate && !isPrivatePath) {
-      navigate(targetPath, { replace: true });
+    if (isPrivate && !isProjectOwner && !isPrivatePath) {
+      navigate(privateAccessPath, { replace: true });
       return;
     }
 
-    if (!isPrivate && isPrivatePath) {
+    if (isPrivate && isProjectOwner && !isOwnerPrivateEditorPath) {
+      navigate(ownerPrivateEditorPath, { replace: true });
+      return;
+    }
+
+    if (!isPrivate && (isPrivatePath || isOwnerPrivateEditorPath)) {
       navigate(basePath, { replace: true });
     }
-  }, [routeProjectId, state.projectIsPublic, location.pathname, navigate]);
+  }, [
+    routeProjectId,
+    state.projectIsPublic,
+    state.projectAuthorId,
+    currentUser?.id,
+    privateAccessPath,
+    ownerPrivateEditorPath,
+    location.pathname,
+    navigate,
+  ]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -275,12 +313,16 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   // Ito is protected by the LoginAuthSessionChecker na ginawa ko. Kung walang valid session, hindi niya ipapakita yung LandingPage at magre-render lang siya ng children niya ulit (which is yung LandingPage).
   // Kapag may valid session naman, saka niya ipapakita yung LandingPage. Sa LandingPage, may button na "Enter Editor" na kapag pinindot, tatawagin niya yung enterDashboard function (na galing sa useEditorState)
   // para i-set yung currentView sa "dashboard". Sa effect ng useEditorState, kapag nakita niyang nagbago yung currentView to "dashboard", saka niya ipapakita yung Dashboard component.
-  
+
   if (showOnboarding) {
-    return <OnboardingPage onComplete={() => {
-      setShowOnboarding(false);
-      enterDashboard();
-    }} />;
+    return (
+      <OnboardingPage
+        onComplete={() => {
+          setShowOnboarding(false);
+          enterDashboard();
+        }}
+      />
+    );
   }
 
   return (
@@ -373,6 +415,36 @@ function AppRoutes({ editor }: { editor: EditorController }) {
         }
       />
       <Route
+        path="/project-private"
+        element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
+      />
+      <Route
+        path="/project-private/:projectId"
+        element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
+      />
+      <Route
+        path="/editor/:projectId/private"
+        element={
+          state.projectIsPublic === null ? (
+            <div className="flex justify-center items-center h-screen w-full bg-background">
+              <Loader2 className="w-8 h-8 mr-2 text-blue-600 animate-spin" />
+              <p className="text-xl text-foreground">Checking access...</p>
+            </div>
+          ) : state.projectIsPublic === false &&
+            !(
+              !!currentUser?.id &&
+              !!state.projectAuthorId &&
+              currentUser.id === state.projectAuthorId
+            ) ? (
+            <Navigate to={privateAccessPath} replace />
+          ) : (
+            <EditorLayout
+              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+            />
+          )
+        }
+      />
+      <Route
         path="/editor"
         element={
           <EditorLayout
@@ -397,6 +469,27 @@ import { SubdomainRouter } from "./components/SubdomainRouter";
 
 export default function App() {
   const editor = useEditorState();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+          <div className="mb-4 flex items-center justify-center gap-3 text-muted-foreground">
+            <Smartphone className="h-6 w-6" aria-hidden="true" />
+            <span className="text-xs font-medium">→</span>
+            <Monitor className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h1 className="text-xl font-semibold">Unsupported viewport</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Your window is too small! Please access the app on a device with a
+            larger screen or resize your browser window to be wider than 768
+            pixels.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SubdomainRouter>

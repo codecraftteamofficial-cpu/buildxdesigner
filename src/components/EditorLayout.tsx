@@ -143,6 +143,12 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onThemeChange={handleThemeChange}
             onManualSave={handleManualSave}
             onPublishTemplate={handlePublishTemplate}
+            onProjectVisibilityChange={(isPublic: boolean) => {
+              setState((prev) => ({
+                ...prev,
+                projectIsPublic: isPublic,
+              }));
+            }}
             onTemplatePublishedChange={(published: boolean) => {
               setState((prev) => ({
                 ...prev,

@@ -23,6 +23,7 @@ export function initializeCollaborationTransport(
     clientId: `anon-${Math.random().toString(36).slice(2, 10)}`,
   });
   const channel = client.channels.get(`collab:${roomId}`);
+  let isClosed = false;
 
   let updateTimeout: NodeJS.Timeout | null = null;
   let pendingUpdates: Uint8Array[] = [];
@@ -119,7 +120,10 @@ export function initializeCollaborationTransport(
     channel.publish("yjs-request-sync", { clientId: client.clientId });
   });
 
-  return () => {
+  const finalizeShutdown = () => {
+    if (isClosed) return;
+    isClosed = true;
+
     if (updateTimeout) clearTimeout(updateTimeout);
     pendingUpdates = [];
     if (awarenessTimeout) clearTimeout(awarenessTimeout);
@@ -136,5 +140,46 @@ export function initializeCollaborationTransport(
         client.close();
       } catch {}
     }
+  };
+
+  return () => {
+    if (isClosed) return;
+
+    if (updateTimeout) clearTimeout(updateTimeout);
+    pendingUpdates = [];
+    if (awarenessTimeout) clearTimeout(awarenessTimeout);
+
+    ydoc.off("update", handleDocUpdate);
+    awareness.off("update", handleAwarenessUpdate);
+
+    let didAttemptLeavePublish = false;
+
+    try {
+      const localAwarenessClientId = awareness.clientID;
+      awareness.setLocalState(null);
+      const removalUpdate = encodeAwarenessUpdate(awareness, [
+        localAwarenessClientId,
+      ]);
+      didAttemptLeavePublish = true;
+
+      Promise.resolve(
+        channel.publish("yjs-awareness", encodeUpdate(removalUpdate)),
+      )
+        .catch(() => {
+          // no-op
+        })
+        .finally(() => {
+          setTimeout(finalizeShutdown, 60);
+        });
+    } catch {
+      // no-op
+    }
+
+    if (!didAttemptLeavePublish) {
+      finalizeShutdown();
+      return;
+    }
+
+    setTimeout(finalizeShutdown, 250);
   };
 }
