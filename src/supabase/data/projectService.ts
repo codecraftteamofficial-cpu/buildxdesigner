@@ -39,7 +39,7 @@ export function setLocalProjectCache(
   try {
     const key = `project_cache:${projectId}`;
     localStorage.setItem(key, JSON.stringify(data));
-  } catch { }
+  } catch {}
 }
 
 export async function fetchProjectById(
@@ -73,8 +73,10 @@ export async function fetchProjectById(
       subdomain: data.subdomain,
       isPublished: data.is_published,
       lastPublishedAt: data.last_published_at,
-      pages: data.pages || [{ id: 'home', name: 'Home', path: '/' }],
-      published_pages: data.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      pages: data.pages || [{ id: "home", name: "Home", path: "/" }],
+      published_pages: data.published_pages || [
+        { id: "home", name: "Home", path: "/" },
+      ],
       siteLogoUrl: data.site_logo_url,
       siteTitle: data.site_title,
     };
@@ -83,7 +85,6 @@ export async function fetchProjectById(
     return { data: null, error: err };
   }
 }
-
 
 export async function fetchUserProjects(): Promise<{
   data: Project[] | null;
@@ -119,8 +120,10 @@ export async function fetchUserProjects(): Promise<{
       subdomain: item.subdomain,
       isPublished: item.is_published,
       lastPublishedAt: item.last_published_at,
-      pages: item.pages || [{ id: 'home', name: 'Home', path: '/' }],
-      published_pages: item.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      pages: item.pages || [{ id: "home", name: "Home", path: "/" }],
+      published_pages: item.published_pages || [
+        { id: "home", name: "Home", path: "/" },
+      ],
       siteLogoUrl: item.site_logo_url,
       siteTitle: item.site_title,
     }));
@@ -144,6 +147,8 @@ export async function saveProject(
     description: project.description,
     thumbnail: project.thumbnail,
     user_id: project.user_id,
+    type: project.type,
+    status: project.status ?? (isNewProject ? "draft" : undefined),
     project_layout: project.project_layout,
     pages: project.pages,
     site_title: project.siteTitle,
@@ -180,6 +185,12 @@ export async function saveProject(
     }
 
     if (errObj) return { data: null, error: errObj };
+    if (!row) {
+      return {
+        data: null,
+        error: new Error("Project save returned no row data."),
+      };
+    }
 
     if (isNewProject && row) {
       await supabase.rpc("append_project_to_profile", {
@@ -197,8 +208,10 @@ export async function saveProject(
       type: row.type,
       status: row.status,
       project_layout: row.project_layout || [],
-      pages: row.pages || [{ id: 'home', name: 'Home', path: '/' }],
-      published_pages: row.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      pages: row.pages || [{ id: "home", name: "Home", path: "/" }],
+      published_pages: row.published_pages || [
+        { id: "home", name: "Home", path: "/" },
+      ],
     };
     return { data: savedProject, error: null };
   } catch (err) {
@@ -229,8 +242,7 @@ export async function saveProjectMetadata(metadata: {
       payload.thumbnail = metadata.thumbnail;
     if (metadata.project_layout !== undefined)
       payload.project_layout = metadata.project_layout;
-    if (metadata.pages !== undefined)
-      payload.pages = metadata.pages;
+    if (metadata.pages !== undefined) payload.pages = metadata.pages;
     if (metadata.siteTitle !== undefined)
       payload.site_title = metadata.siteTitle;
     if (metadata.siteLogoUrl !== undefined)
@@ -274,7 +286,7 @@ export async function fetchProjectComponents(
         props: c.props || {},
         style: c.style || {},
         position: c.position || { x: 0, y: 0 },
-        page_id: c.page_id || 'home',
+        page_id: c.page_id || "home",
         children: [],
       };
       map.set(c.id, component);
@@ -314,7 +326,7 @@ export async function syncProjectComponents(
           props: c.props,
           style: c.style,
           position: c.position,
-          page_id: c.page_id || 'home',
+          page_id: c.page_id || "home",
           parent_id: parentId,
           sort_order: index,
         });
@@ -390,7 +402,7 @@ export async function publishProject(
   components: any[],
   pages: any[],
   siteTitle?: string,
-  siteLogoUrl?: string
+  siteLogoUrl?: string,
 ): Promise<{ url: string | null; error: any }> {
   try {
     const {
@@ -474,12 +486,20 @@ export async function fetchProjectBySubdomain(
       lastModified: data.last_modified,
       type: data.type as Project["type"],
       status: data.status as Project["status"],
-      project_layout: (data.published_layout && data.published_layout.length > 0) ? data.published_layout : (data.project_layout || []),
+      project_layout:
+        data.published_layout && data.published_layout.length > 0
+          ? data.published_layout
+          : data.project_layout || [],
       subdomain: data.subdomain,
       isPublished: data.is_published,
       lastPublishedAt: data.last_published_at,
-      pages: (data.published_pages && data.published_pages.length > 0) ? data.published_pages : (data.pages || [{ id: 'home', name: 'Home', path: '/' }]),
-      published_pages: data.published_pages || [{ id: 'home', name: 'Home', path: '/' }],
+      pages:
+        data.published_pages && data.published_pages.length > 0
+          ? data.published_pages
+          : data.pages || [{ id: "home", name: "Home", path: "/" }],
+      published_pages: data.published_pages || [
+        { id: "home", name: "Home", path: "/" },
+      ],
       siteLogoUrl: data.site_logo_url,
       siteTitle: data.site_title,
     };

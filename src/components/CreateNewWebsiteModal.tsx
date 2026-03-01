@@ -34,6 +34,7 @@ interface CreateNewWebsiteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectTemplate: (templateId: string, projectName: string) => void;
+  onTemplateChange?: (templateId: string) => void;
   onTrackSearch: (query: string) => void;
   recommendedTemplates?: Template[];
   initialTemplateId?: string | null;
@@ -256,6 +257,7 @@ export function CreateNewWebsiteModal({
   isOpen,
   onClose,
   onSelectTemplate,
+  onTemplateChange,
   onTrackSearch,
   recommendedTemplates = [],
   initialTemplateId = null,
@@ -420,6 +422,7 @@ export function CreateNewWebsiteModal({
 
   const handleTemplateClick = (template: Template) => {
     setSelectedTemplate(template);
+    onTemplateChange?.(template.id);
     setProjectName(`My ${template.name}`);
     setShowNameInput(true);
   };
