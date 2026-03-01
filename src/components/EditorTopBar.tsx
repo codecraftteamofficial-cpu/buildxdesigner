@@ -72,6 +72,7 @@ import { supabase } from "../supabase/config/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { PageSelector } from "./PageSelector";
+import { useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -106,6 +107,7 @@ interface EditorTopBarProps {
   isSupabaseConnected?: boolean;
   onPublishSuccess?: (subdomain: string) => void;
   onTemplatePublishedChange?: (published: boolean) => void;
+  onProjectVisibilityChange?: (isPublic: boolean) => void;
   pages?: { id: string; name: string; path: string }[];
   activePageId?: string;
   onSwitchPage?: (pageId: string) => void;
@@ -139,12 +141,14 @@ export function EditorTopBar({
   isSupabaseConnected = false,
   onPublishSuccess,
   onTemplatePublishedChange,
+  onProjectVisibilityChange,
   pages,
   activePageId,
   onSwitchPage,
   onAddPage,
   onDeletePage,
 }: EditorTopBarProps) {
+  const navigate = useNavigate();
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState(projectName);
   const projectNameRef = useRef<HTMLInputElement>(null);
@@ -464,11 +468,7 @@ export function EditorTopBar({
   const replaceBrowserUrl = (rawUrl: string) => {
     try {
       const url = new URL(rawUrl);
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${url.pathname}${url.search}${url.hash}`,
-      );
+      navigate(`${url.pathname}${url.search}${url.hash}`, { replace: true });
     } catch {
       // no-op
     }
@@ -507,10 +507,12 @@ export function EditorTopBar({
 
     setShareVisibility(nextVisibility);
     setShowVisibilityDropdown(false);
+    onProjectVisibilityChange?.(nextIsPublic);
     replaceBrowserUrl(nextUrl);
 
     if (!projectId) {
       setShareVisibility(previousVisibility);
+      onProjectVisibilityChange?.(previousIsPublic);
       replaceBrowserUrl(
         syncUrlPrivacySegment(currentUrl, previousIsPublic, null),
       );
@@ -560,6 +562,7 @@ export function EditorTopBar({
       );
     } catch (error) {
       setShareVisibility(previousVisibility);
+      onProjectVisibilityChange?.(previousIsPublic);
       replaceBrowserUrl(
         syncUrlPrivacySegment(currentUrl, previousIsPublic, projectId),
       );
