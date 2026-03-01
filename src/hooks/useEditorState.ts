@@ -116,6 +116,7 @@ export function useEditorState() {
     projectSubdomain: undefined as string | undefined,
     projectIsPublished: undefined as boolean | undefined,
     projectLastPublishedAt: undefined as string | undefined,
+    projectTemplatePublished: undefined as boolean | undefined,
     exportSnapshot: [],
   });
 
@@ -388,7 +389,7 @@ export function useEditorState() {
         const { data: urlValidity, error: urlError } = await supabase
           .from("projects")
           .select(
-            "is_public, user_id, subdomain, is_published, last_published_at",
+            "is_public, user_id, subdomain, is_published, last_published_at, published_template",
           )
           .eq("projects_id", requestedProjectId)
           .maybeSingle();
@@ -402,7 +403,7 @@ export function useEditorState() {
           const { data: projectCheck } = await supabase
             .from("projects")
             .select(
-              "is_public, user_id, subdomain, is_published, last_published_at",
+              "is_public, user_id, subdomain, is_published, last_published_at, published_template",
             )
             .eq("projects_id", requestedProjectId)
             .maybeSingle();
@@ -420,6 +421,11 @@ export function useEditorState() {
                 projectIsPublished: !!projectCheck.is_published,
                 projectLastPublishedAt:
                   projectCheck.last_published_at || undefined,
+                projectTemplatePublished:
+                  projectCheck.published_template === null ||
+                  projectCheck.published_template === undefined
+                    ? undefined
+                    : !!projectCheck.published_template,
               };
             });
           } else {
@@ -429,6 +435,7 @@ export function useEditorState() {
                 ...prev,
                 projectIsPublic: false,
                 projectAuthorId: null,
+                projectTemplatePublished: undefined,
               };
             });
           }
@@ -444,6 +451,11 @@ export function useEditorState() {
             projectSubdomain: urlValidity?.subdomain || undefined,
             projectIsPublished: !!urlValidity?.is_published,
             projectLastPublishedAt: urlValidity?.last_published_at || undefined,
+            projectTemplatePublished:
+              urlValidity?.published_template === null ||
+              urlValidity?.published_template === undefined
+                ? undefined
+                : !!urlValidity?.published_template,
           };
         });
       } catch (error) {
@@ -455,6 +467,7 @@ export function useEditorState() {
             ...prev,
             projectIsPublic: false,
             projectAuthorId: null,
+            projectTemplatePublished: undefined,
           };
         });
       } finally {
@@ -581,6 +594,7 @@ export function useEditorState() {
       currentProjectId: null,
       projectIsPublic: null,
       projectAuthorId: null,
+      projectTemplatePublished: undefined,
     }));
   const goToAdminLogin = () =>
     setState((prev) => ({
@@ -618,6 +632,7 @@ export function useEditorState() {
       currentProjectId: projectId,
       projectIsPublic: null,
       projectAuthorId: null,
+      projectTemplatePublished: undefined,
       projectName: projectName ?? "Untitled Project",
       selectedComponent: null,
       hasUnsavedChanges: false,

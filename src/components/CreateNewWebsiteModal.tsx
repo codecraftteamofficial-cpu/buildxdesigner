@@ -1,43 +1,50 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog"
-import { Input } from "./ui/input"
-import { Button } from "./ui/button"
-import { Card, CardContent } from "./ui/card"
-import { Badge } from "./ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { ScrollArea } from "./ui/scroll-area"
-import { Search, X, Sparkles, Eye, Heart } from "lucide-react"
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ScrollArea } from "./ui/scroll-area";
+import { Search, X, Sparkles, Eye, Heart } from "lucide-react";
 
 interface Template {
-  id: string
-  name: string
-  description: string
-  thumbnail: string
-  category: string
-  premium: boolean
-  tags: string[]
-  creator?: string
-  creatorAvatar?: string
-  views?: number
-  favorites?: number
+  id: string;
+  name: string;
+  description: string;
+  thumbnail: string;
+  category: string;
+  premium: boolean;
+  tags: string[];
+  creator?: string;
+  creatorAvatar?: string;
+  views?: number;
+  favorites?: number;
 }
 
 interface CreateNewWebsiteModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSelectTemplate: (templateId: string, projectName: string) => void
-  onTrackSearch: (query: string) => void
-  recommendedTemplates?: Template[]
-  initialTemplateId?: string | null
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectTemplate: (templateId: string, projectName: string) => void;
+  onTrackSearch: (query: string) => void;
+  recommendedTemplates?: Template[];
+  initialTemplateId?: string | null;
 }
 
 const templates: Template[] = [
   {
     id: "blank",
     name: "Blank Canvas",
-    description: "Start from scratch with a clean workspace and build your design from the ground up",
+    description:
+      "Start from scratch with a clean workspace and build your design from the ground up",
     thumbnail:
       "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
     category: "Blank",
@@ -51,7 +58,8 @@ const templates: Template[] = [
   {
     id: "portfolio-modern",
     name: "Modern Portfolio",
-    description: "Clean and modern portfolio template perfect for showcasing your work",
+    description:
+      "Clean and modern portfolio template perfect for showcasing your work",
     thumbnail:
       "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
     category: "Portfolio",
@@ -72,7 +80,8 @@ const templates: Template[] = [
     premium: true,
     tags: ["ecommerce", "store", "shopping", "business"],
     creator: "Alex Rodriguez",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=AlexRodriguez",
+    creatorAvatar:
+      "https://api.dicebear.com/7.x/initials/svg?seed=AlexRodriguez",
     views: 34200,
     favorites: 1240,
   },
@@ -128,7 +137,8 @@ const templates: Template[] = [
     premium: false,
     tags: ["restaurant", "business", "food", "menu"],
     creator: "Sofia Martinez",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=SofiaMartinez",
+    creatorAvatar:
+      "https://api.dicebear.com/7.x/initials/svg?seed=SofiaMartinez",
     views: 15600,
     favorites: 389,
   },
@@ -184,7 +194,8 @@ const templates: Template[] = [
     premium: false,
     tags: ["corporate", "business", "professional", "enterprise"],
     creator: "Jennifer Taylor",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=JenniferTaylor",
+    creatorAvatar:
+      "https://api.dicebear.com/7.x/initials/svg?seed=JenniferTaylor",
     views: 21800,
     favorites: 467,
   },
@@ -198,7 +209,8 @@ const templates: Template[] = [
     premium: true,
     tags: ["fashion", "ecommerce", "store", "trendy"],
     creator: "Isabella Garcia",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=IsabellaGarcia",
+    creatorAvatar:
+      "https://api.dicebear.com/7.x/initials/svg?seed=IsabellaGarcia",
     views: 31200,
     favorites: 978,
   },
@@ -212,18 +224,19 @@ const templates: Template[] = [
     premium: false,
     tags: ["real estate", "property", "listings", "business"],
     creator: "Thomas Anderson",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=ThomasAnderson",
+    creatorAvatar:
+      "https://api.dicebear.com/7.x/initials/svg?seed=ThomasAnderson",
     views: 17400,
     favorites: 412,
   },
-]
+];
 
 const formatViews = (views: number): string => {
   if (views >= 1000) {
-    return `${(views / 1000).toFixed(1)}k`
+    return `${(views / 1000).toFixed(1)}k`;
   }
-  return views.toString()
-}
+  return views.toString();
+};
 
 const categories = [
   "All",
@@ -235,7 +248,9 @@ const categories = [
   "Dashboard",
   "Business",
   "Agency",
-]
+];
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function CreateNewWebsiteModal({
   isOpen,
@@ -245,73 +260,180 @@ export function CreateNewWebsiteModal({
   recommendedTemplates = [],
   initialTemplateId = null,
 }: CreateNewWebsiteModalProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("All")
-  const [projectName, setProjectName] = useState("")
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
-  const [showNameInput, setShowNameInput] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [projectName, setProjectName] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null,
+  );
+  const [showNameInput, setShowNameInput] = useState(false);
+  const [projectTemplates, setProjectTemplates] = useState<Template[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
-  // 1. We sync state DURING the render phase instead of waiting for a useEffect. 
+  // 1. We sync state DURING the render phase instead of waiting for a useEffect.
   // This calculates the correct view BEFORE the browser paints, completely eliminating the flash on open.
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen)
-  
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+
+    const normalizeTemplate = (item: any, index: number): Template => ({
+      id: String(
+        item?.id ??
+          item?._id ??
+          item?.project_id ??
+          item?.projects?.projects_id ??
+          item?.templateId ??
+          `template-${index}`,
+      ),
+      name: String(
+        item?.name ??
+          item?.title ??
+          item?.project_name ??
+          item?.projects?.project_name ??
+          "Untitled Template",
+      ),
+      description: String(
+        item?.description ??
+          item?.projects?.description ??
+          "No description available",
+      ),
+      thumbnail: String(
+        item?.thumbnail ??
+          item?.thumbnailUrl ??
+          item?.image ??
+          item?.projects?.thumbnail ??
+          "/placeholder.svg",
+      ),
+      category: String(
+        item?.category ?? item?.projects?.category ?? "Business",
+      ),
+      premium: Boolean(
+        item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
+      ),
+      tags: Array.isArray(item?.tags)
+        ? item.tags.map(String)
+        : Array.isArray(item?.projects?.tags)
+          ? item.projects.tags.map(String)
+          : [],
+      creator: item?.creator
+        ? String(item.creator)
+        : item?.profiles?.full_name
+          ? String(item.profiles.full_name)
+          : "BuildX Team",
+      creatorAvatar: item?.creatorAvatar
+        ? String(item.creatorAvatar)
+        : item?.profiles?.avatar_url
+          ? String(item.profiles.avatar_url)
+          : "https://api.dicebear.com/7.x/initials/svg?seed=BuildX",
+      views: Number(item?.views ?? item?.projects?.views ?? 0),
+      favorites: Number(
+        item?.favorites ?? item?.likes ?? item?.projects?.likes ?? 0,
+      ),
+    });
+
+    const fetchProjectTemplates = async () => {
+      setIsLoadingTemplates(true);
+      try {
+        const response = await fetch(`${API_URL}/api/display-templates`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch templates: ${response.status}`);
+        }
+
+        const json = await response.json();
+        const payload = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.templates)
+            ? json.templates
+            : [];
+
+        if (isMounted) {
+          setProjectTemplates(payload.map(normalizeTemplate));
+        }
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+        if (isMounted) {
+          setProjectTemplates([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingTemplates(false);
+        }
+      }
+    };
+
+    fetchProjectTemplates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
+  const availableTemplates =
+    projectTemplates.length > 0 ? projectTemplates : templates;
+
   if (isOpen !== prevIsOpen) {
-    setPrevIsOpen(isOpen)
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       if (initialTemplateId) {
-        const allTemplates = [...templates, ...recommendedTemplates]
-        const template = allTemplates.find((t) => t.id === initialTemplateId)
+        const allTemplates = [...availableTemplates, ...recommendedTemplates];
+        const template = allTemplates.find((t) => t.id === initialTemplateId);
         if (template) {
-          setSelectedTemplate(template)
-          setProjectName(`My ${template.name}`)
-          setShowNameInput(true)
+          setSelectedTemplate(template);
+          setProjectName(`My ${template.name}`);
+          setShowNameInput(true);
         }
       } else {
         // Reset to default browse state when opening without a specific template
-        setShowNameInput(false)
-        setSelectedTemplate(null)
-        setProjectName("")
-        setSearchQuery("")
-        setSelectedCategory("All")
+        setShowNameInput(false);
+        setSelectedTemplate(null);
+        setProjectName("");
+        setSearchQuery("");
+        setSelectedCategory("All");
       }
     }
   }
 
   const handleSearch = (query: string) => {
-    setSearchQuery(query)
+    setSearchQuery(query);
     if (query.trim()) {
-      onTrackSearch(query)
+      onTrackSearch(query);
     }
-  }
+  };
 
-  const filteredTemplates = templates.filter((template) => {
+  const filteredTemplates = availableTemplates.filter((template) => {
     const matchesSearch =
       searchQuery === "" ||
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      template.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
 
-    const matchesCategory = selectedCategory === "All" || template.category === selectedCategory
+    const matchesCategory =
+      selectedCategory === "All" || template.category === selectedCategory;
 
-    return matchesSearch && matchesCategory
-  })
+    return matchesSearch && matchesCategory;
+  });
 
   const handleTemplateClick = (template: Template) => {
-    setSelectedTemplate(template)
-    setProjectName(`My ${template.name}`)
-    setShowNameInput(true)
-  }
+    setSelectedTemplate(template);
+    setProjectName(`My ${template.name}`);
+    setShowNameInput(true);
+  };
 
   const handleCreateProject = () => {
     if (selectedTemplate && projectName.trim()) {
-      onSelectTemplate(selectedTemplate.id, projectName)
-      handleClose()
+      onSelectTemplate(selectedTemplate.id, projectName);
+      handleClose();
     }
-  }
+  };
 
   const handleClose = () => {
-    onClose()
-  }
+    onClose();
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -346,11 +468,19 @@ export function CreateNewWebsiteModal({
               </div>
             </div>
 
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex-1 flex flex-col min-h-0">
+            <Tabs
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+              className="flex-1 flex flex-col min-h-0"
+            >
               <div className="px-6 pt-4">
                 <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-2">
                   {categories.map((category) => (
-                    <TabsTrigger key={category} value={category} className="shrink-0">
+                    <TabsTrigger
+                      key={category}
+                      value={category}
+                      className="shrink-0"
+                    >
                       {category}
                     </TabsTrigger>
                   ))}
@@ -358,68 +488,94 @@ export function CreateNewWebsiteModal({
               </div>
 
               <ScrollArea className="flex-1 px-6 py-4 overflow-visible">
-                {recommendedTemplates.length > 0 && selectedCategory === "All" && !searchQuery && (
-                  <div className="mb-8">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-violet-600" />
-                      Recommended Template
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mb-6">
-                      {recommendedTemplates.slice(0, 3).map((template) => (
-                        <Card
-                          key={template.id}
-                          className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-violet-200 hover:border-violet-400 group overflow-hidden"
-                          onClick={() => handleTemplateClick(template)}
-                        >
-                          <div className="relative aspect-video overflow-hidden">
-                            <img
-                              src={template.thumbnail || "/placeholder.svg"}
-                              alt={template.name}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
-                            {template.premium && (
-                              <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
-                                Premium
-                              </Badge>
-                            )}
-                            <div className="absolute top-2 left-2">
-                              <Badge variant="secondary" className="bg-violet-600 text-white">
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                Recommended
-                              </Badge>
-                            </div>
-                          </div>
-                          <CardContent className="p-4">
-                            <h4 className="font-medium mb-1 line-clamp-1">{template.name}</h4>
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{template.description}</p>
-                            <div className="flex items-center justify-between pt-3 border-t">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  src={template.creatorAvatar || "https://api.dicebear.com/7.x/initials/svg?seed=User"}
-                                  alt={template.creator}
-                                  className="w-6 h-6 rounded-full"
-                                />
-                                <span className="text-xs text-muted-foreground">{template.creator}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Eye className="w-3.5 h-3.5" />
-                                  <span>{template.views ? formatViews(template.views) : "0"}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Heart className="w-3.5 h-3.5" />
-                                  <span>{template.favorites || 0}</span>
-                                </div>
+                {recommendedTemplates.length > 0 &&
+                  selectedCategory === "All" &&
+                  !searchQuery && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-violet-600" />
+                        Recommended Template
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mb-6">
+                        {recommendedTemplates.slice(0, 3).map((template) => (
+                          <Card
+                            key={template.id}
+                            className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-violet-200 hover:border-violet-400 group overflow-hidden"
+                            onClick={() => handleTemplateClick(template)}
+                          >
+                            <div className="relative aspect-video overflow-hidden">
+                              <img
+                                src={template.thumbnail || "/placeholder.svg"}
+                                alt={template.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                              {template.premium && (
+                                <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
+                                  Premium
+                                </Badge>
+                              )}
+                              <div className="absolute top-2 left-2">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-violet-600 text-white"
+                                >
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  Recommended
+                                </Badge>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            <CardContent className="p-4">
+                              <h4 className="font-medium mb-1 line-clamp-1">
+                                {template.name}
+                              </h4>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                {template.description}
+                              </p>
+                              <div className="flex items-center justify-between pt-3 border-t">
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={
+                                      template.creatorAvatar ||
+                                      "https://api.dicebear.com/7.x/initials/svg?seed=User"
+                                    }
+                                    alt={template.creator}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {template.creator}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-1">
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>
+                                      {template.views
+                                        ? formatViews(template.views)
+                                        : "0"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Heart className="w-3.5 h-3.5" />
+                                    <span>{template.favorites || 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <TabsContent value={selectedCategory} className="mt-0 space-y-4">
+                <TabsContent
+                  value={selectedCategory}
+                  className="mt-0 space-y-4"
+                >
+                  {isLoadingTemplates && (
+                    <div className="text-sm text-muted-foreground">
+                      Loading templates...
+                    </div>
+                  )}
                   {filteredTemplates.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
                       {filteredTemplates.map((template) => (
@@ -441,21 +597,34 @@ export function CreateNewWebsiteModal({
                             )}
                           </div>
                           <CardContent className="p-4">
-                            <h4 className="font-medium mb-1 line-clamp-1">{template.name}</h4>
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{template.description}</p>
+                            <h4 className="font-medium mb-1 line-clamp-1">
+                              {template.name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                              {template.description}
+                            </p>
                             <div className="flex items-center justify-between pt-3 border-t">
                               <div className="flex items-center gap-2">
                                 <img
-                                  src={template.creatorAvatar || "https://api.dicebear.com/7.x/initials/svg?seed=User"}
+                                  src={
+                                    template.creatorAvatar ||
+                                    "https://api.dicebear.com/7.x/initials/svg?seed=User"
+                                  }
                                   alt={template.creator}
                                   className="w-6 h-6 rounded-full"
                                 />
-                                <span className="text-xs text-muted-foreground">{template.creator}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {template.creator}
+                                </span>
                               </div>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                   <Eye className="w-3.5 h-3.5" />
-                                  <span>{template.views ? formatViews(template.views) : "0"}</span>
+                                  <span>
+                                    {template.views
+                                      ? formatViews(template.views)
+                                      : "0"}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Heart className="w-3.5 h-3.5" />
@@ -470,8 +639,12 @@ export function CreateNewWebsiteModal({
                   ) : (
                     <div className="text-center py-12">
                       <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No templates found</h3>
-                      <p className="text-muted-foreground">Try adjusting your search or filter</p>
+                      <h3 className="text-lg font-medium mb-2">
+                        No templates found
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Try adjusting your search or filter
+                      </p>
                     </div>
                   )}
                 </TabsContent>
@@ -500,9 +673,15 @@ export function CreateNewWebsiteModal({
                       />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium mb-1">{selectedTemplate.name}</h4>
-                      <p className="text-sm text-muted-foreground mb-2">{selectedTemplate.description}</p>
-                      <Badge variant="outline">{selectedTemplate.category}</Badge>
+                      <h4 className="font-medium mb-1">
+                        {selectedTemplate.name}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {selectedTemplate.description}
+                      </p>
+                      <Badge variant="outline">
+                        {selectedTemplate.category}
+                      </Badge>
                     </div>
                   </div>
                 </Card>
@@ -517,11 +696,17 @@ export function CreateNewWebsiteModal({
                   className="h-12 text-base"
                   autoFocus
                 />
-                <p className="text-xs text-muted-foreground">You can change this later in project settings</p>
+                <p className="text-xs text-muted-foreground">
+                  You can change this later in project settings
+                </p>
               </div>
 
               <div className="flex items-center gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowNameInput(false)} className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowNameInput(false)}
+                  className="flex-1"
+                >
                   Back
                 </Button>
                 <Button
@@ -537,5 +722,5 @@ export function CreateNewWebsiteModal({
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }

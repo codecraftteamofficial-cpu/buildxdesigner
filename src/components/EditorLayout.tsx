@@ -143,6 +143,12 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onThemeChange={handleThemeChange}
             onManualSave={handleManualSave}
             onPublishTemplate={handlePublishTemplate}
+            onTemplatePublishedChange={(published: boolean) => {
+              setState((prev) => ({
+                ...prev,
+                projectTemplatePublished: published,
+              }));
+            }}
             pages={state.pages}
             activePageId={state.activePageId}
             onSwitchPage={editor.switchPage}
@@ -154,6 +160,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               subdomain: state.projectSubdomain,
               isPublished: state.projectIsPublished,
               lastPublishedAt: state.projectLastPublishedAt,
+              published_template: state.projectTemplatePublished,
               project_layout: state.components,
               pages: state.pages,
               siteTitle: state.siteTitle,
@@ -189,14 +196,21 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                 state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
               }`}
               style={{
-                width: state.isLeftSidebarVisible ? `${state.leftSidebarWidth}px` : "0px",
+                width: state.isLeftSidebarVisible
+                  ? `${state.leftSidebarWidth}px`
+                  : "0px",
               }}
             >
               {state.isLeftSidebarVisible && (
                 <>
                   {/* SYMMETRY BUTTON: Positioned top-right to match Right Sidebar's top-left */}
                   <button
-                    onClick={() => setState((prev) => ({ ...prev, isLeftSidebarVisible: false }))}
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        isLeftSidebarVisible: false,
+                      }))
+                    }
                     className="absolute right-2 top-2 z-20 p-1 rounded-md hover:bg-accent text-muted-foreground transition-colors"
                     title="Hide Sidebar"
                   >
@@ -204,9 +218,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                   </button>
 
                   {/* Sidebar Content: pt-0 ensures no extra top space */}
-                  <div className="flex-1 overflow-auto h-full pt-0"> 
-                    <Sidebar 
-                      onAddComponent={addComponent} 
+                  <div className="flex-1 overflow-auto h-full pt-0">
+                    <Sidebar
+                      onAddComponent={addComponent}
                       // REMOVED onToggle here because we handle it in the layout now
                       components={state.components}
                       selectedId={state.selectedComponent}
@@ -348,24 +362,24 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                     </div>
                   )}
 
-                {state.viewMode === "code" && (
-                  <div className="flex-1 flex flex-col h-full overflow-hidden bg-card">
-                    <CodeViewEditor
-                      components={state.components}
-                      projectName={state.projectName}
-                      // PASS THESE NEW PROPS:
-                      pages={state.pages}
-                      activePageId={state.activePageId}
-                      onCodeChange={(newComponents) =>
-                        setState((prev) => ({
-                          ...prev,
-                          components: newComponents,
-                          hasUnsavedChanges: true,
-                        }))
-                      }
-                    />
-                  </div>
-                )}
+                  {state.viewMode === "code" && (
+                    <div className="flex-1 flex flex-col h-full overflow-hidden bg-card">
+                      <CodeViewEditor
+                        components={state.components}
+                        projectName={state.projectName}
+                        // PASS THESE NEW PROPS:
+                        pages={state.pages}
+                        activePageId={state.activePageId}
+                        onCodeChange={(newComponents) =>
+                          setState((prev) => ({
+                            ...prev,
+                            components: newComponents,
+                            hasUnsavedChanges: true,
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -398,8 +412,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
 
             {/* Right Sidebar */}
             <div
-              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${state.isRightSidebarVisible ? "" : "w-0 border-l-0"
-                }`}
+              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${
+                state.isRightSidebarVisible ? "" : "w-0 border-l-0"
+              }`}
               style={{
                 width: state.isRightSidebarVisible
                   ? `${state.rightSidebarWidth}px`
@@ -430,10 +445,11 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "properties",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "properties"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
@@ -445,10 +461,11 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                             rightSidebarTab: "ai-assistant",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "ai-assistant"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                       >
                         <svg
                           className="w-3.5 h-3.5"
@@ -563,15 +580,15 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             />
           )}
 
-{state.showCodeExport && (
-  <CodeExportModal
-    components={state.exportSnapshot}
-    pages={state.pages}
-    projectName={state.projectName}
-    activePageId={state.activePageId}
-    onClose={toggleCodeExport}
-  />
-)}
+          {state.showCodeExport && (
+            <CodeExportModal
+              components={state.exportSnapshot}
+              pages={state.pages}
+              projectName={state.projectName}
+              activePageId={state.activePageId}
+              onClose={toggleCodeExport}
+            />
+          )}
 
           {state.showTemplates && (
             <TemplateModal
@@ -607,7 +624,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               selectedComponent={selectedComponentObject}
               onUpdateComponent={updateComponent}
               propertiesPanelVisible={false}
-              onToggleProperties={() => { }}
+              onToggleProperties={() => {}}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
             />
