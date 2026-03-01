@@ -63,6 +63,7 @@ import type { Project } from "../supabase/types/project";
 import { getLocalCanvasComponents } from "../supabase/data/projectService";
 import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
+import { getApiBaseUrl } from "../utils/apiConfig";
 
 interface DashboardProps {
   onCreateFromScratch: () => void;
@@ -82,13 +83,29 @@ interface DashboardProps {
 }
 
 interface ProfileDisplayData {
+  userId: string | null;
   fullName: string;
   email: string;
   avatarUrl: string | null;
 }
 
+interface TemplateCardData {
+  id: string;
+  projectId?: string;
+  name: string;
+  category: string;
+  thumbnail: string;
+  description: string;
+  creator?: string;
+  creatorAvatar?: string;
+  views?: number;
+  favorites?: number;
+  premium: boolean;
+  tags: string[];
+}
+
 // Mock recommended templates
-const recommendedTemplates = [
+const recommendedTemplates: TemplateCardData[] = [
   {
     id: "getting-started-guide",
     name: "Getting Started Guide",
@@ -162,6 +179,72 @@ const recommendedTemplates = [
   },
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const getApiBaseCandidates = () => {
+  const candidateSet = new Set<string>();
+
+  if (API_URL) candidateSet.add(API_URL);
+
+  const inferredApiBase = getApiBaseUrl();
+  if (inferredApiBase) candidateSet.add(inferredApiBase);
+
+  candidateSet.add("http://localhost:4000");
+  candidateSet.add("http://localhost:5000");
+
+  return Array.from(candidateSet);
+};
+
+const normalizeProjectLikeRows = (raw: any) => {
+  const payload = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.projectLikes)
+      ? raw.projectLikes
+      : Array.isArray(raw?.likes)
+        ? raw.likes
+        : Array.isArray(raw?.data)
+          ? raw.data
+          : Array.isArray(raw?.rows)
+            ? raw.rows
+            : [];
+
+  if (payload.length > 0) {
+    return payload;
+  }
+
+  const mapPayload =
+    raw?.likeCountsByProject ??
+    raw?.countsByProjectId ??
+    raw?.projectLikeCounts ??
+    raw?.likesByProject ??
+    raw?.counts ??
+    null;
+
+  if (mapPayload && typeof mapPayload === "object") {
+    return Object.entries(mapPayload).map(([project_id, like_count]) => ({
+      project_id,
+      like_count,
+    }));
+  }
+
+  return [];
+};
+
+const resolveTemplateProjectId = (item: any, fallback: string) =>
+  String(
+    item?.project_id ??
+      item?.projectId ??
+      item?.projects_id ??
+      item?.projects?.projects_id ??
+      item?.projects?.project_id ??
+      item?.projects?.id ??
+      item?.template_id ??
+      item?.templateId ??
+      item?.id ??
+      item?._id ??
+      fallback,
+  ).trim();
+
 // Mock recent projects with different statuses
 
 export function Dashboard({
@@ -177,10 +260,12 @@ export function Dashboard({
   // --- AUTHENTICATION STATES ---
   const [authLoading, setAuthLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileDisplayData>({
+    userId: null,
     fullName: "Guest User",
     email: "",
     avatarUrl: null,
   });
+  const currentUserId = profileData.userId;
   const userName = profileData.fullName;
   const userEmail = profileData.email;
   const userAvatarUrl = profileData.avatarUrl;
@@ -212,9 +297,29 @@ export function Dashboard({
   const [accountSettingsTab, setAccountSettingsTab] = useState("profile");
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false); // Start hidden on mobile
+  const [prefetchedTemplateLayouts, setPrefetchedTemplateLayouts] = useState<
+    Record<string, ComponentData[]>
+  >({});
+  const [prefetchingTemplateIds, setPrefetchingTemplateIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [publishedTemplateCards, setPublishedTemplateCards] = useState<
+    TemplateCardData[]
+  >([]);
+  const [likedTemplateIds, setLikedTemplateIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [likingTemplateIds, setLikingTemplateIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [projectLikeCounts, setProjectLikeCounts] = useState<
+    Record<string, number>
+  >({});
+  const [projectLikesRows, setProjectLikesRows] = useState<any[]>([]);
 
-   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
-  const [pendingDeleteProject, setPendingDeleteProject] = useState<Project | null>(null);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+  const [pendingDeleteProject, setPendingDeleteProject] =
+    useState<Project | null>(null);
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -261,6 +366,365 @@ export function Dashboard({
     useState<string>("All Templates");
   const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
 
+  const normalizeTemplateCard = (
+    item: any,
+    index: number,
+  ): TemplateCardData => {
+    const fallbackId = `template-${index}`;
+    const resolvedProjectId = resolveTemplateProjectId(item, fallbackId);
+
+    return {
+      id: resolvedProjectId,
+      projectId: resolvedProjectId,
+      name: String(
+        item?.name ??
+          item?.title ??
+          item?.project_name ??
+          item?.projects?.project_name ??
+          "Untitled Template",
+      ),
+      description: String(
+        item?.description ??
+          item?.projects?.description ??
+          "No description available",
+      ),
+      thumbnail: String(
+        item?.thumbnail ??
+          item?.thumbnailUrl ??
+          item?.image ??
+          item?.projects?.thumbnail ??
+          "/placeholder.svg",
+      ),
+      category: String(
+        item?.category ?? item?.projects?.category ?? "Business",
+      ),
+      premium: Boolean(
+        item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
+      ),
+      tags: Array.isArray(item?.tags)
+        ? item.tags.map(String)
+        : Array.isArray(item?.projects?.tags)
+          ? item.projects.tags.map(String)
+          : [],
+      creator: item?.creator
+        ? String(item.creator)
+        : item?.profiles?.full_name
+          ? String(item.profiles.full_name)
+          : "BuildX Team",
+      creatorAvatar: item?.creatorAvatar
+        ? String(item.creatorAvatar)
+        : item?.profiles?.avatar_url
+          ? String(item.profiles.avatar_url)
+          : "https://api.dicebear.com/7.x/initials/svg?seed=BuildX",
+      views: Number(item?.views ?? item?.projects?.views ?? 0),
+      favorites: Number(
+        item?.favorites ?? item?.likes ?? item?.projects?.likes ?? 0,
+      ),
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchPublishedTemplates = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/display-templates`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch templates: ${response.status}`);
+        }
+
+        const json = await response.json();
+        const payload = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.templates)
+            ? json.templates
+            : [];
+
+        if (mounted) {
+          setPublishedTemplateCards(payload.map(normalizeTemplateCard));
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load published templates for dashboard:",
+          error,
+        );
+      }
+    };
+
+    fetchPublishedTemplates();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const visibleRecommendedTemplates =
+    publishedTemplateCards.length > 0
+      ? publishedTemplateCards
+      : recommendedTemplates;
+
+  const getTemplateLikeKey = (template: TemplateCardData) =>
+    String(template.projectId ?? "").trim();
+
+  const fetchAndSetProjectLikes = async () => {
+    try {
+      const apiBases = getApiBaseCandidates();
+
+      let data: any = null;
+      let lastError: unknown = null;
+
+      for (const base of apiBases) {
+        try {
+          const response = await fetch(`${base}/api/project-likes`);
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch project likes from ${base}: ${response.status}`,
+            );
+          }
+
+          data = await response.json();
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!data) {
+        throw lastError ?? new Error("Failed to fetch project likes.");
+      }
+
+      const payload = normalizeProjectLikeRows(data);
+      const interactionRows = Array.isArray(data?.projectLikes)
+        ? data.projectLikes
+        : payload;
+
+      const counts = payload.reduce((acc: Record<string, number>, row: any) => {
+        const projectId = String(row?.project_id ?? "").trim();
+        if (!projectId) return acc;
+
+        const explicitCount = Number(row?.likeCount ?? row?.like_count);
+
+        if (Number.isFinite(explicitCount) && explicitCount >= 0) {
+          acc[projectId] = explicitCount;
+        } else {
+          acc[projectId] = (acc[projectId] ?? 0) + 1;
+        }
+
+        return acc;
+      }, {});
+
+      setProjectLikeCounts(counts);
+      setProjectLikesRows(
+        Array.isArray(interactionRows) ? interactionRows : [],
+      );
+    } catch (error) {
+      console.error("Failed to fetch project likes:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAndSetProjectLikes();
+
+    const intervalId = window.setInterval(() => {
+      fetchAndSetProjectLikes();
+    }, 15000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchAndSetProjectLikes();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setLikedTemplateIds({});
+      return;
+    }
+
+    const currentUserLikedMap = projectLikesRows.reduce(
+      (acc: Record<string, boolean>, row: any) => {
+        const rowUserId = String(row?.user_id ?? row?.userId ?? "").trim();
+        const projectId = String(
+          row?.project_id ?? row?.projectId ?? "",
+        ).trim();
+
+        if (!rowUserId || !projectId) return acc;
+        if (rowUserId !== String(currentUserId).trim()) return acc;
+
+        acc[projectId] = true;
+        return acc;
+      },
+      {},
+    );
+
+    setLikedTemplateIds(currentUserLikedMap);
+  }, [currentUserId, projectLikesRows]);
+
+  const handleLikeTemplate = async (
+    event: React.MouseEvent<HTMLButtonElement>,
+    template: TemplateCardData,
+  ) => {
+    event.stopPropagation();
+
+    if (!currentUserId) {
+      alert("Please log in to like templates.");
+      return;
+    }
+
+    const likeKey = getTemplateLikeKey(template);
+
+    if (!likeKey) {
+      alert("Template identifier is missing.");
+      return;
+    }
+
+    if (likingTemplateIds[likeKey]) {
+      return;
+    }
+
+    const isCurrentlyLiked = Boolean(likedTemplateIds[likeKey]);
+
+    setLikingTemplateIds((prev) => ({ ...prev, [likeKey]: true }));
+    try {
+      const response = await fetch(
+        `${API_URL}/${isCurrentlyLiked ? "api/unlike-project" : "api/like-project"}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: currentUserId,
+            projectId: likeKey,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `${isCurrentlyLiked ? "Unlike" : "Like"} request failed with status ${response.status}`,
+        );
+      }
+
+      const data = await response.json();
+      const alreadyLiked = Boolean(data?.alreadyLiked);
+      const alreadyUnliked = Boolean(data?.alreadyUnliked);
+
+      if (isCurrentlyLiked) {
+        setLikedTemplateIds((prev) => ({ ...prev, [likeKey]: false }));
+        if (!alreadyUnliked) {
+          setProjectLikeCounts((prev) => ({
+            ...prev,
+            [likeKey]: Math.max((prev[likeKey] ?? 0) - 1, 0),
+          }));
+        }
+      } else {
+        setLikedTemplateIds((prev) => ({ ...prev, [likeKey]: true }));
+        if (!alreadyLiked) {
+          setProjectLikeCounts((prev) => ({
+            ...prev,
+            [likeKey]: (prev[likeKey] ?? 0) + 1,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Failed to ${isCurrentlyLiked ? "unlike" : "like"} template:`,
+        error,
+      );
+      alert(
+        `Failed to ${isCurrentlyLiked ? "unlike" : "like"} template. Please try again.`,
+      );
+    } finally {
+      setLikingTemplateIds((prev) => ({ ...prev, [likeKey]: false }));
+    }
+  };
+
+  const isTemplateLiked = (template: TemplateCardData) =>
+    Boolean(likedTemplateIds[getTemplateLikeKey(template)]);
+
+  const getTemplateLikeCount = (template: TemplateCardData) => {
+    const projectId = getTemplateLikeKey(template);
+    if (!projectId) {
+      return template.favorites ?? 0;
+    }
+
+    if (publishedTemplateCards.length > 0) {
+      return projectLikeCounts[projectId] ?? 0;
+    }
+
+    return projectLikeCounts[projectId] ?? template.favorites ?? 0;
+  };
+
+  const getTemplateViewsCount = (template: TemplateCardData) =>
+    template.views ?? 0;
+
+  const extractTemplateLayoutFromApiResponse = (
+    payload: any,
+  ): ComponentData[] => {
+    const templateData = Array.isArray(payload?.templateData)
+      ? payload.templateData
+      : [];
+
+    if (!templateData.length) return [];
+
+    const projectLayout = templateData[0]?.projects?.project_layout;
+    return Array.isArray(projectLayout)
+      ? (projectLayout as ComponentData[])
+      : [];
+  };
+
+  const fetchTemplateLayoutByProjectId = async (
+    projectId: string,
+  ): Promise<ComponentData[]> => {
+    const response = await fetch(
+      `${API_URL}/api/template-data/${encodeURIComponent(projectId)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch template data: ${response.status}`);
+    }
+
+    const json = await response.json();
+    return extractTemplateLayoutFromApiResponse(json);
+  };
+
+  const prefetchTemplateLayout = async (projectId: string) => {
+    if (!projectId) return;
+    if (prefetchedTemplateLayouts[projectId]) return;
+    if (prefetchingTemplateIds[projectId]) return;
+
+    setPrefetchingTemplateIds((prev) => ({ ...prev, [projectId]: true }));
+    try {
+      const layout = await fetchTemplateLayoutByProjectId(projectId);
+      if (layout.length > 0) {
+        setPrefetchedTemplateLayouts((prev) => ({
+          ...prev,
+          [projectId]: layout,
+        }));
+      }
+    } catch (error) {
+      console.error(
+        `Failed to prefetch template layout for ${projectId}:`,
+        error,
+      );
+    } finally {
+      setPrefetchingTemplateIds((prev) => ({ ...prev, [projectId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (!showCreateTemplateModal || !selectedTemplateId) return;
+    prefetchTemplateLayout(selectedTemplateId);
+  }, [showCreateTemplateModal, selectedTemplateId]);
+
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
     let mounted = true;
@@ -287,6 +751,7 @@ export function Dashboard({
           const metadata = user.user_metadata as { full_name?: string };
 
           setProfileData({
+            userId: user.id,
             fullName: metadata.full_name || user.email?.split("@")[0] || "User",
             email: user.email || "",
             avatarUrl: null,
@@ -294,6 +759,7 @@ export function Dashboard({
           console.error("Failed to load full profile data:", profileError);
         } else {
           setProfileData({
+            userId: fullProfile.user_id,
             fullName: fullProfile.fullName,
             email: fullProfile.email,
             avatarUrl: fullProfile.avatarUrl,
@@ -428,7 +894,29 @@ export function Dashboard({
       return;
     }
 
-    const templateComponents = getTemplateComponents(templateId);
+    let templateComponents = prefetchedTemplateLayouts[templateId] || [];
+
+    if (templateComponents.length === 0) {
+      try {
+        const fetchedLayout = await fetchTemplateLayoutByProjectId(templateId);
+        if (fetchedLayout.length > 0) {
+          templateComponents = fetchedLayout;
+          setPrefetchedTemplateLayouts((prev) => ({
+            ...prev,
+            [templateId]: fetchedLayout,
+          }));
+        }
+      } catch (error) {
+        console.error(
+          `Failed to fetch template layout for ${templateId} during project creation:`,
+          error,
+        );
+      }
+    }
+
+    if (templateComponents.length === 0) {
+      templateComponents = getTemplateComponents(templateId);
+    }
 
     const newProjectData: Partial<Project> & { user_id: string } = {
       name: trimmedProjectName,
@@ -437,35 +925,32 @@ export function Dashboard({
         "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop",
       user_id: user_id,
       type: "design",
-        status: "all",
+      status: "draft",
+      project_layout: templateComponents,
     };
 
     const { data: savedProject, error: saveError } =
       await saveProject(newProjectData);
 
-    if (saveError) {
+    if (saveError || !savedProject) {
       console.error("Error saving new project to database:", saveError);
       alert("Failed to create project. Please try again.");
       return;
     }
 
-    if (savedProject) {
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+    const { data: refreshedProjects } = await fetchUserProjects();
+    if (refreshedProjects) {
+      setProjects(refreshedProjects);
+    }
 
-      onOpenProject(savedProject.id, savedProject.name, templateId);
+    onOpenProject(savedProject.id, savedProject.name, templateId);
 
-      if (onLoadTemplate && templateComponents.length > 0) {
-        onLoadTemplate(templateComponents);
-      }
+    if (onLoadTemplate && templateComponents.length > 0) {
+      onLoadTemplate(templateComponents);
     }
   };
 
-  const handleQuickTemplateClick = (
-    template: (typeof recommendedTemplates)[0],
-  ) => {
+  const handleQuickTemplateClick = (template: TemplateCardData) => {
     setSelectedTemplateId(template.id);
     setShowCreateTemplateModal(true);
   };
@@ -492,12 +977,12 @@ export function Dashboard({
 
     const newProjectData: Partial<Project> & { user_id: string } = {
       name: trimmedProjectName,
-       description: `Created ${new Date().toLocaleDateString()}`,
+      description: `Created ${new Date().toLocaleDateString()}`,
       thumbnail:
         "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop", // Use a generic default thumbnail
       user_id: user_id,
       type: "design",
-      status: "all",
+      status: "draft",
     };
 
     const { data: savedProject, error: saveError } =
@@ -550,12 +1035,12 @@ export function Dashboard({
 
       const newProjectData: Partial<Project> & { user_id: string } = {
         name: "Untitled Project",
-         description: `Created ${new Date().toLocaleDateString()}`,
+        description: `Created ${new Date().toLocaleDateString()}`,
         thumbnail:
           "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop",
         user_id: user_id,
         type: "design",
-         status: "all",
+        status: "draft",
       };
 
       const { data: savedProject, error: saveError } =
@@ -602,7 +1087,7 @@ export function Dashboard({
         thumbnail: project.thumbnail,
         user_id: user_id,
         type: project.type,
-        status: "all",
+        status: "draft",
         project_layout: project.project_layout,
       };
       const { data: duplicatedProject, error: duplicateError } =
@@ -635,7 +1120,6 @@ export function Dashboard({
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    
     try {
       setProjectsLoading(true);
 
@@ -649,7 +1133,7 @@ export function Dashboard({
       }
 
       await reloadProjects();
-       setShowDeleteConfirmDialog(false);
+      setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
     } catch (err) {
       console.error("Failed to delete project:", err);
@@ -658,12 +1142,12 @@ export function Dashboard({
     }
   };
 
-   const openDeleteProjectDialog = (project: Project) => {
+  const openDeleteProjectDialog = (project: Project) => {
     setPendingDeleteProject(project);
     setShowDeleteConfirmDialog(true);
   };
-  
-   const handleMoveProjectToStatus = async (
+
+  const handleMoveProjectToStatus = async (
     projectId: string,
     status: Project["status"],
   ) => {
@@ -1322,7 +1806,7 @@ export function Dashboard({
           "https://images.unsplash.com/photo-1557821552-17105176677c?w=400&h=300&fit=crop", // Generic thumbnail
         user_id: user_id,
         type: "design",
-        status: "all",
+        status: "draft",
       };
 
       const { data: savedProject, error: saveError } =
@@ -1462,7 +1946,7 @@ export function Dashboard({
   };
 
   const draftsCount = projects.filter((p) => p.status === "draft").length;
-    const getDraftCardInitial = (name: string) =>
+  const getDraftCardInitial = (name: string) =>
     name?.trim()?.charAt(0)?.toUpperCase() || "P";
 
   const getDraftProjectStatus = (lastModified?: string) => {
@@ -1542,15 +2026,14 @@ export function Dashboard({
                     {userInitial}
                   </AvatarFallback>
                 </Avatar>
-                 <div className="min-w-0 flex-1 text-left">
+                <div className="min-w-0 flex-1 text-left">
                   {/* Use fetched full name and email */}
-                   <p className="text-sm text-foreground truncate">{userName}</p>
+                  <p className="text-sm text-foreground truncate">{userName}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {userEmail}
                   </p>
-                 
                 </div>
-                   <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+                <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="start">
@@ -1585,23 +2068,24 @@ export function Dashboard({
           <nav className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "new-chat"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
-
               <Sparkles className="w-4 h-4" />
               <span>New chat</span>
             </button>
 
-             {/* All Projects */}
+            {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "all"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Layout className="w-4 h-4" />
               <span>All projects</span>
@@ -1610,10 +2094,11 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "drafts"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Folder className="w-4 h-4" />
               <span>Drafts</span>
@@ -1624,14 +2109,14 @@ export function Dashboard({
               )}
             </button>
 
-        
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "trash"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Trash2 className="w-4 h-4" />
               <span>Trash</span>
@@ -1816,72 +2301,89 @@ export function Dashboard({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                         {recommendedTemplates
+                          {visibleRecommendedTemplates
                             .filter(
                               (template) =>
-                               
                                 template.id !== "getting-started-guide",
                             )
                             .map((template) => (
-                            <div
-                              key={template.id}
-                             className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
-                              onClick={() => handleQuickTemplateClick(template)}
-                            >
-                              <div className="aspect-video bg-muted relative overflow-hidden">
-                                <img
-                                  src={template.thumbnail || "/placeholder.svg"}
-                                  alt={template.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                              </div>
-                              <div className="p-4">
-                                <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
-                                  {template.name}
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-3">
-                                  {template.description}
-                                </p>
+                              <div
+                                key={template.id}
+                                className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                                onClick={() =>
+                                  handleQuickTemplateClick(template)
+                                }
+                              >
+                                <div className="aspect-video bg-muted relative overflow-hidden">
+                                  <img
+                                    src={
+                                      template.thumbnail || "/placeholder.svg"
+                                    }
+                                    alt={template.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                </div>
+                                <div className="p-4">
+                                  <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                    {template.name}
+                                  </h3>
+                                  <p className="text-sm text-muted-foreground mb-3">
+                                    {template.description}
+                                  </p>
 
-                                {/* Creator and stats row */}
-                                <div className="flex items-center justify-between pt-3 border-t border-border">
-                                  {/* Creator info */}
-                                  <div className="flex items-center gap-2">
-                                    <img
-                                      src={
-                                        template.creatorAvatar ||
-                                        "/placeholder.svg"
-                                      }
-                                      alt={template.creator}
-                                      className="w-6 h-6 rounded-full"
-                                    />
-                                    <span className="text-xs text-muted-foreground font-medium">
-                                      {template.creator}
-                                    </span>
-                                  </div>
-
-                                  {/* Views and favorites */}
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1 text-muted-foreground">
-                                      <Eye className="w-4 h-4" />
-                                      <span className="text-xs">
-                                        {template.views >= 1000
-                                          ? `${(template.views / 1000).toFixed(1)}k`
-                                          : template.views}
+                                  {/* Creator and stats row */}
+                                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                                    {/* Creator info */}
+                                    <div className="flex items-center gap-2">
+                                      <img
+                                        src={
+                                          template.creatorAvatar ||
+                                          "/placeholder.svg"
+                                        }
+                                        alt={template.creator}
+                                        className="w-6 h-6 rounded-full"
+                                      />
+                                      <span className="text-xs text-muted-foreground font-medium">
+                                        {template.creator}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors">
-                                      <Heart className="w-4 h-4" />
-                                      <span className="text-xs">
-                                        {template.favorites}
-                                      </span>
+
+                                    {/* Views and favorites */}
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex items-center gap-1 text-muted-foreground">
+                                        <Eye className="w-4 h-4" />
+                                        <span className="text-xs">
+                                          {getTemplateViewsCount(template) >=
+                                          1000
+                                            ? `${(getTemplateViewsCount(template) / 1000).toFixed(1)}k`
+                                            : getTemplateViewsCount(template)}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(event) =>
+                                          handleLikeTemplate(event, template)
+                                        }
+                                        disabled={
+                                          likingTemplateIds[
+                                            getTemplateLikeKey(template)
+                                          ]
+                                        }
+                                        className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template) ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
+                                      >
+                                        <Heart
+                                          className={`w-4 h-4 ${isTemplateLiked(template) ? "fill-red-500 text-red-500" : ""}`}
+                                        />
+                                        <span className="text-xs">
+                                          {getTemplateLikeCount(template)}
+                                        </span>
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </div>
                     </div>
@@ -1950,17 +2452,19 @@ export function Dashboard({
                     </div>
                   ) : filteredProjects.length > 0 ? (
                     <div
-                       className={`grid ${activeSection === "drafts" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
+                      className={`grid ${activeSection === "drafts" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
                     >
-                       {filteredProjects.map((project) => (
+                      {filteredProjects.map((project) => (
                         <Card
                           key={project.id}
-                         className={`bg-card border-border cursor-pointer transition-all group overflow-hidden ${activeSection === "drafts" ? "hover:-translate-y-1 hover:shadow-md hover:border-blue-400/40" : "hover:border-blue-500/50"}`}
+                          className={`bg-card border-border cursor-pointer transition-all group overflow-hidden ${activeSection === "drafts" ? "hover:-translate-y-1 hover:shadow-md hover:border-blue-400/40" : "hover:border-blue-500/50"}`}
                           onClick={() =>
                             onOpenProject(project.id, project.name)
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
-                           {activeSection === "drafts" || activeSection === "all" || activeSection === "trash" ? (
+                          {activeSection === "drafts" ||
+                          activeSection === "all" ||
+                          activeSection === "trash" ? (
                             <CardContent className="p-3">
                               <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
                                 <img
@@ -1980,7 +2484,9 @@ export function Dashboard({
                                       {project.name}
                                     </p>
                                     <p className="text-xs text-muted-foreground line-clamp-1">
-                                      {getRelativeLastModified(project.lastModified)}
+                                      {getRelativeLastModified(
+                                        project.lastModified,
+                                      )}
                                     </p>
                                   </div>
                                 </div>
@@ -1991,7 +2497,7 @@ export function Dashboard({
                                   {getDraftProjectStatus(project.lastModified)}
                                 </Badge>
 
-                                  <DropdownMenu>
+                                <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
@@ -2021,14 +2527,17 @@ export function Dashboard({
                                         e: React.MouseEvent<HTMLDivElement>,
                                       ) => {
                                         e.stopPropagation();
-                                        handleMoveProjectToStatus(project.id, "draft");
+                                        handleMoveProjectToStatus(
+                                          project.id,
+                                          "draft",
+                                        );
                                       }}
                                     >
                                       <Folder className="mr-2 h-4 w-4" />
                                       Move to draft
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
-                                   {activeSection === "trash" ? (
+                                    {activeSection === "trash" ? (
                                       <DropdownMenuItem
                                         onClick={(
                                           e: React.MouseEvent<HTMLDivElement>,
@@ -2047,7 +2556,10 @@ export function Dashboard({
                                           e: React.MouseEvent<HTMLDivElement>,
                                         ) => {
                                           e.stopPropagation();
-                                          handleMoveProjectToStatus(project.id, "trash");
+                                          handleMoveProjectToStatus(
+                                            project.id,
+                                            "trash",
+                                          );
                                         }}
                                         className="text-red-500"
                                       >
@@ -2057,11 +2569,7 @@ export function Dashboard({
                                     )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-
-
                               </div>
-
-                              
                             </CardContent>
                           ) : (
                             <>
@@ -2207,8 +2715,9 @@ export function Dashboard({
           <DialogHeader>
             <DialogTitle>Delete project forever?</DialogTitle>
             <DialogDescription>
-              This will permanently delete "{pendingDeleteProject?.name || "this project"}".
-              This action cannot be undone or restored from trash.
+              This will permanently delete "
+              {pendingDeleteProject?.name || "this project"}". This action
+              cannot be undone or restored from trash.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -2305,6 +2814,10 @@ export function Dashboard({
           setSelectedTemplateId(null);
         }}
         onSelectTemplate={handleTemplateSelectFromModal}
+        onTemplateChange={(templateId) => {
+          setSelectedTemplateId(templateId);
+          prefetchTemplateLayout(templateId);
+        }}
         onTrackSearch={(query) => console.log("Search:", query)}
         recommendedTemplates={recommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
