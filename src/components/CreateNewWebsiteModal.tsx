@@ -10,10 +10,18 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { Search, X, Sparkles, Eye, Heart } from "lucide-react";
 
 interface Template {
@@ -33,7 +41,12 @@ interface Template {
 interface CreateNewWebsiteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (templateId: string, projectName: string) => void;
+  onSelectTemplate: (
+    templateId: string,
+    projectName: string,
+    projectCategory: string,
+    projectDescription?: string,
+  ) => void;
   onTemplateChange?: (templateId: string) => void;
   onTrackSearch: (query: string) => void;
   recommendedTemplates?: Template[];
@@ -251,6 +264,18 @@ const categories = [
   "Agency",
 ];
 
+const projectCategoryOptions = [
+  "Starter",
+  "Business",
+  "Portfolio",
+  "E-commerce",
+  "Blog",
+  "Restaurant",
+  "Events",
+  "Health",
+  "Landing Page",
+  "Other",
+];
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function CreateNewWebsiteModal({
@@ -265,6 +290,10 @@ export function CreateNewWebsiteModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [projectName, setProjectName] = useState("");
+
+    const [projectCategory, setProjectCategory] = useState("Starter");
+  const [projectDescription, setProjectDescription] = useState("");
+
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null,
   );
@@ -385,6 +414,9 @@ export function CreateNewWebsiteModal({
         if (template) {
           setSelectedTemplate(template);
           setProjectName(`My ${template.name}`);
+
+          setProjectCategory(template.category || "Starter");
+          setProjectDescription("");
           setShowNameInput(true);
         }
       } else {
@@ -392,6 +424,8 @@ export function CreateNewWebsiteModal({
         setShowNameInput(false);
         setSelectedTemplate(null);
         setProjectName("");
+         setProjectCategory("Starter");
+        setProjectDescription("");
         setSearchQuery("");
         setSelectedCategory("All");
       }
@@ -424,12 +458,19 @@ export function CreateNewWebsiteModal({
     setSelectedTemplate(template);
     onTemplateChange?.(template.id);
     setProjectName(`My ${template.name}`);
+    setProjectCategory(template.category || "Starter");
+    setProjectDescription("");
     setShowNameInput(true);
   };
 
   const handleCreateProject = () => {
     if (selectedTemplate && projectName.trim()) {
-      onSelectTemplate(selectedTemplate.id, projectName);
+     onSelectTemplate(
+        selectedTemplate.id,
+        projectName,
+        projectCategory,
+        projectDescription.trim(),
+      );
       handleClose();
     }
   };
@@ -665,6 +706,7 @@ export function CreateNewWebsiteModal({
             </DialogHeader>
 
             <div className="p-6 space-y-6">
+
               {selectedTemplate && (
                 <Card className="border-2">
                   <div className="flex items-start gap-4 p-4">
@@ -689,7 +731,8 @@ export function CreateNewWebsiteModal({
                   </div>
                 </Card>
               )}
-
+            
+          
               <div className="space-y-2">
                 <label className="text-sm font-medium">Project Name</label>
                 <Input
@@ -699,19 +742,41 @@ export function CreateNewWebsiteModal({
                   className="h-12 text-base"
                   autoFocus
                 />
+
+                 </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Project Category</label>
+                <Select value={projectCategory} onValueChange={setProjectCategory}>
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectCategoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Project Description (Optional)</label>
+                <Textarea
+                  placeholder="Describe your website (optional)..."
+                  value={projectDescription}
+                  onChange={(e) => setProjectDescription(e.target.value)}
+                  className="min-h-[100px] text-sm"
+                />
+
                 <p className="text-xs text-muted-foreground">
                   You can change this later in project settings
                 </p>
               </div>
 
               <div className="flex items-center gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowNameInput(false)}
-                  className="flex-1"
-                >
-                  Back
-                </Button>
+               
                 <Button
                   onClick={handleCreateProject}
                   disabled={!projectName.trim()}
