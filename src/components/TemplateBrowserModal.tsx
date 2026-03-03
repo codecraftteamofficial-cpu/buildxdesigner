@@ -184,7 +184,7 @@ export function TemplateBrowserModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[95vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden" aria-describedby="template-browser-description">
+     <DialogContent className="max-w-7xl w-[96vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden" aria-describedby="template-browser-description">
         <DialogHeader className="sr-only">
           <DialogTitle>Choose a Template</DialogTitle>
           <DialogDescription id="template-browser-description">

@@ -49,6 +49,7 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 import type { ComponentData } from "../App";
+import { Textarea } from "./ui/textarea";
 import { TemplateBrowserModal } from "./TemplateBrowserModal";
 import { AccountSettingsModal } from "./AccountSettingsModal";
 import { PlansModal } from "./PlansModal";
@@ -179,6 +180,19 @@ const recommendedTemplates: TemplateCardData[] = [
   },
 ];
 
+const projectCategoryOptions = [
+  "Starter",
+  "Business",
+  "Portfolio",
+  "E-commerce",
+  "Blog",
+  "Restaurant",
+  "Events",
+  "Health",
+  "Landing Page",
+  "Other",
+];
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const getApiBaseCandidates = () => {
@@ -293,6 +307,10 @@ export function Dashboard({
   ); // Updated to string | null
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+
+  const [newProjectCategory, setNewProjectCategory] = useState("Starter");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
+
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [accountSettingsTab, setAccountSettingsTab] = useState("profile");
   const [showPlansModal, setShowPlansModal] = useState(false);
@@ -977,7 +995,9 @@ export function Dashboard({
 
     const newProjectData: Partial<Project> & { user_id: string } = {
       name: trimmedProjectName,
-      description: `Created ${new Date().toLocaleDateString()}`,
+      description:
+        newProjectDescription.trim() ||
+        `${newProjectCategory} website · Created ${new Date().toLocaleDateString()}`,
       thumbnail:
         "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop", // Use a generic default thumbnail
       user_id: user_id,
@@ -1015,6 +1035,8 @@ export function Dashboard({
     }
 
     setProjectName("");
+     setNewProjectDescription("");
+    setNewProjectCategory("Starter");
   };
 
   const handleCreateBlankProject = async () => {
@@ -2772,6 +2794,36 @@ export function Dashboard({
                 autoFocus
               />
             </div>
+
+              <div className="space-y-2">
+              <Label htmlFor="projectCategory">Project Category</Label>
+              <select
+                id="projectCategory"
+                value={newProjectCategory}
+                onChange={(e) => setNewProjectCategory(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {projectCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="projectDescription">
+                Website Description (Optional)
+              </Label>
+              <Textarea
+                id="projectDescription"
+                placeholder="Describe what kind of website you want to create..."
+                value={newProjectDescription}
+                onChange={(e) => setNewProjectDescription(e.target.value)}
+                className="min-h-[96px]"
+              />
+            </div>
+
+
           </div>
           <DialogFooter>
             <Button
@@ -2779,6 +2831,8 @@ export function Dashboard({
               onClick={() => {
                 setShowNameProjectDialog(false);
                 setProjectName("");
+                  setNewProjectDescription("");
+                setNewProjectCategory("Starter");
               }}
             >
               Cancel
