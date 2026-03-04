@@ -1888,6 +1888,196 @@ export function PropertiesPanel({
           </div>
         )
 
+      case "sign-in":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title" className="text-xs">Form Title</Label>
+              <Input
+                id="title"
+                value={props.title || "Sign In"}
+                onChange={(e) => updateProps("title", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description" className="text-xs">Description</Label>
+              <Input
+                id="description"
+                value={props.description || "Enter your email and password to access your account."}
+                onChange={(e) => updateProps("description", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
+              <Input
+                id="buttonText"
+                value={props.buttonText || "Sign In"}
+                onChange={(e) => updateProps("buttonText", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Input
+                id="redirectUrl"
+                value={props.redirectUrl || "/"}
+                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 This block automatically connects to your Project's Supabase credentials to handle authentication.
+              </p>
+            </div>
+          </div>
+        )
+
+      case "sign-up":
+        const extraFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+
+        const addExtraField = () => {
+          const newField = {
+            name: `field_${extraFields.length + 1}`,
+            label: `New Field`,
+            type: "text",
+            required: false,
+          };
+          updateProps("extraFields", [...extraFields, newField]);
+        };
+
+        const updateExtraField = (index: number, updates: any) => {
+          const newFields = [...extraFields];
+          newFields[index] = { ...newFields[index], ...updates };
+          updateProps("extraFields", newFields);
+        };
+
+        const removeExtraField = (index: number) => {
+          const newFields = [...extraFields];
+          newFields.splice(index, 1);
+          updateProps("extraFields", newFields);
+        };
+
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title" className="text-xs">Form Title</Label>
+              <Input
+                id="title"
+                value={props.title || "Sign Up"}
+                onChange={(e) => updateProps("title", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description" className="text-xs">Description</Label>
+              <Input
+                id="description"
+                value={props.description || "Create a new account by filling out the form below."}
+                onChange={(e) => updateProps("description", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
+              <Input
+                id="buttonText"
+                value={props.buttonText || "Sign Up"}
+                onChange={(e) => updateProps("buttonText", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Input
+                id="redirectUrl"
+                value={props.redirectUrl || "/"}
+                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+
+            <div className="pt-2 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Extra Fields (User Metadata)</Label>
+                <Button variant="ghost" size="sm" onClick={addExtraField} className="h-6 w-6 p-0">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                {extraFields.map((field: any, idx: number) => (
+                  <div key={idx} className="flex flex-col gap-2 p-2 border rounded bg-slate-50 relative group">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeExtraField(idx)}
+                      className="absolute right-1 top-1 h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <div className="pr-6 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Label</Label>
+                          <Input
+                            value={field.label}
+                            onChange={(e) => updateExtraField(idx, { label: e.target.value })}
+                            className="h-7 text-xs mt-0.5"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Metadata Key</Label>
+                          <Input
+                            value={field.name}
+                            onChange={(e) => updateExtraField(idx, { name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
+                            className="h-7 text-xs mt-0.5"
+                            placeholder="e.g. first_name"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+                        <Select
+                          value={field.type}
+                          onValueChange={(val: string) => updateExtraField(idx, { type: val })}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="number">Number</SelectItem>
+                            <SelectItem value="date">Date</SelectItem>
+                            <SelectItem value="tel">Phone</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center space-x-1.5">
+                          <Checkbox
+                            id={`req-${idx}`}
+                            checked={field.required}
+                            onCheckedChange={(checked: boolean) => updateExtraField(idx, { required: !!checked })}
+                          />
+                          <Label htmlFor={`req-${idx}`} className="text-[10px] cursor-pointer">Req</Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {extraFields.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">No extra fields defined</p>
+                )}
+              </div>
+            </div>
+            <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 Extra fields will be sent to Supabase auth in the <code>options.data</code> payload as `user_metadata`.
+              </p>
+            </div>
+          </div>
+        )
+
       case "carousel":
         const handleAddSlide = () => {
           const slides = Array.isArray(props.slides) ? props.slides : []

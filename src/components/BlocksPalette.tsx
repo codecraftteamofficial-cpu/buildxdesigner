@@ -21,7 +21,9 @@ import {
   Layout,
   Code,
   Layers,
-  LayoutGrid
+  LayoutGrid,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
@@ -336,6 +338,59 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             style: {
               width: '100%',
               overflow: 'auto'
+            }
+          }
+        }
+      ]
+    },
+    {
+      name: 'Authentication',
+      icon: <Users className="w-4 h-4" />,
+      blocks: [
+        {
+          id: 'sign-in',
+          name: 'Sign In Form',
+          description: 'Ready-to-use Supabase Sign In form',
+          icon: <LogIn className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'sign-in',
+            props: {
+              title: 'Sign In',
+              description: 'Enter your email and password to access your account.',
+              buttonText: 'Sign In',
+              redirectUrl: '/'
+            },
+            style: {
+              width: '400px',
+              padding: '24px',
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }
+          }
+        },
+        {
+          id: 'sign-up',
+          name: 'Sign Up Form',
+          description: 'Supabase Sign Up with custom metadata fields',
+          icon: <UserPlus className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'sign-up',
+            props: {
+              title: 'Sign Up',
+              description: 'Create a new account by filling out the form below.',
+              buttonText: 'Sign Up',
+              redirectUrl: '/',
+              extraFields: []
+            },
+            style: {
+              width: '400px',
+              padding: '24px',
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }
           }
         }

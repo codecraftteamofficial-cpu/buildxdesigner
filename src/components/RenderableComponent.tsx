@@ -9,6 +9,8 @@ import { Trash2, Edit, Upload } from 'lucide-react';
 import { ResizeHandle } from './ResizeHandle';
 import { EditableText } from './EditableText';
 import { PayMongoButton } from './PayMongoButton';
+import { SignInBlock } from './auth/SignInBlock';
+import { SignUpBlock } from './auth/SignUpBlock';
 import { supabase } from '../supabase/config/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import $ from 'jquery';
@@ -437,15 +439,15 @@ export function RenderableComponent({
   };
 
   // Add these two handlers
-const onResizeStart = () => {
-  // Logic to run when resizing begins (e.g., locking other UI elements)
-  console.log('Resize started');
-};
+  const onResizeStart = () => {
+    // Logic to run when resizing begins (e.g., locking other UI elements)
+    console.log('Resize started');
+  };
 
-const onResizeEnd = () => {
-  // Logic to run when resizing finishes
-  console.log('Resize ended');
-};
+  const onResizeEnd = () => {
+    // Logic to run when resizing finishes
+    console.log('Resize ended');
+  };
 
   const parseSize = (size: string | number | undefined, defaultValue: number): number => {
     if (typeof size === 'number') return size;
@@ -1016,7 +1018,7 @@ const onResizeEnd = () => {
           </ResizeHandle>
         );
 
-case 'button':
+      case 'button':
         const buttonWidth = parseSize(style?.width, 120);
         const buttonHeight = parseSize(style?.height, 40);
 
@@ -1060,7 +1062,7 @@ case 'button':
 
                 // 2. Combine formal actions + legacy onClick string
                 const allActions = [...((props.actions as Action[]) || [])];
-                
+
                 // If there's a raw string in props.onClick, convert it to a temporary Action
                 if (typeof props.onClick === 'string' && props.onClick.trim() !== '') {
                   allActions.push({
@@ -1137,6 +1139,69 @@ case 'button':
               disabled={disabled}
               isPreview={isPreview}
             />
+          </ResizeHandle>
+        );
+
+      case 'sign-in':
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 400)}
+            initialHeight={parseSize(style?.height, 350)}
+            className="group inline-block"
+            minWidth={250}
+            minHeight={250}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+              <SignInBlock
+                id={props.elementId || `signin-${component.id}`}
+                title={props.title}
+                description={props.description}
+                buttonText={props.buttonText}
+                redirectUrl={props.redirectUrl}
+                isPreview={isPreview}
+                userProjectConfig={userProjectConfig}
+                className={props.className}
+                style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
+              />
+            </div>
+          </ResizeHandle>
+        );
+
+      case 'sign-up':
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 400)}
+            initialHeight={parseSize(style?.height, 450)}
+            className="group inline-block"
+            minWidth={250}
+            minHeight={300}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+              <SignUpBlock
+                id={props.elementId || `signup-${component.id}`}
+                title={props.title}
+                description={props.description}
+                buttonText={props.buttonText}
+                redirectUrl={props.redirectUrl}
+                extraFields={props.extraFields}
+                isPreview={isPreview}
+                userProjectConfig={userProjectConfig}
+                className={props.className}
+                style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
+              />
+            </div>
           </ResizeHandle>
         );
 
@@ -1319,8 +1384,8 @@ case 'button':
         );
 
       case 'image':
-        const imgWidth = parseSize(props.width || style?.width, 300);
-        const imgHeight = parseSize(props.height || style?.height, 200);
+        const imgWidth = parseSize(style?.width || props.width, 300);
+        const imgHeight = parseSize(style?.height || props.height, 200);
 
         const handleDragOver = (e: React.DragEvent) => {
           e.preventDefault();
@@ -1387,18 +1452,18 @@ case 'button':
           }
         };
 
-  return (
-    <ResizeHandle
-      onResize={handleResize}  // ← use the shared handleResize, same as every other component
-      initialX={component.position?.x || 0}
-      initialY={component.position?.y || 0}
-      initialWidth={imgWidth}
-      initialHeight={imgHeight}
-      className="group"
-      disabled={isPreview}
-      onResizeStart={onResizeStart}
-      onResizeEnd={onResizeEnd}
-    >
+        return (
+          <ResizeHandle
+            onResize={handleResize}  // ← use the shared handleResize, same as every other component
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={imgWidth}
+            initialHeight={imgHeight}
+            className="group"
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
 
             {props.src ? (
               <div
@@ -1412,8 +1477,8 @@ case 'button':
                   id={props.elementId}
                   src={props.src}
                   alt={props.alt || 'Image'}
-                  width={imgWidth}
-                  height={imgHeight}
+                  width="100%"
+                  height="100%"
                   style={{ ...combinedStyle, width: '100%', height: '100%', objectFit: 'fill' }}
                   className={`rounded-lg ${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
                 />
