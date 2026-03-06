@@ -34,6 +34,7 @@ import { createClient } from "@supabase/supabase-js"
 import { supabase } from "../supabase/config/supabaseClient"
 type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
 type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition"
+const styleStr = (value: any): string => String(value ?? "")
 
 interface Action {
   id: string
@@ -480,7 +481,7 @@ export function PropertiesPanel({
                 max="72"
                 value={
                   selectedComponent.style?.fontSize
-                    ? Number.parseInt(String(selectedComponent.style.fontSize).replace("px", ""))
+                    ? Number.parseInt(styleStr(selectedComponent.style?.fontSize).replace("px", ""))
                     : "24"
                 }
                 onChange={(e) => updateStyle("fontSize", `${e.target.value} px`)}
@@ -563,7 +564,7 @@ export function PropertiesPanel({
                     max="72"
                     value={
                       selectedComponent.style?.fontSize
-                        ? Number.parseInt(String(selectedComponent.style.fontSize).replace("px", ""))
+                        ?  Number.parseInt(styleStr(selectedComponent.style?.fontSize).replace("px", ""))
                         : ""
                     }
                     onChange={(e) => updateStyle("fontSize", `${e.target.value} px`)}
@@ -637,7 +638,7 @@ export function PropertiesPanel({
                     max="50"
                     value={
                       selectedComponent.style?.padding
-                        ? Number.parseInt(String(selectedComponent.style.padding).replace("px", ""))
+                        ? Number.parseInt(styleStr(selectedComponent.style?.padding).replace("px", ""))
                         : 8
                     }
                     onChange={(e) => updateStyle("padding", `${e.target.value} px`)}
@@ -655,7 +656,7 @@ export function PropertiesPanel({
                     max="50"
                     value={
                       selectedComponent.style?.margin
-                        ? Number.parseInt(String(selectedComponent.style.margin).replace("px", ""))
+                        ? Number.parseInt(styleStr(selectedComponent.style?.margin).replace("px", ""))
                         : 0
                     }
                     onChange={(e) => updateStyle("margin", `${e.target.value} px`)}
@@ -3153,13 +3154,13 @@ export function PropertiesPanel({
                             max="3"
                             step="0.1"
                             value={Number.parseFloat(
-                              selectedComponent.style?.padding?.replace("rem", "") || "1",
+                              styleStr(selectedComponent.style?.padding).replace("rem", "") || "1",
                             ).toFixed(1)}
                             onChange={(e) => updateStyle("padding", `${e.target.value}rem`)}
                             className="h-1.5 flex-1"
                           />
                           <span className="text-xs w-8">
-                            {Number.parseFloat(selectedComponent.style?.padding?.replace("rem", "") || "1").toFixed(1)}
+                            {Number.parseFloat(styleStr(selectedComponent.style?.padding).replace("rem", "") || "1").toFixed(1)}
                             rem
                           </span>
                         </div>
@@ -3175,7 +3176,7 @@ export function PropertiesPanel({
                             type="range"
                             min="0"
                             max="20"
-                            value={Number.parseInt(selectedComponent.style?.borderRadius?.replace("px", "") || "0")}
+                            value={Number.parseInt(styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0")}
                             onChange={(e) => updateStyle("borderRadius", `${e.target.value}px`)}
                             className="h-1.5 flex-1"
                           />
@@ -3264,7 +3265,7 @@ export function PropertiesPanel({
                             type="number"
                             min="8"
                             max="72"
-                            value={selectedComponent.style?.fontSize?.replace("px", "") || "16"}
+                            value={String(selectedComponent.style?.fontSize ?? "").replace("px", "") || "16"}
                             onChange={(e) => updateStyle("fontSize", `${e.target.value}px`)}
                             className="h-8 text-xs"
                           />
@@ -3340,7 +3341,7 @@ export function PropertiesPanel({
                           min="-5"
                           max="20"
                           step="0.1"
-                          value={selectedComponent.style?.letterSpacing?.replace("px", "") || "0"}
+                          value={styleStr(selectedComponent.style?.letterSpacing).replace("px", "") || "0"}
                           onChange={(e) => updateStyle("letterSpacing", `${e.target.value}px`)}
                           className="h-8 text-xs"
                         />
@@ -3517,7 +3518,7 @@ export function PropertiesPanel({
                         <div className="flex items-center gap-2">
                           <Input
                             type="text"
-                            value={selectedComponent.style?.borderRadius?.toString().replace("px", "") || "0"}
+                            value={styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0"}
                             onChange={(e) => {
                               const value = e.target.value + "px"
                               updateStyle("borderRadius", value)
@@ -3534,7 +3535,7 @@ export function PropertiesPanel({
                         max="200"
                         step="1"
                         value={Number.parseInt(
-                          selectedComponent.style?.borderRadius?.toString().replace("px", "") || "0",
+                          styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0",
                         )}
                         onChange={(e) => {
                           const value = e.target.value + "px"
@@ -3557,7 +3558,7 @@ export function PropertiesPanel({
                               <Input
                                 type="text"
                                 value={
-                                  selectedComponent.style?.borderTopLeftRadius?.toString().replace("px", "") || "0"
+                                  styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"
                                 }
                                 onChange={(e) => {
                                   const value = e.target.value + "px"
@@ -3574,7 +3575,7 @@ export function PropertiesPanel({
                             max="200"
                             step="1"
                             value={Number.parseInt(
-                              selectedComponent.style?.borderTopLeftRadius?.toString().replace("px", "") || "0",
+                              styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0",
                             )}
                             onChange={(e) => {
                               const value = e.target.value + "px"
@@ -3591,7 +3592,7 @@ export function PropertiesPanel({
                               <Input
                                 type="text"
                                 value={
-                                  selectedComponent.style?.borderTopRightRadius?.toString().replace("px", "") || "0"
+                                   styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"
                                 }
                                 onChange={(e) => {
                                   const value = e.target.value + "px"
@@ -3608,7 +3609,7 @@ export function PropertiesPanel({
                             max="200"
                             step="1"
                             value={Number.parseInt(
-                              selectedComponent.style?.borderTopRightRadius?.toString().replace("px", "") || "0",
+                               styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0",
                             )}
                             onChange={(e) => {
                               const value = e.target.value + "px"
@@ -3628,7 +3629,7 @@ export function PropertiesPanel({
                               <Input
                                 type="text"
                                 value={
-                                  selectedComponent.style?.borderBottomLeftRadius?.toString().replace("px", "") || "0"
+                                   styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"
                                 }
                                 onChange={(e) => {
                                   const value = e.target.value + "px"
@@ -3645,7 +3646,7 @@ export function PropertiesPanel({
                             max="200"
                             step="1"
                             value={Number.parseInt(
-                              selectedComponent.style?.borderBottomLeftRadius?.toString().replace("px", "") || "0",
+                               styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0",
                             )}
                             onChange={(e) => {
                               const value = e.target.value + "px"
@@ -3662,7 +3663,7 @@ export function PropertiesPanel({
                               <Input
                                 type="text"
                                 value={
-                                  selectedComponent.style?.borderBottomRightRadius?.toString().replace("px", "") || "0"
+                                  styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"
                                 }
                                 onChange={(e) => {
                                   const value = e.target.value + "px"
@@ -3679,7 +3680,7 @@ export function PropertiesPanel({
                             max="200"
                             step="1"
                             value={Number.parseInt(
-                              selectedComponent.style?.borderBottomRightRadius?.toString().replace("px", "") || "0",
+                              styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0",
                             )}
                             onChange={(e) => {
                               const value = e.target.value + "px"

@@ -1207,6 +1207,7 @@ export function useEditorState() {
     reorderComponent: handleReorderComponent,
     moveLayer: handleMoveLayer,
     clearCanvas,
+    replaceComponents, 
 
     // Toggles
     togglePreview,

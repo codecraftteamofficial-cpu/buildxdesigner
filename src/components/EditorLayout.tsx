@@ -71,6 +71,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
     handleLeftSplitterMouseDown,
     handleRightSplitterMouseDown,
     remoteCursors,
+    replaceComponents,
   } = editor;
 
   const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false);
@@ -298,13 +299,14 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                         // PASS THESE NEW PROPS:
                         pages={state.pages}
                         activePageId={state.activePageId}
-                        onCodeChange={(newComponents) =>
+                        onCodeChange={(newComponents) => {
+                          replaceComponents(newComponents);   
                           setState((prev) => ({
                             ...prev,
                             components: newComponents,
                             hasUnsavedChanges: true,
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                   )}

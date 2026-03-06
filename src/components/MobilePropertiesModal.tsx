@@ -8,10 +8,12 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { RangeSlider } from './ui/range-slider';
 import { Settings, X } from 'lucide-react';
+
+// Safe helper: converts any style value to string before calling .replace
+const styleStr = (value: any): string => String(value ?? "")
 
 interface MobilePropertiesModalProps {
   selectedComponent: ComponentData | null;
@@ -181,7 +183,7 @@ export function MobilePropertiesModal({
                 <Input
                   id="container-width"
                   type="number"
-                  value={selectedComponent.style?.width?.replace('px', '') || '300'}
+                  value={styleStr(selectedComponent.style?.width).replace('px', '') || '300'}
                   onChange={(e) => updateStyle('width', `${e.target.value}px`)}
                   placeholder="300"
                   min="50"
@@ -192,7 +194,7 @@ export function MobilePropertiesModal({
                 <Input
                   id="container-height"
                   type="number"
-                  value={selectedComponent.style?.height?.replace('px', '') || '150'}
+                  value={styleStr(selectedComponent.style?.height).replace('px', '') || '150'}
                   onChange={(e) => updateStyle('height', `${e.target.value}px`)}
                   placeholder="150"
                   min="50"
@@ -220,7 +222,7 @@ export function MobilePropertiesModal({
                 <Input
                   id="form-width"
                   type="number"
-                  value={selectedComponent.style?.width?.replace('px', '') || '400'}
+                  value={styleStr(selectedComponent.style?.width).replace('px', '') || '400'}
                   onChange={(e) => updateStyle('width', `${e.target.value}px`)}
                   placeholder="400"
                   min="200"
@@ -231,7 +233,7 @@ export function MobilePropertiesModal({
                 <Input
                   id="form-height"
                   type="number"
-                  value={selectedComponent.style?.height?.replace('px', '') || '300'}
+                  value={styleStr(selectedComponent.style?.height).replace('px', '') || '300'}
                   onChange={(e) => updateStyle('height', `${e.target.value}px`)}
                   placeholder="300"
                   min="200"
@@ -258,7 +260,7 @@ export function MobilePropertiesModal({
               <Input
                 id="links"
                 value={props.links?.join(', ') || ''}
-                onChange={(e) => updateProps('links', e.target.value.split(',').map(s => s.trim()))}
+                onChange={(e) => updateProps('links', e.target.value.split(',').map((s: string) => s.trim()))}
                 placeholder="Home, About, Contact"
               />
             </div>
