@@ -236,6 +236,10 @@ export async function saveProjectMetadata(metadata: {
   siteLogoUrl?: string;
 }): Promise<{ error: any }> {
   try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const payload: any = {
       last_modified: new Date().toISOString(),
     };
@@ -254,13 +258,27 @@ export async function saveProjectMetadata(metadata: {
     if (metadata.siteLogoUrl !== undefined)
       payload.site_logo_url = metadata.siteLogoUrl;
 
-    const { error } = await supabase
+    const effectiveUserId = user?.id || metadata.user_id;
+
+    const { data, error } = await supabase
       .from("projects")
       .update(payload)
       .eq("projects_id", metadata.id)
-      .eq("user_id", metadata.user_id); // Security: only update if user owns the project
+      .eq("user_id", effectiveUserId)
+      .select("projects_id")
+      .maybeSingle();
 
-    return { error };
+    if (error) return { error };
+
+    if (!data) {
+      return {
+        error: new Error(
+          "No project row was updated. Check ownership or project ID.",
+        ),
+      };
+    }
+
+    return { error: null };
   } catch (err) {
     return { error: err };
   }

@@ -1,20 +1,21 @@
-
 export const getApiBaseUrl = (): string => {
-    if (typeof window === 'undefined') return '';
+  if (typeof window === "undefined") return "";
 
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  const hostname = window.location.hostname;
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
 
-    if (isLocal) {
-        return 'http://localhost:4000';
-    }
+  if (isLocal) {
+    return "https://build-x-designer-api.vercel.app";
+  }
 
-    // Explicitly handle production backend URL (including subdomains)
-    if (hostname === 'buildxdesigner.site' || hostname.endsWith('.buildxdesigner.site')) {
-        return 'https://buildxdesigner.duckdns.org';
-    }
+  // Explicitly handle production backend URL (including subdomains)
+  if (
+    hostname === "buildxdesigner.site" ||
+    hostname.endsWith(".buildxdesigner.site")
+  ) {
+    return "https://buildxdesigner.duckdns.org";
+  }
 
-    // Default to relative if unknown
-    return '';
+  // Default to relative if unknown
+  return "";
 };
-

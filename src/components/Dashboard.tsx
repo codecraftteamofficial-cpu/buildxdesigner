@@ -106,6 +106,43 @@ interface TemplateCardData {
   tags: string[];
 }
 
+interface PublishedTemplate {
+  project_id: string;
+  user_id: string;
+  profiles: {
+    user_id: string;
+    full_name: string;
+    avatar_url: string;
+  };
+  projects: {
+    category: string | null;
+    thumbnail: string;
+    description: string;
+    projects_id: string;
+    is_published: boolean;
+    project_name: string;
+  };
+}
+
+interface SharedProject {
+  user_id: string;
+  project_id: string;
+  role: string;
+  projects: {
+    user_id: string;
+    thumbnail: string;
+    description: string;
+    projects_id: string;
+    project_name: string;
+    is_published?: boolean;
+    owner_profile: {
+      user_id: string;
+      full_name: string;
+      avatar_url: string;
+    };
+  };
+}
+
 // Mock recommended templates
 const recommendedTemplates: TemplateCardData[] = [
   {
@@ -303,6 +340,9 @@ export function Dashboard({
   const [activeSection, setActiveSection] = useState<
     "new-chat" | "drafts" | "team" | "all" | "trash"
   >("new-chat");
+  const [projectsFilter, setProjectsFilter] = useState<
+    "all" | "published" | "shared"
+  >("all");
   const [showMakePrompt, setShowMakePrompt] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -321,6 +361,10 @@ export function Dashboard({
   const [accountSettingsTab, setAccountSettingsTab] = useState("profile");
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false); // Start hidden on mobile
+  const [publishedTemplates, setPublishedTemplates] = useState<
+    PublishedTemplate[]
+  >([]);
+  const [sharedProjects, setSharedProjects] = useState<SharedProject[]>([]);
   const [prefetchedTemplateLayouts, setPrefetchedTemplateLayouts] = useState<
     Record<string, ComponentData[]>
   >({});
@@ -395,7 +439,7 @@ export function Dashboard({
 
   // --- NEW STATES FOR REDESIGNED PROMPT SECTION ---
   const [selectedTemplateCategory, setSelectedTemplateCategory] =
-    useState<string>("All Templates");
+    useState<string>("All");
   const [showCreateTemplateModal, setShowCreateTemplateModal] = useState(false);
 
   const normalizeTemplateCard = (
@@ -894,6 +938,145 @@ export function Dashboard({
     };
   }, [profileData.email]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProjectsByFilter = async () => {
+      if (activeSection !== "all" || !profileData.userId) return;
+
+      setProjectsLoading(true);
+      setProjectsError(null);
+
+      try {
+        if (projectsFilter === "all") {
+          // Load regular user projects
+          const { data, error } = await fetchUserProjects();
+          if (!mounted) return;
+
+          if (error) {
+            console.error("Failed to load user projects:", error);
+            setProjectsError("Failed to load projects. Please try again.");
+            setProjects([]);
+          } else if (data) {
+            setProjects(data);
+          }
+
+          const apiBaseUrl = getApiBaseUrl();
+          const [publishedResponseResult, sharedResponseResult] =
+            await Promise.allSettled([
+              fetch(
+                `${apiBaseUrl}/api/published-templates?userId=${profileData.userId}`,
+                {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                },
+              ),
+              fetch(
+                `${apiBaseUrl}/api/shared-projects?userId=${profileData.userId}`,
+                {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                },
+              ),
+            ]);
+
+          if (!mounted) return;
+
+          if (
+            publishedResponseResult.status === "fulfilled" &&
+            publishedResponseResult.value.ok
+          ) {
+            const publishedData = await publishedResponseResult.value.json();
+            setPublishedTemplates(publishedData.publishedTemplates || []);
+          } else {
+            setPublishedTemplates([]);
+          }
+
+          if (
+            sharedResponseResult.status === "fulfilled" &&
+            sharedResponseResult.value.ok
+          ) {
+            const sharedData = await sharedResponseResult.value.json();
+            setSharedProjects(sharedData.sharedProjects || []);
+          } else {
+            setSharedProjects([]);
+          }
+        } else if (projectsFilter === "published") {
+          const apiBaseUrl = getApiBaseUrl();
+          const response = await fetch(
+            `${apiBaseUrl}/api/published-templates?userId=${profileData.userId}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          if (!mounted) return;
+
+          if (response.ok) {
+            const data = await response.json();
+            setPublishedTemplates(data.publishedTemplates || []);
+            setProjects([]);
+          } else {
+            console.error(
+              "Failed to fetch published templates:",
+              response.statusText,
+            );
+            setPublishedTemplates([]);
+            setProjects([]);
+          }
+        } else if (projectsFilter === "shared") {
+          const apiBaseUrl = getApiBaseUrl();
+          const response = await fetch(
+            `${apiBaseUrl}/api/shared-projects?userId=${profileData.userId}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          if (!mounted) return;
+
+          if (response.ok) {
+            const data = await response.json();
+            setSharedProjects(data.sharedProjects || []);
+            setProjects([]);
+          } else {
+            console.error(
+              "Failed to fetch shared projects:",
+              response.statusText,
+            );
+            setSharedProjects([]);
+            setProjects([]);
+          }
+        }
+      } catch (err) {
+        if (!mounted) return;
+        console.error("Error loading projects:", err);
+        setProjectsError("An error occurred while loading projects.");
+        setProjects([]);
+      } finally {
+        if (mounted) {
+          setProjectsLoading(false);
+        }
+      }
+    };
+
+    loadProjectsByFilter();
+
+    return () => {
+      mounted = false;
+    };
+  }, [projectsFilter, activeSection, profileData.userId]);
+
   // --- AUTH LOGOUT HANDLER ---
   const handleLogout = async () => {
     setAuthLoading(true);
@@ -1298,6 +1481,42 @@ export function Dashboard({
 
       if (refreshedProjects) {
         setProjects(refreshedProjects);
+      }
+
+      if (profileData.userId && projectsFilter === "published") {
+        const apiBaseUrl = getApiBaseUrl();
+        const publishedResponse = await fetch(
+          `${apiBaseUrl}/api/published-templates?userId=${profileData.userId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (publishedResponse.ok) {
+          const publishedData = await publishedResponse.json();
+          setPublishedTemplates(publishedData.publishedTemplates || []);
+        }
+      }
+
+      if (profileData.userId && projectsFilter === "shared") {
+        const apiBaseUrl = getApiBaseUrl();
+        const sharedResponse = await fetch(
+          `${apiBaseUrl}/api/shared-projects?userId=${profileData.userId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (sharedResponse.ok) {
+          const sharedData = await sharedResponse.json();
+          setSharedProjects(sharedData.sharedProjects || []);
+        }
       }
 
       resetEditProjectDialog();
@@ -2133,6 +2352,65 @@ export function Dashboard({
     return `Updated on ${new Date(lastModified).toLocaleDateString()}`;
   };
   const filteredProjects = getFilteredProjects();
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredPublishedTemplates = normalizedSearchQuery
+    ? publishedTemplates.filter((template) =>
+        [
+          template.projects?.project_name,
+          template.projects?.description,
+          template.projects?.category,
+          template.profiles?.full_name,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value).toLowerCase().includes(normalizedSearchQuery),
+          ),
+      )
+    : publishedTemplates;
+  const filteredSharedProjects = normalizedSearchQuery
+    ? sharedProjects.filter((sharedProject) =>
+        [
+          sharedProject.projects?.project_name,
+          sharedProject.projects?.description,
+          sharedProject.projects?.owner_profile?.full_name,
+          sharedProject.role,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value).toLowerCase().includes(normalizedSearchQuery),
+          ),
+      )
+    : sharedProjects;
+  const allProjectsPreview = filteredProjects.slice(0, 10);
+  const isDeployedValue = (value: unknown) =>
+    value === true || value === "true" || value === 1 || value === "1";
+
+  const renderDeploymentStatus = (
+    isPublished?: boolean | null | string | number,
+  ) => {
+    const isDeployed = isDeployedValue(isPublished);
+
+    return (
+      <span
+        className="inline-flex h-5 items-center gap-1 rounded-sm border px-1.5 text-[10px] font-medium leading-none whitespace-nowrap shrink-0"
+        style={{
+          color: isDeployed ? "#15803d" : "#b91c1c",
+          backgroundColor: isDeployed
+            ? "rgba(34, 197, 94, 0.12)"
+            : "rgba(239, 68, 68, 0.12)",
+          borderColor: isDeployed
+            ? "rgba(34, 197, 94, 0.45)"
+            : "rgba(239, 68, 68, 0.45)",
+        }}
+      >
+        <span
+          className="inline-block h-2 w-2 rounded-full shrink-0"
+          style={{ backgroundColor: isDeployed ? "#16a34a" : "#dc2626" }}
+        />
+        {isDeployed ? "Deployed" : "Undeployed"}
+      </span>
+    );
+  };
 
   const handleBrowseAllClick = () => {
     setSelectedTemplateId(null);
@@ -2458,35 +2736,35 @@ export function Dashboard({
 
                         {/* Template Categories Tabs */}
                         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                          {[
-                            "All Templates",
-                            "Landing Pages",
-                            "Components",
-                            "Dashboards",
-                          ].map((category) => (
-                            <Button
-                              key={category}
-                              variant={
-                                selectedTemplateCategory === category
-                                  ? "default"
-                                  : "outline"
-                              }
-                              size="sm"
-                              className="rounded-full whitespace-nowrap"
-                              onClick={() =>
-                                setSelectedTemplateCategory(category)
-                              }
-                            >
-                              {category}
-                            </Button>
-                          ))}
+                          {["All", ...projectCategoryOptions].map(
+                            (category) => (
+                              <Button
+                                key={category}
+                                variant={
+                                  selectedTemplateCategory === category
+                                    ? "default"
+                                    : "outline"
+                                }
+                                size="sm"
+                                className="rounded-full whitespace-nowrap"
+                                onClick={() =>
+                                  setSelectedTemplateCategory(category)
+                                }
+                              >
+                                {category}
+                              </Button>
+                            ),
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                           {visibleRecommendedTemplates
                             .filter(
                               (template) =>
-                                template.id !== "getting-started-guide",
+                                template.id !== "getting-started-guide" &&
+                                (selectedTemplateCategory === "All" ||
+                                  template.category ===
+                                    selectedTemplateCategory),
                             )
                             .map((template) => (
                               <div
@@ -2621,6 +2899,42 @@ export function Dashboard({
                     </div>
                   </div>
 
+                  {/* Pill Navigation - Only show for "all" section */}
+                  {activeSection === "all" && (
+                    <div className="flex items-center gap-2 mb-6">
+                      <button
+                        onClick={() => setProjectsFilter("all")}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "all"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        All
+                      </button>
+                      <button
+                        onClick={() => setProjectsFilter("published")}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "published"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        Published Templates
+                      </button>
+                      <button
+                        onClick={() => setProjectsFilter("shared")}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "shared"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                      >
+                        Shared
+                      </button>
+                    </div>
+                  )}
+
                   {/* Projects Grid/List */}
                   {projectsLoading ? (
                     <div className="flex justify-center items-center p-12">
@@ -2628,6 +2942,493 @@ export function Dashboard({
                       <span className="ml-3 text-lg text-muted-foreground">
                         Loading projects...
                       </span>
+                    </div>
+                  ) : activeSection === "all" && projectsFilter === "all" ? (
+                    <div className="space-y-8">
+                      {allProjectsPreview.length > 0 ? (
+                        <div
+                          className={`grid ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
+                        >
+                          {allProjectsPreview.map((project) => (
+                            <Card
+                              key={project.id}
+                              className="bg-card border-border cursor-pointer transition-all group overflow-hidden hover:border-blue-500/50"
+                              onClick={() =>
+                                onOpenProject(project.id, project.name)
+                              }
+                            >
+                              <CardContent className="p-3">
+                                <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                  <img
+                                    src={
+                                      project.thumbnail || "/placeholder.svg"
+                                    }
+                                    alt={project.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="h-7 w-7 rounded-full bg-violet-500/20 text-violet-500 flex items-center justify-center text-xs font-semibold shrink-0">
+                                      {getDraftCardInitial(project.name)}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <p className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                          {project.name}
+                                        </p>
+                                        {renderDeploymentStatus(
+                                          project.isPublished,
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground line-clamp-1">
+                                        {getRelativeLastModified(
+                                          project.lastModified,
+                                        )}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <Badge
+                                    className={`${getDraftProjectStatus(project.lastModified) === "active" ? "bg-orange-500/90 text-white" : "bg-muted text-muted-foreground"} border-0 rounded-sm px-2 py-0 h-5 text-[10px] uppercase`}
+                                  >
+                                    {getDraftProjectStatus(
+                                      project.lastModified,
+                                    )}
+                                  </Badge>
+
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLButtonElement>,
+                                        ) => e.stopPropagation()}
+                                      >
+                                        <MoreHorizontal className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          openEditProjectDialog(project);
+                                        }}
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Edit project
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleDuplicateProject(project);
+                                        }}
+                                      >
+                                        <Copy className="mr-2 h-4 w-4" />
+                                        Duplicate
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleMoveProjectToStatus(
+                                            project.id,
+                                            "draft",
+                                          );
+                                        }}
+                                      >
+                                        <Folder className="mr-2 h-4 w-4" />
+                                        Move to draft
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          handleMoveProjectToStatus(
+                                            project.id,
+                                            "trash",
+                                          );
+                                        }}
+                                        className="text-red-500"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Move to trash
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <Card className="p-12 text-center bg-card border-dashed">
+                          <div className="flex flex-col items-center justify-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                              <FileText className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <p className="text-muted-foreground text-lg">
+                              {searchQuery
+                                ? "No projects match your search"
+                                : "Create your first project to get started"}
+                            </p>
+                            {!searchQuery && (
+                              <Button
+                                onClick={handleCreateBlankProject}
+                                disabled={projectsLoading}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                {projectsLoading ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Creating...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Create New Project
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
+                      )}
+
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold text-foreground">
+                          Published Templates
+                        </h3>
+                        {filteredPublishedTemplates.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                            {filteredPublishedTemplates.map((template) => (
+                              <Card
+                                key={template.project_id}
+                                className="bg-card border-border cursor-pointer transition-all group overflow-hidden hover:border-blue-500/50"
+                                onClick={() =>
+                                  onOpenProject(
+                                    template.project_id,
+                                    template.projects.project_name,
+                                  )
+                                }
+                              >
+                                <CardContent className="p-3">
+                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                    <img
+                                      src={
+                                        template.projects.thumbnail ||
+                                        "/placeholder.svg"
+                                      }
+                                      alt={template.projects.project_name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <h3 className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                        {template.projects.project_name}
+                                      </h3>
+                                      {renderDeploymentStatus(
+                                        template.projects.is_published,
+                                      )}
+                                    </div>
+
+                                    {template.projects.category && (
+                                      <div>
+                                        <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                                          {template.projects.category}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <p className="text-xs text-muted-foreground line-clamp-1">
+                                      {template.projects.description}
+                                    </p>
+
+                                    <div className="pt-1 border-t border-border/60">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <Avatar className="h-5 w-5 shrink-0">
+                                          <AvatarImage
+                                            src={template.profiles?.avatar_url}
+                                          />
+                                          <AvatarFallback className="text-xs">
+                                            {(
+                                              template.profiles?.full_name ||
+                                              "U"
+                                            ).charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs text-muted-foreground line-clamp-1">
+                                          {template.profiles?.full_name ||
+                                            "Unknown author"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            {searchQuery
+                              ? "No published templates match your search"
+                              : "No published templates yet"}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold text-foreground">
+                          Shared
+                        </h3>
+                        {filteredSharedProjects.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                            {filteredSharedProjects.map((sharedProject) => (
+                              <Card
+                                key={sharedProject.project_id}
+                                className="bg-card border-border cursor-pointer transition-all group overflow-hidden hover:border-blue-500/50"
+                                onClick={() =>
+                                  onOpenProject(
+                                    sharedProject.project_id,
+                                    sharedProject.projects.project_name,
+                                  )
+                                }
+                              >
+                                <CardContent className="p-3">
+                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                    <img
+                                      src={
+                                        sharedProject.projects.thumbnail ||
+                                        "/placeholder.svg"
+                                      }
+                                      alt={sharedProject.projects.project_name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <h3 className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                        {sharedProject.projects.project_name}
+                                      </h3>
+                                      {renderDeploymentStatus(
+                                        sharedProject.projects?.is_published,
+                                      )}
+                                    </div>
+
+                                    <div>
+                                      <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground capitalize">
+                                        {sharedProject.role}
+                                      </span>
+                                    </div>
+
+                                    <p className="text-xs text-muted-foreground line-clamp-1">
+                                      {sharedProject.projects.description}
+                                    </p>
+
+                                    <div className="pt-1 border-t border-border/60">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <Avatar className="h-5 w-5 shrink-0">
+                                          <AvatarImage
+                                            src={
+                                              sharedProject.projects
+                                                .owner_profile?.avatar_url
+                                            }
+                                          />
+                                          <AvatarFallback className="text-xs">
+                                            {(
+                                              sharedProject.projects
+                                                .owner_profile?.full_name || "U"
+                                            ).charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs text-muted-foreground line-clamp-1">
+                                          {sharedProject.projects.owner_profile
+                                            ?.full_name || "Unknown owner"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            {searchQuery
+                              ? "No shared projects match your search"
+                              : "No shared projects yet"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : projectsFilter === "published" &&
+                    filteredPublishedTemplates.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                      {filteredPublishedTemplates.map((template) => (
+                        <Card
+                          key={template.project_id}
+                          className="bg-card border-border cursor-pointer transition-all group overflow-hidden hover:border-blue-500/50"
+                          onClick={() =>
+                            onOpenProject(
+                              template.project_id,
+                              template.projects.project_name,
+                            )
+                          }
+                        >
+                          <CardContent className="p-3">
+                            {/* Thumbnail */}
+                            <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                              <img
+                                src={
+                                  template.projects.thumbnail ||
+                                  "/placeholder.svg"
+                                }
+                                alt={template.projects.project_name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+
+                            {/* Content */}
+                            <div className="space-y-2">
+                              {/* Title */}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <h3 className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                  {template.projects.project_name}
+                                </h3>
+                                {renderDeploymentStatus(
+                                  template.projects.is_published,
+                                )}
+                              </div>
+
+                              {/* Category Badge */}
+                              {template.projects.category && (
+                                <div>
+                                  <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                                    {template.projects.category}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Description */}
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {template.projects.description}
+                              </p>
+
+                              {/* Footer with Author */}
+                              <div className="pt-1 border-t border-border/60">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Avatar className="h-5 w-5 shrink-0">
+                                    <AvatarImage
+                                      src={template.profiles?.avatar_url}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {(
+                                        template.profiles?.full_name || "U"
+                                      ).charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs text-muted-foreground line-clamp-1">
+                                    {template.profiles?.full_name ||
+                                      "Unknown author"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : projectsFilter === "shared" &&
+                    filteredSharedProjects.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                      {filteredSharedProjects.map((sharedProject) => (
+                        <Card
+                          key={sharedProject.project_id}
+                          className="bg-card border-border cursor-pointer transition-all group overflow-hidden hover:border-blue-500/50"
+                          onClick={() =>
+                            onOpenProject(
+                              sharedProject.project_id,
+                              sharedProject.projects.project_name,
+                            )
+                          }
+                        >
+                          <CardContent className="p-3">
+                            {/* Thumbnail */}
+                            <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                              <img
+                                src={
+                                  sharedProject.projects.thumbnail ||
+                                  "/placeholder.svg"
+                                }
+                                alt={sharedProject.projects.project_name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+
+                            {/* Content */}
+                            <div className="space-y-2">
+                              {/* Title */}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <h3 className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                  {sharedProject.projects.project_name}
+                                </h3>
+                                {renderDeploymentStatus(
+                                  sharedProject.projects?.is_published,
+                                )}
+                              </div>
+
+                              {/* Role Badge */}
+                              <div>
+                                <span className="inline-flex items-center rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground capitalize">
+                                  {sharedProject.role}
+                                </span>
+                              </div>
+
+                              {/* Description */}
+                              <p className="text-xs text-muted-foreground line-clamp-1">
+                                {sharedProject.projects.description}
+                              </p>
+
+                              {/* Footer with Owner */}
+                              <div className="pt-1 border-t border-border/60">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Avatar className="h-5 w-5 shrink-0">
+                                    <AvatarImage
+                                      src={
+                                        sharedProject.projects.owner_profile
+                                          ?.avatar_url
+                                      }
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                      {(
+                                        sharedProject.projects.owner_profile
+                                          ?.full_name || "U"
+                                      ).charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs text-muted-foreground line-clamp-1">
+                                    {sharedProject.projects.owner_profile
+                                      ?.full_name || "Unknown owner"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   ) : filteredProjects.length > 0 ? (
                     <div
@@ -2659,9 +3460,14 @@ export function Dashboard({
                                     {getDraftCardInitial(project.name)}
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-foreground line-clamp-1">
-                                      {project.name}
-                                    </p>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <p className="text-sm font-semibold text-foreground line-clamp-1 min-w-0">
+                                        {project.name}
+                                      </p>
+                                      {renderDeploymentStatus(
+                                        project.isPublished,
+                                      )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground line-clamp-1">
                                       {getRelativeLastModified(
                                         project.lastModified,
@@ -2828,9 +3634,12 @@ export function Dashboard({
                                 </div>
                               </div>
                               <CardContent className="p-3">
-                                <h3 className="text-sm text-foreground mb-1 line-clamp-1">
-                                  {project.name}
-                                </h3>
+                                <div className="flex items-center gap-2 min-w-0 mb-1">
+                                  <h3 className="text-sm text-foreground line-clamp-1 min-w-0">
+                                    {project.name}
+                                  </h3>
+                                  {renderDeploymentStatus(project.isPublished)}
+                                </div>
                                 <p className="text-xs text-muted-foreground line-clamp-1">
                                   {project.description}
                                 </p>
@@ -2849,33 +3658,39 @@ export function Dashboard({
                         <p className="text-muted-foreground text-lg">
                           {searchQuery
                             ? "No projects match your search"
-                            : activeSection === "drafts"
-                              ? "No draft projects"
-                              : activeSection === "team"
-                                ? "No team projects"
-                                : activeSection === "trash"
-                                  ? "No deleted projects"
-                                  : "Create your first project to get started"}
+                            : projectsFilter === "published"
+                              ? "No published templates yet"
+                              : projectsFilter === "shared"
+                                ? "No shared projects yet"
+                                : activeSection === "drafts"
+                                  ? "No draft projects"
+                                  : activeSection === "team"
+                                    ? "No team projects"
+                                    : activeSection === "trash"
+                                      ? "No deleted projects"
+                                      : "Create your first project to get started"}
                         </p>
-                        {!searchQuery && activeSection !== "trash" && (
-                          <Button
-                            onClick={handleCreateBlankProject}
-                            disabled={projectsLoading}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            {projectsLoading ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Creating...
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create New Project
-                              </>
-                            )}
-                          </Button>
-                        )}
+                        {!searchQuery &&
+                          activeSection !== "trash" &&
+                          projectsFilter === "all" && (
+                            <Button
+                              onClick={handleCreateBlankProject}
+                              disabled={projectsLoading}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              {projectsLoading ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Create New Project
+                                </>
+                              )}
+                            </Button>
+                          )}
                       </div>
                     </Card>
                   )}
@@ -2973,15 +3788,15 @@ export function Dashboard({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-2xl font-semibold text-foreground line-clamp-1">
-                    {editingProject?.name || "Untitled Project"}
+                    {editProjectName.trim() ||
+                      editingProject?.name ||
+                      "Untitled Project"}
                   </p>
                   <p className="mt-1 text-base text-muted-foreground">
                     Drafts • {getProjectCreatedDateLabel(editingProject)}
                   </p>
                   <Badge variant="outline" className="mt-3 rounded-full">
-                    {normalizeProjectCategory(
-                      editingProject?.category || editProjectCategory,
-                    )}
+                    {normalizeProjectCategory(editProjectCategory)}
                   </Badge>
                 </div>
               </div>
