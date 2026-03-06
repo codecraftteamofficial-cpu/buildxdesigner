@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -59,6 +59,7 @@ import { fetchUserProfile } from "../supabase/data/userProfile";
 import {
   fetchUserProjects,
   saveProject,
+  saveProjectMetadata,
 } from "../supabase/data/projectService";
 import type { Project } from "../supabase/types/project";
 import { getLocalCanvasComponents } from "../supabase/data/projectService";
@@ -193,7 +194,13 @@ const projectCategoryOptions = [
   "Other",
 ];
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const normalizeProjectCategory = (category?: string) => {
+  if (!category) return "Starter";
+  return projectCategoryOptions.includes(category) ? category : "Other";
+};
+
+const API_URL =
+  import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
 
 const getApiBaseCandidates = () => {
   const candidateSet = new Set<string>();
@@ -204,7 +211,6 @@ const getApiBaseCandidates = () => {
   if (inferredApiBase) candidateSet.add(inferredApiBase);
 
   candidateSet.add("http://localhost:4000");
-  candidateSet.add("http://localhost:5000");
 
   return Array.from(candidateSet);
 };
@@ -334,10 +340,18 @@ export function Dashboard({
     Record<string, number>
   >({});
   const [projectLikesRows, setProjectLikesRows] = useState<any[]>([]);
+  const [isApiReachable, setIsApiReachable] = useState(true);
+  const projectLikesFetchErrorLoggedRef = useRef(false);
 
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [pendingDeleteProject, setPendingDeleteProject] =
     useState<Project | null>(null);
+  const [showEditProjectDialog, setShowEditProjectDialog] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editProjectName, setEditProjectName] = useState("");
+  const [editProjectCategory, setEditProjectCategory] = useState("Starter");
+  const [editProjectDescription, setEditProjectDescription] = useState("");
+  const [isSavingProjectEdits, setIsSavingProjectEdits] = useState(false);
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -403,7 +417,11 @@ export function Dashboard({
       ),
       description: String(
         item?.description ??
+          item?.template_description ??
+          item?.project_description ??
+          item?.summary ??
           item?.projects?.description ??
+          item?.projects?.project_description ??
           "No description available",
       ),
       thumbnail: String(
@@ -414,7 +432,12 @@ export function Dashboard({
           "/placeholder.svg",
       ),
       category: String(
-        item?.category ?? item?.projects?.category ?? "Business",
+        item?.category ??
+          item?.template_category ??
+          item?.project_category ??
+          item?.projects?.category ??
+          item?.projects?.project_category ??
+          "Business",
       ),
       premium: Boolean(
         item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
@@ -446,12 +469,31 @@ export function Dashboard({
 
     const fetchPublishedTemplates = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/display-templates`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch templates: ${response.status}`);
+        const apiBases = getApiBaseCandidates();
+        let json: any = null;
+        let lastError: unknown = null;
+
+        for (const base of apiBases) {
+          try {
+            const response = await fetch(`${base}/api/display-templates`);
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch templates from ${base}: ${response.status}`,
+              );
+            }
+
+            json = await response.json();
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
         }
 
-        const json = await response.json();
+        if (!json) {
+          throw lastError ?? new Error("Failed to fetch templates.");
+        }
+
         const payload = Array.isArray(json)
           ? json
           : Array.isArray(json?.templates)
@@ -461,7 +503,9 @@ export function Dashboard({
         if (mounted) {
           setPublishedTemplateCards(payload.map(normalizeTemplateCard));
         }
+        setIsApiReachable(true);
       } catch (error) {
+        setIsApiReachable(false);
         console.error(
           "Failed to load published templates for dashboard:",
           error,
@@ -536,17 +580,25 @@ export function Dashboard({
       setProjectLikesRows(
         Array.isArray(interactionRows) ? interactionRows : [],
       );
+      setIsApiReachable(true);
+      projectLikesFetchErrorLoggedRef.current = false;
     } catch (error) {
-      console.error("Failed to fetch project likes:", error);
+      setIsApiReachable(false);
+      if (!projectLikesFetchErrorLoggedRef.current) {
+        console.error("Failed to fetch project likes:", error);
+        projectLikesFetchErrorLoggedRef.current = true;
+      }
     }
   };
 
   useEffect(() => {
     fetchAndSetProjectLikes();
 
-    const intervalId = window.setInterval(() => {
-      fetchAndSetProjectLikes();
-    }, 15000);
+    const intervalId = isApiReachable
+      ? window.setInterval(() => {
+          fetchAndSetProjectLikes();
+        }, 15000)
+      : null;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -557,10 +609,12 @@ export function Dashboard({
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [isApiReachable]);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -680,8 +734,6 @@ export function Dashboard({
 
     return projectLikeCounts[projectId] ?? template.favorites ?? 0;
   };
-
-
 
   const extractTemplateLayoutFromApiResponse = (
     payload: any,
@@ -897,9 +949,13 @@ export function Dashboard({
   const handleTemplateSelectFromModal = async (
     templateId: string,
     projectName: string,
+    projectCategory: string,
+    projectDescription?: string,
   ) => {
     const trimmedProjectName = projectName.trim();
     if (!trimmedProjectName) return;
+    const normalizedCategory = normalizeProjectCategory(projectCategory);
+    const trimmedDescription = projectDescription?.trim() || "";
 
     const {
       data: { session },
@@ -937,7 +993,10 @@ export function Dashboard({
 
     const newProjectData: Partial<Project> & { user_id: string } = {
       name: trimmedProjectName,
-      description: `Created ${new Date().toLocaleDateString()}`,
+      description:
+        trimmedDescription ||
+        `${normalizedCategory} website · Created ${new Date().toLocaleDateString()}`,
+      category: normalizedCategory,
       thumbnail:
         "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop",
       user_id: user_id,
@@ -969,6 +1028,7 @@ export function Dashboard({
 
   const handleQuickTemplateClick = (template: TemplateCardData) => {
     setSelectedTemplateId(template.id);
+    setShowTemplateBrowser(false);
     setShowCreateTemplateModal(true);
   };
 
@@ -991,12 +1051,14 @@ export function Dashboard({
     const templateComponents = getTemplateComponents(
       selectedTemplateId as string,
     ); // Asserting selectedTemplateId is a string
+    const normalizedCategory = normalizeProjectCategory(newProjectCategory);
 
     const newProjectData: Partial<Project> & { user_id: string } = {
       name: trimmedProjectName,
       description:
         newProjectDescription.trim() ||
-        `${newProjectCategory} website · Created ${new Date().toLocaleDateString()}`,
+        `${normalizedCategory} website · Created ${new Date().toLocaleDateString()}`,
+      category: normalizedCategory,
       thumbnail:
         "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop", // Use a generic default thumbnail
       user_id: user_id,
@@ -1034,7 +1096,7 @@ export function Dashboard({
     }
 
     setProjectName("");
-     setNewProjectDescription("");
+    setNewProjectDescription("");
     setNewProjectCategory("Starter");
   };
 
@@ -1057,6 +1119,7 @@ export function Dashboard({
       const newProjectData: Partial<Project> & { user_id: string } = {
         name: "Untitled Project",
         description: `Created ${new Date().toLocaleDateString()}`,
+        category: "Starter",
         thumbnail:
           "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop",
         user_id: user_id,
@@ -1166,6 +1229,84 @@ export function Dashboard({
   const openDeleteProjectDialog = (project: Project) => {
     setPendingDeleteProject(project);
     setShowDeleteConfirmDialog(true);
+  };
+
+  const getProjectCreatedDateLabel = (project: Project | null) => {
+    if (!project) return "Created recently";
+
+    const rawDate =
+      (project as any)?.createdAt ??
+      (project as any)?.created_at ??
+      project.lastModified;
+
+    if (!rawDate) return "Created recently";
+
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return "Created recently";
+
+    return `Created ${parsed.toLocaleDateString()}`;
+  };
+
+  const openEditProjectDialog = (project: Project) => {
+    setEditingProject(project);
+    setEditProjectName(project.name || "");
+    setEditProjectDescription(project.description || "");
+    setEditProjectCategory(normalizeProjectCategory(project.category));
+    setShowEditProjectDialog(true);
+  };
+
+  const resetEditProjectDialog = () => {
+    setShowEditProjectDialog(false);
+    setEditingProject(null);
+    setEditProjectName("");
+    setEditProjectDescription("");
+    setEditProjectCategory("Starter");
+    setIsSavingProjectEdits(false);
+  };
+
+  const handleSaveProjectEdits = async () => {
+    if (!editingProject) return;
+    if (!currentUserId) {
+      alert("Please log in to edit this project.");
+      return;
+    }
+
+    const trimmedName = editProjectName.trim();
+    if (!trimmedName) return;
+
+    try {
+      setIsSavingProjectEdits(true);
+
+      const { error } = await saveProjectMetadata({
+        id: editingProject.id,
+        user_id: currentUserId,
+        name: trimmedName,
+        description: editProjectDescription.trim(),
+        category: normalizeProjectCategory(editProjectCategory),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const { data: refreshedProjects, error: refreshError } =
+        await fetchUserProjects();
+
+      if (refreshError) {
+        console.error("Failed to refresh projects after edit:", refreshError);
+      }
+
+      if (refreshedProjects) {
+        setProjects(refreshedProjects);
+      }
+
+      resetEditProjectDialog();
+    } catch (error) {
+      console.error("Failed to update project:", error);
+      alert("Failed to update project. Please try again.");
+    } finally {
+      setIsSavingProjectEdits(false);
+    }
   };
 
   const handleMoveProjectToStatus = async (
@@ -1998,6 +2139,11 @@ export function Dashboard({
     setShowCreateTemplateModal(true);
   };
 
+  const handleCreateBlankClick = () => {
+    setSelectedTemplateId("blank");
+    setShowCreateTemplateModal(true);
+  };
+
   const themeIcons = {
     light: Sun,
     dark: Moon,
@@ -2216,7 +2362,7 @@ export function Dashboard({
                   <div className="shrink-0 py-16 px-4">
                     <div className="w-full max-w-4xl mx-auto">
                       <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-foreground mb-8">
-                       What would you like help with?
+                        What would you like help with?
                       </h1>
 
                       <div className="relative max-w-3xl mx-auto">
@@ -2285,15 +2431,30 @@ export function Dashboard({
                           <h2 className="text-2xl font-semibold text-foreground">
                             Recommended Template
                           </h2>
-                          <Button
-                            variant="ghost"
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={handleBrowseAllClick} // Use the new handler
-                          >
-                            Browse all
-                            <ArrowRight className="w-4 h-4 ml-1" />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={handleCreateBlankClick}
+                            >
+                              Create Blank
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={handleBrowseAllClick} // Use the new handler
+                            >
+                              Browse all
+                              <ArrowRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          </div>
                         </div>
+
+                        {!isApiReachable && (
+                          <div className="mb-4 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                            Backend is offline. Showing fallback templates and
+                            pausing live likes until connection is restored.
+                          </div>
+                        )}
 
                         {/* Template Categories Tabs */}
                         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -2349,6 +2510,12 @@ export function Dashboard({
                                   <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
                                     {template.name}
                                   </h3>
+                                  <Badge
+                                    variant="outline"
+                                    className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                  >
+                                    {template.category}
+                                  </Badge>
                                   <p className="text-sm text-muted-foreground mb-3">
                                     {template.description}
                                   </p>
@@ -2370,9 +2537,8 @@ export function Dashboard({
                                       </span>
                                     </div>
 
-                                   {/* Favorites */}
+                                    {/* Favorites */}
                                     <div className="flex items-center gap-3">
-                                   
                                       <button
                                         type="button"
                                         onClick={(event) =>
@@ -2529,6 +2695,17 @@ export function Dashboard({
                                         e: React.MouseEvent<HTMLDivElement>,
                                       ) => {
                                         e.stopPropagation();
+                                        openEditProjectDialog(project);
+                                      }}
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Edit project
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(
+                                        e: React.MouseEvent<HTMLDivElement>,
+                                      ) => {
+                                        e.stopPropagation();
                                         handleDuplicateProject(project);
                                       }}
                                     >
@@ -2610,6 +2787,17 @@ export function Dashboard({
                                       <DropdownMenuItem>
                                         <Eye className="mr-2 h-4 w-4" />
                                         Open
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={(
+                                          e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                          e.stopPropagation();
+                                          openEditProjectDialog(project);
+                                        }}
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Edit project
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={(
@@ -2757,6 +2945,113 @@ export function Dashboard({
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={showEditProjectDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            resetEditProjectDialog();
+            return;
+          }
+          setShowEditProjectDialog(true);
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update your project name, category, and description
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 border-t border-border pt-6 space-y-6">
+            <div className="rounded-xl border border-border p-4">
+              <div className="flex items-start gap-4">
+                <img
+                  src={editingProject?.thumbnail || "/placeholder.svg"}
+                  alt={editingProject?.name || "Project thumbnail"}
+                  className="h-24 w-32 rounded-md object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-2xl font-semibold text-foreground line-clamp-1">
+                    {editingProject?.name || "Untitled Project"}
+                  </p>
+                  <p className="mt-1 text-base text-muted-foreground">
+                    Drafts • {getProjectCreatedDateLabel(editingProject)}
+                  </p>
+                  <Badge variant="outline" className="mt-3 rounded-full">
+                    {normalizeProjectCategory(
+                      editingProject?.category || editProjectCategory,
+                    )}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editProjectName">Project Name</Label>
+              <Input
+                id="editProjectName"
+                placeholder="My Awesome Website"
+                value={editProjectName}
+                onChange={(e) => setEditProjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editProjectName.trim()) {
+                    handleSaveProjectEdits();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editProjectCategory">Project Category</Label>
+              <select
+                id="editProjectCategory"
+                value={editProjectCategory}
+                onChange={(e) => setEditProjectCategory(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {projectCategoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editProjectDescription">
+                Project Description (Optional)
+              </Label>
+              <Textarea
+                id="editProjectDescription"
+                placeholder="Describe your website (optional)..."
+                value={editProjectDescription}
+                onChange={(e) => setEditProjectDescription(e.target.value)}
+                className="min-h-[96px]"
+              />
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              You can change this later in project settings.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={resetEditProjectDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveProjectEdits}
+              disabled={!editProjectName.trim() || isSavingProjectEdits}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isSavingProjectEdits ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Name Project Dialog */}
       <Dialog
         open={showNameProjectDialog}
@@ -2786,7 +3081,7 @@ export function Dashboard({
               />
             </div>
 
-              <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="projectCategory">Project Category</Label>
               <select
                 id="projectCategory"
@@ -2813,8 +3108,6 @@ export function Dashboard({
                 className="min-h-[96px]"
               />
             </div>
-
-
           </div>
           <DialogFooter>
             <Button
@@ -2822,7 +3115,7 @@ export function Dashboard({
               onClick={() => {
                 setShowNameProjectDialog(false);
                 setProjectName("");
-                  setNewProjectDescription("");
+                setNewProjectDescription("");
                 setNewProjectCategory("Starter");
               }}
             >
@@ -2864,7 +3157,7 @@ export function Dashboard({
           prefetchTemplateLayout(templateId);
         }}
         onTrackSearch={(query) => console.log("Search:", query)}
-        recommendedTemplates={recommendedTemplates}
+        recommendedTemplates={visibleRecommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
       />
     </div>

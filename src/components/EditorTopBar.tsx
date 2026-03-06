@@ -73,8 +73,10 @@ import { createClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { PageSelector } from "./PageSelector";
 import { useNavigate } from "react-router-dom";
+import { getApiBaseUrl } from "../utils/apiConfig";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL =
+  import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
 
 interface EditorTopBarProps {
   viewMode: "design" | "code";

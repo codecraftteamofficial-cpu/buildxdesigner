@@ -53,7 +53,7 @@ export async function fetchProjectById(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
+        "projects_id, project_name, description, category, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("projects_id", id)
       .eq("user_id", user?.id) // Security filter
@@ -65,6 +65,7 @@ export async function fetchProjectById(
       id: data.projects_id,
       name: data.project_name,
       description: data.description || "",
+      category: data.category || "Starter",
       thumbnail: data.thumbnail || "",
       lastModified: data.last_modified,
       type: data.type as Project["type"],
@@ -100,7 +101,7 @@ export async function fetchUserProjects(): Promise<{
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
+        "projects_id, project_name, description, category, thumbnail, last_modified, type, status, user_id, created_at, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("user_id", user.id) // ONLY fetch the logged-in user's projects
 
@@ -112,6 +113,7 @@ export async function fetchUserProjects(): Promise<{
       id: item.projects_id,
       name: item.project_name,
       description: item.description || "",
+      category: item.category || "Starter",
       thumbnail: item.thumbnail || "",
       lastModified: item.last_modified,
       type: item.type as Project["type"],
@@ -145,6 +147,7 @@ export async function saveProject(
   const payload: any = {
     project_name: project.name,
     description: project.description,
+    category: project.category,
     thumbnail: project.thumbnail,
     user_id: project.user_id,
     type: project.type,
@@ -203,6 +206,7 @@ export async function saveProject(
       id: row.projects_id,
       name: row.project_name,
       description: row.description || "",
+      category: row.category || "Starter",
       thumbnail: row.thumbnail || "",
       lastModified: row.last_modified,
       type: row.type,
@@ -223,6 +227,7 @@ export async function saveProjectMetadata(metadata: {
   id: string;
   name?: string;
   description?: string;
+  category?: string;
   thumbnail?: string;
   user_id: string;
   project_layout?: any[];
@@ -238,6 +243,7 @@ export async function saveProjectMetadata(metadata: {
     if (metadata.name !== undefined) payload.project_name = metadata.name;
     if (metadata.description !== undefined)
       payload.description = metadata.description;
+    if (metadata.category !== undefined) payload.category = metadata.category;
     if (metadata.thumbnail !== undefined)
       payload.thumbnail = metadata.thumbnail;
     if (metadata.project_layout !== undefined)

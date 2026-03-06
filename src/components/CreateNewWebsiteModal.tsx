@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Search, X, Sparkles, Heart } from "lucide-react";
+import { getApiBaseUrl } from "../utils/apiConfig";
+import { getSupabaseSession } from "../supabase/auth/authService";
 
 interface Template {
   id: string;
@@ -51,6 +53,15 @@ interface CreateNewWebsiteModalProps {
   onTrackSearch: (query: string) => void;
   recommendedTemplates?: Template[];
   initialTemplateId?: string | null;
+}
+
+interface TemplateComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userComment: string;
+  createdAt: string;
+  userAvatar?: string;
 }
 
 const templates: Template[] = [
@@ -245,7 +256,6 @@ const templates: Template[] = [
   },
 ];
 
-
 const categories = [
   "All",
   "Blank",
@@ -270,7 +280,38 @@ const projectCategoryOptions = [
   "Landing Page",
   "Other",
 ];
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+const normalizeProjectCategory = (category?: string) => {
+  if (!category) return "Starter";
+  return projectCategoryOptions.includes(category) ? category : "Other";
+};
+const API_URL =
+  import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
+
+const joinApiUrl = (base: string, path: string) => {
+  const normalizedBase = base.replace(/\/+$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+};
+
+const fetchWithPathFallback = async (paths: string[], init?: RequestInit) => {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      const response = await fetch(joinApiUrl(API_URL, path), init);
+      if (!response.ok) {
+        throw new Error(`Request failed for ${path}: ${response.status}`);
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("Request failed for all route candidates.");
+};
 
 export function CreateNewWebsiteModal({
   isOpen,
@@ -285,7 +326,7 @@ export function CreateNewWebsiteModal({
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [projectName, setProjectName] = useState("");
 
-    const [projectCategory, setProjectCategory] = useState("Starter");
+  const [projectCategory, setProjectCategory] = useState("Starter");
   const [projectDescription, setProjectDescription] = useState("");
 
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
@@ -294,6 +335,15 @@ export function CreateNewWebsiteModal({
   const [showNameInput, setShowNameInput] = useState(false);
   const [projectTemplates, setProjectTemplates] = useState<Template[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [templateComments, setTemplateComments] = useState<TemplateComment[]>(
+    [],
+  );
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const isBlankTemplateSelected = selectedTemplate?.id === "blank";
 
   // 1. We sync state DURING the render phase instead of waiting for a useEffect.
   // This calculates the correct view BEFORE the browser paints, completely eliminating the flash on open.
@@ -322,7 +372,11 @@ export function CreateNewWebsiteModal({
       ),
       description: String(
         item?.description ??
+          item?.template_description ??
+          item?.project_description ??
+          item?.summary ??
           item?.projects?.description ??
+          item?.projects?.project_description ??
           "No description available",
       ),
       thumbnail: String(
@@ -333,7 +387,12 @@ export function CreateNewWebsiteModal({
           "/placeholder.svg",
       ),
       category: String(
-        item?.category ?? item?.projects?.category ?? "Business",
+        item?.category ??
+          item?.template_category ??
+          item?.project_category ??
+          item?.projects?.category ??
+          item?.projects?.project_category ??
+          "Business",
       ),
       premium: Boolean(
         item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
@@ -396,20 +455,209 @@ export function CreateNewWebsiteModal({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCurrentUser = async () => {
+      const {
+        data: { session },
+      } = await getSupabaseSession();
+
+      if (!mounted) return;
+      setCurrentUserId(session?.user?.id ?? null);
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const normalizeCommentsPayload = (payload: any): TemplateComment[] => {
+    const rows = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.comments)
+        ? payload.comments
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : [];
+
+    return rows.map((item: any, index: number) => {
+      const commentText = String(
+        item?.userComment ?? item?.user_comment ?? item?.comment ?? "",
+      ).trim();
+
+      return {
+        id: String(
+          item?.id ?? item?._id ?? item?.comment_id ?? `comment-${index}`,
+        ),
+        userId: String(
+          item?.userId ??
+            item?.user_id ??
+            item?.profiles?.user_id ??
+            item?.profiles?.id ??
+            "",
+        ),
+        userName: String(
+          item?.userName ??
+            item?.user_name ??
+            item?.profiles?.full_name ??
+            item?.full_name ??
+            "Anonymous",
+        ),
+        userComment: commentText,
+        createdAt: String(
+          item?.createdAt ??
+            item?.created_at ??
+            item?.timestamp ??
+            item?.commented_at ??
+            "",
+        ),
+        userAvatar: item?.avatarUrl
+          ? String(item.avatarUrl)
+          : item?.avatar_url
+            ? String(item.avatar_url)
+            : item?.profiles?.avatar_url
+              ? String(item.profiles.avatar_url)
+              : "",
+      };
+    });
+  };
+
+  const fetchTemplateComments = async (projectId: string) => {
+    setIsLoadingComments(true);
+    setCommentsError(null);
+
+    try {
+      const encodedProjectId = encodeURIComponent(projectId);
+      const response = await fetchWithPathFallback(
+        [
+          `/api/fetch-comments/${encodedProjectId}`,
+          `/fetch-comments/${encodedProjectId}`,
+          `/api/fetch-comments?projectId=${encodedProjectId}`,
+          `/fetch-comments?projectId=${encodedProjectId}`,
+        ],
+        {
+          method: "GET",
+        },
+      );
+
+      const payload = await response.json();
+      setTemplateComments(normalizeCommentsPayload(payload));
+    } catch (error) {
+      console.error("Failed to fetch template comments:", error);
+      setCommentsError("Failed to load comments.");
+      setTemplateComments([]);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showNameInput || !selectedTemplate?.id || isBlankTemplateSelected) {
+      setTemplateComments([]);
+      setCommentsError(null);
+      return;
+    }
+
+    fetchTemplateComments(selectedTemplate.id);
+  }, [showNameInput, selectedTemplate?.id, isBlankTemplateSelected]);
+
+  const handleSubmitComment = async () => {
+    const trimmedComment = newComment.trim();
+    const projectId = selectedTemplate?.id;
+
+    if (
+      !projectId ||
+      !trimmedComment ||
+      isSubmittingComment ||
+      isBlankTemplateSelected
+    ) {
+      return;
+    }
+
+    if (!currentUserId) {
+      setCommentsError("Please log in to submit a comment.");
+      return;
+    }
+
+    setIsSubmittingComment(true);
+    setCommentsError(null);
+
+    try {
+      const encodedProjectId = encodeURIComponent(projectId);
+
+      await fetchWithPathFallback(
+        [
+          `/api/insert-comment/${encodedProjectId}`,
+          `/insert-comment/${encodedProjectId}`,
+          "/api/insert-comment",
+          "/insert-comment",
+        ],
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId,
+            userId: currentUserId,
+            userComment: trimmedComment,
+          }),
+        },
+      );
+
+      setNewComment("");
+      await fetchTemplateComments(projectId);
+    } catch (error) {
+      console.error("Failed to submit comment:", error);
+      setCommentsError("Failed to submit comment.");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const getRelativeCommentTime = (value: string) => {
+    if (!value) return "";
+
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) return "";
+
+    const minutes = Math.floor((Date.now() - timestamp) / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+
+    return new Date(value).toLocaleDateString();
+  };
+
   const availableTemplates =
     projectTemplates.length > 0 ? projectTemplates : templates;
+
+  const resolveProjectCategory = (template: Template) =>
+    normalizeProjectCategory(
+      template.id === "blank" ? "Starter" : template.category,
+    );
 
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
     if (isOpen) {
       if (initialTemplateId) {
-        const allTemplates = [...availableTemplates, ...recommendedTemplates];
+        const allTemplates = [
+          ...availableTemplates,
+          ...recommendedTemplates,
+          ...templates,
+        ];
         const template = allTemplates.find((t) => t.id === initialTemplateId);
         if (template) {
           setSelectedTemplate(template);
           setProjectName(`My ${template.name}`);
 
-          setProjectCategory(template.category || "Starter");
+          setProjectCategory(resolveProjectCategory(template));
           setProjectDescription("");
           setShowNameInput(true);
         }
@@ -418,7 +666,7 @@ export function CreateNewWebsiteModal({
         setShowNameInput(false);
         setSelectedTemplate(null);
         setProjectName("");
-         setProjectCategory("Starter");
+        setProjectCategory("Starter");
         setProjectDescription("");
         setSearchQuery("");
         setSelectedCategory("All");
@@ -452,14 +700,17 @@ export function CreateNewWebsiteModal({
     setSelectedTemplate(template);
     onTemplateChange?.(template.id);
     setProjectName(`My ${template.name}`);
-    setProjectCategory(template.category || "Starter");
+    setProjectCategory(resolveProjectCategory(template));
     setProjectDescription("");
+    setNewComment("");
+    setTemplateComments([]);
+    setCommentsError(null);
     setShowNameInput(true);
   };
 
   const handleCreateProject = () => {
     if (selectedTemplate && projectName.trim()) {
-     onSelectTemplate(
+      onSelectTemplate(
         selectedTemplate.id,
         projectName,
         projectCategory,
@@ -475,7 +726,10 @@ export function CreateNewWebsiteModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[99vw] max-w-[99vw] sm:max-w-[11000px] max-h-[95vh] p-0 overflow-auto">
+      <DialogContent
+        className="max-h-[95vh] p-0 overflow-auto"
+        style={{ width: "min(1000px, 98vw)", maxWidth: "98vw" }}
+      >
         {!showNameInput ? (
           <>
             <DialogHeader className="px-6 pt-6 pb-4 border-b">
@@ -534,7 +788,7 @@ export function CreateNewWebsiteModal({
                         <Sparkles className="w-5 h-5 text-violet-600" />
                         Recommended Template
                       </h3>
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                         {recommendedTemplates.slice(0, 3).map((template) => (
                           <Card
                             key={template.id}
@@ -584,7 +838,6 @@ export function CreateNewWebsiteModal({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                
                                   <div className="flex items-center gap-1">
                                     <Heart className="w-3.5 h-3.5" />
                                     <span>{template.favorites || 0}</span>
@@ -608,7 +861,7 @@ export function CreateNewWebsiteModal({
                     </div>
                   )}
                   {filteredTemplates.length > 0 ? (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                       {filteredTemplates.map((template) => (
                         <Card
                           key={template.id}
@@ -649,7 +902,6 @@ export function CreateNewWebsiteModal({
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                               
                                 <div className="flex items-center gap-1">
                                   <Heart className="w-3.5 h-3.5" />
                                   <span>{template.favorites || 0}</span>
@@ -686,7 +938,6 @@ export function CreateNewWebsiteModal({
             </DialogHeader>
 
             <div className="p-6 space-y-6">
-
               {selectedTemplate && (
                 <Card className="border-2">
                   <div className="flex items-start gap-4 p-4">
@@ -711,8 +962,7 @@ export function CreateNewWebsiteModal({
                   </div>
                 </Card>
               )}
-            
-          
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Project Name</label>
                 <Input
@@ -722,12 +972,14 @@ export function CreateNewWebsiteModal({
                   className="h-12 text-base"
                   autoFocus
                 />
-
-                 </div>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Project Category</label>
-                <Select value={projectCategory} onValueChange={setProjectCategory}>
+                <Select
+                  value={projectCategory}
+                  onValueChange={setProjectCategory}
+                >
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -742,7 +994,9 @@ export function CreateNewWebsiteModal({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Project Description (Optional)</label>
+                <label className="text-sm font-medium">
+                  Project Description (Optional)
+                </label>
                 <Textarea
                   placeholder="Describe your website (optional)..."
                   value={projectDescription}
@@ -755,8 +1009,79 @@ export function CreateNewWebsiteModal({
                 </p>
               </div>
 
+              {!isBlankTemplateSelected && (
+                <div className="space-y-3 border-t pt-4">
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Write a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="min-h-[80px] text-sm"
+                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-muted-foreground">
+                        Share feedback about this template.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSubmitComment}
+                        disabled={!newComment.trim() || isSubmittingComment}
+                      >
+                        {isSubmittingComment
+                          ? "Submitting..."
+                          : "Submit Comment"}
+                      </Button>
+                    </div>
+                    {commentsError && (
+                      <p className="text-xs text-red-500">{commentsError}</p>
+                    )}
+                  </div>
+                  <label className="text-sm font-medium">Comments</label>
+
+                  <div className="max-h-48 overflow-y-auto space-y-3 rounded-md border p-3 bg-muted/20">
+                    {isLoadingComments ? (
+                      <p className="text-sm text-muted-foreground">
+                        Loading comments...
+                      </p>
+                    ) : templateComments.length > 0 ? (
+                      templateComments.map((comment) => (
+                        <div key={comment.id} className="space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={
+                                  comment.userAvatar ||
+                                  "https://api.dicebear.com/7.x/initials/svg?seed=User"
+                                }
+                                alt={comment.userName || "Anonymous"}
+                                className="w-6 h-6 rounded-full object-cover shrink-0"
+                              />
+                              <p className="text-xs font-medium text-foreground truncate">
+                                {comment.userName || "Anonymous"}
+                              </p>
+                            </div>
+                            {comment.createdAt && (
+                              <p className="text-[11px] text-muted-foreground shrink-0">
+                                {getRelativeCommentTime(comment.createdAt)}
+                              </p>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground break-words">
+                            {comment.userComment}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No comments yet. Be the first to comment.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-3 pt-4">
-               
                 <Button
                   onClick={handleCreateProject}
                   disabled={!projectName.trim()}
