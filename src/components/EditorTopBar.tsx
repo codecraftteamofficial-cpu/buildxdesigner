@@ -115,6 +115,7 @@ interface EditorTopBarProps {
   onSwitchPage?: (pageId: string) => void;
   onAddPage?: (name: string, path: string) => void;
   onDeletePage?: (pageId: string) => void;
+  onStartTour?: () => void;
 }
 
 interface ProjectCollaborator {
@@ -241,6 +242,7 @@ export function EditorTopBar({
   onSwitchPage,
   onAddPage,
   onDeletePage,
+  onStartTour,
 }: EditorTopBarProps) {
   const navigate = useNavigate();
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
@@ -1579,6 +1581,15 @@ export function EditorTopBar({
               <Keyboard className="w-4 h-4 mr-2" />
               Keyboard Shortcuts
             </DropdownMenuItem>
+            {onStartTour && (
+              <DropdownMenuItem
+                onClick={onStartTour}
+                className="cursor-pointer"
+              >
+                <Info className="w-4 h-4 mr-2" />
+                Start Tour
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
               Theme

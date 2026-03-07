@@ -36,9 +36,10 @@ import { GetOut } from "./UnexpectedEntry/UnexpectedEntry";
 
 interface EditorLayoutProps {
   editor: ReturnType<typeof useEditorState>;
+  onStartTour?: () => void;
 }
 
-export function EditorLayout({ editor }: EditorLayoutProps) {
+export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
   const {
     state,
     setState,
@@ -178,6 +179,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onSwitchPage={editor.switchPage}
             onAddPage={canEditProject ? editor.addPage : undefined}
             onDeletePage={canEditProject ? editor.deletePage : undefined}
+            onStartTour={onStartTour}
             currentProject={{
               id: state.currentProjectId!,
               name: state.projectName,

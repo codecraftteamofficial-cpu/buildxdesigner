@@ -12,7 +12,7 @@
  *   - src/components/EditorLayout.tsx -> The full editor view (canvas, sidebars, modals)
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Monitor, Smartphone } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { useIsMobile } from "./components/ui/use-mobile";
@@ -36,6 +36,7 @@ import { OnboardingPage } from "./components/OnboardingPage";
 import { GetOut } from "./components/UnexpectedEntry/UnexpectedEntry";
 import LoginAuthSessionChecker from "./services/useAuthenticator";
 import { CollaborationServiceProvider } from "./services/useCollaboration";
+import { MultiStepTour } from "./components/Guides/MultiStepTour";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -70,11 +71,51 @@ const getPathFromState = (view: string, projectId: string | null) => {
   }
 };
 
+const EDITOR_TOUR_STEPS = [
+  {
+    title: "Welcome to BuildX Designer! 🎉",
+    description: "Let's take a quick tour to get you started with building your first website.",
+  },
+  {
+    element: "#sidebar-palette",
+    title: "Components Palette",
+    description: "This is your toolbox! Drag any component from here onto the canvas to start building your website.",
+    side: "right" as const,
+    align: "start" as const,
+  },
+  {
+    element: "#canvas-area",
+    title: "Canvas Area",
+    description: "This is your workspace. Drop components here, resize them, and arrange them to create your layout.",
+    side: "top" as const,
+    align: "center" as const,
+  },
+  {
+    element: "#properties-panel",
+    title: "Properties Panel",
+    description: "Click on any component on the canvas to edit its properties here - change colors, text, spacing, and more!",
+    side: "left" as const,
+    align: "start" as const,
+  },
+  {
+    element: "#toolbar-top",
+    title: "Toolbar",
+    description: "Use these tools to undo, redo, preview your site, and export your work when you're done.",
+    side: "bottom" as const,
+    align: "center" as const,
+  },
+  {
+    title: "You're Ready! 🎉",
+    description: "That's it! Start creating by dragging components onto the canvas. Have fun building!",
+  },
+];
+
 function AppRoutes({ editor }: { editor: EditorController }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isSyncingFromPath = useRef(false);
   const isInitialMount = useRef(true);
+  const [showEditorTour, setShowEditorTour] = useState(false);
 
   const {
     state,
@@ -428,26 +469,56 @@ function AppRoutes({ editor }: { editor: EditorController }) {
           ) : state.projectIsPublic === false && !state.projectCanView ? (
             <Navigate to={privateAccessPath} replace />
           ) : (
-            <EditorLayout
-              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
-            />
+            <>
+              <EditorLayout
+                editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+                onStartTour={() => setShowEditorTour(true)}
+              />
+              <MultiStepTour
+                steps={EDITOR_TOUR_STEPS}
+                showOnMount={showEditorTour}
+                onComplete={() => setShowEditorTour(false)}
+                showProgress={true}
+                showButtons={["next", "previous", "close"]}
+              />
+            </>
           )
         }
       />
       <Route
         path="/editor"
         element={
-          <EditorLayout
-            editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
-          />
+          <>
+            <EditorLayout
+              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+              onStartTour={() => setShowEditorTour(true)}
+            />
+            <MultiStepTour
+              steps={EDITOR_TOUR_STEPS}
+              showOnMount={showEditorTour}
+              onComplete={() => setShowEditorTour(false)}
+              showProgress={true}
+              showButtons={["next", "previous", "close"]}
+            />
+          </>
         }
       />
       <Route
         path="/editor/:projectId/*"
         element={
-          <EditorLayout
-            editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
-          />
+          <>
+            <EditorLayout
+              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+              onStartTour={() => setShowEditorTour(true)}
+            />
+            <MultiStepTour
+              steps={EDITOR_TOUR_STEPS}
+              showOnMount={showEditorTour}
+              onComplete={() => setShowEditorTour(false)}
+              showProgress={true}
+              showButtons={["next", "previous", "close"]}
+            />
+          </>
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />

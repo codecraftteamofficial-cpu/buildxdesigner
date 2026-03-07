@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
+import {useEffect, useRef} from "react";
+import {TourGuide} from "./Guides/Highlight";
+
 
 interface BlocksPaletteProps {
   onSelectBlock: (block: ComponentData) => void;
@@ -70,6 +73,7 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
     {
       name: 'Basic Elements',
       icon: <Type className="w-4 h-4" />,
+      id: 'elements',
       blocks: [
         {
           id: 'text',
@@ -416,7 +420,8 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col"
+      id="blocks-palette">
       <CardHeader className="pb-3 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
