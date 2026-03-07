@@ -114,6 +114,27 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
     ? state.components.find((c) => c.id === state.selectedComponent) || null
     : null;
 
+  // ── Layer reorder handler ─────────────────────────────────────────────────
+  // Called by LayerPanel when user drags a layer to a new position.
+  // Rebuilds the components array in the new order and persists it.
+  const handleReorderLayers = (orderedIds: string[]) => {
+    if (!canEditProject) return;
+    const idToComp = new Map(state.components.map((c: ComponentData) => [c.id, c]));
+    const reordered = orderedIds
+      .map((id) => idToComp.get(id))
+      .filter(Boolean) as ComponentData[];
+    // Include any components not in orderedIds (safety net)
+    const seen = new Set(orderedIds);
+    const extras = state.components.filter((c: ComponentData) => !seen.has(c.id));
+    const newComponents = [...reordered, ...extras];
+    replaceComponents(newComponents);
+    setState((prev: any) => ({
+      ...prev,
+      components: newComponents,
+      hasUnsavedChanges: true,
+    }));
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <TooltipProvider>
@@ -141,13 +162,13 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onManualSave={canEditProject ? handleManualSave : undefined}
             onPublishTemplate={handlePublishTemplate}
             onProjectVisibilityChange={(isPublic: boolean) => {
-              setState((prev) => ({
+              setState((prev: any) => ({
                 ...prev,
                 projectIsPublic: isPublic,
               }));
             }}
             onTemplatePublishedChange={(published: boolean) => {
-              setState((prev) => ({
+              setState((prev: any) => ({
                 ...prev,
                 projectTemplatePublished: published,
               }));
@@ -170,7 +191,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
               siteLogoUrl: state.siteLogoUrl,
             }}
             onPublishSuccess={(subdomain: string) => {
-              setState((prev) => ({
+              setState((prev: any) => ({
                 ...prev,
                 projectSubdomain: subdomain,
                 projectIsPublished: true,
@@ -184,7 +205,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             {!state.isLeftSidebarVisible && (
               <button
                 onClick={() =>
-                  setState((prev) => ({ ...prev, isLeftSidebarVisible: true }))
+                  setState((prev: any) => ({ ...prev, isLeftSidebarVisible: true }))
                 }
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-50 bg-card border border-l-0 border-border p-1 rounded-r-md shadow-sm hover:bg-accent transition-colors"
                 title="Show Left Sidebar"
@@ -206,10 +227,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             >
               {state.isLeftSidebarVisible && (
                 <>
-                  {/* SYMMETRY BUTTON: Positioned top-right to match Right Sidebar's top-left */}
                   <button
                     onClick={() =>
-                      setState((prev) => ({
+                      setState((prev: any) => ({
                         ...prev,
                         isLeftSidebarVisible: false,
                       }))
@@ -220,11 +240,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                     <ChevronLeft className="w-10 h-4" />
                   </button>
 
-                  {/* Sidebar Content: pt-0 ensures no extra top space */}
                   <div className="flex-1 overflow-auto h-full pt-0">
                     <Sidebar
                       onAddComponent={canEditProject ? addComponent : () => {}}
-                      // REMOVED onToggle here because we handle it in the layout now
                       components={state.components}
                       selectedId={state.selectedComponent}
                       onSelect={selectComponent}
@@ -232,6 +250,8 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                       onReorder={canEditProject ? reorderComponent : () => {}}
                       onMoveLayer={canEditProject ? editor.moveLayer : () => {}}
                       activePageId={state.activePageId}
+                      // ↓ Wire up drag-to-reorder in the layer panel
+                      onReorderLayers={canEditProject ? handleReorderLayers : undefined}
                     />
                   </div>
                 </>
@@ -296,13 +316,12 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                       <CodeViewEditor
                         components={state.components}
                         projectName={state.projectName}
-                        // PASS THESE NEW PROPS:
                         pages={state.pages}
                         activePageId={state.activePageId}
                         onCodeChange={(newComponents) => {
                           if (!canEditProject) return;
                           replaceComponents(newComponents);
-                          setState((prev) => ({
+                          setState((prev: any) => ({
                             ...prev,
                             components: newComponents,
                             hasUnsavedChanges: true,
@@ -332,7 +351,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             {!state.isRightSidebarVisible && (
               <button
                 onClick={() =>
-                  setState((prev) => ({ ...prev, isRightSidebarVisible: true }))
+                  setState((prev: any) => ({ ...prev, isRightSidebarVisible: true }))
                 }
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-50 bg-card border border-r-0 border-border p-1 rounded-l-md shadow-sm hover:bg-accent transition-colors"
                 title="Show Right Sidebar"
@@ -356,7 +375,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                 <>
                   <button
                     onClick={() =>
-                      setState((prev) => ({
+                      setState((prev: any) => ({
                         ...prev,
                         isRightSidebarVisible: false,
                       }))
@@ -371,7 +390,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                     <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1 rounded-lg">
                       <button
                         onClick={() =>
-                          setState((prev) => ({
+                          setState((prev: any) => ({
                             ...prev,
                             rightSidebarTab: "properties",
                           }))
@@ -387,7 +406,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                       </button>
                       <button
                         onClick={() =>
-                          setState((prev) => ({
+                          setState((prev: any) => ({
                             ...prev,
                             rightSidebarTab: "ai-assistant",
                           }))
@@ -429,7 +448,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                         onUpdateStyle={(id, style) => {
                           if (!canEditProject) return;
                           const component = state.components.find(
-                            (c) => c.id === id,
+                            (c: ComponentData) => c.id === id,
                           );
                           if (component) {
                             updateComponent(id, {
@@ -440,7 +459,7 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
                         onUpdateLayout={(id, layout) => {
                           if (!canEditProject) return;
                           const component = state.components.find(
-                            (c) => c.id === id,
+                            (c: ComponentData) => c.id === id,
                           );
                           if (component) {
                             const newStyle: Record<string, any> = {
@@ -544,11 +563,9 @@ export function EditorLayout({ editor }: EditorLayoutProps) {
             onUpdateComponent={canEditProject ? updateComponent : () => {}}
             isOpen={state.showMobileProperties}
             onClose={() =>
-              setState((prev) => ({ ...prev, showMobileProperties: false }))
+              setState((prev: any) => ({ ...prev, showMobileProperties: false }))
             }
           />
-
-          {/* PublishModal removed - publishing is handled by EditorTopBar's PublishSiteModal */}
 
           {state.showShareModal && (
             <ShareModal

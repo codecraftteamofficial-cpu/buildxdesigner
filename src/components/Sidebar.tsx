@@ -62,11 +62,12 @@ interface SidebarProps {
   onToggle?: () => void
   components: ComponentData[]
   selectedId: string | null
-  onSelect: (component: ComponentData | null) => void 
+  onSelect: (component: ComponentData | null) => void
   onDelete: (id: string) => void
   onReorder: (id: string, direction: 'front' | 'back') => void
   onMoveLayer: (id: string, action: 'forward' | 'backward') => void
-  activePageId: string // New prop to track the current page
+  activePageId: string
+  onReorderLayers?: (orderedIds: string[]) => void
 }
 
 export function Sidebar({ 
@@ -78,11 +79,11 @@ export function Sidebar({
   onDelete,
   onReorder,
   onMoveLayer,
-  activePageId
+  activePageId,
+  onReorderLayers,
 }: SidebarProps) {
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Filter layers to only show components belonging to the active page
   const filteredLayers = components.filter(c => 
     c.page_id === activePageId || 
     c.page_id === 'all' || 
@@ -196,9 +197,10 @@ export function Sidebar({
           </div>
         </TabsContent>
 
+        {/* ✅ FIXED: onReorderLayers is now passed down to LayerPanel */}
         <TabsContent value="layers" className="flex-1 mt-0 border-0 overflow-hidden">
-          <LayerPanel 
-            components={filteredLayers} // Only pass components for the active page
+          <LayerPanel
+            components={filteredLayers}
             selectedId={selectedId}
             onSelect={(id) => {
               const component = components.find(c => c.id === id) || null;
@@ -207,6 +209,7 @@ export function Sidebar({
             onDelete={onDelete}
             onReorder={onReorder}
             onMoveLayer={onMoveLayer}
+            onReorderLayers={onReorderLayers}
           />
         </TabsContent>
       </Tabs>

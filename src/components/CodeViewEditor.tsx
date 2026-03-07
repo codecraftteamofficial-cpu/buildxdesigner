@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { generateProjectFiles, slugify } from "../lib/code-generator"
+import { nestComponents } from "../lib/nestComponents"
 
 // --- VS CODE DARK MODERN THEME ---
 const customSyntaxTheme = {
@@ -165,7 +166,6 @@ function parseCSSToStyleUpdates(
   cssCode: string
 ): Map<string, Record<string, any>> {
   const updates = new Map<string, Record<string, any>>()
-  // Selector is always .comp-{sanitizedId} — only hyphens, letters, digits
   const ruleRegex = /\.(comp-[a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g
   for (const m of cssCode.matchAll(ruleRegex)) {
     const sanitizedId = m[1].replace(/^comp-/, "")
@@ -179,8 +179,6 @@ function parseCSSToStyleUpdates(
       const value = t.slice(ci + 1).trim()
       if (!prop || !value) continue
       const camel = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-      // Keep the raw string value — do NOT strip px or convert to number.
-      // PropertiesPanel expects strings like "16px", not numbers like 16.
       style[camel] = value
     }
     if (Object.keys(style).length > 0) updates.set(sanitizedId, style)
@@ -189,27 +187,23 @@ function parseCSSToStyleUpdates(
 }
 
 function extractShortId(cls: string): string | null {
-  // First class is always comp-{sanitizedId}.
-  // Extract the sanitized ID — we match against sanitized IDs in applyUpdates.
   const firstClass = cls.trim().split(/\s+/)[0]
   const m = firstClass.match(/^comp-(.+)$/)
   return m ? m[1] : null
 }
 
-// Mirror of the generator's sanitizeId — dots and invalid chars → hyphens
 function sanitizeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9_-]/g, "-")
 }
+
 function extractClassName(cls: string): string {
   return cls.trim().split(/\s+/)[0] || cls.trim()
 }
+
 function stripTags(html: string): string {
   return html.replace(/<[^>]+>/g, "")
 }
 
-// Normalize style values — PropertiesPanel expects all style values to be strings.
-// Numeric values (e.g. fontSize: 16) must be converted back to "16px" strings
-// for px-based properties, or plain strings for unitless ones.
 const UNITLESS_PROPS = new Set([
   "opacity", "zIndex", "fontWeight", "lineHeight", "flex", "order",
   "flexGrow", "flexShrink", "columnCount", "animationIterationCount",
@@ -219,7 +213,6 @@ function normalizeStyleValues(style: Record<string, any> = {}): Record<string, a
   const result: Record<string, any> = {}
   for (const [key, value] of Object.entries(style)) {
     if (typeof value === "number") {
-      // Unitless props stay as numbers, px-based ones become "Npx" strings
       result[key] = UNITLESS_PROPS.has(key) ? value : `${value}px`
     } else {
       result[key] = value
@@ -238,14 +231,11 @@ function applyUpdatesToComponents(
     const pu = phpUpdates.get(sid)
     const cu = cssUpdates.get(sid)
 
-    // Always normalize existing style values to strings — fixes any numeric
-    // fontSize/width/etc that was stored from a previous save.
     const normalizedExistingStyle = normalizeStyleValues(comp.style)
 
     if (!pu && !cu) {
-      // No code changes for this component, but still normalize its style
       if (JSON.stringify(normalizedExistingStyle) === JSON.stringify(comp.style)) {
-        return comp // nothing changed, avoid unnecessary re-render
+        return comp
       }
       return { ...comp, style: normalizedExistingStyle }
     }
@@ -288,30 +278,30 @@ export function CodeViewEditor({
     ])
   )
 
-  // ── Edit mode ───────────────────────────────
   const [isEditing, setIsEditing]       = useState(false)
   const [draftContent, setDraftContent] = useState("")
   const [savedIndicator, setSavedIndicator] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Always-current ref so handleSave never closes over a stale components array
   const componentsRef = useRef(components)
   useEffect(() => { componentsRef.current = components }, [components])
 
-  // Generated files — source of truth from canvas
+  // ── Use shared nestComponents from lib/nestComponents ──
+  // Handles full-width 1920px containers via Y-band matching
+  // and partial containers via full 2D bounding-box overlap.
+  const nestedComponents = useMemo(() => nestComponents(components), [components])
+
   const generatedFiles = useMemo(
-    () => generateProjectFiles(components, pages, projectName),
-    [components, pages, projectName]
+    () => generateProjectFiles(nestedComponents, pages, projectName),
+    [nestedComponents, pages, projectName]
   )
 
-  // Auto-select the active page view file on mount / page switch
   useEffect(() => {
     const activePage = pages.find((p) => p.id === activePageId) || pages[0]
     const defaultFile = `app/views/${slugify(activePage.name)}.php`
     setSelectedFile((prev) => prev || defaultFile)
   }, [activePageId, pages])
 
-  // Switch file — always leave edit mode cleanly
   const handleSelectFile = (path: string) => {
     if (path === selectedFile) return
     setIsEditing(false)
@@ -319,8 +309,8 @@ export function CodeViewEditor({
     setSelectedFile(path)
   }
 
-  const readOnlyContent  = generatedFiles[selectedFile] ?? ""
-  const isSyncableFile   = selectedFile.endsWith(".php") || selectedFile.endsWith(".css")
+  const readOnlyContent = generatedFiles[selectedFile] ?? ""
+  const isSyncableFile  = selectedFile.endsWith(".php") || selectedFile.endsWith(".css")
 
   const syntaxLang = selectedFile.endsWith(".css")
     ? "css"
@@ -330,20 +320,17 @@ export function CodeViewEditor({
     ? "markdown"
     : "php"
 
-  // ── Enter edit mode ──────────────────────────
   const handleStartEdit = () => {
     setDraftContent(readOnlyContent)
     setIsEditing(true)
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
-  // ── Cancel ──────────────────────────────────
   const handleCancelEdit = () => {
     setIsEditing(false)
     setDraftContent("")
   }
 
-  // ── Save & sync ──────────────────────────────
   const handleSave = useCallback(() => {
     if (!onCodeChange || !selectedFile) return
 
@@ -362,9 +349,7 @@ export function CodeViewEditor({
       return
     }
 
-    // Use the ref so we always apply onto the LATEST components array,
-    // preserving any position / style changes made on the canvas after
-    // the last code save.
+    // Apply onto original flat components — nesting is only for display/codegen
     const updated = applyUpdatesToComponents(componentsRef.current, phpUpdates, cssUpdates)
     onCodeChange(updated)
 
@@ -373,9 +358,8 @@ export function CodeViewEditor({
     setSavedIndicator(true)
     setTimeout(() => setSavedIndicator(false), 2500)
     toast.success("Canvas updated!")
-  }, [selectedFile, draftContent, onCodeChange]) // ← no `components` dep needed
+  }, [selectedFile, draftContent, onCodeChange])
 
-  // Keyboard shortcuts while editing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!isEditing) return
@@ -383,15 +367,12 @@ export function CodeViewEditor({
         e.preventDefault()
         handleSave()
       }
-      if (e.key === "Escape") {
-        handleCancelEdit()
-      }
+      if (e.key === "Escape") handleCancelEdit()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [isEditing, handleSave])
 
-  // ── File tree ────────────────────────────────
   const fileStructure = useMemo(
     () => buildTreeFromPaths(Object.keys(generatedFiles)),
     [generatedFiles]
@@ -441,7 +422,6 @@ export function CodeViewEditor({
       </div>
     ))
 
-  // ── RENDER ───────────────────────────────────
   return (
     <div className="w-full h-full flex gap-4 p-4 bg-background">
 
@@ -460,8 +440,6 @@ export function CodeViewEditor({
 
         {/* Top bar */}
         <div className="px-4 py-2 border-b border-[#2b2b2b] bg-[#181818] flex items-center justify-between gap-2 shrink-0">
-
-          {/* Left: file path + status badges */}
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs font-mono text-muted-foreground truncate">
               {selectedFile}
@@ -481,7 +459,6 @@ export function CodeViewEditor({
             )}
           </div>
 
-          {/* Right: action buttons */}
           <div className="flex items-center gap-1 shrink-0">
             {!isEditing ? (
               <>
@@ -538,9 +515,7 @@ export function CodeViewEditor({
 
         {/* Code area */}
         <div className="flex-1 overflow-hidden relative">
-
           {isEditing ? (
-            /* ── EDIT MODE: plain textarea ── */
             <div className="absolute inset-0 flex flex-col">
               <textarea
                 ref={textareaRef}
@@ -550,7 +525,6 @@ export function CodeViewEditor({
                 className="flex-1 w-full resize-none bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[13px] leading-[1.6] p-6 outline-none border-0 overflow-auto"
                 style={{ tabSize: 2 }}
               />
-              {/* Bottom hint bar */}
               <div className="shrink-0 flex items-center justify-between px-4 py-1.5 bg-[#181818] border-t border-[#2b2b2b]">
                 <span className="text-[10px] text-muted-foreground/60 select-none">
                   Ctrl+S — save &amp; sync &nbsp;·&nbsp; Esc — cancel
@@ -561,7 +535,6 @@ export function CodeViewEditor({
               </div>
             </div>
           ) : (
-            /* ── READ-ONLY MODE: syntax highlighted ── */
             <div className="absolute inset-0 overflow-auto">
               {!isSyncableFile && (
                 <div className="absolute top-2 right-3 z-10 text-[10px] text-muted-foreground/40 pointer-events-none select-none">

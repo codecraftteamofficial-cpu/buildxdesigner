@@ -9,6 +9,7 @@ import { publishProject, checkSubdomainAvailability, unpublishProject } from "..
 import { supabase } from "../supabase/config/supabaseClient"
 import { toast } from "sonner"
 import { Project } from "../supabase/types/project"
+import { nestComponents } from "../lib/nestComponents"  // ✅ shared utility
 
 interface PublishSiteModalProps {
     isOpen: boolean
@@ -18,6 +19,10 @@ interface PublishSiteModalProps {
 }
 
 type AvailabilityState = "idle" | "checking" | "available" | "taken" | "error"
+
+// ❌ REMOVED: inline CONTAINER_TYPES, getW, getH, isInsideContainer, nestComponents
+//    These are now handled by ../lib/nestComponents which correctly supports
+//    full-width (1920px) section containers via Y-band nesting.
 
 export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }: PublishSiteModalProps) {
     const [subdomain, setSubdomain] = useState("")
@@ -53,7 +58,6 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
     const wasOpenRef = useRef(false)
 
     useEffect(() => {
-        // Only initialize when modal transitions from closed → open
         if (isOpen && !wasOpenRef.current && project) {
             if (project.subdomain) {
                 setSubdomain(project.subdomain)
@@ -97,13 +101,11 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
             return
         }
 
-        // If subdomain didn't change from the saved one, no need to check
         if (val === currentSubdomain) {
             setAvailability("available")
             return
         }
 
-        // Debounce the check
         setAvailability("checking")
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(async () => {
@@ -174,23 +176,28 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
         setIsPublishing(true)
         setError(null)
 
-        const layoutToPublish = [...(project!.project_layout || [])];
-        const targetUrl = localStorage.getItem("target_supabase_url");
-        const targetKey = localStorage.getItem("target_supabase_key");
+        // ── Use shared nestComponents (correctly handles 1920px full-width sections) ──
+        const flatLayout = project!.project_layout || []
+        const nestedLayout = nestComponents(flatLayout)
+
+        // Inject Supabase config node if the user has set target credentials
+        const layoutToPublish = [...nestedLayout]
+        const targetUrl = localStorage.getItem("target_supabase_url")
+        const targetKey = localStorage.getItem("target_supabase_key")
 
         if (targetUrl && targetKey) {
-            const configIndex = layoutToPublish.findIndex((c: any) => c.type === 'project-config');
+            const configIndex = layoutToPublish.findIndex((c: any) => c.type === 'project-config')
             const configNode = {
                 id: 'project-config',
                 type: 'project-config',
                 props: { supabaseUrl: targetUrl, supabaseKey: targetKey },
                 style: { display: 'none' },
                 position: { x: 0, y: 0 }
-            };
+            }
             if (configIndex >= 0) {
-                layoutToPublish[configIndex] = configNode;
+                layoutToPublish[configIndex] = configNode
             } else {
-                layoutToPublish.push(configNode);
+                layoutToPublish.push(configNode)
             }
         }
 
@@ -237,7 +244,6 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
             toast.success("Site taken down successfully", {
                 description: "Your site is no longer publicly accessible.",
             })
-            // Passing empty string signals it's no longer published
             onPublishSuccess("")
             onClose()
         } catch (err: any) {
@@ -394,7 +400,6 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                                     placeholder="my-awesome-site"
                                     disabled={isPublishing || isTakingDown}
                                 />
-                                {/* Availability indicator */}
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                                     {availability === "checking" && (
                                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -412,7 +417,6 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                             </span>
                         </div>
 
-                        {/* Feedback messages */}
                         {availability === "available" && !isFormUnchanged && (
                             <div className="flex items-center gap-2 text-sm text-green-600">
                                 <Check className="w-4 h-4" />
@@ -466,7 +470,7 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                     </Button>
                 </div>
 
-                {/* Takedown Section (Only if published) */}
+                {/* Takedown Section */}
                 {isAlreadyPublished && (
                     <div className="mt-6 pt-6 border-t border-border">
                         {!showTakedownConfirm ? (
@@ -510,8 +514,8 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => {
-                                            setShowTakedownConfirm(false);
-                                            setTakedownInput("");
+                                            setShowTakedownConfirm(false)
+                                            setTakedownInput("")
                                         }}
                                         disabled={isTakingDown}
                                     >
