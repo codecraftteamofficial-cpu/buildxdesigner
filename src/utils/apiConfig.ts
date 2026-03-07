@@ -13,7 +13,7 @@ export const getApiBaseUrl = (): string => {
     hostname === "buildxdesigner.site" ||
     hostname.endsWith(".buildxdesigner.site")
   ) {
-    return "https://buildxdesigner.duckdns.org";
+    return "https://build-x-designer-api.vercel.app";
   }
 
   // Default to relative if unknown

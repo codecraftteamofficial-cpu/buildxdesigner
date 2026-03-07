@@ -302,15 +302,6 @@ export function useEditorState() {
 
       setIsAuthenticated(loggedIn);
 
-      // Check onboarding status
-      if (loggedIn && session?.user) {
-        const onboardingCompleted =
-          session.user.user_metadata?.onboarding_completed;
-        if (!onboardingCompleted) {
-          setShowOnboarding(true);
-        }
-      }
-
       setAuthLoading(false);
 
       const savedView = localStorage.getItem("fulldev-ai-current-view");
