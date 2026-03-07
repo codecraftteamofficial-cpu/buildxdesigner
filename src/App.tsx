@@ -94,18 +94,93 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     setShowOnboarding,
   } = editor;
 
-  const handleAuthenticatedSession = (session?: {
-    user?: { user_metadata?: Record<string, unknown> };
+  const handleAuthenticatedSession = async (session?: {
+    user?: { user_metadata?: Record<string, unknown>; id?: string };
   }) => {
-    const onboardingCompleted =
-      session?.user?.user_metadata?.onboarding_completed === true;
+    const userId = session?.user?.id;
 
-    if (!onboardingCompleted) {
-      setShowOnboarding(true);
+    if (!userId) {
+      goToLanding();
       return;
     }
 
-    enterDashboard();
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${apiUrl}/api/onboarding-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userId,
+        }),
+      });
+
+      if (!response.ok) {
+        setShowOnboarding(true);
+        return;
+      }
+
+      const data = await response.json();
+
+      const hasValue = (value: unknown) =>
+        value !== null && value !== undefined && String(value).trim() !== "";
+
+      const hasAnswerFields = (obj: unknown) => {
+        if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+        const record = obj as Record<string, unknown>;
+        return [
+          record.primary_role,
+          record.workplace_type,
+          record.experience,
+          record.experience_level,
+          record.main_goal,
+          record.team_size,
+        ].some(hasValue);
+      };
+
+      if (Array.isArray(data) && data.length > 0) {
+        if (hasAnswerFields(data[0])) {
+          enterDashboard();
+          return;
+        }
+      }
+
+      const topLevelRecord = data as Record<string, unknown>;
+      const onboardingPayload =
+        topLevelRecord.onboarding_data ??
+        topLevelRecord.onboardingData ??
+        topLevelRecord.data ??
+        topLevelRecord.result;
+
+      const payloadRecord =
+        Array.isArray(onboardingPayload) && onboardingPayload.length > 0
+          ? onboardingPayload[0]
+          : onboardingPayload;
+
+      const hasBooleanSignal =
+        topLevelRecord.exists === true ||
+        topLevelRecord.found === true ||
+        topLevelRecord.completed === true ||
+        topLevelRecord.hasOnboardingData === true;
+
+      const hasOnboardingData =
+        hasBooleanSignal ||
+        onboardingPayload === true ||
+        (Array.isArray(onboardingPayload) && onboardingPayload.length > 0) ||
+        hasAnswerFields(payloadRecord) ||
+        hasAnswerFields(topLevelRecord);
+
+      if (hasOnboardingData) {
+        enterDashboard();
+        return;
+      }
+
+      setShowOnboarding(true);
+    } catch (error) {
+      console.error("Error checking onboarding status:", error);
+      setShowOnboarding(true);
+    }
   };
 
   const openProjectAndRoute = (
@@ -133,6 +208,14 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       navigate("/dashboard", { replace: true });
     }
   };
+
+  useEffect(() => {
+    if (authLoading) return;
+    const userId = currentUser?.id;
+    if (!userId) return;
+
+    void handleAuthenticatedSession({ user: { id: userId } });
+  }, [authLoading, currentUser?.id]);
 
   const routeMatch =
     matchPath("/editor/:projectId/*", location.pathname) ||

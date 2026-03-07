@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight, ChevronLeft, Sparkles, Check } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { supabase } from '../supabase/config/supabaseClient';
-import { getSupabaseSession } from '../supabase/auth/authService';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { ChevronRight, ChevronLeft, Sparkles, Check } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { supabase } from "../supabase/config/supabaseClient";
+import { getSupabaseSession } from "../supabase/auth/authService";
 
 interface OnboardingQuestionnaireProps {
   onComplete: () => void;
@@ -20,64 +20,64 @@ interface OnboardingData {
 
 const questions = [
   {
-    id: 'primaryRole',
-    title: 'What is your primary role?',
-    subtitle: 'Help us understand your background',
+    id: "primaryRole",
+    title: "What is your primary role?",
+    subtitle: "Help us understand your background",
     options: [
-      { value: 'designer', label: 'Designer', icon: '🎨' },
-      { value: 'developer', label: 'Developer', icon: '💻' },
-      { value: 'entrepreneur', label: 'Entrepreneur', icon: '🚀' },
-      { value: 'marketer', label: 'Marketer', icon: '📊' },
-      { value: 'student', label: 'Student', icon: '🎓' },
-      { value: 'other', label: 'Other', icon: '✨' },
+      { value: "designer", label: "Designer", icon: "🎨" },
+      { value: "developer", label: "Developer", icon: "💻" },
+      { value: "entrepreneur", label: "Entrepreneur", icon: "🚀" },
+      { value: "marketer", label: "Marketer", icon: "📊" },
+      { value: "student", label: "Student", icon: "🎓" },
+      { value: "other", label: "Other", icon: "✨" },
     ],
   },
   {
-    id: 'workplaceType',
-    title: 'What best describes your workplace?',
-    subtitle: 'Select the environment you work in',
+    id: "workplaceType",
+    title: "What best describes your workplace?",
+    subtitle: "Select the environment you work in",
     options: [
-      { value: 'freelancer', label: 'Freelancer', icon: '🏠' },
-      { value: 'startup', label: 'Startup', icon: '🌱' },
-      { value: 'smallBusiness', label: 'Small Business', icon: '🏪' },
-      { value: 'enterprise', label: 'Enterprise', icon: '🏢' },
-      { value: 'agency', label: 'Agency', icon: '🤝' },
-      { value: 'other', label: 'Other', icon: '✨' },
+      { value: "freelancer", label: "Freelancer", icon: "🏠" },
+      { value: "startup", label: "Startup", icon: "🌱" },
+      { value: "smallBusiness", label: "Small Business", icon: "🏪" },
+      { value: "enterprise", label: "Enterprise", icon: "🏢" },
+      { value: "agency", label: "Agency", icon: "🤝" },
+      { value: "other", label: "Other", icon: "✨" },
     ],
   },
   {
-    id: 'experience',
-    title: 'What is your experience level?',
-    subtitle: 'Tell us about your web design experience',
+    id: "experience",
+    title: "What is your experience level?",
+    subtitle: "Tell us about your web design experience",
     options: [
-      { value: 'beginner', label: 'Beginner', icon: '🌱' },
-      { value: 'intermediate', label: 'Intermediate', icon: '📈' },
-      { value: 'advanced', label: 'Advanced', icon: '⭐' },
-      { value: 'expert', label: 'Expert', icon: '🏆' },
+      { value: "beginner", label: "Beginner", icon: "🌱" },
+      { value: "intermediate", label: "Intermediate", icon: "📈" },
+      { value: "advanced", label: "Advanced", icon: "⭐" },
+      { value: "expert", label: "Expert", icon: "🏆" },
     ],
   },
   {
-    id: 'mainGoal',
-    title: 'What is your main goal?',
-    subtitle: 'What would you like to achieve with BuildX Designer?',
+    id: "mainGoal",
+    title: "What is your main goal?",
+    subtitle: "What would you like to achieve with BuildX Designer?",
     options: [
-      { value: 'portfolio', label: 'Build a Portfolio', icon: '📁' },
-      { value: 'business', label: 'Create Business Website', icon: '💼' },
-      { value: 'blog', label: 'Start a Blog', icon: '📝' },
-      { value: 'ecommerce', label: 'E-commerce Store', icon: '🛍️' },
-      { value: 'learning', label: 'Learn Web Design', icon: '📚' },
-      { value: 'other', label: 'Other', icon: '✨' },
+      { value: "portfolio", label: "Build a Portfolio", icon: "📁" },
+      { value: "business", label: "Create Business Website", icon: "💼" },
+      { value: "blog", label: "Start a Blog", icon: "📝" },
+      { value: "ecommerce", label: "E-commerce Store", icon: "🛍️" },
+      { value: "learning", label: "Learn Web Design", icon: "📚" },
+      { value: "other", label: "Other", icon: "✨" },
     ],
   },
   {
-    id: 'teamSize',
-    title: 'What is your team size?',
-    subtitle: 'How many people work with you?',
+    id: "teamSize",
+    title: "What is your team size?",
+    subtitle: "How many people work with you?",
     options: [
-      { value: 'solo', label: 'Just Me', icon: '👤' },
-      { value: 'small', label: '2-5 People', icon: '👥' },
-      { value: 'medium', label: '6-20 People', icon: '👨‍💼' },
-      { value: 'large', label: '20+ People', icon: '🏢' },
+      { value: "solo", label: "Just Me", icon: "👤" },
+      { value: "small", label: "2-5 People", icon: "👥" },
+      { value: "medium", label: "6-20 People", icon: "👨‍💼" },
+      { value: "large", label: "20+ People", icon: "🏢" },
     ],
   },
 ];
@@ -87,11 +87,11 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<OnboardingData>({
-    primaryRole: '',
-    workplaceType: '',
-    experience: '',
-    mainGoal: '',
-    teamSize: '',
+    primaryRole: "",
+    workplaceType: "",
+    experience: "",
+    mainGoal: "",
+    teamSize: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -129,54 +129,45 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
       } = await getSupabaseSession();
 
       if (!session?.user) {
-        console.error('No authenticated user found');
+        console.error("No authenticated user found");
         setIsSubmitting(false);
         return;
       }
-
-      // Update user metadata with onboarding data
-      await supabase.auth.updateUser({
-        data: {
-          onboarding_completed: true,
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${apiUrl}/api/insert-onboarding-data`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: session.user.id,
           primary_role: answers.primaryRole,
           workplace_type: answers.workplaceType,
-          experience_level: answers.experience,
+          experience: answers.experience,
           main_goal: answers.mainGoal,
           team_size: answers.teamSize,
-        },
+        }),
       });
 
-      // Also save to profiles table if it exists
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          primary_role: answers.primaryRole,
-          workplace_type: answers.workplaceType,
-          experience_level: answers.experience,
-          main_goal: answers.mainGoal,
-          team_size: answers.teamSize,
-        })
-        .eq('user_id', session.user.id);
-
-      if (error) {
-        console.error('Error saving onboarding data to profiles:', error);
+      if (!response.ok) {
+        throw new Error("Failed to save onboarding data");
       }
 
-      // Show completion animation
+      const result = await response.json();
+      console.log("Onboarding data saved successfully:", result);
+
       setShowCompletion(true);
 
-      // Call onComplete after animation
       setTimeout(() => {
         onComplete();
       }, 1500);
     } catch (error) {
-      console.error('Error submitting onboarding:', error);
+      console.error("Error submitting onboarding:", error);
       setIsSubmitting(false);
     }
   };
 
-  const isAnswered = answers[currentQuestion.id as keyof OnboardingData] !== '';
+  const isAnswered = answers[currentQuestion.id as keyof OnboardingData] !== "";
   const isLastQuestion = currentStep === questions.length - 1;
 
   return (
@@ -199,7 +190,7 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
             >
               <Check className="w-10 h-10 text-white" />
@@ -249,7 +240,7 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
                       className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                   </div>
                 </div>
@@ -288,8 +279,8 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
                       className={`p-4 rounded-lg border-2 transition-all duration-200 text-left group ${
                         answers[currentQuestion.id as keyof OnboardingData] ===
                         option.value
-                          ? 'border-blue-400 bg-blue-500/20'
-                          : 'border-slate-600 bg-slate-700/50 hover:border-blue-400 hover:bg-slate-700/70'
+                          ? "border-blue-400 bg-blue-500/20"
+                          : "border-slate-600 bg-slate-700/50 hover:border-blue-400 hover:bg-slate-700/70"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -321,7 +312,7 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
                   >
                     {isLastQuestion ? (
                       <>
-                        {isSubmitting ? 'Completing...' : 'Complete'}
+                        {isSubmitting ? "Completing..." : "Complete"}
                         <Check className="w-4 h-4" />
                       </>
                     ) : (
