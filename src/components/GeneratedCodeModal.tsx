@@ -48,7 +48,7 @@ export function GeneratedCodeModal({ isOpen, onClose, code, components }: Genera
 
           <TabsContent value="code" className="flex-1 overflow-auto">
             <div className="bg-muted/50 border border-border rounded-lg p-4 font-mono text-sm overflow-auto max-h-[500px] relative">
-              <pre className="text-foreground whitespace-pre-wrap break-words">{code}</pre>
+              <pre className="text-foreground whitespace-pre-wrap wrap-break-word">{code}</pre>
 
               {/* Copy button overlay */}
               <div className="absolute top-3 right-3 flex gap-2">
@@ -100,7 +100,7 @@ export function GeneratedCodeModal({ isOpen, onClose, code, components }: Genera
           </Button>
           <Button
             onClick={handleDownloadCode}
-            className="bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700"
+            className="bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700"
           >
             <Download className="w-4 h-4 mr-2" />
             Download Code

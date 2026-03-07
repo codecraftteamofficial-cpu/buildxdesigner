@@ -1590,7 +1590,7 @@ export function PropertiesPanel({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeHeader(idx)}
-                        className="h-7 w-7 p-0 flex-shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-7 w-7 p-0 shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -2388,8 +2388,36 @@ export function PropertiesPanel({
         )
 
       case "navbar":
+        const navLinks: string[] = Array.isArray(props.links) ? props.links : []
+
+        const addNavLink = () => {
+          updateProps("links", [...navLinks, "New Link"])
+        }
+
+        const updateNavLink = (index: number, value: string) => {
+          const updated = [...navLinks]
+          updated[index] = value
+          updateProps("links", updated)
+        }
+
+        const removeNavLink = (index: number) => {
+          updateProps(
+            "links",
+            navLinks.filter((_, i) => i !== index),
+          )
+        }
+
+        const moveNavLink = (index: number, direction: "up" | "down") => {
+          const updated = [...navLinks]
+          const target = direction === "up" ? index - 1 : index + 1
+          if (target < 0 || target >= updated.length) return
+          ;[updated[index], updated[target]] = [updated[target], updated[index]]
+          updateProps("links", updated)
+        }
+
         return (
           <div className="space-y-3">
+            {/* Brand */}
             <div>
               <Label htmlFor="brand" className="text-xs">
                 Brand Name
@@ -2402,22 +2430,76 @@ export function PropertiesPanel({
                 className="h-8 text-xs mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="links" className="text-xs">
-                Navigation Links (comma separated)
-              </Label>
-              <Input
-                id="links"
-                value={Array.isArray(props.links) ? props.links.join(", ") : ""}
-                onChange={(e) =>
-                  updateProps(
-                    "links",
-                    e.target.value.split(",").map((s) => s.trim()),
-                  )
-                }
-                placeholder="Home, About, Contact"
-                className="h-8 text-xs mt-1"
-              />
+
+            {/* Nav Links */}
+            <div className="pt-2 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Navigation Links</Label>
+                <Button variant="ghost" size="sm" onClick={addNavLink} className="h-6 text-xs px-2">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Link
+                </Button>
+              </div>
+
+              {navLinks.length === 0 ? (
+                <div className="text-center py-3 border border-dashed rounded-md">
+                  <p className="text-xs text-muted-foreground">No links yet</p>
+                  <Button variant="ghost" size="sm" onClick={addNavLink} className="h-6 text-xs mt-1">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add your first link
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {navLinks.map((link, idx) => (
+                    <div key={idx} className="flex items-center gap-1 group">
+                      {/* Reorder buttons */}
+                      <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => moveNavLink(idx, "up")}
+                          disabled={idx === 0}
+                          className="h-3.5 w-3.5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                            <path d="M4 1L7 6H1L4 1Z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => moveNavLink(idx, "down")}
+                          disabled={idx === navLinks.length - 1}
+                          className="h-3.5 w-3.5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                            <path d="M4 7L1 2H7L4 7Z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Link label input */}
+                      <Input
+                        value={link}
+                        onChange={(e) => updateNavLink(idx, e.target.value)}
+                        placeholder={`Link ${idx + 1}`}
+                        className="h-7 text-xs flex-1"
+                      />
+
+                      {/* Remove button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeNavLink(idx)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] text-muted-foreground mt-2">
+                {navLinks.length} link{navLinks.length !== 1 ? "s" : ""} · Hover a row to reorder or remove
+              </p>
             </div>
           </div>
         )

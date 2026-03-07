@@ -57,6 +57,29 @@ import { ComponentData } from '../App';
 import { RenderableComponent } from './RenderableComponent';
 import { scrollToTarget } from '../utils/scrollUtils';
 
+// ─── Responsive scaling (NEW) ─────────────────────────────────────────────────
+// Must match DESIGN_WIDTH in code-generator.ts
+const DESIGN_WIDTH = 1920;
+
+const DEVICE_LOGICAL_WIDTH: Record<string, number> = {
+  desktop: DESIGN_WIDTH,
+  tablet:  1024,
+  mobile:  768,
+};
+
+/** Scale ratio for the given view mode (desktop = 1, no change). */
+const getDeviceRatio = (viewMode: string): number =>
+  (DEVICE_LOGICAL_WIDTH[viewMode] ?? DESIGN_WIDTH) / DESIGN_WIDTH;
+
+/**
+ * CSS-transform ratio for the given view mode.
+ * We render the canvas at the full 1920px design width, then shrink it
+ * with transform:scale so every component — including those with hard-coded
+ * px widths inside ResizeHandle — scales uniformly without any data mutation.
+ */
+// (scaleComponentForDevice removed — we now use CSS transform on the canvas wrapper)
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface PreviewModalProps {
   components: ComponentData[];
   onClose: () => void;
@@ -203,73 +226,38 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
   // Device dimensions
   const getDeviceDimensions = () => {
     switch (viewMode) {
-      case 'mobile':
-        return { width: 375, height: 667, name: 'mobile' };
-      case 'tablet':
-        return { width: 768, height: 1024, name: 'tablet' };
+      case 'mobile':  return { width: 375,   height: 667,  name: 'mobile' };
+      case 'tablet':  return { width: 768,   height: 1024, name: 'tablet' };
       case 'desktop':
-      default:
-        return { width: '100%', height: '100%', name: 'desktop' };
+      default:        return { width: '100%', height: '100%', name: 'desktop' };
     }
   };
 
-  // Calculate scale factor for fit mode
+  // Calculate the CSS transform:scale() value for the 1920px canvas wrapper.
+  //
+  // Desktop:  scale = containerWidth / 1920  → canvas always fills the preview area
+  // Tablet:   scale = containerHeight * 0.9 / 1024  → device frame fills screen height
+  // Mobile:   scale = containerHeight * 0.9 / 667   → same for phone
+  // actual:   user-controlled zoom
   const calculateScale = useCallback(() => {
+    if (fitMode === 'actual') return zoom;
+
     const container = document.querySelector('.preview-container') as HTMLElement;
-    if (!container) return 1;
+    const containerW = container ? container.getBoundingClientRect().width  : window.innerWidth;
+    const containerH = container ? container.getBoundingClientRect().height : window.innerHeight - 60;
 
-    const containerRect = container.getBoundingClientRect();
-    const device = getDeviceDimensions();
-
-    // For desktop, we want to focus on the visible canvas area
     if (viewMode === 'desktop') {
-      // Get the canvas container from the main editor
-      const canvasContainer = document.querySelector('.canvas-container') as HTMLElement;
-
-      if (canvasContainer) {
-        // Use the canvas container's dimensions instead of calculating from components
-        const canvasRect = canvasContainer.getBoundingClientRect();
-
-        // Calculate scale based on the canvas container size
-        const scaleX = (containerRect.width * 0.9) / canvasRect.width;
-        const scaleY = (containerRect.height * 0.9) / canvasRect.height;
-
-        // Use the smaller scale to ensure everything fits, but don't go below 10% or above 100%
-        const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.1), 1);
-        return newScale;
-      }
-
-      // Fallback to default scale if canvas container not found
-      return Math.min(
-        (containerRect.width * 0.9) / 1200,
-        (containerRect.height * 0.9) / 800
-      );
+      // Scale so the 1920px canvas exactly fills the container width
+      return containerW / DESIGN_WIDTH;
     }
 
-    // For mobile/tablet, use the device dimensions
-    const containerWidth = containerRect.width - 80; // Account for padding
-    const containerHeight = containerRect.height - 120; // Account for header and padding
-
-    const deviceWidth = typeof device.width === 'number' ? device.width : parseInt(device.width, 10) || 1440;
-    const deviceHeight = typeof device.height === 'number' ? device.height : parseInt(device.height, 10) || 900;
-
-    switch (fitMode) {
-      case 'fit':
-        return Math.min(
-          containerWidth / deviceWidth,
-          containerHeight / deviceHeight
-        ) * 0.9; // 90% to add some margin
-      case 'fill':
-        return Math.max(
-          containerWidth / deviceWidth,
-          containerHeight / deviceHeight
-        );
-      case 'actual':
-        return zoom;
-      default:
-        return 1;
-    }
-  }, [localComponents, fitMode, viewMode, zoom]);
+    // For tablet/mobile: fit the device frame (768×1024 or 375×667) into the container
+    const FRAME_W = viewMode === 'mobile' ? 375  : 768;
+    const FRAME_H = viewMode === 'mobile' ? 667  : 1024;
+    const scaleByW = (containerW * 0.85) / FRAME_W;
+    const scaleByH = (containerH * 0.85) / FRAME_H;
+    return Math.min(scaleByW, scaleByH);
+  }, [fitMode, viewMode, zoom]);
 
   // Update scale when view mode changes or window is resized
   useEffect(() => {
@@ -773,15 +761,22 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
   const device = getDeviceDimensions();
 
   const getDeviceStyles = () => {
-    const width = typeof device.width === 'number' ? `${device.width}px` : device.width;
-    const height = typeof device.height === 'number' ? `${device.height}px` : device.height;
-
+    if (viewMode === 'desktop') {
+      // Desktop: canvas is scaled to fill container width; outer frame just wraps it
+      return {
+        width:    '100%' as const,
+        height:   '100%' as const,
+        position: 'relative' as const,
+        overflow: 'hidden' as const,
+        backgroundColor: 'white',
+      };
+    }
+    // Tablet/Mobile: the visible frame = device px × scale (so it fills the screen nicely)
+    const FRAME_W = viewMode === 'mobile' ? 375  : 768;
+    const FRAME_H = viewMode === 'mobile' ? 667  : 1024;
     return {
-      width,
-      height,
-      transform: `scale(${scale})`,
-      transformOrigin: 'center center',
-      transition: 'transform 0.3s ease-out',
+      width:    `${Math.round(FRAME_W * scale)}px`,
+      height:   `${Math.round(FRAME_H * scale)}px`,
       position: 'relative' as const,
       overflow: 'hidden' as const,
       backgroundColor: 'white',
@@ -806,6 +801,30 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
     }
     setZoom(prev => Math.max(prev / 1.2, 0.1));
   };
+
+  // ── Filter + CSS-transform responsive scaling (NEW) ─────────────────────────
+  // We render all components at their original 1920px canvas coordinates, then
+  // shrink the entire canvas wrapper with CSS transform:scale(ratio).
+  // This means ResizeHandle / internal px sizes all scale uniformly with zero
+  // data mutation — identical to how browser DevTools responsive mode works.
+  const filteredComponents = localComponents.filter(c => {
+    // Mirrors Canvas.tsx filter exactly — falsy page_id treated as 'home'
+    if (c.page_id === 'all') return true;
+    const compPageId = c.page_id || 'home';
+    const activeId   = localActivePageId || 'home';
+    return compPageId === activeId;
+  });
+
+  // Safe canvas height at full 1920px, then CSS scale brings it to device size
+  const fullCanvasHeight = filteredComponents.length > 0
+    ? Math.max(
+        ...filteredComponents.map(c =>
+          (c.position?.y || 0) + (parseInt(String(c.style?.height || 0)) || 100)
+        ),
+        800
+      )
+    : 800;
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 z-50 bg-black">
@@ -927,7 +946,7 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
       {/* Main Preview Area */}
       <div className="preview-container w-full h-full flex items-center justify-center">
         <div
-          className={`shadow-2xl overflow-hidden ${viewMode === 'mobile' ? 'rounded-[2rem]' :
+          className={`shadow-2xl overflow-hidden ${viewMode === 'mobile' ? 'rounded-4xl' :
             viewMode === 'tablet' ? 'rounded-xl' :
               'rounded-none'
             }`}
@@ -950,23 +969,19 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
             </div>
           )}
 
-          {/* Content */}
+          {/* Content — scrollable viewport at device logical size */}
+          {/* Outer scroll container: sized to POST-scale dimensions so scrollbar matches visible content */}
           <div
             ref={contentRef}
-            className="relative w-full h-full"
             style={{
-              minHeight: '100%',
-              // Note: Scaling is handled by the parent container via getDeviceStyles().
-              // Do NOT add transform: scale() here as it causes double-scaling and 
-              // rendering glitches (disappearing elements) during scrolling.
-              width: '100%',
-              height: '100%',
+              width:    '100%',
+              height:   '100%',
               overflow: 'auto',
+              position: 'relative',
               backgroundColor: '#ffffff',
-              position: 'relative'
             }}
           >
-            {localComponents.length === 0 ? (
+            {filteredComponents.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                 <div className="text-center">
                   <div className="text-6xl mb-4">🎨</div>
@@ -975,25 +990,28 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
                 </div>
               </div>
             ) : (
+              /* Clip wrapper: exactly the post-scale size so overflow is hidden correctly */
+              <div style={{
+                width:    `${Math.round(DESIGN_WIDTH * scale)}px`,
+                height:   `${Math.round(fullCanvasHeight * scale)}px`,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+              {/* Canvas at full 1920px, shrunk by transform:scale — uniform scaling */}
               <div
                 ref={previewRef}
-                className="relative w-full"
                 style={{
-                  minHeight: '100%',
-                  height: Math.max(
-                    ...localComponents
-                      .filter(c => c.page_id === localActivePageId || c.page_id === 'all' || (!c.page_id && localActivePageId === 'home'))
-                      .map(c => (c.position?.y || 0) + (parseInt(String(c.style?.height || 0)) || 100)),
-                    800 // Minimum height
-                  ) + 'px'
-                  // Ensure dark background for content
+                  width:           `${DESIGN_WIDTH}px`,
+                  height:          `${fullCanvasHeight}px`,
+                  transform:       `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  position:        'relative',
                 }}
               >
-                {localComponents
-                  .filter(c => c.page_id === localActivePageId || c.page_id === 'all' || (!c.page_id && localActivePageId === 'home'))
-                  .map((component, index) => {
+                {/* filteredComponents rendered at original 1920px coords (NEW) */}
+                {filteredComponents.map((component, index) => {
                     const position = component.position || { x: 100, y: 100 };
-                    const isLastComponent = index === localComponents.length - 1;
+                    const isLastComponent = index === filteredComponents.length - 1;
 
                     return (
                       <div
@@ -1057,7 +1075,8 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
                       </div>
                     );
                   })}
-              </div>
+                </div>  {/* end transform:scale canvas */}
+              </div> 
             )}
           </div>
         </div>
