@@ -5,7 +5,7 @@ import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
 interface TourStep {
-    element?: string; // Optional for intro steps without elements
+    element?: string; 
     title: string;
     description: string;
     side?: "top" | "bottom" | "left" | "right";
@@ -33,19 +33,18 @@ export function MultiStepTour({
 
     useEffect(() => {
         if (!showOnMount) {
-            // Reset when tour is hidden
+            
             hasStartedRef.current = false;
             return;
         }
 
-        // Only start the tour once per mount
+        
         if (hasStartedRef.current) {
             return;
         }
 
         hasStartedRef.current = true;
 
-        // Transform steps to driver.js format
         const driverSteps = steps.map(step => ({
             element: step.element,
             popover: {

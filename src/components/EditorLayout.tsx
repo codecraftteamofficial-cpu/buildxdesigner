@@ -561,7 +561,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
           )}
 
           {state.components.length > 0 && <ResizeTooltip />}
-          {state.components.length > 0 && <EditTooltip />}
+          {state.components.length === 0 && <EditTooltip isCanvasEmpty={true} />}
 
           {state.showAIAssistantModal && (
             <RightSidebar

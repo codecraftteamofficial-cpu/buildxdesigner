@@ -1589,16 +1589,7 @@ export function Dashboard({
           },
         ];
       case "blank":
-        return [
-          {
-            id: "1",
-            type: "canvas",
-            props: {},
-            style: {},
-            position: { x: 0, y: 0 },
-            project_layout: getLocalCanvasComponents(),
-          },
-        ];
+        return [];
       case "portfolio-modern":
         return [
           {
