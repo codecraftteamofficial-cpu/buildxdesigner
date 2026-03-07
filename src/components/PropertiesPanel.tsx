@@ -3303,6 +3303,46 @@ export function PropertiesPanel({
                           </Select>
                         </div>
                       </div>
+                     
+                      {/* Font Size */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Font Size</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Input
+                            type="number"
+                            min="10"
+                            max="32"
+                            value={
+                              selectedComponent.style?.fontSize
+                                ? Number.parseInt(String(selectedComponent.style.fontSize).replace("px", ""))
+                                : 14
+                            }
+                            onChange={(e) => updateStyle("fontSize", `${e.target.value}px`)}
+                            className="h-8 text-xs flex-1"
+                          />
+                          <span className="text-xs text-muted-foreground">px</span>
+                        </div>
+                      </div>
+
+                      {/* Font Weight */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Font Weight</Label>
+                        <Select
+                          value={String(selectedComponent.style?.fontWeight || "400")}
+                          onValueChange={(value: string) => updateStyle("fontWeight", value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="300">Light (300)</SelectItem>
+                            <SelectItem value="400">Regular (400)</SelectItem>
+                            <SelectItem value="500">Medium (500)</SelectItem>
+                            <SelectItem value="600">Semi-bold (600)</SelectItem>
+                            <SelectItem value="700">Bold (700)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     {/* Position */}

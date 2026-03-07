@@ -1608,24 +1608,31 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
-      case 'navbar':
-        const navWidth = parseSize(style?.width, 800);
-        const navHeight = parseSize(style?.height, 64);
+          case 'navbar':
+            const navHeight = parseSize(style?.height, 64);
 
-        return (
-          <ResizeHandle
-            onResize={handleResize}
-            initialX={component.position?.x || 0}
-            initialY={component.position?.y || 0}
-            initialWidth={navWidth}
-            initialHeight={navHeight}
-            className="group"
-            minWidth={200}
-            minHeight={40}
-            disabled={isPreview}
-            onResizeStart={onResizeStart}
-            onResizeEnd={onResizeEnd}
-          >
+            return (
+              <ResizeHandle
+                onResize={(newX, newY, _newWidth, newHeight) => {
+                  onUpdate({
+                    position: { x: newX, y: newY },
+                    style: {
+                      ...component.style,
+                      height: `${newHeight}px`,
+                    }
+                  });
+                }}
+                initialX={component.position?.x || 0}
+                initialY={component.position?.y || 0}
+                initialWidth={9999}
+                initialHeight={navHeight}
+                className="group w-full"
+                minWidth={200}
+                minHeight={40}
+                disabled={isPreview}
+                onResizeStart={onResizeStart}
+                onResizeEnd={onResizeEnd}
+              >
 
             <nav
               id={props.elementId}

@@ -15,6 +15,7 @@ interface ResizeHandleProps {
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
   gridSize?: number;
+  fullWidth?: boolean
 }
 
 export function ResizeHandle({
@@ -30,7 +31,8 @@ export function ResizeHandle({
   disabled = false,
   onResizeStart,
   onResizeEnd,
-  gridSize = 20
+  gridSize = 20,
+  fullWidth = false
 }: ResizeHandleProps) {
   const [dimensions, setDimensions] = useState({
     x: initialX,
@@ -265,7 +267,7 @@ export function ResizeHandle({
       ref={containerRef}
       className={`relative block ${className}`}
       style={{
-        width: dimensions.width,
+        width: dimensions.width >= 1200 ? "100%" : dimensions.width,
         height: dimensions.height,
         minWidth: `${minWidth}px`,
         minHeight: `${minHeight}px`
