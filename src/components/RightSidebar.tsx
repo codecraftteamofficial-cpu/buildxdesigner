@@ -90,7 +90,7 @@ export function RightSidebar({
               <Label htmlFor="level">Level</Label>
               <Select
                 value={props.level?.toString() || "1"}
-                onValueChange={(value) => updateProps("level", Number.parseInt(value))}
+                onValueChange={(value: string) => updateProps("level", Number.parseInt(value))}
               >
                 <SelectTrigger id="level">
                   <SelectValue />
@@ -122,7 +122,7 @@ export function RightSidebar({
             </div>
             <div>
               <Label htmlFor="variant">Variant</Label>
-              <Select value={props.variant || "primary"} onValueChange={(value) => updateProps("variant", value)}>
+              <Select value={props.variant || "primary"} onValueChange={(value: string) => updateProps("variant", value)}>
                 <SelectTrigger id="variant">
                   <SelectValue />
                 </SelectTrigger>

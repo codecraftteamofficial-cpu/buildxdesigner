@@ -7,7 +7,62 @@ import {
   Trash2, ChevronUp, ChevronDown, Search, X, ChevronRight, GripVertical
 } from "lucide-react";
 import type { ComponentData } from "../App";
-import { nestComponents } from "../lib/nestComponents";
+import {
+  getComponentX,
+  getComponentY,
+  getComponentWidth,
+  getComponentHeight,
+  CONTAINER_TYPES,
+} from "../lib/nestComponents";
+
+// ─── Layer-panel-specific nesting ────────────────────────────────────────────
+// Unlike the canvas nesting, this nests ALL child types (text, image, button…)
+// using a pure 2D centre-point overlap so the layer tree matches what the user
+// sees on screen.
+
+function nestForLayerPanel(flat: ComponentData[]): ComponentData[] {
+  if (!flat || flat.length === 0) return [];
+
+  const cloned: ComponentData[] = flat.map(c => ({ ...c, children: [] }));
+
+  // All components that can act as parents, sorted smallest→largest area
+  // so the most specific (smallest) parent wins when multiple overlap.
+  const containers = cloned
+    .filter(c => {
+      const w = getComponentWidth(c);
+      const h = getComponentHeight(c);
+      return CONTAINER_TYPES.has(c.type) && w > 0 && h > 0;
+    })
+    .sort(
+      (a, b) =>
+        getComponentWidth(a) * getComponentHeight(a) -
+        getComponentWidth(b) * getComponentHeight(b)
+    );
+
+  const assigned = new Set<string>();
+
+  for (const c of cloned) {
+    if (assigned.has(c.id)) continue;
+    // Find the smallest container whose bounding box contains this component's centre
+    const parent = containers.find(p => {
+      if (p.id === c.id) return false;
+      const px = getComponentX(p), py = getComponentY(p);
+      const pw = getComponentWidth(p), ph = getComponentHeight(p);
+      if (pw <= 0 || ph <= 0) return false;
+      const cx = getComponentX(c) + getComponentWidth(c) / 2;
+      const cy = getComponentY(c) + getComponentHeight(c) / 2;
+      return cx >= px && cx <= px + pw && cy >= py && cy <= py + ph;
+    });
+    if (parent) {
+      parent.children!.push(c);
+      assigned.add(c.id);
+    }
+  }
+
+  return cloned.filter(c => !assigned.has(c.id));
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 interface LayerPanelProps {
   components: ComponentData[];
@@ -37,6 +92,8 @@ const getLayerIcon = (type: string) => {
 const getComponentName = (comp: ComponentData) =>
   comp.props?.content || comp.props?.text || comp.props?.title ||
   comp.props?.brand || comp.props?.elementId || comp.type;
+
+// ─── LayerRow ─────────────────────────────────────────────────────────────────
 
 interface LayerRowProps {
   comp: ComponentData;
@@ -153,6 +210,8 @@ function LayerRow({
   );
 }
 
+// ─── LayerPanel ───────────────────────────────────────────────────────────────
+
 export function LayerPanel({ 
   components, selectedId, onSelect, onDelete, onReorder, onMoveLayer, onReorderLayers,
 }: LayerPanelProps) {
@@ -160,8 +219,8 @@ export function LayerPanel({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  // No .reverse() — components render top-to-bottom matching canvas order
-  const nestedLayers = useMemo(() => nestComponents(components), [components]);
+  // Use layer-panel-specific nesting that includes ALL element types in the tree
+  const nestedLayers = useMemo(() => nestForLayerPanel(components), [components]);
 
   const flattenTree = (nodes: ComponentData[]): string[] => {
     const ids: string[] = [];

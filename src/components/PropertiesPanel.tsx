@@ -36,6 +36,11 @@ type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
 type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition"
 const styleStr = (value: any): string => String(value ?? "")
 
+const parseStyleInt = (value: any, fallback: number = 0): number => {
+  const n = Number.parseInt(String(value ?? '').replace(/[a-z%]/gi, ''));
+  return isNaN(n) ? fallback : n;
+};
+
 interface Action {
   id: string
   type: ActionType
@@ -103,9 +108,24 @@ export function PropertiesPanel({
     vOffset: 2,
     blur: 4,
     spread: 0,
-    color: "rgba(0,0,0,0.1)",
+    color: "#000000",
     inset: false,
   })
+
+  const toHexColor = (color: string | undefined): string => {
+  if (!color || color === 'transparent' || color === 'none') return '#ffffff';
+  if (color.startsWith('#') && (color.length === 7 || color.length === 4)) return color;
+  // Convert named/rgba to hex via canvas
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `#${[r,g,b].map(v => v.toString(16).padStart(2,'0')).join('')}`;
+  } catch { return '#ffffff'; }
+};
 
   // Helper functions for generating handlers
   const generateScrollHandler = (selector: string) => {
@@ -422,15 +442,12 @@ export function PropertiesPanel({
   const updateStyle = (key: string, value: any) => {
     if (!selectedComponent) return
 
-    const updatedComponent = {
-      ...selectedComponent,
+    onUpdateComponent(selectedComponent.id, {
       style: {
         ...selectedComponent.style,
         [key]: value,
       },
-    }
-
-    onUpdateComponent(selectedComponent.id, updatedComponent)
+    })
   }
 
   const renderPropertyInputs = () => {
@@ -479,12 +496,12 @@ export function PropertiesPanel({
                 type="number"
                 min="10"
                 max="72"
-                value={
-                  selectedComponent.style?.fontSize
-                    ? Number.parseInt(styleStr(selectedComponent.style?.fontSize).replace("px", ""))
-                    : "24"
-                }
-                onChange={(e) => updateStyle("fontSize", `${e.target.value} px`)}
+                value={(() => {
+                  const raw = styleStr(selectedComponent.style?.fontSize).replace("px", "").trim();
+                  const n = Number.parseInt(raw);
+                  return isNaN(n) ? "24" : n;
+                })()}
+                onChange={(e) => updateStyle("fontSize", `${e.target.value}px`)}
                 className="h-8 text-xs mt-1"
               />
             </div>
@@ -567,7 +584,7 @@ export function PropertiesPanel({
                         ?  Number.parseInt(styleStr(selectedComponent.style?.fontSize).replace("px", ""))
                         : ""
                     }
-                    onChange={(e) => updateStyle("fontSize", `${e.target.value} px`)}
+                    onChange={(e) => updateStyle("fontSize", `${e.target.value}px`)}
                     className="h-8 text-xs mt-1"
                   />
                 </div>
@@ -3143,12 +3160,12 @@ export function PropertiesPanel({
                         <div className="flex gap-1 mt-1">
                           <Input
                             type="color"
-                            value={selectedComponent.style?.backgroundColor || "#ffffff"}
+                            value={toHexColor(selectedComponent.style?.backgroundColor)}
                             onChange={(e) => updateStyle("backgroundColor", e.target.value)}
                             className="h-8 w-8 p-0 border rounded"
                           />
                           <Input
-                            value={selectedComponent.style?.backgroundColor || "#ffffff"}
+                            value={toHexColor(selectedComponent.style?.backgroundColor)}
                             onChange={(e) => updateStyle("backgroundColor", e.target.value)}
                             className="h-8 text-xs flex-1"
                           />
@@ -3505,12 +3522,12 @@ export function PropertiesPanel({
                     <Input
                       id="backgroundColor"
                       type="color"
-                      value={selectedComponent.style?.backgroundColor || "#ffffff"}
+                      value={toHexColor(selectedComponent.style?.backgroundColor)}
                       onChange={(e) => updateStyle("backgroundColor", e.target.value)}
                       className="w-10 h-8 p-1 border rounded"
                     />
                     <Input
-                      value={selectedComponent.style?.backgroundColor || "#ffffff"}
+                      value={toHexColor(selectedComponent.style?.backgroundColor)}
                       onChange={(e) => updateStyle("backgroundColor", e.target.value)}
                       placeholder="#ffffff"
                       className="flex-1 h-8 text-xs"

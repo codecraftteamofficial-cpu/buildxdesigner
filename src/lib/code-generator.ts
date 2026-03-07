@@ -1,6 +1,6 @@
 // lib/code-generator.ts
 import { ComponentData } from "../App"
-
+import { nestComponents } from "./nestComponents";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DESIGN_WIDTH = 1920;
 
@@ -51,8 +51,11 @@ const compClass = (component: ComponentData): string => {
 const scalePx = (value: number, ratio: number): string =>
   `${Math.round(value * ratio)}px`;
 
-// Full-width components that break out of absolute flow on small screens
+// Full-width components that use relative flow on small screens
 const FULL_WIDTH_TYPES = new Set(["navbar", "hero", "footer", "section-heading"]);
+
+// Leaf elements that should float above background containers
+const LEAF_TYPES = new Set(["text", "heading", "paragraph", "button", "image", "video", "paymongo-button"]);
 
 // ─── Responsive CSS builder ───────────────────────────────────────────────────
 const buildResponsiveCss = (
@@ -62,9 +65,14 @@ const buildResponsiveCss = (
   const style = component.style ?? {};
   const cls = `.${compIdClass(component)}`;
   const isFullWidth = FULL_WIDTH_TYPES.has(component.type);
+  const isLeaf = LEAF_TYPES.has(component.type);
 
   // ── Desktop (1920px baseline) ─────────────────────────────────────────────
-  const desktopLines: string[] = [`  position: absolute;`];
+  const desktopLines: string[] = [];
+
+  // Handle position — use whatever the style says, defaulting to absolute
+  const positionValue = style.position || "absolute";
+  desktopLines.push(`  position: ${positionValue};`);
 
   if (position) {
     desktopLines.push(`  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
@@ -76,9 +84,14 @@ const buildResponsiveCss = (
   if (rawW !== null) desktopLines.push(`  width: ${((rawW / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
   if (rawH !== null) desktopLines.push(`  height: ${rawH}px;`);
 
+  // Ensure leaf elements (text, buttons, etc.) always render above sections
+  if (isLeaf && !style.zIndex) {
+    desktopLines.push(`  z-index: 1;`);
+  }
+
   for (const [key, value] of Object.entries(style)) {
-    if (["left", "top", "right", "bottom", "width", "height"].includes(key)) continue;
-    if (key === "position" && value === "absolute") continue;
+    // Skip layout props we already handle explicitly
+    if (["left", "top", "right", "bottom", "width", "height", "position"].includes(key)) continue;
     if (value === undefined || value === null || value === "") continue;
     const unit = typeof value === "number" && !isUnitless(key) ? "px" : "";
     const cssKey = key.startsWith("--") ? key : camelToKebab(key);
@@ -113,7 +126,6 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
       bpLines.push(`  width: 100% !important;`);
       bpLines.push(`  max-width: 100% !important;`);
       if (rawH !== null) {
-        // On small screens, let height be auto for full-width sections
         if (bpName === "small") {
           bpLines.push(`  height: auto !important;`);
           bpLines.push(`  min-height: ${Math.round(rawH * ratio)}px;`);
@@ -143,7 +155,7 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
 
     // Scale line-height if it's a pixel value
     const rawLh = parsePixelValue(style.lineHeight);
-    if (rawLh !== null && rawLh > 4) { // >4 means it's px, not a unitless ratio
+    if (rawLh !== null && rawLh > 4) {
       bpLines.push(`  line-height: ${scalePx(rawLh, ratio)};`);
     }
 
@@ -152,7 +164,6 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
       const v = parsePixelValue(style[pad]);
       if (v !== null) bpLines.push(`  ${camelToKebab(pad)}: ${scalePx(v, ratio)};`);
     }
-    // Handle shorthand padding
     const rawP = parsePixelValue(style.padding);
     if (rawP !== null) bpLines.push(`  padding: ${scalePx(rawP, ratio)};`);
 
@@ -166,7 +177,7 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
     const rawBr = parsePixelValue(style.borderRadius);
     if (rawBr !== null) bpLines.push(`  border-radius: ${scalePx(rawBr, ratio)};`);
 
-    // Scale gap (for grids/flex containers)
+    // Scale gap
     const rawGap = parsePixelValue(style.gap);
     if (rawGap !== null) bpLines.push(`  gap: ${scalePx(rawGap, ratio)};`);
 
@@ -184,7 +195,7 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
       css += `\n\n@media (max-width: ${bpMax}px) {\n  ${cls} {\n${bpLines.map(l => "  " + l).join("\n")}\n  }\n}`;
     }
 
-    // Navbar burger toggle rules (separate selectors)
+    // Navbar burger toggle rules
     if (component.type === "navbar" && (bpName === "tablet" || bpName === "mobile" || bpName === "small")) {
       css += `\n@media (max-width: ${bpMax}px) {
   ${cls} .nav-toggle {
@@ -221,21 +232,18 @@ ${cls} .nav-links a { text-decoration: none; color: inherit; padding: 0.25rem 0.
 }`;
     }
 
-    // Image responsive override
     if (component.type === "image" && bpName === "small") {
       css += `\n@media (max-width: ${bpMax}px) {
   ${cls} img { width: 100% !important; height: auto !important; object-fit: cover; }
 }`;
     }
 
-    // Grid responsive: collapse to 1 column on mobile
     if (component.type === "grid" && bpName === "mobile") {
       css += `\n@media (max-width: ${bpMax}px) {
   ${cls} { grid-template-columns: 1fr !important; }
 }`;
     }
 
-    // Card: full width on small screens
     if (component.type === "card" && bpName === "small") {
       css += `\n@media (max-width: ${bpMax}px) {
   ${cls} { width: 100% !important; min-width: unset !important; }
@@ -438,7 +446,6 @@ const generatePageJS = (components: ComponentData[], pageName: string): string =
       btn.setAttribute("aria-expanded", String(isOpen));
     });
   });
-  // Close nav on link click (SPA behaviour)
   document.querySelectorAll(".nav-links a").forEach(link => {
     link.addEventListener("click", () => {
       const ul = link.closest(".nav-links");
@@ -447,7 +454,6 @@ const generatePageJS = (components: ComponentData[], pageName: string): string =
       btn?.setAttribute("aria-expanded", "false");
     });
   });
-  // Close nav on outside click
   document.addEventListener("click", (e) => {
     document.querySelectorAll("nav").forEach(nav => {
       if (!nav.contains(e.target as Node)) {
@@ -515,11 +521,20 @@ a { color: inherit; }
 button { cursor: pointer; font-family: inherit; }
 
 /* ── Canvas ── */
+/* Scale the 1920px design canvas to fill the full viewport width,
+   exactly like the BuildX editor does. The inner wrapper is always
+   1920px wide; the outer scales it via CSS zoom / transform. */
+.canvas-outer {
+  width: 100%;
+  overflow-x: hidden;
+}
 .canvas-container {
   position: relative;
-  width: 100%;
+  width: 1920px;
+  transform-origin: top left;
+  /* JS will set --canvas-scale at runtime; fallback = 100vw / 1920px */
+  transform: scale(var(--canvas-scale, 1));
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 /* ── Navbar base ── */
@@ -675,6 +690,8 @@ button { cursor: pointer; font-family: inherit; }
 /* ══ TABLET (≤${BREAKPOINTS.tablet}px) ════════════════════════════════ */
 @media (max-width: ${BREAKPOINTS.tablet}px) {
   .canvas-container {
+    width: 100% !important;
+    transform: none !important;
     position: static !important;
     display: block !important;
     min-height: 100svh;
@@ -711,6 +728,8 @@ button { cursor: pointer; font-family: inherit; }
 /* ══ MOBILE (≤${BREAKPOINTS.mobile}px) ════════════════════════════════ */
 @media (max-width: ${BREAKPOINTS.mobile}px) {
   .canvas-container {
+    width: 100% !important;
+    transform: none !important;
     position: static !important;
     display: block !important;
   }
@@ -757,9 +776,32 @@ const generateHTMLWrapper = (pageName: string, fileName: string, bodyContent: st
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="stylesheet" href="/assets/css/global.css" />
   <link rel="stylesheet" href="/assets/css/${fileName}.css" />
+  <script>
+    (function(){
+      var D=1920;
+      function scale(){
+        var vw=window.innerWidth;
+        if(vw>=1025){
+          var s=vw/D;
+          document.documentElement.style.setProperty("--canvas-scale",s);
+          var el=document.querySelector(".canvas-container");
+          if(el){
+            var outer=el.parentElement;
+            if(outer) outer.style.height=Math.round(el.scrollHeight*s)+"px";
+          }
+        } else {
+          document.documentElement.style.setProperty("--canvas-scale","1");
+        }
+      }
+      document.addEventListener("DOMContentLoaded",scale);
+      window.addEventListener("resize",scale);
+    })();
+  </script>
 </head>
 <body>
+<div class="canvas-outer">
 ${bodyContent}
+</div>
   <script src="/assets/js/${fileName}.js" defer></script>
 </body>
 </html>`;
@@ -834,11 +876,13 @@ config/
       return isExplicitMatch || isGlobal || isDefaultHome;
     });
 
-    // ── PHP view ──────────────────────────────────────────────────────────────
+    const nestedPageComponents = nestComponents(pageComponents);
+
+
     const bodyContent = [
       `<div class="canvas-container" id="page-${fileName}">`,
-      pageComponents.length > 0
-        ? pageComponents.map(c => renderComponentToPHP(c, 1)).join("\n")
+      nestedPageComponents.length > 0
+        ? nestedPageComponents.map(c => renderComponentToPHP(c, 1)).join("\n")
         : "  <!-- No components on this page -->",
       `</div>`,
     ].join("\n");
@@ -851,7 +895,6 @@ config/
       page.ogImage || "",
     );
 
-    // ── Per-page responsive CSS ───────────────────────────────────────────────
     const componentCssBlocks = pageComponents
       .filter(c => (c.style && Object.keys(c.style).length > 0) || c.type === "navbar")
       .map(c => buildResponsiveCss(c, c.position));
@@ -865,7 +908,6 @@ config/
       ...componentCssBlocks,
     ].join("\n\n");
 
-    // ── Per-page JS ───────────────────────────────────────────────────────────
     files[`public/assets/js/${fileName}.js`] = generatePageJS(pageComponents, page.name);
   });
 

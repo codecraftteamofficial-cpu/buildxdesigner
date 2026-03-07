@@ -374,15 +374,26 @@ export async function syncProjectComponents(
     const idsToDelete = existingIds.filter((id) => !currentIds.has(id));
 
     if (idsToDelete.length > 0) {
-      await supabase.from("components").delete().in("id", idsToDelete);
+      const { error: deleteError } = await supabase
+        .from("components")
+        .delete()
+        .in("id", idsToDelete);
+      if (deleteError) throw deleteError; // was silently swallowed before
     }
 
     if (flatList.length > 0) {
-      await supabase.from("components").upsert(flatList);
+      const { error: upsertError } = await supabase
+        .from("components")
+        .upsert(flatList, {
+          onConflict: "id",
+          ignoreDuplicates: false,
+        });
+      if (upsertError) throw upsertError;
     }
 
     return { error: null };
   } catch (err) {
+    console.error("syncProjectComponents failed:", JSON.stringify(err, null, 2));
     return { error: err };
   }
 }

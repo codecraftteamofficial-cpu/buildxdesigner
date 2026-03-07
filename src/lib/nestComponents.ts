@@ -7,6 +7,10 @@ export const CONTAINER_TYPES = new Set([
   "container", "group", "grid", "form", "section",
 ])
 
+const NEVER_NEST_INTO_SECTIONS = new Set([
+  "navbar", "hero", "footer", "section-heading",
+])
+
 // ─── Value parsers ────────────────────────────────────────────────────────────
 
 function parseStyleValue(value: any): number {
@@ -44,7 +48,6 @@ export function getComponentY(c: ComponentData): number {
 
 // ─── Containment checks ───────────────────────────────────────────────────────
 
-// Full 2D bounding box check — for partial-width containers
 function isInsideBounds(child: ComponentData, parent: ComponentData): boolean {
   const px = getComponentX(parent), py = getComponentY(parent)
   const pw = getComponentWidth(parent), ph = getComponentHeight(parent)
@@ -57,15 +60,13 @@ function isInsideBounds(child: ComponentData, parent: ComponentData): boolean {
   return centerX >= px && centerX <= px + pw && centerY >= py && centerY <= py + ph
 }
 
-// Y-band check — for full-width section containers (width = 1920px)
-// Only the vertical center needs to fall inside the section's Y range.
 function isInsideYBand(child: ComponentData, parent: ComponentData): boolean {
   const py = getComponentY(parent)
   const ph = getComponentHeight(parent)
   if (ph <= 0) return false
 
-  // Never nest containers inside full-width containers — keeps tree shallow
   if (CONTAINER_TYPES.has(child.type)) return false
+  if (NEVER_NEST_INTO_SECTIONS.has(child.type)) return false
 
   const cy = getComponentY(child)
   const centerY = cy + getComponentHeight(child) / 2
@@ -76,31 +77,58 @@ function isInsideYBand(child: ComponentData, parent: ComponentData): boolean {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**
- * Takes a flat ComponentData array and returns a nested tree.
+ * Nesting strategy (in priority order):
  *
- * Strategy:
- * 1. Partial containers (w < 1800px): children assigned by full 2D overlap.
- * 2. Full-width containers (w >= 1800px, i.e. 1920px sections): non-container
- *    children assigned by Y-band overlap only.
+ * 1. EXPLICIT: If a component has `parent_id` set, nest it under that parent.
+ *    This is the most reliable method — used when the user explicitly places
+ *    a component inside a container on the canvas.
  *
- * Pass 1 runs first (partial) so more specific parents win over sections.
+ * 2. GEOMETRIC (partial containers, w < 1800px): Children assigned by full
+ *    2D centre-point overlap. Works for ALL element types.
+ *
+ * 3. GEOMETRIC (full-width containers, w >= 1800px): Y-band only, and only
+ *    for explicit container-type children (not leaf elements like text/button).
  */
 export function nestComponents(flat: ComponentData[]): ComponentData[] {
   if (!flat || flat.length === 0) return []
 
   const cloned: ComponentData[] = flat.map(c => ({ ...c, children: [] }))
-
-  const partialContainers = cloned
-    .filter(c => CONTAINER_TYPES.has(c.type) && getComponentWidth(c) > 0 && getComponentWidth(c) < 1800 && getComponentHeight(c) > 0)
-    .sort((a, b) => (getComponentWidth(a) * getComponentHeight(a)) - (getComponentWidth(b) * getComponentHeight(b)))
-
-  const fullWidthContainers = cloned
-    .filter(c => CONTAINER_TYPES.has(c.type) && getComponentWidth(c) >= 1800 && getComponentHeight(c) > 0)
-    .sort((a, b) => getComponentHeight(a) - getComponentHeight(b)) // smallest height = most specific
-
+  const byId = new Map(cloned.map(c => [c.id, c]))
   const assigned = new Set<string>()
 
-  // Pass 1: partial containers (most specific)
+  // ── Pass 0: Explicit parent_id ────────────────────────────────────────────
+  for (const c of cloned) {
+    const pid = (c as any).parent_id
+    if (!pid) continue
+    const parent = byId.get(pid)
+    if (!parent || parent.id === c.id) continue
+    parent.children!.push(c)
+    assigned.add(c.id)
+  }
+
+  // ── Geometry-based passes (only for unassigned components) ────────────────
+
+  const partialContainers = cloned
+    .filter(c =>
+      CONTAINER_TYPES.has(c.type) &&
+      getComponentWidth(c) > 0 &&
+      getComponentWidth(c) < 1800 &&
+      getComponentHeight(c) > 0
+    )
+    .sort((a, b) =>
+      (getComponentWidth(a) * getComponentHeight(a)) -
+      (getComponentWidth(b) * getComponentHeight(b))
+    )
+
+  const fullWidthContainers = cloned
+    .filter(c =>
+      CONTAINER_TYPES.has(c.type) &&
+      getComponentWidth(c) >= 1800 &&
+      getComponentHeight(c) > 0
+    )
+    .sort((a, b) => getComponentHeight(a) - getComponentHeight(b))
+
+  // Pass 1: partial containers — full 2D overlap, ALL element types
   for (const c of cloned) {
     if (assigned.has(c.id)) continue
     const parent = partialContainers.find(p => p.id !== c.id && isInsideBounds(c, p))
@@ -110,10 +138,10 @@ export function nestComponents(flat: ComponentData[]): ComponentData[] {
     }
   }
 
-  // Pass 2: full-width section containers
+  // Pass 2: full-width section containers — Y-band only, containers only
   for (const c of cloned) {
     if (assigned.has(c.id)) continue
-    if (CONTAINER_TYPES.has(c.type)) continue // don't nest sections into sections
+    if (CONTAINER_TYPES.has(c.type)) continue
     const parent = fullWidthContainers.find(p => p.id !== c.id && isInsideYBand(c, p))
     if (parent) {
       parent.children!.push(c)
@@ -131,12 +159,11 @@ export function debugNesting(flat: ComponentData[]): void {
   console.table(flat.map(c => ({
     id: c.id.slice(-8),
     type: c.type,
+    parent_id: (c as any).parent_id || "-",
     x: getComponentX(c),
     y: getComponentY(c),
     w: Math.round(getComponentWidth(c)),
     h: Math.round(getComponentHeight(c)),
-    raw_w: c.style?.width,
-    raw_h: c.style?.height,
   })))
   const result = nestComponents(flat)
   console.log(`Root nodes: ${result.length} (was ${flat.length} flat, ${flat.length - result.length} nested)`)

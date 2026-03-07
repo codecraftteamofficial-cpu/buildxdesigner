@@ -17,7 +17,6 @@ import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { generateProjectFiles, slugify } from "../lib/code-generator"
-import { nestComponents } from "../lib/nestComponents"
 
 // --- VS CODE DARK MODERN THEME ---
 const customSyntaxTheme = {
@@ -289,12 +288,10 @@ export function CodeViewEditor({
   // ── Use shared nestComponents from lib/nestComponents ──
   // Handles full-width 1920px containers via Y-band matching
   // and partial containers via full 2D bounding-box overlap.
-  const nestedComponents = useMemo(() => nestComponents(components), [components])
-
-  const generatedFiles = useMemo(
-    () => generateProjectFiles(nestedComponents, pages, projectName),
-    [nestedComponents, pages, projectName]
-  )
+const generatedFiles = useMemo(
+  () => generateProjectFiles(components, pages, projectName),
+  [components, pages, projectName]
+)
 
   useEffect(() => {
     const activePage = pages.find((p) => p.id === activePageId) || pages[0]
