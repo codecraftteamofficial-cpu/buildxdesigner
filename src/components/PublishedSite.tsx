@@ -17,15 +17,12 @@ export function PublishedSite() {
     const getActivePageFromPath = (path: string, pages: any[]) => {
         if (!pages || pages.length === 0) return 'home';
 
-        // Normalize path for comparison
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
-        // Handle root path or /home alias
         if (normalizedPath === '/' || normalizedPath === '/home') {
             return 'home';
         }
 
-        // Find page by path
         const page = pages.find(p => {
             const pagePathNormalized = p.path.startsWith('/') ? p.path : `/${p.path}`;
             return pagePathNormalized === normalizedPath;
@@ -47,43 +44,69 @@ export function PublishedSite() {
             let subdomain = "";
 
             if (process.env.NODE_ENV === "development" && hostname.includes("localhost")) {
+                // Dev mode: use ?subdomain=xxx query param
                 const params = new URLSearchParams(window.location.search);
                 const override = params.get("subdomain");
                 if (override) {
                     subdomain = override;
                 }
-            } else if (parts.length > 2) {
-                subdomain = parts[0];
+            } else {
+                // Production: *.buildxdesigner.site
+                // parts[0] is the subdomain for any host with 3+ segments
+                // e.g. "l3yuu.buildxdesigner.site" → ["l3yuu", "buildxdesigner", "site"]
+                if (parts.length >= 3) {
+                    subdomain = parts[0];
+                } else if (parts.length === 2) {
+                    // Apex domain hit (buildxdesigner.site) — no subdomain
+                    subdomain = "";
+                }
             }
 
-            if (!subdomain || subdomain === "www" || subdomain === "app") {
+            // Guard against non-project subdomains
+            const RESERVED = ["www", "app", "api", "mail", "ftp", "buildxdesigner"];
+            if (!subdomain || RESERVED.includes(subdomain)) {
                 setError("No subdomain found");
                 setLoading(false);
                 return;
             }
 
             try {
-                const { data, error } = await fetchProjectBySubdomain(subdomain);
-                if (error || !data) {
+                console.log("[PublishedSite] Loading subdomain:", subdomain);
+                const { data, error: fetchError } = await fetchProjectBySubdomain(subdomain);
+
+                if (fetchError) {
+                    console.error("[PublishedSite] Fetch error:", fetchError);
                     setError("Site not found");
-                } else {
-                    const configNode = data.project_layout?.find((c: any) => c.type === 'project-config');
-                    let extractedConfig = undefined;
-
-                    if (configNode?.props?.supabaseUrl && configNode?.props?.supabaseKey) {
-                        extractedConfig = {
-                            supabaseUrl: configNode.props.supabaseUrl,
-                            supabaseKey: configNode.props.supabaseKey
-                        };
-                    }
-
-                    if (data.project_layout) {
-                        data.project_layout = data.project_layout.filter((c: any) => c.type !== 'project-config');
-                    }
-
-                    setProject({ ...data, userProjectConfig: extractedConfig });
+                    setLoading(false);
+                    return;
                 }
+
+                if (!data) {
+                    console.warn("[PublishedSite] No data returned for subdomain:", subdomain);
+                    setError("Site not found");
+                    setLoading(false);
+                    return;
+                }
+
+                // Extract optional Supabase config from layout
+                const configNode = data.project_layout?.find((c: any) => c.type === 'project-config');
+                let extractedConfig = undefined;
+
+                if (configNode?.props?.supabaseUrl && configNode?.props?.supabaseKey) {
+                    extractedConfig = {
+                        supabaseUrl: configNode.props.supabaseUrl,
+                        supabaseKey: configNode.props.supabaseKey
+                    };
+                }
+
+                // Strip config node from rendered layout
+                if (data.project_layout) {
+                    data.project_layout = data.project_layout.filter((c: any) => c.type !== 'project-config');
+                }
+
+                setProject({ ...data, userProjectConfig: extractedConfig });
             } catch (err) {
+                console.error("[PublishedSite] Unexpected error:", err);
                 setError("Failed to load site");
             } finally {
                 setLoading(false);
@@ -100,7 +123,6 @@ export function PublishedSite() {
             setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
         };
 
-        // Initial detection
         setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
 
         window.addEventListener('popstate', handlePopState);
@@ -138,5 +160,4 @@ export function PublishedSite() {
             />
         </DndProvider>
     );
-
 }

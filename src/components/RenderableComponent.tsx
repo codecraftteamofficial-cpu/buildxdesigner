@@ -1559,7 +1559,7 @@ export function RenderableComponent({
             </div>
           </ResizeHandle>
         );
-
+     
       case 'container':
         const containerWidth = parseSize(style?.width, 300);
         const containerHeight = parseSize(style?.height, 150);
@@ -1576,7 +1576,6 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-
             <div
               id={props.elementId}
               style={{
@@ -1588,59 +1587,98 @@ export function RenderableComponent({
                 width: '100%',
                 height: '100%',
                 boxSizing: 'border-box',
+                position: 'relative',   // ← needed so absolute children position correctly
                 ...combinedStyle
               }}
               className={props.className || ''}
             >
-              <div className="text-muted-foreground text-center">
-                <EditableText
-                  text={props.content || ''}
-                  onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
-                  element="p"
-                  isSelected={isSelected}
-                  disabled={disabled || isPreview}
-                  isEditing={editingComponentId === component.id}
-
-                  onToggleEditing={(val) => onEditComponent?.(val ? component.id : null)}
-                />
-              </div>
+              {/* Render layout children (from nestComponents) */}
+              {component.children && component.children.length > 0 ? (
+                component.children.map((child) => (
+                  <div
+                    key={child.id}
+                    style={{
+                      position: 'absolute',
+                      left: child.position?.x ?? 0,
+                      top: child.position?.y ?? 0,
+                      width: child.style?.width,
+                      height: child.style?.height,
+                    }}
+                  >
+                    <RenderableComponent
+                      component={child}
+                      projectId={projectId}
+                      isSelected={false}
+                      onUpdate={(childUpdates) => {
+                        const newChildren = component.children?.map(c =>
+                          c.id === child.id ? { ...c, ...childUpdates } : c
+                        );
+                        onUpdate({ children: newChildren });
+                      }}
+                      onDelete={() => {
+                        const newChildren = component.children?.filter(c => c.id !== child.id);
+                        onUpdate({ children: newChildren });
+                      }}
+                      disabled={disabled}
+                      isPreview={isPreview}
+                      userProjectConfig={userProjectConfig}
+                      onEditComponent={onEditComponent}
+                      navigate={navigate}
+                    />
+                  </div>
+                ))
+              ) : (
+                // Fallback: show editable text content when no children
+                <div className="text-muted-foreground text-center">
+                  <EditableText
+                    text={props.content || ''}
+                    onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
+                    element="p"
+                    isSelected={isSelected}
+                    disabled={disabled || isPreview}
+                    isEditing={editingComponentId === component.id}
+                    onToggleEditing={(val) => onEditComponent?.(val ? component.id : null)}
+                  />
+                </div>
+              )}
             </div>
           </ResizeHandle>
         );
+      case 'navbar':
+        const navHeight = parseSize(style?.height, 64);
+        const navWidth = style?.width ? parseSize(style.width, 800) : null;
 
-          case 'navbar':
-            const navHeight = parseSize(style?.height, 64);
-
-            return (
-              <ResizeHandle
-                onResize={(newX, newY, _newWidth, newHeight) => {
-                  onUpdate({
-                    position: { x: newX, y: newY },
-                    style: {
-                      ...component.style,
-                      height: `${newHeight}px`,
-                    }
-                  });
-                }}
-                initialX={component.position?.x || 0}
-                initialY={component.position?.y || 0}
-                initialWidth={9999}
-                initialHeight={navHeight}
-                className="group w-full"
-                minWidth={200}
-                minHeight={40}
-                disabled={isPreview}
-                onResizeStart={onResizeStart}
-                onResizeEnd={onResizeEnd}
-              >
-
+        return (
+          <ResizeHandle
+            onResize={(newX, newY, newWidth, newHeight) => {
+              onUpdate({
+                position: { x: newX, y: newY },
+                style: {
+                  ...component.style,
+                  width: `${newWidth}px`,
+                  height: `${newHeight}px`,
+                }
+              });
+            }}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={navWidth ?? 800}
+            initialHeight={navHeight}
+            className="group w-full"
+            minWidth={200}
+            minHeight={40}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
             <nav
               id={props.elementId}
               style={{
                 backgroundColor: '#1f2937',
                 color: 'white',
                 padding: '1rem',
-                width: '100%',
+                // Use saved pixel width if set, otherwise stretch to 100%
+                width: navWidth ? `${navWidth}px` : '100%',
                 height: '100%',
                 boxSizing: 'border-box',
                 ...combinedStyle
@@ -1656,7 +1694,6 @@ export function RenderableComponent({
                   isSelected={isSelected}
                   disabled={disabled || isPreview}
                 />
-
               </div>
               <div className="flex gap-4">
                 {(props.links || ['Home', 'About', 'Contact']).map((link: string, index: number) => (
@@ -1672,7 +1709,6 @@ export function RenderableComponent({
                       isSelected={isSelected}
                       disabled={disabled || isPreview}
                     />
-
                   </a>
                 ))}
               </div>

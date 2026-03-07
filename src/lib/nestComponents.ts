@@ -11,6 +11,11 @@ const NEVER_NEST_INTO_SECTIONS = new Set([
   "navbar", "hero", "footer", "section-heading",
 ])
 
+// These types can NEVER be parents — components on top of them stay as siblings
+const NEVER_BE_PARENT = new Set([
+  "navbar", "hero", "footer", "section-heading",
+])
+
 // ─── Value parsers ────────────────────────────────────────────────────────────
 
 function parseStyleValue(value: any): number {
@@ -49,6 +54,9 @@ export function getComponentY(c: ComponentData): number {
 // ─── Containment checks ───────────────────────────────────────────────────────
 
 function isInsideBounds(child: ComponentData, parent: ComponentData): boolean {
+  // Hero, footer, navbar etc. can never absorb children
+  if (NEVER_BE_PARENT.has(parent.type)) return false
+
   const px = getComponentX(parent), py = getComponentY(parent)
   const pw = getComponentWidth(parent), ph = getComponentHeight(parent)
   if (pw <= 0 || ph <= 0) return false
@@ -61,6 +69,9 @@ function isInsideBounds(child: ComponentData, parent: ComponentData): boolean {
 }
 
 function isInsideYBand(child: ComponentData, parent: ComponentData): boolean {
+  // Hero, footer, navbar etc. can never absorb children
+  if (NEVER_BE_PARENT.has(parent.type)) return false
+
   const py = getComponentY(parent)
   const ph = getComponentHeight(parent)
   if (ph <= 0) return false
@@ -85,6 +96,8 @@ function isInsideYBand(child: ComponentData, parent: ComponentData): boolean {
  *
  * 2. GEOMETRIC (partial containers, w < 1800px): Children assigned by full
  *    2D centre-point overlap. Works for ALL element types.
+ *    NOTE: hero/footer/navbar/section-heading are excluded as parents even
+ *    if their saved width happens to be < 1800px.
  *
  * 3. GEOMETRIC (full-width containers, w >= 1800px): Y-band only, and only
  *    for explicit container-type children (not leaf elements like text/button).
@@ -102,6 +115,8 @@ export function nestComponents(flat: ComponentData[]): ComponentData[] {
     if (!pid) continue
     const parent = byId.get(pid)
     if (!parent || parent.id === c.id) continue
+    // Still respect NEVER_BE_PARENT even for explicit parent_id
+    if (NEVER_BE_PARENT.has(parent.type)) continue
     parent.children!.push(c)
     assigned.add(c.id)
   }
@@ -111,6 +126,7 @@ export function nestComponents(flat: ComponentData[]): ComponentData[] {
   const partialContainers = cloned
     .filter(c =>
       CONTAINER_TYPES.has(c.type) &&
+      !NEVER_BE_PARENT.has(c.type) &&          // ← extra safety guard
       getComponentWidth(c) > 0 &&
       getComponentWidth(c) < 1800 &&
       getComponentHeight(c) > 0
@@ -123,6 +139,7 @@ export function nestComponents(flat: ComponentData[]): ComponentData[] {
   const fullWidthContainers = cloned
     .filter(c =>
       CONTAINER_TYPES.has(c.type) &&
+      !NEVER_BE_PARENT.has(c.type) &&          // ← extra safety guard
       getComponentWidth(c) >= 1800 &&
       getComponentHeight(c) > 0
     )

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react"
 import type { ComponentData } from "../App"
 import { Button } from "./ui/button"
 import { Copy, Download, RotateCcw } from "lucide-react"
-import { toast } from "sonner@2.0.3"
+import { toast } from "sonner"
 
 interface CodeEditorPaneProps {
   components: ComponentData[]
