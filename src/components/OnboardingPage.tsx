@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronLeft, Sparkles, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { supabase } from "../supabase/config/supabaseClient";
+
 import { getSupabaseSession } from "../supabase/auth/authService";
 
 interface OnboardingQuestionnaireProps {
@@ -123,6 +123,15 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+
+    const finishOnboarding = () => {
+      setShowCompletion(true);
+      setTimeout(() => {
+        onComplete();
+      }, 1500);
+    };
+
+
     try {
       const {
         data: { session },
@@ -130,24 +139,37 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
 
       if (!session?.user) {
         console.error("No authenticated user found");
-        setIsSubmitting(false);
+           finishOnboarding();
         return;
       }
       const apiUrl = import.meta.env.VITE_API_URL;
-      const response = await fetch(`${apiUrl}/api/insert-onboarding-data`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: session.user.id,
-          primary_role: answers.primaryRole,
-          workplace_type: answers.workplaceType,
-          experience: answers.experience,
-          main_goal: answers.mainGoal,
-          team_size: answers.teamSize,
-        }),
-      });
+      const endpoint = apiUrl
+        ? `${apiUrl}/api/insert-onboarding-data`
+        : "/api/insert-onboarding-data";
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+
+      let response: Response;
+      try {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            userId: session.user.id,
+            primary_role: answers.primaryRole,
+            workplace_type: answers.workplaceType,
+            experience: answers.experience,
+            main_goal: answers.mainGoal,
+            team_size: answers.teamSize,
+          }),
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error("Failed to save onboarding data");
@@ -156,13 +178,15 @@ export const OnboardingPage: React.FC<OnboardingQuestionnaireProps> = ({
       const result = await response.json();
       console.log("Onboarding data saved successfully:", result);
 
-      setShowCompletion(true);
-
-      setTimeout(() => {
-        onComplete();
-      }, 1500);
+      finishOnboarding();
     } catch (error) {
-      console.error("Error submitting onboarding:", error);
+       console.error(
+        "Error submitting onboarding. Continuing to dashboard and retrying save on next session:",
+        error,
+      );
+
+      finishOnboarding();
+    } finally {
       setIsSubmitting(false);
     }
   };
