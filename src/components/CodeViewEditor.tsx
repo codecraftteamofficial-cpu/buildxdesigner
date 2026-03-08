@@ -12,6 +12,8 @@ import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { okaidia } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { generateProjectFiles, slugify } from "../lib/code-generator"
+import { Input } from "./ui/input"
+import { Label } from "./ui/label"
 
 // --- VS CODE DARK MODERN THEME ---
 const customSyntaxTheme = {
@@ -171,119 +173,101 @@ function FileCreatorModal({ onClose, existingPaths, onCreateFile }: FileCreatorM
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative w-[420px] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2b2b]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-purple-600/20 flex items-center justify-center">
-              <FilePlus className="w-4 h-4 text-purple-400" />
-            </div>
-            <span className="text-sm font-semibold text-white">New File</span>
+        <div className="relative w-[500px] bg-background border border-border rounded-lg shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4">
+            <h2 className="text-base font-semibold">Create New File</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Add a new file to your project.</p>
           </div>
-          <button onClick={onClose} className="w-6 h-6 rounded hover:bg-[#333] flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
 
-        <div className="px-5 py-4 space-y-4">
-          {/* File type selector */}
-          <div>
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">File Type</label>
-            <div className="grid grid-cols-5 gap-1.5">
-              {FILE_TYPE_OPTIONS.map(opt => (
-                <button key={opt.ext}
-                  onClick={() => { setSelectedType(opt); setError(""); if (!useCustomFolder) setCustomFolder("") }}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all ${
-                    selectedType.ext === opt.ext
-                      ? "border-purple-500/60 bg-purple-500/10 text-white"
-                      : "border-[#2b2b2b] bg-[#222] hover:border-[#444] text-muted-foreground hover:text-white"
-                  }`}>
-                  {opt.icon}
-                  <span className="text-[9px] leading-none">{opt.label.split(" ")[0]}</span>
+          <div className="px-6 pb-4 grid gap-4">
+            {/* File type */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right text-sm">File Type</Label>
+              <div className="col-span-3 grid grid-cols-5 gap-2">
+                {FILE_TYPE_OPTIONS.map(opt => (
+                  <button key={opt.ext}
+                    onClick={() => { setSelectedType(opt); setError(""); if (!useCustomFolder) setCustomFolder("") }}
+                    className={`flex flex-col items-center gap-1.5 py-2.5 rounded-md border text-xs transition-all ${
+                      selectedType.ext === opt.ext
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {opt.icon}
+                    <span className="text-[10px] leading-none">{opt.label.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* File name */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="file-name" className="text-right text-sm">File Name</Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Input
+                  id="file-name"
+                  ref={inputRef}
+                  value={fileName}
+                  onChange={e => { setFileName(e.target.value); setError("") }}
+                  onKeyDown={handleKey}
+                  placeholder={selectedType.ext === "php" ? "e.g. about" : selectedType.ext === "css" ? "e.g. styles" : "e.g. utils"}
+                  className="flex-1 font-mono"
+                />
+                <span className="text-sm text-muted-foreground font-mono shrink-0">.{selectedType.ext}</span>
+              </div>
+            </div>
+
+            {/* Folder */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <div className="text-right flex flex-col items-end gap-1">
+                <Label className="text-sm">Folder</Label>
+                <button
+                  onClick={() => { setUseCustomFolder(p => !p); setCustomFolder(selectedType.folder) }}
+                  className="text-[11px] text-primary hover:underline transition-colors">
+                  {useCustomFolder ? "Use default" : "Custom"}
                 </button>
-              ))}
+              </div>
+              <div className="col-span-3">
+                {useCustomFolder
+                  ? <Input value={customFolder} onChange={e => setCustomFolder(e.target.value)} className="font-mono" />
+                  : <Input value={`${selectedType.folder}/`} readOnly className="font-mono text-muted-foreground bg-muted/40 cursor-default" />
+                }
+              </div>
             </div>
-          </div>
 
-          {/* File name */}
-          <div>
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">File Name</label>
-            <div className="flex items-center gap-2">
-              <input
-                ref={inputRef}
-                value={fileName}
-                onChange={e => { setFileName(e.target.value); setError("") }}
-                onKeyDown={handleKey}
-                placeholder={`e.g. ${selectedType.ext === "php" ? "about" : selectedType.ext === "css" ? "styles" : "utils"}`}
-                className="flex-1 h-9 bg-[#111] border border-[#333] rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground/40 outline-none focus:border-purple-500/50 transition-colors font-mono"
-              />
-              <span className="text-[12px] text-muted-foreground/60 font-mono shrink-0">.{selectedType.ext}</span>
-            </div>
-          </div>
+            {/* Preview */}
+            {cleanName && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right text-sm text-muted-foreground">Preview</Label>
+                <div className="col-span-3 px-3 py-2 rounded-md bg-muted/40 border border-border">
+                  <span className="text-xs font-mono text-green-600 dark:text-green-400 truncate block">{finalPath}</span>
+                </div>
+              </div>
+            )}
 
-          {/* Destination folder */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Destination</label>
-              <button
-                onClick={() => { setUseCustomFolder(p => !p); setCustomFolder(selectedType.folder) }}
-                className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors">
-                {useCustomFolder ? "Use default" : "Custom folder"}
-              </button>
-            </div>
-            {useCustomFolder ? (
-              <input
-                value={customFolder}
-                onChange={e => setCustomFolder(e.target.value)}
-                className="w-full h-9 bg-[#111] border border-[#333] rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground/40 outline-none focus:border-purple-500/50 transition-colors font-mono"
-              />
-            ) : (
-              <div className="flex items-center gap-2 h-9 px-3 bg-[#111] border border-[#2b2b2b] rounded-lg">
-                <span className="text-xs font-mono text-muted-foreground/60">{selectedType.folder}/</span>
+            {/* Error */}
+            {error && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div />
+                <div className="col-span-3 flex items-center gap-1.5 text-destructive text-xs">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Preview path */}
-          {cleanName && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#111] rounded-lg border border-[#2b2b2b]">
-              <span className="text-[10px] text-muted-foreground/40 shrink-0">Will create:</span>
-              <span className="text-[11px] font-mono text-green-400 truncate">{finalPath}</span>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-              <span className="text-[11px] text-red-400">{error}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#2b2b2b] bg-[#161616]">
-          <span className="text-[10px] text-muted-foreground/40">Enter to create · Esc to cancel</span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="h-8 px-3 text-xs rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] text-muted-foreground hover:text-white transition-all">
-              Cancel
-            </button>
-            <button onClick={handleCreate} disabled={!cleanName}
-              className="h-8 px-4 text-xs rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium transition-all flex items-center gap-1.5">
-              <FilePlus className="w-3.5 h-3.5" />Create File
-            </button>
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!cleanName}>Create File</Button>
           </div>
         </div>
       </div>
-    </div>
-  )
+    )
 }
-
 // ─────────────────────────────────────────────
 // DEFAULT PROPS PER COMPONENT TYPE
 // ─────────────────────────────────────────────
@@ -720,6 +704,7 @@ export function CodeViewEditor({
   // ── Delete custom file ──
   const handleDeleteCustomFile = useCallback((path: string) => {
     setCustomFiles(prev => { const n = { ...prev }; delete n[path]; return n })
+    setFileOverrides(prev => { const n = { ...prev }; delete n[path]; return n })
     setDeleteConfirm(null)
     if (selectedFile === path) setSelectedFile("")
     toast.success("File deleted.")
@@ -864,10 +849,10 @@ export function CodeViewEditor({
               {overridden && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Manually edited" />}
               {isNew      && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" title="Custom file" />}
               {/* Delete button for custom files */}
-              {isNew && node.type === "file" && (
+              {node.type === "file" && (
                 <button
-                  className="opacity-0 group-hover/tree:opacity-100 w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/20 text-muted-foreground/50 hover:text-red-400 transition-all"
-                  title="Delete custom file"
+                  className="w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/20 text-muted-foreground/30 hover:text-red-400 transition-all"
+                  title="Delete file"
                   onClick={e => { e.stopPropagation(); setDeleteConfirm(node.path) }}
                 >
                   <Trash2 className="w-2.5 h-2.5" />
@@ -907,12 +892,12 @@ export function CodeViewEditor({
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirm(null)} />
-          <div className="relative bg-[#1a1a1a] border border-[#333] rounded-xl p-5 w-80 shadow-2xl">
-            <p className="text-sm text-white mb-1 font-semibold">Delete file?</p>
+          <div className="relative bg-background border border-border rounded-lg p-6 w-80 shadow-lg">
+            <h3 className="text-sm font-semibold mb-1">Delete file?</h3>
             <p className="text-xs text-muted-foreground mb-4 font-mono truncate">{deleteConfirm}</p>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setDeleteConfirm(null)} className="h-8 px-3 text-xs rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] text-muted-foreground hover:text-white transition-all">Cancel</button>
-              <button onClick={() => handleDeleteCustomFile(deleteConfirm)} className="h-8 px-3 text-xs rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all">Delete</button>
+              <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={() => handleDeleteCustomFile(deleteConfirm)}>Delete</Button>
             </div>
           </div>
         </div>
@@ -1007,13 +992,6 @@ export function CodeViewEditor({
                     <Plus className="h-3 w-3" />Add
                   </Button>
                 )}
-                {/* New File button in top bar too */}
-                <Button size="sm" variant="outline"
-                  className="h-7 px-2.5 gap-1 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-green-400 hover:border-green-700/40"
-                  onClick={() => setShowFileCreator(true)}
-                  title="Create new file">
-                  <FilePlus className="h-3 w-3" />New
-                </Button>
                 <Button size="sm" variant="outline"
                   className="h-7 px-2.5 gap-1 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-white"
                   onClick={handleStartEdit}>
