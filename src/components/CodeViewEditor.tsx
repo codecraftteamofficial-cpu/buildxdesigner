@@ -1152,57 +1152,6 @@ export function CodeViewEditor({
             ))}
           </div>
 
-          {/* ── Component Sidebar ── */}
-          {isViewPHP && !isEditing && (
-            <div className="w-52 border-l border-[#2b2b2b] bg-[#181818] flex flex-col shrink-0">
-              <div className="px-3 py-2 border-b border-[#2b2b2b] flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Components</span>
-                <span className="text-[10px] text-muted-foreground/40">{pageComponents.length}</span>
-              </div>
-
-              <div className="flex-1 overflow-auto">
-                {pageComponents.length === 0 ? (
-                  <div className="px-3 py-8 text-center text-[11px] text-muted-foreground/40">
-                    No components on this page
-                  </div>
-                ) : pageComponents.map(comp => (
-                  <div key={comp.id}
-                    className="group/item flex items-center gap-2 px-3 py-2 hover:bg-[#222] border-b border-[#242424] transition-colors">
-                    <div className="w-6 h-6 rounded flex items-center justify-center bg-[#2a2a2a] shrink-0">
-                      <span className="text-[9px] font-bold text-muted-foreground/70 uppercase leading-none">
-                        {comp.type.slice(0, 2)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-muted-foreground font-medium leading-none mb-0.5">{comp.type}</div>
-                      <div className="text-[10px] text-muted-foreground/40 truncate">
-                        {comp.props?.content || comp.props?.text || comp.props?.title || comp.props?.brand || comp.id.slice(0, 10) + "…"}
-                      </div>
-                    </div>
-                    {onCodeChange && (
-                      <button
-                        className="opacity-0 group-hover/item:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/20 text-muted-foreground/50 hover:text-red-400 transition-all shrink-0"
-                        title={`Delete ${comp.type} from canvas`}
-                        onClick={() => handleDeleteComponent(comp.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {onCodeChange && (
-                <div className="p-2 border-t border-[#2b2b2b]">
-                  <button
-                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] hover:border-green-700/50 text-xs text-muted-foreground hover:text-white transition-all"
-                    onClick={() => setShowAddPanel(p => !p)}>
-                    <Plus className="w-3 h-3" />Add Component
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
