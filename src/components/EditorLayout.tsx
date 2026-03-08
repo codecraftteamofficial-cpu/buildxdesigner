@@ -285,6 +285,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         userProjectConfig={state.userProjectConfig}
                         currentUser={state.currentUser}
                         readOnly={!canEditProject}
+                        activePageId={state.activePageId}
                       />
                       <RemoteCursors
                         cursors={Array.from(remoteCursors.values())}
@@ -310,6 +311,9 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                             hasUnsavedChanges: true,
                           }));
                         }}
+                        onPageCreate={canEditProject ? (name, path) => {
+                          editor.addPage(name, path);
+                        } : undefined}
                       />
                     </div>
                   )}
