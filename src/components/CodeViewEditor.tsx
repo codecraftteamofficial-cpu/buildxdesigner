@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { Button } from "./ui/button"
 import {
   Copy, ChevronRight, ChevronDown, File, Save, Pencil, X,
-  CheckCircle2, RefreshCw, AlertCircle, Plus, Trash2,
+  CheckCircle2, RefreshCw, AlertCircle, Plus, Trash2, FilePlus,
+  FolderPlus, FileCode, FileText, Globe, ChevronDown as CaretDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -41,6 +42,7 @@ interface CodeViewEditorProps {
   pages: { id: string; name: string; path: string }[]
   activePageId: string
   onCodeChange?: (newComponents: ComponentData[]) => void
+  onPageCreate?: (name: string, path: string) => void
 }
 
 interface FileNode {
@@ -51,6 +53,236 @@ interface FileNode {
 }
 
 type FileOverrides = Record<string, string>
+
+// ─────────────────────────────────────────────
+// FILE TEMPLATES
+// ─────────────────────────────────────────────
+const FILE_TEMPLATES: Record<string, (name: string) => string> = {
+  php: (name) => `<?php
+// ${name}
+// Created: ${new Date().toLocaleDateString()}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><?= htmlspecialchars($pageTitle ?? '${name}') ?></title>
+  <link rel="stylesheet" href="/public/assets/css/${name}.css" />
+</head>
+<body>
+  <main class="page-${name}">
+    <!-- ${name} content here -->
+  </main>
+  <script src="/public/assets/js/main.js"></script>
+</body>
+</html>`,
+
+  css: (name) => `/* ${name}.css */
+
+.page-${name} {
+  min-height: 100vh;
+  padding: 2rem;
+}
+`,
+
+  js: (name) => `// ${name}.js
+// Created: ${new Date().toLocaleDateString()}
+
+(function () {
+  'use strict';
+
+  // ${name} logic
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('${name} loaded');
+  });
+})();
+`,
+
+  json: (name) => `{
+  "name": "${name}",
+  "created": "${new Date().toISOString()}"
+}
+`,
+
+  md: (name) => `# ${name}
+
+> Created ${new Date().toLocaleDateString()}
+
+## Overview
+
+Add your documentation here.
+`,
+
+  txt: (name) => `${name}\n`,
+}
+
+// ─────────────────────────────────────────────
+// FILE CREATOR MODAL
+// ─────────────────────────────────────────────
+type FileTypeOption = { ext: string; label: string; icon: React.ReactNode; color: string; folder: string }
+
+const FILE_TYPE_OPTIONS: FileTypeOption[] = [
+  { ext: "php",  label: "PHP View",    icon: <span className="text-[10px] font-bold text-[#8892bf]">PHP</span>,  color: "text-[#8892bf]", folder: "app/views" },
+  { ext: "css",  label: "Stylesheet",  icon: <span className="text-[10px] font-bold text-[#3fa9f5]">CSS</span>,  color: "text-[#3fa9f5]", folder: "public/assets/css" },
+  { ext: "js",   label: "JavaScript",  icon: <span className="text-[10px] font-bold text-[#f7df1e]">JS</span>,   color: "text-[#f7df1e]", folder: "public/assets/js" },
+  { ext: "json", label: "JSON Config", icon: <span className="text-[10px] font-bold text-[#f5a623]">JSON</span>, color: "text-[#f5a623]", folder: "app/config" },
+  { ext: "md",   label: "Markdown",    icon: <span className="text-[10px] font-bold text-[#aaa]">MD</span>,      color: "text-[#aaa]",     folder: "docs" },
+]
+
+interface FileCreatorModalProps {
+  onClose: () => void
+  existingPaths: string[]
+  onCreateFile: (path: string, content: string) => void
+}
+
+function FileCreatorModal({ onClose, existingPaths, onCreateFile }: FileCreatorModalProps) {
+  const [selectedType, setSelectedType] = useState<FileTypeOption>(FILE_TYPE_OPTIONS[0])
+  const [fileName, setFileName]         = useState("")
+  const [customFolder, setCustomFolder] = useState("")
+  const [useCustomFolder, setUseCustomFolder] = useState(false)
+  const [error, setError] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50) }, [])
+
+  const folder     = useCustomFolder ? customFolder : selectedType.folder
+  const cleanName  = fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase()
+  const finalPath  = cleanName ? `${folder}/${cleanName}.${selectedType.ext}` : ""
+
+  const validate = () => {
+    if (!cleanName) return "File name is required."
+    if (existingPaths.includes(finalPath)) return `File already exists: ${finalPath}`
+    return ""
+  }
+
+  const handleCreate = () => {
+    const err = validate()
+    if (err) { setError(err); return }
+    const template = FILE_TEMPLATES[selectedType.ext] ?? (() => "")
+    onCreateFile(finalPath, template(cleanName))
+    toast.success(`Created ${finalPath}`)
+    onClose()
+  }
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleCreate()
+    if (e.key === "Escape") onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative w-[420px] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2b2b2b]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-purple-600/20 flex items-center justify-center">
+              <FilePlus className="w-4 h-4 text-purple-400" />
+            </div>
+            <span className="text-sm font-semibold text-white">New File</span>
+          </div>
+          <button onClick={onClose} className="w-6 h-6 rounded hover:bg-[#333] flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* File type selector */}
+          <div>
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">File Type</label>
+            <div className="grid grid-cols-5 gap-1.5">
+              {FILE_TYPE_OPTIONS.map(opt => (
+                <button key={opt.ext}
+                  onClick={() => { setSelectedType(opt); setError(""); if (!useCustomFolder) setCustomFolder("") }}
+                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all ${
+                    selectedType.ext === opt.ext
+                      ? "border-purple-500/60 bg-purple-500/10 text-white"
+                      : "border-[#2b2b2b] bg-[#222] hover:border-[#444] text-muted-foreground hover:text-white"
+                  }`}>
+                  {opt.icon}
+                  <span className="text-[9px] leading-none">{opt.label.split(" ")[0]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* File name */}
+          <div>
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">File Name</label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                value={fileName}
+                onChange={e => { setFileName(e.target.value); setError("") }}
+                onKeyDown={handleKey}
+                placeholder={`e.g. ${selectedType.ext === "php" ? "about" : selectedType.ext === "css" ? "styles" : "utils"}`}
+                className="flex-1 h-9 bg-[#111] border border-[#333] rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground/40 outline-none focus:border-purple-500/50 transition-colors font-mono"
+              />
+              <span className="text-[12px] text-muted-foreground/60 font-mono shrink-0">.{selectedType.ext}</span>
+            </div>
+          </div>
+
+          {/* Destination folder */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Destination</label>
+              <button
+                onClick={() => { setUseCustomFolder(p => !p); setCustomFolder(selectedType.folder) }}
+                className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors">
+                {useCustomFolder ? "Use default" : "Custom folder"}
+              </button>
+            </div>
+            {useCustomFolder ? (
+              <input
+                value={customFolder}
+                onChange={e => setCustomFolder(e.target.value)}
+                className="w-full h-9 bg-[#111] border border-[#333] rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground/40 outline-none focus:border-purple-500/50 transition-colors font-mono"
+              />
+            ) : (
+              <div className="flex items-center gap-2 h-9 px-3 bg-[#111] border border-[#2b2b2b] rounded-lg">
+                <span className="text-xs font-mono text-muted-foreground/60">{selectedType.folder}/</span>
+              </div>
+            )}
+          </div>
+
+          {/* Preview path */}
+          {cleanName && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#111] rounded-lg border border-[#2b2b2b]">
+              <span className="text-[10px] text-muted-foreground/40 shrink-0">Will create:</span>
+              <span className="text-[11px] font-mono text-green-400 truncate">{finalPath}</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+              <span className="text-[11px] text-red-400">{error}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#2b2b2b] bg-[#161616]">
+          <span className="text-[10px] text-muted-foreground/40">Enter to create · Esc to cancel</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="h-8 px-3 text-xs rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] text-muted-foreground hover:text-white transition-all">
+              Cancel
+            </button>
+            <button onClick={handleCreate} disabled={!cleanName}
+              className="h-8 px-4 text-xs rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium transition-all flex items-center gap-1.5">
+              <FilePlus className="w-3.5 h-3.5" />Create File
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────
 // DEFAULT PROPS PER COMPONENT TYPE
@@ -172,12 +404,6 @@ function generateComponentSnippet(type: string): string {
 
 // ─────────────────────────────────────────────
 // FULL PHP → COMPONENT LIST PARSER
-// Parses every recognisable element and returns the
-// complete desired component list for the page.
-//
-// STYLE PRESERVATION RULES:
-//   - Existing component  → keep canvas style as-is (NEVER overwrite from CSS/defaults)
-//   - New component (not on canvas) → use type defaults only
 // ─────────────────────────────────────────────
 function parsePHPToFullComponentList(
   phpCode: string,
@@ -196,16 +422,13 @@ function parsePHPToFullComponentList(
     const existing = byId.get(sid)
     const defs     = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
 
-    // CRITICAL: if this component already exists on canvas, preserve its style
-    // exactly as-is. Only use defaults for brand-new components.
     const preservedStyle = existing?.style
-      ? normalizeStyleValues(existing.style)           // existing → keep as-is
-      : normalizeStyleValues({ ...defs.style })        // new → type defaults only
+      ? normalizeStyleValues(existing.style)
+      : normalizeStyleValues({ ...defs.style })
 
     result.push({
       id:       existing?.id ?? sid,
       type,
-      // Props: defaults < canvas props < code-parsed props (text content wins from code)
       props:    { ...defs.props, ...(existing?.props ?? {}), ...parsedProps },
       style:    preservedStyle,
       position: existing?.position ?? autoPosition(result.length),
@@ -214,49 +437,40 @@ function parsePHPToFullComponentList(
     })
   }
 
-  // headings h1–h6
   for (const m of phpCode.matchAll(/<h([1-6])[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/h[1-6]>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
     add(sid, "heading", { content: stripTags(m[3].trim()), level: parseInt(m[1]), className: extractClassName(m[2]) })
   }
-  // paragraphs
   for (const m of phpCode.matchAll(/<p[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/p>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "text", { content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
-  // buttons
   for (const m of phpCode.matchAll(/<button[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/button>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "button", { text: stripTags(m[2].trim()), content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
-  // images (src before class)
   for (const m of phpCode.matchAll(/<img[^>]*src="([^"]*)"[^>]*class="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
     add(sid, "image", { src: m[1], className: extractClassName(m[2]) })
   }
-  // images (class before src)
   for (const m of phpCode.matchAll(/<img[^>]*class="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "image", { src: m[2], className: extractClassName(m[1]) })
   }
-  // inputs
   for (const m of phpCode.matchAll(/<input[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "input", { placeholder: m[2], className: extractClassName(m[1]) })
   }
-  // textareas
   for (const m of phpCode.matchAll(/<textarea[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "textarea", { placeholder: m[2], className: extractClassName(m[1]) })
   }
-  // navbars
   for (const m of phpCode.matchAll(/<nav[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/nav>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     const brand = (m[2].match(/<div class="nav-brand">([\s\S]*?)<\/div>/i)?.[1]) ?? "Brand"
     const links = [...m[2].matchAll(/<li><a[^>]*>([\s\S]*?)<\/a><\/li>/gi)].map(l => stripTags(l[1].trim())).filter(Boolean)
     add(sid, "navbar", { brand: stripTags(brand.trim()), links: links.length ? links : ["Home","About","Contact"] })
   }
-  // hero
   for (const m of phpCode.matchAll(/<section[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/section>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "hero", {
@@ -265,12 +479,10 @@ function parsePHPToFullComponentList(
       buttonText: stripTags((m[2].match(/<a[^>]*class="hero-btn"[^>]*>([\s\S]*?)<\/a>/i)?.[1] ?? "Get Started").trim()),
     })
   }
-  // footer
   for (const m of phpCode.matchAll(/<footer[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/footer>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     add(sid, "footer", { copyright: stripTags((m[2].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()) })
   }
-  // section-heading (div containing h2)
   for (const m of phpCode.matchAll(/<div[^>]*class="([^"]*)"[^>]*>\s*<h2>([\s\S]*?)<\/h2>([\s\S]*?)<\/div>/gi)) {
     const sid = extractShortId(m[1]); if (!sid || seen.has(sid)) continue
     add(sid, "section-heading", {
@@ -311,7 +523,6 @@ function syncPHPToCanvas(
   allComponents: ComponentData[],
   pageId: string,
 ): { components: ComponentData[]; added: number; deleted: number; updated: number } {
-  // Split components into this-page vs other-page
   const isThisPage = (c: ComponentData) =>
     c.page_id === pageId || (!c.page_id) || c.page_id === undefined
 
@@ -319,41 +530,23 @@ function syncPHPToCanvas(
   const globals   = allComponents.filter(c => c.page_id === "all")
   const otherPage = allComponents.filter(c => !isThisPage(c) && c.page_id !== "all")
 
-  // Snapshot existing IDs BEFORE parsing so we can identify truly new components
   const existingSids = new Set(thisPage.map(c => sanitizeId(c.id)))
-
-  const parsedList = parsePHPToFullComponentList(phpCode, pageId, thisPage)
-
-  // CRITICAL: The parser only recognises certain HTML patterns (headings, p, button,
-  // nav, section, footer, etc.). Components like `container`, `card`, `grid`, `video`,
-  // `carousel`, etc. are generated INTO the PHP file but cannot be reliably parsed back.
-  // If we drop them from the output, they vanish from canvas on every save.
-  //
-  // Fix: any existing canvas component whose ID does NOT appear in parsedList is
-  // "unrecognised by parser" — keep it as-is rather than deleting it.
-  const parsedSids = new Set(parsedList.map(c => sanitizeId(c.id)))
+  const parsedList   = parsePHPToFullComponentList(phpCode, pageId, thisPage)
+  const parsedSids   = new Set(parsedList.map(c => sanitizeId(c.id)))
   const unrecognised = thisPage.filter(c => !parsedSids.has(sanitizeId(c.id)))
 
-  // Apply CSS style overrides ONLY to brand-new components (not on canvas yet).
-  // Existing components already have styles preserved from canvas in parsePHPToFullComponentList.
-  // Applying CSS on top of existing ones would overwrite Properties Panel changes
-  // and destroy all canvas styling every time a new component is added.
   if (cssCode) {
     const cssUpdates = parseCSSToStyleUpdates(cssCode)
     for (const comp of parsedList) {
       const sid = sanitizeId(comp.id)
       if (!existingSids.has(sid)) {
-        // Brand-new component: apply CSS defaults to give it proper initial styles
         const cu = cssUpdates.get(sid)
         if (cu) comp.style = normalizeStyleValues({ ...(comp.style ?? {}), ...cu })
       }
-      // Existing component: style already fully preserved from canvas — do not touch
     }
   }
 
   const added   = [...parsedSids].filter(s => !existingSids.has(s)).length
-  // Only count as "deleted" things the parser explicitly recognises but removed —
-  // unrecognised components are silently preserved, not counted as deleted.
   const deleted = [...existingSids].filter(s => !parsedSids.has(s) && !unrecognised.find(c => sanitizeId(c.id) === s)).length
   const updated = parsedList.length - added
 
@@ -362,8 +555,6 @@ function syncPHPToCanvas(
     components: [
       ...globals,
       ...otherPage.filter(c => !globalsSet.has(c.id)),
-      // Unrecognised components come first (preserve their original order on canvas),
-      // then the parsed/updated components follow.
       ...unrecognised,
       ...parsedList,
     ],
@@ -374,10 +565,11 @@ function syncPHPToCanvas(
 // ─────────────────────────────────────────────
 // SMALL FILE TYPE ICONS
 // ─────────────────────────────────────────────
-const PHPIcon = () => <span className="text-[10px] font-bold text-[#8892bf] shrink-0 mr-1">PHP</span>
-const CSSIcon = () => <span className="text-[10px] font-bold text-[#3fa9f5] shrink-0 mr-1">CSS</span>
-const JSIcon  = () => <span className="text-[10px] font-bold text-[#f7df1e] shrink-0 mr-1">JS</span>
-const MDIcon  = () => <span className="text-[10px] font-bold text-[#aaa]    shrink-0 mr-1">MD</span>
+const PHPIcon  = () => <span className="text-[10px] font-bold text-[#8892bf] shrink-0 mr-1">PHP</span>
+const CSSIcon  = () => <span className="text-[10px] font-bold text-[#3fa9f5] shrink-0 mr-1">CSS</span>
+const JSIcon   = () => <span className="text-[10px] font-bold text-[#f7df1e] shrink-0 mr-1">JS</span>
+const MDIcon   = () => <span className="text-[10px] font-bold text-[#aaa]    shrink-0 mr-1">MD</span>
+const JSONIcon = () => <span className="text-[10px] font-bold text-[#f5a623] shrink-0 mr-1">JSON</span>
 
 // ─────────────────────────────────────────────
 // FILE TREE BUILDER
@@ -414,6 +606,7 @@ export function CodeViewEditor({
   pages,
   activePageId,
   onCodeChange,
+  onPageCreate,
 }: CodeViewEditorProps) {
   const [selectedFile,    setSelectedFile]    = useState("")
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -423,8 +616,11 @@ export function CodeViewEditor({
   const [draftContent,    setDraftContent]    = useState("")
   const [savedIndicator,  setSavedIndicator]  = useState(false)
   const [fileOverrides,   setFileOverrides]   = useState<FileOverrides>({})
+  const [customFiles,     setCustomFiles]     = useState<FileOverrides>({})
   const [showAddPanel,    setShowAddPanel]    = useState(false)
-  const [pendingDiff, setPendingDiff] = useState<{ added: number; deleted: number; updated: number } | null>(null)
+  const [showFileCreator, setShowFileCreator] = useState(false)
+  const [pendingDiff,     setPendingDiff]     = useState<{ added: number; deleted: number; updated: number } | null>(null)
+  const [deleteConfirm,   setDeleteConfirm]   = useState<string | null>(null)
 
   const textareaRef   = useRef<HTMLTextAreaElement>(null)
   const componentsRef = useRef(components)
@@ -436,8 +632,8 @@ export function CodeViewEditor({
     [components, pages, projectName]
   )
   const effectiveFiles = useMemo<Record<string, string>>(
-    () => ({ ...generatedFiles, ...fileOverrides }),
-    [generatedFiles, fileOverrides]
+    () => ({ ...generatedFiles, ...fileOverrides, ...customFiles }),
+    [generatedFiles, fileOverrides, customFiles]
   )
 
   // ── Derive page_id from the selected PHP file ──
@@ -469,14 +665,16 @@ export function CodeViewEditor({
 
   const readOnlyContent = effectiveFiles[selectedFile] ?? ""
   const hasOverride     = !!fileOverrides[selectedFile]
+  const isCustomFile    = !!customFiles[selectedFile]
   const diffCount       = hasOverride ? countDiffLines(generatedFiles[selectedFile] ?? "", fileOverrides[selectedFile] ?? "") : 0
 
   const isViewPHP = selectedFile.startsWith("app/views/") && selectedFile.endsWith(".php")
   const isCSSFile = selectedFile.endsWith(".css")
   const isJSFile  = selectedFile.endsWith(".js")
   const isMDFile  = selectedFile.endsWith(".md")
+  const isJSONFile = selectedFile.endsWith(".json")
 
-  const syntaxLang = isCSSFile ? "css" : isJSFile ? "javascript" : isMDFile ? "markdown" : "php"
+  const syntaxLang = isCSSFile ? "css" : isJSFile ? "javascript" : isMDFile ? "markdown" : isJSONFile ? "json" : "php"
 
   const handleSelectFile = (path: string) => {
     if (path === selectedFile) return
@@ -490,6 +688,41 @@ export function CodeViewEditor({
   const handleResetOverride = useCallback(() => {
     setFileOverrides(p => { const n = { ...p }; delete n[selectedFile]; return n })
     toast.info("Reset to canvas-generated version.")
+  }, [selectedFile])
+
+  // ── Create new file ──
+  const handleCreateFile = useCallback((path: string, content: string) => {
+    setCustomFiles(prev => ({ ...prev, [path]: content }))
+    setSelectedFile(path)
+
+    // If it's a new PHP view, register it as a page in the editor
+    if (path.startsWith("app/views/") && path.endsWith(".php") && onPageCreate) {
+      const slug = path.replace("app/views/", "").replace(".php", "")
+      // Convert slug to a human-readable name: "about-us" → "About Us"
+      const name = slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+      const pagePath = `/${slug}`
+      // Only register if not already in pages list
+      const alreadyExists = pages.some(p => slugify(p.name) === slug || p.path === pagePath)
+      if (!alreadyExists) {
+        onPageCreate(name, pagePath)
+      }
+    }
+
+    // Auto-expand the parent folder
+    const parts = path.split("/")
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      for (let i = 1; i < parts.length; i++) next.add(parts.slice(0, i).join("/"))
+      return next
+    })
+  }, [onPageCreate, pages])
+
+  // ── Delete custom file ──
+  const handleDeleteCustomFile = useCallback((path: string) => {
+    setCustomFiles(prev => { const n = { ...prev }; delete n[path]; return n })
+    setDeleteConfirm(null)
+    if (selectedFile === path) setSelectedFile("")
+    toast.success("File deleted.")
   }, [selectedFile])
 
   // ── Insert snippet into PHP ──
@@ -513,7 +746,6 @@ export function CodeViewEditor({
     const sid = sanitizeId(compId)
     onCodeChange(componentsRef.current.filter(c => sanitizeId(c.id) !== sid))
 
-    // Also strip from any overridden files
     setFileOverrides(prev => {
       const next = { ...prev }
       for (const [path, content] of Object.entries(next)) {
@@ -530,7 +762,13 @@ export function CodeViewEditor({
   // ── SAVE ──
   const handleSave = useCallback(() => {
     if (!selectedFile) return
-    setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
+
+    // If editing a custom file, update customFiles; otherwise fileOverrides
+    if (isCustomFile) {
+      setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
+    } else {
+      setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
+    }
 
     if (isViewPHP && onCodeChange) {
       const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
@@ -569,7 +807,7 @@ export function CodeViewEditor({
 
     setIsEditing(false); setDraftContent(""); setPendingDiff(null)
     setSavedIndicator(true); setTimeout(() => setSavedIndicator(false), 2500)
-  }, [selectedFile, draftContent, isViewPHP, isCSSFile, isJSFile, onCodeChange, activePHPPageId, effectiveFiles])
+  }, [selectedFile, draftContent, isViewPHP, isCSSFile, isJSFile, isCustomFile, onCodeChange, activePHPPageId, effectiveFiles])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -593,20 +831,22 @@ export function CodeViewEditor({
   const fileStructure = useMemo(() => buildTreeFromPaths(Object.keys(effectiveFiles)), [effectiveFiles])
 
   const renderFileIcon = (node: FileNode) => {
-    if (node.path.endsWith(".php")) return <PHPIcon />
-    if (node.path.endsWith(".css")) return <CSSIcon />
-    if (node.path.endsWith(".js"))  return <JSIcon />
-    if (node.path.endsWith(".md"))  return <MDIcon />
+    if (node.path.endsWith(".php"))  return <PHPIcon />
+    if (node.path.endsWith(".css"))  return <CSSIcon />
+    if (node.path.endsWith(".js"))   return <JSIcon />
+    if (node.path.endsWith(".md"))   return <MDIcon />
+    if (node.path.endsWith(".json")) return <JSONIcon />
     return <File className="w-3 h-3" />
   }
 
   const renderTree = (nodes: FileNode[], depth = 0): React.ReactNode =>
     nodes.map(node => {
       const overridden = node.type === "file" && !!fileOverrides[node.path]
+      const isNew      = node.type === "file" && !!customFiles[node.path]
       return (
         <div key={node.path}>
           <div
-            className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer hover:bg-muted/40 transition-colors ${
+            className={`group/tree flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer hover:bg-muted/40 transition-colors ${
               selectedFile === node.path ? "bg-muted text-white" : "text-muted-foreground"
             }`}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -619,8 +859,21 @@ export function CodeViewEditor({
               ? expandedFolders.has(node.path) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />
               : renderFileIcon(node)
             }
-            <span className={`text-sm truncate flex-1 ${overridden ? "text-amber-400" : ""}`}>{node.name}</span>
-            {overridden && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Manually edited" />}
+            <span className={`text-sm truncate flex-1 ${overridden ? "text-amber-400" : ""} ${isNew ? "text-green-400" : ""}`}>{node.name}</span>
+            <div className="flex items-center gap-1">
+              {overridden && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Manually edited" />}
+              {isNew      && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" title="Custom file" />}
+              {/* Delete button for custom files */}
+              {isNew && node.type === "file" && (
+                <button
+                  className="opacity-0 group-hover/tree:opacity-100 w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/20 text-muted-foreground/50 hover:text-red-400 transition-all"
+                  title="Delete custom file"
+                  onClick={e => { e.stopPropagation(); setDeleteConfirm(node.path) }}
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
           </div>
           {node.type === "folder" && expandedFolders.has(node.path) && node.children && renderTree(node.children, depth + 1)}
         </div>
@@ -633,23 +886,62 @@ export function CodeViewEditor({
     [components, activePHPPageId]
   )
 
+  const totalCustomFiles = Object.keys(customFiles).length
+
   // ════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════
   return (
     <div className="w-full h-full flex gap-3 p-4 bg-background">
 
+      {/* ── File Creator Modal ── */}
+      {showFileCreator && (
+        <FileCreatorModal
+          existingPaths={Object.keys(effectiveFiles)}
+          onClose={() => setShowFileCreator(false)}
+          onCreateFile={handleCreateFile}
+        />
+      )}
+
+      {/* ── Delete Confirm Overlay ── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirm(null)} />
+          <div className="relative bg-[#1a1a1a] border border-[#333] rounded-xl p-5 w-80 shadow-2xl">
+            <p className="text-sm text-white mb-1 font-semibold">Delete file?</p>
+            <p className="text-xs text-muted-foreground mb-4 font-mono truncate">{deleteConfirm}</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteConfirm(null)} className="h-8 px-3 text-xs rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] text-muted-foreground hover:text-white transition-all">Cancel</button>
+              <button onClick={() => handleDeleteCustomFile(deleteConfirm)} className="h-8 px-3 text-xs rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── File Explorer ── */}
       <div className="w-52 border rounded-md flex flex-col bg-[#181818] h-full overflow-hidden shrink-0">
         <div className="px-3 py-2.5 border-b border-[#2b2b2b] flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Explorer</span>
-          {Object.keys(fileOverrides).length > 0 &&
-            <span className="text-[10px] text-amber-400">{Object.keys(fileOverrides).length} edited</span>
-          }
+          <div className="flex items-center gap-1.5">
+            {Object.keys(fileOverrides).length > 0 &&
+              <span className="text-[10px] text-amber-400">{Object.keys(fileOverrides).length} edited</span>
+            }
+            {/* ── New File Button ── */}
+            <button
+              onClick={() => setShowFileCreator(true)}
+              title="New File"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-[#2b2b2b] text-muted-foreground/60 hover:text-white transition-colors"
+            >
+              <FilePlus className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-auto p-2">{renderTree(fileStructure)}</div>
-        <div className="px-3 py-2 border-t border-[#2b2b2b] text-[10px] text-muted-foreground/40">
+        <div className="px-3 py-2 border-t border-[#2b2b2b] text-[10px] text-muted-foreground/40 space-y-1">
           <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> manually edited</div>
+          {totalCustomFiles > 0 && (
+            <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400" /> custom file</div>
+          )}
         </div>
       </div>
 
@@ -662,6 +954,11 @@ export function CodeViewEditor({
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">{selectedFile}</span>
 
+            {isCustomFile && !isEditing && (
+              <span className="text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded shrink-0">
+                custom
+              </span>
+            )}
             {isJSFile && (
               <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-1.5 py-0.5 rounded shrink-0">
                 JS — export only
@@ -675,7 +972,6 @@ export function CodeViewEditor({
             {isEditing && (
               <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded shrink-0">Editing</span>
             )}
-            {/* Live pending diff pill */}
             {isEditing && pendingDiff && isViewPHP && (
               <span className="flex items-center gap-1.5 text-[10px] bg-[#252525] border border-[#3a3a3a] px-2 py-0.5 rounded shrink-0">
                 {pendingDiff.added   > 0 && <span className="text-green-400">+{pendingDiff.added} add</span>}
@@ -711,6 +1007,13 @@ export function CodeViewEditor({
                     <Plus className="h-3 w-3" />Add
                   </Button>
                 )}
+                {/* New File button in top bar too */}
+                <Button size="sm" variant="outline"
+                  className="h-7 px-2.5 gap-1 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-green-400 hover:border-green-700/40"
+                  onClick={() => setShowFileCreator(true)}
+                  title="Create new file">
+                  <FilePlus className="h-3 w-3" />New
+                </Button>
                 <Button size="sm" variant="outline"
                   className="h-7 px-2.5 gap-1 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-white"
                   onClick={handleStartEdit}>
@@ -778,13 +1081,37 @@ export function CodeViewEditor({
             <span className="text-muted-foreground/40 shrink-0">{pageComponents.length} component{pageComponents.length !== 1 ? "s" : ""}</span>
           </div>
         )}
+        {!isEditing && isCustomFile && (
+          <div className="shrink-0 px-4 py-1.5 bg-green-500/10 border-b border-green-500/20 text-[11px] text-green-400/80 flex items-center gap-2">
+            <FilePlus className="w-3 h-3 shrink-0" />
+            Custom file — included in project export.
+          </div>
+        )}
 
         {/* ── Code area + component sidebar ── */}
         <div className="flex-1 overflow-hidden flex min-h-0">
 
           {/* Code / Textarea */}
           <div className="flex-1 overflow-hidden relative">
-            {isEditing ? (
+            {/* Empty state */}
+            {!selectedFile && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#2a2a2a] flex items-center justify-center">
+                  <FileCode className="w-6 h-6 text-muted-foreground/40" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">No file selected</p>
+                  <p className="text-xs text-muted-foreground/40">Select a file from the explorer or create a new one</p>
+                </div>
+                <button
+                  onClick={() => setShowFileCreator(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] hover:border-green-700/40 text-sm text-muted-foreground hover:text-white transition-all">
+                  <FilePlus className="w-4 h-4" />Create new file
+                </button>
+              </div>
+            )}
+
+            {selectedFile && (isEditing ? (
               <div className="absolute inset-0 flex flex-col">
                 <textarea
                   ref={textareaRef}
@@ -822,7 +1149,7 @@ export function CodeViewEditor({
                   {readOnlyContent || "// No content"}
                 </SyntaxHighlighter>
               </div>
-            )}
+            ))}
           </div>
 
           {/* ── Component Sidebar ── */}
@@ -841,7 +1168,6 @@ export function CodeViewEditor({
                 ) : pageComponents.map(comp => (
                   <div key={comp.id}
                     className="group/item flex items-center gap-2 px-3 py-2 hover:bg-[#222] border-b border-[#242424] transition-colors">
-                    {/* Type badge */}
                     <div className="w-6 h-6 rounded flex items-center justify-center bg-[#2a2a2a] shrink-0">
                       <span className="text-[9px] font-bold text-muted-foreground/70 uppercase leading-none">
                         {comp.type.slice(0, 2)}
@@ -866,7 +1192,6 @@ export function CodeViewEditor({
                 ))}
               </div>
 
-              {/* Bottom add button */}
               {onCodeChange && (
                 <div className="p-2 border-t border-[#2b2b2b]">
                   <button

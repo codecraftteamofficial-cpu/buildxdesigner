@@ -310,6 +310,9 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                             hasUnsavedChanges: true,
                           }));
                         }}
+                        onPageCreate={canEditProject ? (name, path) => {
+                          editor.addPage(name, path);
+                        } : undefined}
                       />
                     </div>
                   )}
