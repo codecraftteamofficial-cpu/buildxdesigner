@@ -16,14 +16,20 @@ import {
   Mail,
   Menu,
   Grid3X3,
-  Video,
   Star,
   Layout,
   Code,
   Layers,
   LayoutGrid,
   LogIn,
-  UserPlus
+  UserPlus,
+  Minus,
+  BoxSelect,
+  ChevronDown,
+  PanelTopClose,
+  Columns,
+  AlertTriangle,
+  Maximize2
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
@@ -115,52 +121,32 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             style: {}
           }
         },
-        {
-          id: 'image',
-          name: 'Image',
-          description: 'Image with responsive sizing',
-          icon: <Image className="w-4 h-4" />,
-          component: {
-            id: '',
-            type: 'image',
-            props: { src: '', alt: 'Sample image', width: 300, height: 200 },
-            style: {}
-          }
-        },
-        {
-          id: 'carousel',
-          name: 'Image Carousel',
-          description: 'Responsive image carousel with navigation',
-          icon: <LayoutGrid className="w-4 h-4" />,
-          component: {
-            id: '',
-            type: 'carousel',
-            props: {
-              slides: [
-                { id: '1', src: '', alt: 'Slide 1', caption: 'First slide' },
-                { id: '2', src: '', alt: 'Slide 2', caption: 'Second slide' },
-                { id: '3', src: '', alt: 'Slide 3', caption: 'Third slide' }
-              ],
-              autoplay: true,
-              autoplaySpeed: 3000,
-              showArrows: true,
-              showDots: true,
-              infinite: true
-            },
-            style: {
-              width: '100%',
-              height: '300px',
-              borderRadius: '0.5rem',
-              overflow: 'hidden'
-            }
-          }
-        }
+        
       ]
     },
     {
       name: 'Layout',
       icon: <Layout className="w-4 h-4" />,
       blocks: [
+        {
+          id: 'divider',
+          name: 'Divider',
+          description: 'Horizontal line to separate content',
+          icon: <Minus className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'divider',
+            props: {
+              styleType: 'solid',
+              thickness: '1px',
+              color: '#000000ff'
+            },
+            style: {
+              width: '100%',
+              margin: '16px 0'
+            }
+          }
+        },
         {
           id: 'container',
           name: 'Container',
@@ -176,28 +162,88 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             },
             style: {}
           }
-        },
+        }
+      ]
+    },
+    {
+      name: 'Interactive',
+      icon: <ChevronDown className="w-4 h-4" />,
+      blocks: [
         {
-          id: 'grid',
-          name: 'Grid Layout',
-          description: 'Responsive grid system',
-          icon: <Grid3X3 className="w-4 h-4" />,
+          id: 'accordion',
+          name: 'Accordion (FAQ)',
+          description: 'Collapsible content sections for FAQs',
+          icon: <PanelTopClose className="w-4 h-4" />,
           component: {
             id: '',
-            type: 'grid',
+            type: 'accordion',
             props: {
-              columns: 3,
-              gap: '1rem',
-              justifyContent: 'start',
-              alignItems: 'stretch',
-              padding: '1rem',
-              orientation: 'horizontal',
-              children: []
+              items: [
+                { question: 'What is this?', answer: 'This is a sample accordion item. Click to expand or collapse.' },
+                { question: 'How does it work?', answer: 'Each item can be toggled open or closed independently.' }
+              ],
+              allowMultiple: false
             },
             style: {
-              display: 'grid',
-              width: '100%',
-              height: '300px'
+              width: '100%'
+            }
+          }
+        },
+        {
+          id: 'tabs',
+          name: 'Tabs',
+          description: 'Switchable content panels',
+          icon: <Columns className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'tabs',
+            props: {
+              tabs: [
+                { label: 'Tab 1', content: 'Content for Tab 1' },
+                { label: 'Tab 2', content: 'Content for Tab 2' },
+                { label: 'Tab 3', content: 'Content for Tab 3' }
+              ],
+              activeTab: 0
+            },
+            style: {
+              width: '100%'
+            }
+          }
+        },
+        {
+          id: 'modal',
+          name: 'Modal / Popup',
+          description: 'Button that opens a customizable overlay',
+          icon: <Maximize2 className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'modal',
+            props: {
+              triggerText: 'Open Modal',
+              modalTitle: 'Modal Title',
+              modalContent: 'This is the modal body content. You can customize this text.',
+              overlayColor: 'rgba(0,0,0,0.5)'
+            },
+            style: {
+              width: 'auto'
+            }
+          }
+        },
+        {
+          id: 'alert',
+          name: 'Alert / Banner',
+          description: 'Callout box for important messages',
+          icon: <AlertTriangle className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'alert',
+            props: {
+              variant: 'info',
+              message: 'This is an informational alert message.',
+              dismissible: true
+            },
+            style: {
+              width: '100%'
             }
           }
         }
@@ -285,6 +331,64 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             props: { title: 'Get In Touch' },
             style: {}
           }
+        },
+        {
+          id: 'select',
+          name: 'Select / Dropdown',
+          description: 'Dropdown menu for selecting options',
+          icon: <ChevronDown className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'select',
+            props: {
+              label: 'Select Option',
+              placeholder: 'Select an option...',
+              options: [
+                { label: 'Option 1', value: 'option1' },
+                { label: 'Option 2', value: 'option2' },
+                { label: 'Option 3', value: 'option3' }
+              ]
+            },
+            style: {
+              width: '100%'
+            }
+          }
+        },
+        {
+          id: 'checkbox',
+          name: 'Checkbox',
+          description: 'Single checkbox with label',
+          icon: <BoxSelect className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'checkbox',
+            props: {
+              label: 'Remember me',
+              checked: false
+            },
+            style: {}
+          }
+        },
+        {
+          id: 'radio-group',
+          name: 'Radio Group',
+          description: 'List of radio buttons for single selection',
+          icon: <Users className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'radio-group',
+            props: {
+              label: 'Choose an option',
+              options: [
+                { label: 'Option 1', value: 'option1' },
+                { label: 'Option 2', value: 'option2' }
+              ],
+              defaultValue: 'option1'
+            },
+            style: {
+              width: '100%'
+            }
+          }
         }
       ]
     },
@@ -293,27 +397,43 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
       icon: <Image className="w-4 h-4" />,
       blocks: [
         {
-          id: 'video',
-          name: 'Video Player',
-          description: 'HTML5 video player',
-          icon: <Video className="w-4 h-4" />,
+          id: 'image',
+          name: 'Image',
+          description: 'Image with responsive sizing',
+          icon: <Image className="w-4 h-4" />,
           component: {
             id: '',
-            type: 'video',
-            props: { src: '', poster: '' },
+            type: 'image',
+            props: { src: '', alt: 'Sample image', width: 300, height: 200 },
             style: {}
           }
         },
         {
-          id: 'gallery',
-          name: 'Image Gallery',
-          description: 'Responsive image grid',
-          icon: <Image className="w-4 h-4" />,
+          id: 'carousel',
+          name: 'Image Carousel',
+          description: 'Responsive image carousel with navigation',
+          icon: <LayoutGrid className="w-4 h-4" />,
           component: {
             id: '',
-            type: 'gallery',
-            props: { images: [] },
-            style: {}
+            type: 'carousel',
+            props: {
+              slides: [
+                { id: '1', src: '', alt: 'Slide 1', caption: 'First slide' },
+                { id: '2', src: '', alt: 'Slide 2', caption: 'Second slide' },
+                { id: '3', src: '', alt: 'Slide 3', caption: 'Third slide' }
+              ],
+              autoplay: true,
+              autoplaySpeed: 3000,
+              showArrows: true,
+              showDots: true,
+              infinite: true
+            },
+            style: {
+              width: '100%',
+              height: '300px',
+              borderRadius: '0.5rem',
+              overflow: 'hidden'
+            }
           }
         }
       ]

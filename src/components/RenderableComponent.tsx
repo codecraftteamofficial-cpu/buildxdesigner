@@ -1,4 +1,5 @@
 import React, { MouseEvent } from 'react';
+import ReactDOM from 'react-dom';
 import { ComponentData } from '../App';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -39,10 +40,19 @@ import {
 } from "./ui/alert-dialog";
 import { Label } from "./ui/label";
 import { formatUrl } from '../utils/urlUtils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 
 type ActionType = 'onClick' | 'onHover' | 'onFocus' | 'onBlur';
-type ActionHandlerType = 'custom' | 'navigate' | 'scroll' | 'copy' | 'toggle' | 'supabase' | 'condition';
+type ActionHandlerType = 'custom' | 'navigate' | 'scroll' | 'copy' | 'toggle' | 'supabase' | 'condition' | 'showAlert';
 
 interface Action {
   id: string;
@@ -57,6 +67,7 @@ interface Action {
   supabaseOperation?: 'insert' | 'update' | 'delete' | 'select';
   supabaseTable?: string;
   supabaseUrl?: string;
+  alertSelector?: string; // For showAlert
   supabaseKey?: string;
   supabaseData?: Record<string, string>;
   supabaseFilters?: { column: string; operator: string; value: string }[];
@@ -89,9 +100,10 @@ interface DraggableGridItemProps {
   moveItem: (dragIndex: number, hoverIndex: number) => void;
   children: React.ReactNode;
   isPreview?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-const DraggableGridItem = ({ id, index, moveItem, children, isPreview }: DraggableGridItemProps) => {
+const DraggableGridItem = ({ id, index, moveItem, children, isPreview, onClick }: DraggableGridItemProps) => {
   const ref = React.useRef<HTMLDivElement>(null);
 
   const [{ handlerId }, drop] = useDrop({
@@ -155,6 +167,7 @@ const DraggableGridItem = ({ id, index, moveItem, children, isPreview }: Draggab
         height: '100%'
       }}
       data-handler-id={handlerId}
+      onClick={onClick}
     >
       {children}
     </div>
@@ -175,8 +188,12 @@ interface RenderableComponentProps {
     supabaseUrl: string;
     supabaseKey: string;
   };
+  currentUser?: any;
+  activePageId?: string;
+  selectedComponents?: Set<string>;
   navigate?: (path: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onSelect?: (component: ComponentData, e: React.MouseEvent | React.TouchEvent) => void;
 }
 
 export function RenderableComponent({
@@ -190,8 +207,11 @@ export function RenderableComponent({
   editingComponentId,
   onEditComponent,
   userProjectConfig,
+  selectedComponents,
   navigate,
   onContextMenu,
+  onSelect,
+  currentUser,
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
@@ -204,6 +224,14 @@ export function RenderableComponent({
   const [tableHeaders, setTableHeaders] = React.useState(props?.headers || []);
   const tableRef = React.useRef<HTMLTableElement>(null);
   const dataTableInstance = React.useRef<any>(null);
+  
+  const [checkboxChecked, setCheckboxChecked] = React.useState(props.checked || false);
+
+  React.useEffect(() => {
+    if (type === 'checkbox') {
+      setCheckboxChecked(props.checked || false);
+    }
+  }, [props.checked, type]);
 
   React.useEffect(() => {
     if (type === 'table') {
@@ -622,6 +650,40 @@ export function RenderableComponent({
               }
             }
 
+            // Handle alert action
+            if (action.handlerType === 'showAlert' && action.alertSelector) {
+              console.log('Executing showAlert action for:', action.alertSelector);
+              
+              // Clean up selector (remove leading # if present)
+              const elementId = action.alertSelector.startsWith('#') 
+                ? action.alertSelector.substring(1) 
+                : action.alertSelector;
+
+              // Dispatch a custom event that the alert component can listen for
+              const showAlertEvent = new CustomEvent('showAlertRequested', {
+                detail: { elementId }
+              });
+              
+              window.dispatchEvent(showAlertEvent);
+              
+              // Also try to dispatch to iframe if it exists
+              try {
+                const iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                  iframe.contentWindow.dispatchEvent(showAlertEvent);
+                  // Also send as a postMessage for good measure if the iframe is cross-origin or has its own event bus
+                  iframe.contentWindow.postMessage({
+                    type: 'SHOW_ALERT',
+                    elementId
+                  }, '*');
+                }
+              } catch (e) {
+                console.warn('Failed to dispatch alert event to iframe:', e);
+              }
+              
+              return true;
+            }
+
             // Handle navigation
             if (action.handlerType === 'navigate' && action.url) {
               const absoluteUrl = formatUrl(action.url);
@@ -676,16 +738,30 @@ export function RenderableComponent({
                   }
                 }
 
-                if (element && ('value' in element)) {
-                  recordData[col] = element.value;
-                  console.log(`[Supabase] Mapped column "${col}" to input value: "${element.value}" (Element ID: ${cleanId})`);
-                } else if (element) {
-                  recordData[col] = element.innerText;
-                  console.log(`[Supabase] Mapped column "${col}" to text content: "${element.innerText}"`);
-                } else {
-                  recordData[col] = valOrId;
-                  console.log(`[Supabase] Mapped column "${col}" to static value: "${valOrId}" (Element not found)`);
-                }
+                 if (element && ('value' in element)) {
+                   recordData[col] = element.value;
+                   console.log(`[Supabase] Mapped column "${col}" to input value: "${element.value}" (Element ID: ${cleanId})`);
+                 } else if (element) {
+                   recordData[col] = element.innerText;
+                   console.log(`[Supabase] Mapped column "${col}" to text content: "${element.innerText}"`);
+                 } else {
+                   // Check if the static value is a JS expression like {currentUser.id}
+                   if (typeof valOrId === 'string' && valOrId.startsWith('{') && valOrId.endsWith('}')) {
+                     const expression = valOrId.substring(1, valOrId.length - 1);
+                     try {
+                       // Evaluate the expression with a limited scope
+                       const evaluationFn = new Function('currentUser', 'window', `return ${expression}`);
+                       recordData[col] = evaluationFn(currentUser, window);
+                       console.log(`[Supabase] Evaluated expression for column "${col}":`, recordData[col]);
+                     } catch (err) {
+                       console.error(`[Supabase] Error evaluating expression "${expression}":`, err);
+                       recordData[col] = valOrId;
+                     }
+                   } else {
+                     recordData[col] = valOrId;
+                     console.log(`[Supabase] Mapped column "${col}" to static value: "${valOrId}" (Element not found)`);
+                   }
+                 }
               });
 
               (async () => {
@@ -1383,6 +1459,409 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
+      case 'divider':
+        const divWidth = parseSize(style?.width, 300); // Changed from '100%' to 300 to match number type expected
+        const divHeight = parseSize(style?.height, 20); // Height of the wrapper, not the line itself
+        const thickness = props.thickness || '1px';
+        const color = props.color || '#e5e7eb';
+        const styleType = props.styleType || 'solid';
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={divWidth}
+            initialHeight={divHeight}
+            className="group block"
+            minWidth={50}
+            minHeight={10}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div
+              id={props.elementId}
+              className={`flex items-center w-full h-full ${props.className || ''}`}
+              style={{
+                ...combinedStyle,
+                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                padding: '10px 0' // Give it some click area in the editor
+              }}
+            >
+              <hr
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  borderTop: `${thickness} ${styleType} ${color}`,
+                  margin: 0
+                }}
+              />
+              {/* Invisible overlay to make selecting it easier in the editor */}
+              {!isPreview && (
+                <div className="absolute inset-0 z-10" />
+              )}
+            </div>
+          </ResizeHandle>
+        );
+
+      case 'accordion': {
+        const accWidth = parseSize(style?.width, 500);
+        const accHeight = parseSize(style?.height, 200);
+        const [openItems, setOpenItems] = React.useState<Set<number>>(new Set());
+
+        const toggleItem = (idx: number) => {
+          setOpenItems(prev => {
+            const next = new Set(prev);
+            if (next.has(idx)) {
+              next.delete(idx);
+            } else {
+              if (!props.allowMultiple) next.clear();
+              next.add(idx);
+            }
+            return next;
+          });
+        };
+
+        const items = props.items || [];
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={accWidth}
+            initialHeight={accHeight}
+            className="group block"
+            minWidth={200}
+            minHeight={80}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div
+              id={props.elementId}
+              className={props.className || ''}
+              style={{
+                ...combinedStyle,
+                width: '100%',
+                height: '100%',
+                overflow: 'auto',
+                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+              }}
+            >
+              {items.map((item: any, idx: number) => (
+                <div key={idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleItem(idx); }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      color: '#1f2937'
+                    }}
+                  >
+                    {item.question || `Item ${idx + 1}`}
+                    <span style={{
+                      transform: openItems.has(idx) ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                      fontSize: '12px'
+                    }}>▼</span>
+                  </button>
+                  {openItems.has(idx) && (
+                    <div style={{
+                      padding: '8px 16px 16px',
+                      fontSize: '14px',
+                      color: '#6b7280',
+                      lineHeight: '1.5'
+                    }}>
+                      {item.answer || 'Answer text'}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {items.length === 0 && (
+                <div style={{ padding: '16px', color: '#9ca3af', textAlign: 'center' }}>
+                  No accordion items. Add items via Properties Panel.
+                </div>
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
+      case 'tabs': {
+        const tabsWidth = parseSize(style?.width, 500);
+        const tabsHeight = parseSize(style?.height, 200);
+        const [activeTabIdx, setActiveTabIdx] = React.useState<number>(props.activeTab || 0);
+        const tabs = props.tabs || [];
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={tabsWidth}
+            initialHeight={tabsHeight}
+            className="group block"
+            minWidth={200}
+            minHeight={100}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div
+              id={props.elementId}
+              className={props.className || ''}
+              style={{
+                ...combinedStyle,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+              }}
+            >
+              {/* Tab headers */}
+              <div style={{
+                display: 'flex',
+                borderBottom: '2px solid #e5e7eb',
+                gap: '0'
+              }}>
+                {tabs.map((tab: any, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => { e.stopPropagation(); setActiveTabIdx(idx); }}
+                    style={{
+                      padding: '10px 20px',
+                      border: 'none',
+                      background: activeTabIdx === idx ? '#ffffff' : '#f3f4f6',
+                      borderBottom: activeTabIdx === idx ? '2px solid #3b82f6' : '2px solid transparent',
+                      marginBottom: '-2px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: activeTabIdx === idx ? 600 : 400,
+                      color: activeTabIdx === idx ? '#3b82f6' : '#6b7280',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {tab.label || `Tab ${idx + 1}`}
+                  </button>
+                ))}
+              </div>
+              {/* Tab content */}
+              <div style={{
+                flex: 1,
+                padding: '16px',
+                fontSize: '14px',
+                color: '#374151',
+                lineHeight: '1.6'
+              }}>
+                {tabs[activeTabIdx]?.content || 'Tab content'}
+              </div>
+            </div>
+          </ResizeHandle>
+        );
+      }
+
+      case 'modal': {
+        const modalBtnWidth = parseSize(style?.width, 150);
+        const modalBtnHeight = parseSize(style?.height, 44);
+        const [isModalOpen, setIsModalOpen] = React.useState(false);
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={modalBtnWidth}
+            initialHeight={modalBtnHeight}
+            className="group block"
+            minWidth={80}
+            minHeight={30}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div id={props.elementId} style={{ width: '100%', height: '100%' }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  padding: '10px 24px',
+                  backgroundColor: '#3b82f6',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  ...combinedStyle,
+                  pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                }}
+              >
+                {props.triggerText || 'Open Modal'}
+              </button>
+
+              {/* Modal overlay — rendered via portal to escape transform context */}
+              {isModalOpen && ReactDOM.createPortal(
+                <div
+                  onClick={(e) => { e.stopPropagation(); setIsModalOpen(false); }}
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: props.overlayColor || 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999,
+                    pointerEvents: 'auto'
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      minWidth: '320px',
+                      maxWidth: '500px',
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#111827' }}>
+                        {props.modalTitle || 'Modal Title'}
+                      </h3>
+                      <button
+                        onClick={() => setIsModalOpen(false)}
+                        style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6b7280' }}
+                      >✕</button>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#6b7280', lineHeight: '1.6' }}>
+                      {props.modalContent || 'Modal content goes here.'}
+                    </p>
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
+      case 'alert': {
+        const alertWidth = parseSize(style?.width, 500);
+        const alertHeight = parseSize(style?.height, 60);
+        const variantStyles: Record<string, { bg: string; border: string; text: string; icon: string }> = {
+          info: { bg: '#eff6ff', border: '#3b82f6', text: '#1e40af', icon: 'ℹ️' },
+          success: { bg: '#f0fdf4', border: '#22c55e', text: '#166534', icon: '✅' },
+          warning: { bg: '#fffbeb', border: '#f59e0b', text: '#92400e', icon: '⚠️' },
+          error: { bg: '#fef2f2', border: '#ef4444', text: '#991b1b', icon: '❌' }
+        };
+
+        const [isDismissed, setIsDismissed] = React.useState(false);
+        const [isTriggeredVisible, setIsTriggeredVisible] = React.useState(false);
+
+        const v = variantStyles[props.variant] || variantStyles.info;
+        const isTriggered = props.triggerMode === 'action';
+
+        React.useEffect(() => {
+          if (!isPreview || !isTriggered) return;
+
+          const handleShowAlert = (e: any) => {
+            const eventId = e.detail?.elementId || (e.data?.type === 'SHOW_ALERT' ? e.data.elementId : null);
+            
+            // Robust comparison: trim and compare case-sensitively
+            const targetId = (props.elementId || '').trim();
+            const receivedId = (eventId || '').trim();
+
+            if (receivedId && targetId && receivedId === targetId) {
+              console.log(`[Alert:${targetId}] received show event, becoming visible`);
+              setIsTriggeredVisible(true);
+              setIsDismissed(false); // Reset dismissal if re-triggered
+            } else if (receivedId) {
+              // Useful for debugging why an alert didn't show
+              console.log(`[Alert:${targetId}] ignoring event for ${receivedId}`);
+            }
+          };
+
+          window.addEventListener('showAlertRequested' as any, handleShowAlert);
+          window.addEventListener('message', handleShowAlert);
+
+          return () => {
+            window.removeEventListener('showAlertRequested' as any, handleShowAlert);
+            window.removeEventListener('message', handleShowAlert);
+          };
+        }, [isPreview, isTriggered, props.elementId]);
+
+        if (isDismissed && isPreview) return null;
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={alertWidth}
+            initialHeight={alertHeight}
+            className="group block"
+            minWidth={200}
+            minHeight={40}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div
+              id={props.elementId}
+              className={props.className || ''}
+              style={{
+                alignItems: 'center',
+                gap: '12px',
+                padding: '12px 16px',
+                backgroundColor: v.bg,
+                border: `1px solid ${v.border}`,
+                borderRadius: '8px',
+                width: '100%',
+                height: '100%',
+                boxSizing: 'border-box',
+                ...combinedStyle,
+                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                display: (isTriggered && isPreview && !isTriggeredVisible) ? 'none' : 'flex'
+              }}
+            >
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>{v.icon}</span>
+              <span style={{ flex: 1, fontSize: '14px', color: v.text, lineHeight: '1.4' }}>
+                {props.message || 'Alert message'}
+              </span>
+              {props.dismissible && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsDismissed(true); }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    color: v.text,
+                    opacity: 0.6,
+                    flexShrink: 0
+                  }}
+                >✕</button>
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
       case 'image':
         const imgWidth = parseSize(style?.width || props.width, 300);
         const imgHeight = parseSize(style?.height || props.height, 200);
@@ -1536,11 +2015,15 @@ export function RenderableComponent({
                     width: child.style?.width,
                     height: child.style?.height,
                   }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onSelect) onSelect(child, e);
+                  }}
                 >
                   <RenderableComponent
                     component={child}
                     projectId={projectId}
-                    isSelected={false}
+                    isSelected={selectedComponents?.has(child.id) || false}
                     onUpdate={(childUpdates) => {
                       const newChildren = component.children?.map(c =>
                         c.id === child.id ? { ...c, ...childUpdates } : c
@@ -1553,6 +2036,8 @@ export function RenderableComponent({
                     }}
                     disabled={disabled}
                     isPreview={isPreview}
+                    onSelect={onSelect}
+                    selectedComponents={selectedComponents}
                   />
                 </div>
               ))}
@@ -1846,6 +2331,210 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
+      case 'select': {
+        const selectWidth = parseSize(style?.width, 250);
+        const selectHeight = parseSize(style?.height, 40);
+        const options = props.options || [];
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={selectWidth}
+            initialHeight={selectHeight}
+            className="group"
+            minWidth={120}
+            minHeight={32}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div className="relative w-full h-full flex flex-col gap-1">
+              {props.label && (
+                <Label className="text-xs font-medium mb-1">{props.label}</Label>
+              )}
+              <div 
+                className="w-full h-full"
+                style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+                onClick={(e) => {
+                  if (isSelected) e.stopPropagation();
+                }}
+              >
+                <Select disabled={disabled}>
+                  <SelectTrigger 
+                    id={props.elementId}
+                    style={{ ...combinedStyle, width: '100%', height: '100%' }}
+                    className={props.className || ''}
+                  >
+                    <SelectValue placeholder={props.placeholder || 'Select...'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.map((opt: any, idx: number) => (
+                      <SelectItem key={idx} value={opt.value || `val-${idx}`}>
+                        {opt.label || `Option ${idx + 1}`}
+                      </SelectItem>
+                    ))}
+                    {options.length === 0 && (
+                      <SelectItem value="none" disabled>No options</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {isSelected && (
+                <div
+                  className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newLabel = prompt('Edit label:', props.label || '');
+                    if (newLabel !== null) {
+                      onUpdate({ props: { ...props, label: newLabel } });
+                    }
+                  }}
+                  title="Click to edit label"
+                >
+                  Edit label
+                </div>
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
+      case 'checkbox': {
+        const checkboxSize = 25; // Standard size for checkbox
+        
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 200)}
+            initialHeight={parseSize(style?.height, 32)}
+            className="group"
+            minWidth={50}
+            minHeight={32}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div 
+              className="relative w-full h-full flex items-center gap-2"
+              style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+              onClick={(e) => {
+                if (isSelected) e.stopPropagation();
+              }}
+            >
+              <Checkbox 
+                id={props.elementId}
+                checked={checkboxChecked}
+                disabled={disabled}
+                onCheckedChange={(checked: boolean) => {
+                  setCheckboxChecked(checked);
+                  onUpdate?.({ props: { ...props, checked } });
+                }}
+              />
+              {props.label && (
+                <Label 
+                  htmlFor={props.elementId}
+                  className="text-sm font-medium leading-none cursor-pointer"
+                  style={combinedStyle}
+                >
+                  {props.label}
+                </Label>
+              )}
+              
+              {isSelected && (
+                <div
+                  className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newLabel = prompt('Edit label:', props.label || '');
+                    if (newLabel !== null) {
+                      onUpdate({ props: { ...props, label: newLabel } });
+                    }
+                  }}
+                  title="Click to edit label"
+                >
+                  Edit label
+                </div>
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
+      case 'radio-group': {
+        const options = props.options || [];
+        
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 300)}
+            initialHeight={parseSize(style?.height, 100)}
+            className="group"
+            minWidth={100}
+            minHeight={50}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div 
+              className="relative w-full h-full flex flex-col gap-3"
+              style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+              onClick={(e) => {
+                if (isSelected) e.stopPropagation();
+              }}
+            >
+              {props.label && (
+                <Label className="text-sm font-semibold mb-1">{props.label}</Label>
+              )}
+              <RadioGroup 
+                defaultValue={props.defaultValue}
+                disabled={disabled}
+                onValueChange={(val: string) => {
+                  if (isPreview) {
+                    onUpdate({ props: { ...props, defaultValue: val } });
+                  }
+                }}
+                className="grid gap-2"
+              >
+                {options.map((opt: any, idx: number) => (
+                  <div key={idx} className="flex items-center space-x-2">
+                    <RadioGroupItem value={opt.value} id={`${props.elementId}-${idx}`} />
+                    <Label 
+                      htmlFor={`${props.elementId}-${idx}`}
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      {opt.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+              
+              {isSelected && (
+                <div
+                  className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newLabel = prompt('Edit label:', props.label || '');
+                    if (newLabel !== null) {
+                      onUpdate({ props: { ...props, label: newLabel } });
+                    }
+                  }}
+                  title="Click to edit label"
+                >
+                  Edit label
+                </div>
+              )}
+            </div>
+          </ResizeHandle>
+        );
+      }
+
       case 'textarea':
         const textareaWidth = parseSize(style?.width, 400);
         const textareaHeight = parseSize(style?.height, 120);
@@ -2055,11 +2744,15 @@ export function RenderableComponent({
                       onUpdate({ children: newChildren });
                     }}
                     isPreview={isPreview}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onSelect) onSelect(child, e);
+                    }}
                   >
                     <RenderableComponent
                       component={child}
                       projectId={projectId}
-                      isSelected={false}
+                      isSelected={selectedComponents?.has(child.id) || false}
                       onUpdate={(childUpdates) => {
                         const newChildren = [...(component.children || [])];
                         newChildren[index] = { ...newChildren[index], ...childUpdates };
@@ -2071,6 +2764,8 @@ export function RenderableComponent({
                       }}
                       disabled={disabled}
                       isPreview={isPreview}
+                      onSelect={onSelect}
+                      selectedComponents={selectedComponents}
                     />
                   </DraggableGridItem>
                 ))
@@ -2081,44 +2776,6 @@ export function RenderableComponent({
                   </div>
                 ))
               )}
-            </div>
-          </ResizeHandle>
-        );
-
-      case 'video':
-        const videoWidth = parseSize(style?.width, 640);
-        const videoHeight = parseSize(style?.height, 360);
-
-        return (
-          <ResizeHandle
-            onResize={handleResize}
-            initialX={component.position?.x || 0}
-            initialY={component.position?.y || 0}
-            initialWidth={videoWidth}
-            initialHeight={videoHeight}
-            className="group"
-            minWidth={200}
-            minHeight={150}
-            disabled={isPreview}
-            onResizeStart={onResizeStart}
-            onResizeEnd={onResizeEnd}
-          >
-
-            <div
-              id={props.elementId}
-              style={{ ...combinedStyle, width: '100%', height: '100%' }}
-              className={props.className || ''}
-            >
-              <video
-                width="100%"
-                height="100%"
-                controls
-                poster={props.poster}
-                style={{ borderRadius: '8px', objectFit: 'cover' }}
-              >
-                {props.src && <source src={props.src} type="video/mp4" />}
-                Your browser does not support the video tag.
-              </video>
             </div>
           </ResizeHandle>
         );

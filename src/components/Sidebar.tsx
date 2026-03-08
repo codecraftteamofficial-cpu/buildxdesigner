@@ -16,11 +16,13 @@ import {
   Mail,
   Menu,
   Grid3X3,
-  Video,
   Blocks,
   Code2,
   CreditCard,
   Layers,
+  ChevronDown,
+  Users,
+  BoxSelect,
 } from "lucide-react"
 import type { ComponentData } from "../App"
 
@@ -107,13 +109,17 @@ export function Sidebar({
   const formComponents = [
     { type: "input", icon: <FileText className="w-3.5 h-3.5" />, label: "Input Field", props: { placeholder: "Enter text...", type: "text" } },
     { type: "textarea", icon: <FileText className="w-3.5 h-3.5" />, label: "Text Area", props: { placeholder: "Enter message..." } },
+    { type: "select", icon: <ChevronDown className="w-3.5 h-3.5" />, label: "Select / Dropdown", props: { label: "Select Option", placeholder: "Select an option...", options: [{ label: "Option 1", value: "option1" }, { label: "Option 2", value: "option2" }] } },
+    { type: "checkbox", icon: <Square className="w-3.5 h-3.5" />, label: "Checkbox", props: { label: "Remember me", checked: false } },
+    { type: "radio-group", icon: <Users className="w-3.5 h-3.5" />, label: "Radio Group", props: { label: "Choose an option", options: [{ label: "Option 1", value: "option1" }, { label: "Option 2", value: "option2" }], defaultValue: "option1" } },
     { type: "form", icon: <Mail className="w-3.5 h-3.5" />, label: "Contact Form", props: { title: "Contact Us" } },
   ]
 
   const mediaComponents = [
-    { type: "video", icon: <Video className="w-3.5 h-3.5" />, label: "Video", props: { src: "", poster: "" } },
     { type: "gallery", icon: <ImageIcon className="w-3.5 h-3.5" />, label: "Image Gallery", props: { images: [] } },
   ]
+
+  const marketingComponents: any[] = []
 
   return (
     <div id="sidebar-palette" className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact">

@@ -45,6 +45,7 @@ interface CanvasProps {
   activePageId?: string;
   pages?: { id: string; name: string; path: string }[];
   onMoveLayer: (id: string, action: "forward" | "backward") => void;
+  currentUser?: any;
 }
 
 // Command interface for undo/redo
@@ -78,6 +79,7 @@ export function Canvas({
   activePageId = "home",
   pages = [{ id: "home", name: "Home", path: "/" }],
   onMoveLayer,
+  currentUser,
 }: CanvasProps) {
   const clampedCanvasZoom = Math.min(
     MAX_CANVAS_ZOOM,
@@ -1713,6 +1715,28 @@ export function Canvas({
                           onEditComponent={setEditingTextId}
                           userProjectConfig={userProjectConfig}
                           isPreview={readOnly}
+                          activePageId={activePageId}
+                          currentUser={currentUser}
+                          selectedComponents={selectedComponents}
+                          onSelect={
+                            !readOnly
+                              ? (childComp, e) => {
+                                  e.stopPropagation();
+                                  if (e.ctrlKey || e.metaKey) {
+                                    const newSelection = new Set(selectedComponents);
+                                    if (newSelection.has(childComp.id)) {
+                                      newSelection.delete(childComp.id);
+                                    } else {
+                                      newSelection.add(childComp.id);
+                                    }
+                                    setSelectedComponents(newSelection);
+                                  } else {
+                                    setSelectedComponents(new Set([childComp.id]));
+                                  }
+                                  onSelectComponent(childComp);
+                                }
+                              : undefined
+                          }
                         />
 
                         {/* Desktop Selection Indicator - Hide in Read Only */}

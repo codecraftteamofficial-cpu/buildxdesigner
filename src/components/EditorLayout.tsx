@@ -281,9 +281,9 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         projectName={state.projectName}
                         backgroundColor={state.canvasBackgroundColor}
                         showGrid={state.showCanvasGrid}
-                        activePageId={state.activePageId}
                         pages={state.pages}
                         userProjectConfig={state.userProjectConfig}
+                        currentUser={state.currentUser}
                         readOnly={!canEditProject}
                       />
                       <RemoteCursors
@@ -521,6 +521,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
               activePageId={state.activePageId}
               pages={state.pages}
               userProjectConfig={state.userProjectConfig}
+              currentUser={state.currentUser}
             />
           )}
 

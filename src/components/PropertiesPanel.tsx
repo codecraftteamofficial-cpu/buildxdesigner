@@ -33,7 +33,7 @@ import { toast } from "sonner"
 import { createClient } from "@supabase/supabase-js"
 import { supabase } from "../supabase/config/supabaseClient"
 type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
-type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition"
+type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition" | "showAlert"
 const styleStr = (value: any): string => String(value ?? "")
 
 interface Action {
@@ -54,6 +54,8 @@ interface Action {
   supabaseData?: Record<string, string>
   supabaseFilters?: { column: string; operator: string; value: string }[]
   supabaseSelectColumns?: string
+
+  alertSelector?: string // For showAlert
 
   // For chaining actions
   onSuccessActionId?: string
@@ -830,6 +832,22 @@ export function PropertiesPanel({
                                       }
                                       }`
                                       break
+                                    case "showAlert":
+                                      newHandler = `{try {
+                                        const selector = '${(action.alertSelector || "").replace(new RegExp("'", "g"), "\\'")}';
+                                        const element = document.getElementById(selector) || document.querySelector(selector);
+                                        if (element) {
+                                          element.style.display = 'flex';
+                                          element.style.opacity = '1';
+                                          console.log('Showing alert:', selector);
+                                        } else {
+                                          console.error('Alert not found:', selector);
+                                        }
+                                      } catch (error) {
+                                        console.error('Error in showAlert:', error);
+                                      }
+                                      }`
+                                      break
                                     case "custom":
                                     default:
                                       newHandler = action.handler || "console.log('Action triggered!');"
@@ -851,6 +869,7 @@ export function PropertiesPanel({
                                   <SelectItem value="scroll">Scroll to Element</SelectItem>
                                   <SelectItem value="copy">Copy to Clipboard</SelectItem>
                                   <SelectItem value="toggle">Toggle Element</SelectItem>
+                                  <SelectItem value="showAlert">Show Alert</SelectItem>
                                   <SelectItem value="supabase">Supabase DB</SelectItem>
                                 </SelectContent>
                               </Select >
@@ -1194,30 +1213,69 @@ export function PropertiesPanel({
 
                                 {/* Show data mapping payload for Insert / Update */}
                                 {(action.supabaseOperation === 'insert' || action.supabaseOperation === 'update') && (
-                                  <div className="space-y-2 mt-4 pt-2 border-t">
-                                    <Label className="text-xs font-medium">Payload Mapping (SET)</Label>
+                                  <div className="space-y-3 mt-4 pt-2 border-t">
+                                    <div className="flex justify-between items-center">
+                                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Column and ID Mapping</Label>
+                                      <TooltipProvider delayDuration={300}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help" />
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left" className="w-[260px] p-3">
+                                            <div className="space-y-2 text-xs">
+                                              <p><span className="font-bold">Column:</span> The name of the database column in Supabase.</p>
+                                              <p><span className="font-bold">ID / Value:</span> The ID of a canvas element (e.g. <code>#input-1</code>) to pull the value from, or a static value.</p>
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    </div>
                                     <div className="space-y-2">
                                       {/* Helper to add a mapping row */}
                                       <Button
                                         type="button"
                                         variant="outline"
                                         size="sm"
-                                        className="w-full h-7 text-xs"
+                                        className="w-full h-7 text-xs border-dashed"
                                         onClick={() => {
                                           const currentData = action.supabaseData || {}
+                                          let newKey = "";
+                                          let i = 1;
+                                          // Ensure we add a new key even if "" already exists
+                                          if (newKey in currentData) {
+                                            while (`column_${i}` in currentData) {
+                                              i++;
+                                            }
+                                            newKey = `column_${i}`;
+                                          }
                                           updateAction(action.id, {
-                                            supabaseData: { ...currentData, "": "" }
+                                            supabaseData: { ...currentData, [newKey]: "" }
                                           })
                                         }}
                                       >
-                                        <Plus className="h-3 w-3 mr-1" /> Add Column
+                                        <Plus className="h-3 w-3 mr-1" /> Add Mapping Row
                                       </Button>
 
                                       {Object.entries(action.supabaseData || {}).map(([col, val], idx) => (
-                                        <div key={idx} className="flex flex-col gap-1 p-2 border rounded bg-slate-50">
-                                          <div className="flex gap-2">
+                                        <div key={idx} className="flex flex-col gap-2 p-2 border rounded bg-slate-50/50">
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between items-center">
+                                              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Database Column</Label>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                                                onClick={() => {
+                                                  const newData = { ...action.supabaseData }
+                                                  delete newData[col]
+                                                  updateAction(action.id, { supabaseData: newData })
+                                                }}
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </Button>
+                                            </div>
                                             <Input
-                                              placeholder="Column"
+                                              placeholder="e.g. user_id"
                                               value={col}
                                               onChange={(e) => {
                                                 const newData = { ...action.supabaseData }
@@ -1226,45 +1284,37 @@ export function PropertiesPanel({
                                                 newData[newCol] = val
                                                 updateAction(action.id, { supabaseData: newData })
                                               }}
-                                              className="h-6 text-xs flex-1"
+                                              className="h-7 text-xs"
                                             />
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6"
-                                              onClick={() => {
-                                                const newData = { ...action.supabaseData }
-                                                delete newData[col]
-                                                updateAction(action.id, { supabaseData: newData })
-                                              }}
-                                            >
-                                              <X className="h-3 w-3" />
-                                            </Button>
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                            <Input
-                                              placeholder="Value or Element ID"
-                                              value={val}
-                                              onChange={(e) => {
-                                                const newData = { ...action.supabaseData }
-                                                newData[col] = e.target.value
-                                                updateAction(action.id, { supabaseData: newData })
-                                              }}
-                                              className="h-6 text-xs flex-1"
-                                            />
-                                            <Button
-                                              type="button"
-                                              variant="outline"
-                                              size="icon"
-                                              className={`h-6 w-6 ${isPickingElement === action.id && pickingMode?.column === col ? "bg-yellow-100 border-yellow-300" : ""}`}
-                                              onClick={() => {
-                                                setPickingMode({ type: "column", column: col })
-                                                startElementPicking(action.id)
-                                              }}
-                                              title="Pick Input Element"
-                                            >
-                                              <MousePointer className="h-3 w-3" />
-                                            </Button>
+                                          
+                                          <div className="space-y-1">
+                                            <Label className="text-[10px] font-bold uppercase text-muted-foreground">Canvas ID or Static Value</Label>
+                                            <div className="flex items-center gap-2">
+                                              <Input
+                                                placeholder="#input-id or 'value'"
+                                                value={val}
+                                                onChange={(e) => {
+                                                  const newData = { ...action.supabaseData }
+                                                  newData[col] = e.target.value
+                                                  updateAction(action.id, { supabaseData: newData })
+                                                }}
+                                                className="h-7 text-xs flex-1"
+                                              />
+                                              <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className={`h-7 w-7 ${isPickingElement === action.id && pickingMode?.column === col ? "bg-yellow-100 border-yellow-300" : ""}`}
+                                                onClick={() => {
+                                                  setPickingMode({ type: "column", column: col })
+                                                  startElementPicking(action.id)
+                                                }}
+                                                title="Pick Input Element"
+                                              >
+                                                <MousePointer className="h-3 w-3" />
+                                              </Button>
+                                            </div>
                                           </div>
                                         </div>
                                       ))}
@@ -1376,6 +1426,33 @@ export function PropertiesPanel({
                                   placeholder="element-id or .element"
                                   className="h-7 text-xs w-full font-mono"
                                 />
+                              </div>
+                            )
+                          }
+
+                          {
+                            action.handlerType === "showAlert" && (
+                              <div className="space-y-1">
+                                <Label className="text-xs">Alert Element ID</Label>
+                                <Input
+                                  value={action.alertSelector || ""}
+                                  onChange={(e) => {
+                                    let alertSelector = e.target.value;
+                                    // Strip leading # if user typed it
+                                    if (alertSelector.startsWith('#')) {
+                                      alertSelector = alertSelector.substring(1);
+                                    }
+                                    updateAction(action.id, {
+                                      alertSelector: alertSelector.trim(),
+                                      // The handler itself is now just a fallback or for custom scripts, 
+                                      // as RenderableComponent handles showAlertType specifically.
+                                      handler: `// Trigger alert: ${alertSelector.trim()}`,
+                                    })
+                                  }}
+                                  placeholder="my-alert-id"
+                                  className="h-7 text-xs w-full font-mono"
+                                />
+                                <p className="text-[10px] text-muted-foreground">Enter the Element ID of the Alert component to show</p>
                               </div>
                             )
                           }
@@ -2284,6 +2361,457 @@ export function PropertiesPanel({
           </div>
         )
 
+      case "divider":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Line Style</Label>
+              <Select
+                value={props.styleType || 'solid'}
+                onValueChange={(val: string) => updateProps("styleType", val)}
+              >
+                <SelectTrigger className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="solid">Solid</SelectItem>
+                  <SelectItem value="dashed">Dashed</SelectItem>
+                  <SelectItem value="dotted">Dotted</SelectItem>
+                  <SelectItem value="double">Double</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Thickness</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input
+                  type="text"
+                  value={props.thickness || '1px'}
+                  onChange={(e) => updateProps("thickness", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">Color</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <div
+                  className="w-8 h-8 rounded-md border cursor-pointer"
+                  style={{ backgroundColor: props.color || '#e5e7eb' }}
+                />
+                <Input
+                  type="text"
+                  value={props.color || '#e5e7eb'}
+                  onChange={(e) => updateProps("color", e.target.value)}
+                  className="h-8 text-xs flex-1"
+                />
+              </div>
+            </div>
+          </div>
+        )
+
+      case "accordion":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-semibold">Accordion Items</Label>
+              {(props.items || []).map((item: any, idx: number) => (
+                <div key={idx} className="mt-2 p-2 border rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Item {idx + 1}</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-red-500"
+                      onClick={() => {
+                        const newItems = [...(props.items || [])];
+                        newItems.splice(idx, 1);
+                        updateProps("items", newItems);
+                      }}
+                    >Remove</Button>
+                  </div>
+                  <Input
+                    value={item.question || ''}
+                    onChange={(e) => {
+                      const newItems = [...(props.items || [])];
+                      newItems[idx] = { ...newItems[idx], question: e.target.value };
+                      updateProps("items", newItems);
+                    }}
+                    placeholder="Question"
+                    className="h-7 text-xs"
+                  />
+                  <textarea
+                    value={item.answer || ''}
+                    onChange={(e) => {
+                      const newItems = [...(props.items || [])];
+                      newItems[idx] = { ...newItems[idx], answer: e.target.value };
+                      updateProps("items", newItems);
+                    }}
+                    placeholder="Answer"
+                    className="w-full h-16 text-xs border rounded-md p-2 resize-none"
+                  />
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs"
+                onClick={() => {
+                  const newItems = [...(props.items || []), { question: 'New Question', answer: 'New Answer' }];
+                  updateProps("items", newItems);
+                }}
+              >+ Add Item</Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Allow Multiple Open</Label>
+              <input
+                type="checkbox"
+                checked={props.allowMultiple || false}
+                onChange={(e) => updateProps("allowMultiple", e.target.checked)}
+              />
+            </div>
+          </div>
+        )
+
+      case "tabs":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-semibold">Tabs</Label>
+              {(props.tabs || []).map((tab: any, idx: number) => (
+                <div key={idx} className="mt-2 p-2 border rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Tab {idx + 1}</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-red-500"
+                      onClick={() => {
+                        const newTabs = [...(props.tabs || [])];
+                        newTabs.splice(idx, 1);
+                        updateProps("tabs", newTabs);
+                      }}
+                    >Remove</Button>
+                  </div>
+                  <Input
+                    value={tab.label || ''}
+                    onChange={(e) => {
+                      const newTabs = [...(props.tabs || [])];
+                      newTabs[idx] = { ...newTabs[idx], label: e.target.value };
+                      updateProps("tabs", newTabs);
+                    }}
+                    placeholder="Tab label"
+                    className="h-7 text-xs"
+                  />
+                  <textarea
+                    value={tab.content || ''}
+                    onChange={(e) => {
+                      const newTabs = [...(props.tabs || [])];
+                      newTabs[idx] = { ...newTabs[idx], content: e.target.value };
+                      updateProps("tabs", newTabs);
+                    }}
+                    placeholder="Tab content"
+                    className="w-full h-16 text-xs border rounded-md p-2 resize-none"
+                  />
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs"
+                onClick={() => {
+                  const newTabs = [...(props.tabs || []), { label: `Tab ${(props.tabs || []).length + 1}`, content: 'New tab content' }];
+                  updateProps("tabs", newTabs);
+                }}
+              >+ Add Tab</Button>
+            </div>
+          </div>
+        )
+
+      case "modal":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Trigger Button Text</Label>
+              <Input
+                value={props.triggerText || ''}
+                onChange={(e) => updateProps("triggerText", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Modal Title</Label>
+              <Input
+                value={props.modalTitle || ''}
+                onChange={(e) => updateProps("modalTitle", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Modal Content</Label>
+              <textarea
+                value={props.modalContent || ''}
+                onChange={(e) => updateProps("modalContent", e.target.value)}
+                className="w-full h-20 text-xs border rounded-md p-2 mt-1 resize-none"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Overlay Color</Label>
+              <Input
+                value={props.overlayColor || 'rgba(0,0,0,0.5)'}
+                onChange={(e) => updateProps("overlayColor", e.target.value)}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+          </div>
+        )
+
+      case "select":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="select-label" className="text-xs">
+                Label
+              </Label>
+              <Input
+                id="select-label"
+                value={props.label || ""}
+                onChange={(e) => updateProps("label", e.target.value)}
+                placeholder="Select Option"
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="select-placeholder" className="text-xs">
+                Placeholder
+              </Label>
+              <Input
+                id="select-placeholder"
+                value={props.placeholder || ""}
+                onChange={(e) => updateProps("placeholder", e.target.value)}
+                placeholder="Select an option..."
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Options</Label>
+              {(props.options || []).map((option: any, idx: number) => (
+                <div key={idx} className="mt-2 p-2 border rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Option {idx + 1}</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-red-500"
+                      onClick={() => {
+                        const newOptions = [...(props.options || [])];
+                        newOptions.splice(idx, 1);
+                        updateProps("options", newOptions);
+                      }}
+                    >Remove</Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Label</Label>
+                      <Input
+                        value={option.label || ''}
+                        onChange={(e) => {
+                          const newOptions = [...(props.options || [])];
+                          newOptions[idx] = { ...newOptions[idx], label: e.target.value };
+                          updateProps("options", newOptions);
+                        }}
+                        placeholder="Label"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Value</Label>
+                      <Input
+                        value={option.value || ''}
+                        onChange={(e) => {
+                          const newOptions = [...(props.options || [])];
+                          newOptions[idx] = { ...newOptions[idx], value: e.target.value };
+                          updateProps("options", newOptions);
+                        }}
+                        placeholder="Value"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs"
+                onClick={() => {
+                  const newOptions = [...(props.options || []), { label: `Option ${(props.options || []).length + 1}`, value: `option${(props.options || []).length + 1}` }];
+                  updateProps("options", newOptions);
+                }}
+              >+ Add Option</Button>
+            </div>
+          </div>
+        )
+
+      case "alert":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Variant</Label>
+              <Select
+                value={props.variant || 'info'}
+                onValueChange={(val: string) => updateProps("variant", val)}
+              >
+                <SelectTrigger className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="info">Info</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="error">Error</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Message</Label>
+              <textarea
+                value={props.message || ''}
+                onChange={(e) => updateProps("message", e.target.value)}
+                className="w-full h-16 text-xs border rounded-md p-2 mt-1 resize-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Dismissible</Label>
+              <input
+                type="checkbox"
+                checked={props.dismissible || false}
+                onChange={(e) => updateProps("dismissible", e.target.checked)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Trigger Mode</Label>
+              <Select
+                value={props.triggerMode || 'visible'}
+                onValueChange={(val: string) => updateProps("triggerMode", val)}
+              >
+                <SelectTrigger className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="visible">Always Visible</SelectItem>
+                  <SelectItem value="action">Triggered by Button Action</SelectItem>
+                </SelectContent>
+              </Select>
+              {props.triggerMode === 'action' && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Set an Element ID above, then use a Button's "Show Alert" action with the same ID to trigger this alert.
+                </p>
+              )}
+            </div>
+          </div>
+        )
+
+      case "checkbox":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="checkbox-label" className="text-xs">
+                Label
+              </Label>
+              <Input
+                id="checkbox-label"
+                value={props.label || ""}
+                onChange={(e) => updateProps("label", e.target.value)}
+                placeholder="Checkbox Label"
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Initially Checked</Label>
+              <Switch
+                checked={props.checked || false}
+                onCheckedChange={(checked) => updateProps("checked", checked)}
+              />
+            </div>
+          </div>
+        )
+
+      case "radio-group":
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="radio-label" className="text-xs">
+                Group Label
+              </Label>
+              <Input
+                id="radio-label"
+                value={props.label || ""}
+                onChange={(e) => updateProps("label", e.target.value)}
+                placeholder="Choose an option"
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold">Options</Label>
+              {(props.options || []).map((option: any, idx: number) => (
+                <div key={idx} className="mt-2 p-2 border rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Option {idx + 1}</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-red-500"
+                      onClick={() => {
+                        const newOptions = [...(props.options || [])];
+                        newOptions.splice(idx, 1);
+                        updateProps("options", newOptions);
+                      }}
+                    >Remove</Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Label</Label>
+                      <Input
+                        value={option.label || ''}
+                        onChange={(e) => {
+                          const newOptions = [...(props.options || [])];
+                          newOptions[idx] = { ...newOptions[idx], label: e.target.value };
+                          updateProps("options", newOptions);
+                        }}
+                        placeholder="Label"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Value</Label>
+                      <Input
+                        value={option.value || ''}
+                        onChange={(e) => {
+                          const newOptions = [...(props.options || [])];
+                          newOptions[idx] = { ...newOptions[idx], value: e.target.value };
+                          updateProps("options", newOptions);
+                        }}
+                        placeholder="Value"
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-xs"
+                onClick={() => {
+                  const newOptions = [...(props.options || []), { label: `Option ${(props.options || []).length + 1}`, value: `option${(props.options || []).length + 1}` }];
+                  updateProps("options", newOptions);
+                }}
+              >+ Add Option</Button>
+            </div>
+          </div>
+        )
+
       case "image":
         const handleSingleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
           const file = e.target.files?.[0]
@@ -2927,12 +3455,17 @@ export function PropertiesPanel({
                   <Input
                     id="element-id"
                     value={selectedComponent.props?.elementId || ""}
-                    onChange={(e) => updateProps("elementId", e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value.trim().startsWith('#') 
+                        ? e.target.value.trim().substring(1) 
+                        : e.target.value.trim();
+                      updateProps("elementId", val);
+                    }}
                     placeholder="hero-section"
                     className="h-7 text-xs bg-accent/20 border-accent/40 focus:bg-accent/30 focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Used for anchor links and custom scripting. Must be unique on the page.
+                    Used for anchor links and triggering alerts. Must be unique. (e.g. alert1)
                   </p>
                 </div>
                 <div className="space-y-1">
