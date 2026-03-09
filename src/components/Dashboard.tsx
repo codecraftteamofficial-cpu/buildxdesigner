@@ -2773,25 +2773,12 @@ export function Dashboard({
           <div className="p-3 md:p-6">
             {activeSection === "new-chat" ? (
               <>
-                {/* Hero Prompt Section */}
+              
                 <div className="flex flex-col min-h-[calc(100vh-200px)]">
-                  <div className="shrink-0 py-16 px-4">
-                    <div className="w-full max-w-4xl mx-auto">
-                     
-
-                      <div className="relative max-w-3xl mx-auto">
-                        <div className="relative flex items-center bg-background border border-border rounded-full shadow-sm hover:shadow-md hover:border-foreground/20 transition-all">
-                       
-                          
-                        </div>
-
-                     
-                      </div>
-                    </div>
-                  </div>
+                 
 
                   {/* Templates Section */}
-                  <div className="flex-1 px-4 pb-8">
+                   <div className="flex-1 px-4 pb-8 pt-0">
                     {/* Updated max-width for better content spacing */}
                     <div className="w-full max-w-6xl mx-auto">
                       <div className="mb-6">
