@@ -2658,7 +2658,7 @@ export function Dashboard({
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>New chat</span>
+              <span>Dashboard</span>
             </button>
 
             {/* All Projects */}
@@ -2777,63 +2777,15 @@ export function Dashboard({
                 <div className="flex flex-col min-h-[calc(100vh-200px)]">
                   <div className="shrink-0 py-16 px-4">
                     <div className="w-full max-w-4xl mx-auto">
-                      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-foreground mb-8">
-                        What would you like help with?
-                      </h1>
+                     
 
                       <div className="relative max-w-3xl mx-auto">
                         <div className="relative flex items-center bg-background border border-border rounded-full shadow-sm hover:shadow-md hover:border-foreground/20 transition-all">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="ml-2 h-9 w-9 rounded-full hover:bg-muted shrink-0"
-                            disabled={isGenerating}
-                          >
-                            <Plus className="w-5 h-5" />
-                          </Button>
-                          <Input
-                            placeholder="Ask buildx now ..."
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (
-                                e.key === "Enter" &&
-                                aiPrompt.trim() &&
-                                !isGenerating
-                              ) {
-                                handleGenerateUI();
-                              }
-                            }}
-                            className="h-14 text-base px-4 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent rounded-full flex-1"
-                          />
-                          <Button
-                            onClick={handleGenerateUI}
-                            disabled={!aiPrompt.trim() || isGenerating}
-                            size="icon"
-                            className="mr-2 h-9 w-9 rounded-full bg-foreground text-background hover:bg-foreground/90 shrink-0"
-                          >
-                            {isGenerating ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <ArrowUp className="w-4 h-4" />
-                            )}
-                          </Button>
+                       
+                          
                         </div>
 
-                        {/* Generation Progress */}
-                        {isGenerating && (
-                          <div className="mt-4">
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-foreground transition-all duration-300"
-                                style={{ width: `${generationProgress}%` }}
-                              />
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-2 text-center">
-                              Generating your UI... {generationProgress}%
-                            </p>
-                          </div>
-                        )}
+                     
                       </div>
                     </div>
                   </div>
