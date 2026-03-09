@@ -19,6 +19,8 @@ interface LandingPageProps {
   onEnterEditor: () => void;
 }
 
+const ONBOARDING_SESSION_INTENT_KEY = 'buildxdesigner:auth-intent';
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authType, setAuthType] = useState<'login' | 'signup'>('login');
@@ -30,13 +32,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
   };
 
   const handleAuthSuccess = (isSignup?: boolean) => {
-    if (isSignup) {
-      // We can pass a flag or just let App.tsx handle it
-      // For now, we just call onEnterEditor
-      onEnterEditor();
-    } else {
-      onEnterEditor();
-    }
+      sessionStorage.setItem(
+      ONBOARDING_SESSION_INTENT_KEY,
+      isSignup ? 'signup' : 'login',
+    );
+    onEnterEditor();
   };
 
   useAuthRedirect(onEnterEditor);

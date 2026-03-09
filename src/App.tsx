@@ -110,11 +110,37 @@ const EDITOR_TOUR_STEPS = [
   },
 ];
 
+const ONBOARDING_SESSION_INTENT_KEY = "buildxdesigner:auth-intent";
+const ONBOARDING_COMPLETED_PREFIX = "buildxdesigner:onboarding-completed:";
+
+const getOnboardingCompletedKey = (userId: string) =>
+  `${ONBOARDING_COMPLETED_PREFIX}${userId}`;
+
+const isLikelyNewUser = (session?: {
+  user?: { created_at?: string; last_sign_in_at?: string };
+}) => {
+  const createdAt = session?.user?.created_at;
+  const lastSignInAt = session?.user?.last_sign_in_at;
+
+  if (!createdAt || !lastSignInAt) return false;
+
+  const createdTime = new Date(createdAt).getTime();
+  const lastSignInTime = new Date(lastSignInAt).getTime();
+
+  if (Number.isNaN(createdTime) || Number.isNaN(lastSignInTime)) {
+    return false;
+  }
+
+  return Math.abs(lastSignInTime - createdTime) < 60_000;
+};
+
+
 function AppRoutes({ editor }: { editor: EditorController }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isSyncingFromPath = useRef(false);
   const isInitialMount = useRef(true);
+    const onboardingCheckUserIdRef = useRef<string | null>(null);
   const [showEditorTour, setShowEditorTour] = useState(false);
 
   const {
@@ -136,7 +162,12 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   } = editor;
 
   const handleAuthenticatedSession = async (session?: {
-    user?: { user_metadata?: Record<string, unknown>; id?: string };
+    user?: {
+      user_metadata?: Record<string, unknown>;
+      id?: string;
+      created_at?: string;
+      last_sign_in_at?: string;
+    };
   }) => {
     const userId = session?.user?.id;
 
@@ -144,6 +175,15 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       goToLanding();
       return;
     }
+
+     if (localStorage.getItem(getOnboardingCompletedKey(userId)) === "true") {
+      enterDashboard();
+      return;
+    }
+
+    const authIntent = sessionStorage.getItem(ONBOARDING_SESSION_INTENT_KEY);
+    const onboardingEligible =
+      authIntent === "signup" || isLikelyNewUser(session);
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
@@ -158,7 +198,12 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       });
 
       if (!response.ok) {
-        setShowOnboarding(true);
+         if (onboardingEligible) {
+          setShowOnboarding(true);
+          return;
+        }
+
+        enterDashboard();
         return;
       }
 
@@ -213,14 +258,27 @@ function AppRoutes({ editor }: { editor: EditorController }) {
         hasAnswerFields(topLevelRecord);
 
       if (hasOnboardingData) {
+          localStorage.setItem(getOnboardingCompletedKey(userId), "true");
         enterDashboard();
         return;
       }
 
-      setShowOnboarding(true);
+      if (onboardingEligible) {
+        setShowOnboarding(true);
+        return;
+      }
+
+      enterDashboard();
     } catch (error) {
       console.error("Error checking onboarding status:", error);
-      setShowOnboarding(true);
+      if (onboardingEligible) {
+        setShowOnboarding(true);
+        return;
+      }
+
+      enterDashboard();
+    } finally {
+      sessionStorage.removeItem(ONBOARDING_SESSION_INTENT_KEY);
     }
   };
 
@@ -254,6 +312,11 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     if (authLoading) return;
     const userId = currentUser?.id;
     if (!userId) return;
+     if (onboardingCheckUserIdRef.current === userId) {
+      return;
+    }
+
+    onboardingCheckUserIdRef.current = userId;
 
     void handleAuthenticatedSession({ user: { id: userId } });
   }, [authLoading, currentUser?.id]);
@@ -437,6 +500,12 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     return (
       <OnboardingPage
         onComplete={() => {
+            if (currentUser?.id) {
+            localStorage.setItem(
+              getOnboardingCompletedKey(currentUser.id),
+              "true",
+            );
+          }
           setShowOnboarding(false);
           enterDashboard();
         }}

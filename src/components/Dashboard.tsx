@@ -67,6 +67,11 @@ import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
 
+type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash";
+
+const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
+
+
 interface DashboardProps {
   onCreateFromScratch: () => void;
   onOpenTemplates: () => void;
@@ -340,9 +345,7 @@ export function Dashboard({
   // --- EXISTING DASHBOARD STATES ---
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [activeSection, setActiveSection] = useState<
-    "new-chat" | "drafts" | "team" | "all" | "trash"
-  >("new-chat");
+  const [activeSection, setActiveSection] = useState<DashboardSection>("new-chat");
   const [projectsFilter, setProjectsFilter] = useState<
     "all" | "published" | "shared"
   >("all");
@@ -402,6 +405,8 @@ export function Dashboard({
   const [editProjectCategory, setEditProjectCategory] = useState("Starter");
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [isSavingProjectEdits, setIsSavingProjectEdits] = useState(false);
+
+  
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -1546,9 +1551,12 @@ export function Dashboard({
         throw deleteError;
       }
 
-      await reloadProjects();
+      
       setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
+
+        // Force a full refresh to avoid stale dialog overlays blocking clicks.
+      window.location.reload();
     } catch (err) {
       console.error("Failed to delete project:", err);
       setProjectsLoading(false);
