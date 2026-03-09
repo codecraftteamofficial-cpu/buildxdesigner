@@ -31,7 +31,7 @@ import { supabase } from '../supabase/config/supabaseClient';
 import { changePassword } from '../supabase/data/userProfile';
 import { fetchUserProfile, updateProfile, uploadAvatar } from '../supabase/data/userProfile';
 import { PayMongoSettings } from './PayMongoSettings';
-import { getApiBaseUrl } from '../utils/apiConfig';
+import { getBackendUrl } from '../utils/backendConfig';
 
 interface ProfileDataState {
     fullName: string;
@@ -744,8 +744,7 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
                                                                 disabled={isConnectingSupabase}
                                                                 onClick={() => {
                                                                     setIsConnectingSupabase(true);
-                                                                    const backendBase = getApiBaseUrl();
-                                                                    window.location.href = `${backendBase}/api/auth/supabase`;
+                                                                    window.location.href = `${getBackendUrl()}/api/auth/supabase`;
                                                                 }}
                                                             >
                                                                 {isConnectingSupabase ? (

@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Loader2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../supabase/config/supabaseClient';
-import { getApiBaseUrl } from '../utils/apiConfig';
+import { getBackendUrl } from '../utils/backendConfig';
 
 interface PayMongoButtonProps {
     amount: number;
@@ -49,7 +49,7 @@ export function PayMongoButton({
                 return;
             }
 
-            const apiBase = getApiBaseUrl();
+            const apiBase = getBackendUrl();
 
             const response = await fetch(`${apiBase}/api/paymongo/checkout`, {
                 method: 'POST',
