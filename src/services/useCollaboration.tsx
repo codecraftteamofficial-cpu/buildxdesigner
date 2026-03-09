@@ -40,6 +40,8 @@ function useCollaborationLogic({
   const clientIdRef = useRef<string | null>(null);
   const userColorRef = useRef<string | null>(null);
   const cursorPosRef = useRef({ x: 0, y: 0 });
+  const transportCleanupRef = useRef<(() => void) | null>(null);
+  const transportRoomRef = useRef<string | null>(null);
 
   const initCollaborationDoc = useCollaborationDoc(setState);
 
@@ -57,18 +59,31 @@ function useCollaborationLogic({
     replaceProjectName,
   } = initCollaborationDoc;
 
+  const collabInstanceRef = useRef(
+    `collab-${Math.random().toString(36).slice(2, 8)}`,
+  );
+
+  useEffect(() => {
+    console.log("[useCollab] mounted", collabInstanceRef.current);
+    return () => {
+      console.log("[useCollab] unmounted", collabInstanceRef.current);
+    };
+  }, []);
+
   const [remoteCursors, setRemoteCursors] = useState<
     Map<string, { clientId: string; user: any; x: number; y: number }>
   >(new Map());
 
   const ablyKey = import.meta.env.VITE_ABLY_KEY as string | undefined;
-  const activeProjectId = currentProjectId ?? state.currentProjectId ?? null;
+  const activeProjectId =
+    currentProjectId ?? state.currentProjectId ?? projectId ?? null;
   const hydratedProjectRef = useRef<string | null>(null);
   const docProjectIdRef = useRef<string | null>(null);
   const isHydratingRef = useRef(false);
 
   useEffect(() => {
     const { yMeta } = getOrInitDoc();
+
     const handleMetaChange = () => {
       const incoming = yMeta.get("projectName");
       if (typeof incoming !== "string" || !incoming.trim()) return;
@@ -83,7 +98,9 @@ function useCollaborationLogic({
     yMeta.observe(handleMetaChange);
     handleMetaChange();
 
-    return () => yMeta.unobserve(handleMetaChange);
+    return () => {
+      yMeta.unobserve(handleMetaChange);
+    };
   }, [getOrInitDoc, setState]);
 
   useEffect(() => {
@@ -110,27 +127,6 @@ function useCollaborationLogic({
     // Remove replaceComponents from deps - it's stable enough via ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentView, activeProjectId]);
-
-  useEffect(() => {
-    const { yMeta } = getOrInitDoc();
-    const handleMetaChange = () => {
-      const incoming = yMeta.get("projectName");
-      if (typeof incoming !== "string" || !incoming.trim()) return;
-
-      setState((prev) =>
-        prev.projectName === incoming
-          ? prev
-          : { ...prev, projectName: incoming },
-      );
-    };
-
-    yMeta.observe(handleMetaChange);
-    handleMetaChange();
-
-    return () => {
-      yMeta.unobserve(handleMetaChange);
-    };
-  }, [getOrInitDoc, setState]);
 
   useEffect(() => {
     const { yComponents, yPages } = getOrInitDoc();
@@ -266,11 +262,16 @@ function useCollaborationLogic({
   }, [currentUser]);
 
   const handleCanvasMouseMove = (e: MouseEvent) => {
+    const canvas = document.getElementById("canvas-area");
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+
+    const x = e.clientX - rect.left + canvas.scrollLeft;
+    const y = e.clientY - rect.top + canvas.scrollTop;
+
     const { awareness } = getOrInitDoc();
-    awareness.setLocalStateField("cursor", {
-      x: e.clientX,
-      y: e.clientY,
-    });
+    awareness.setLocalStateField("cursor", { x, y });
   };
 
   useEffect(() => {
@@ -281,6 +282,7 @@ function useCollaborationLogic({
 
       awareness.getStates().forEach((state: any, clientId: number) => {
         if (clientId === awareness.clientID) return;
+
         if (state.user && state.cursor) {
           newCursors.set(String(clientId), {
             clientId: String(clientId),
@@ -301,7 +303,7 @@ function useCollaborationLogic({
       awareness.off("change", handleAwarenessChange);
       document.removeEventListener("mousemove", handleCanvasMouseMove);
     };
-  }, []);
+  }, [getOrInitDoc]);
 
   useEffect(() => {
     if (state.currentView !== "editor") return;
@@ -422,17 +424,42 @@ function useCollaborationLogic({
     };
   }, [
     state.currentView,
-    state.currentUser?.id,
     activeProjectId,
+    getOrInitDoc,
     replaceComponents,
+    replacePages,
+    replaceProjectName,
     setState,
   ]);
 
   useEffect(() => {
-    if (state.currentView !== "editor" || !ablyKey) return;
+    if (state.currentView !== "editor") return;
+    if (!ablyKey) return;
     if (!activeProjectId) return;
+    if (state.projectCanView === false) return;
+
+    // already connected to this room
+    if (transportRoomRef.current === activeProjectId) {
+      return;
+    }
+
+    // switching rooms: close previous transport first
+    if (transportCleanupRef.current) {
+      console.log("[collab] closing previous room", transportRoomRef.current);
+      transportCleanupRef.current();
+      transportCleanupRef.current = null;
+      transportRoomRef.current = null;
+    }
+
+    console.log("[collab] joining room", {
+      instance: collabInstanceRef.current,
+      activeProjectId,
+      currentView: state.currentView,
+      projectCanView: state.projectCanView,
+    });
 
     const { ydoc, awareness } = getOrInitDoc();
+
     const cleanup = initializeCollaborationTransport(
       ydoc,
       awareness,
@@ -440,22 +467,62 @@ function useCollaborationLogic({
       ablyKey,
     );
 
-    return () => {
-      if (typeof cleanup === "function") cleanup();
-    };
-  }, [state.currentView, activeProjectId, ablyKey, getOrInitDoc]);
+    transportCleanupRef.current = cleanup;
+    transportRoomRef.current = activeProjectId;
+  }, [
+    activeProjectId,
+    ablyKey,
+    state.currentView,
+    state.projectCanView,
+    getOrInitDoc,
+  ]);
 
   useEffect(() => {
+    return () => {
+      if (transportCleanupRef.current) {
+        console.log(
+          "[collab] unmount cleanup",
+          collabInstanceRef.current,
+          transportRoomRef.current,
+        );
+        transportCleanupRef.current();
+        transportCleanupRef.current = null;
+        transportRoomRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log("[autosave effect check]", {
+      activeProjectId,
+      currentView: state.currentView,
+      hasUnsavedChanges: state.hasUnsavedChanges,
+      isSaving: state.isSaving,
+      componentCount: state.components.length,
+    });
+
+    const isEditorRoute =
+      typeof window !== "undefined" &&
+      window.location.pathname.startsWith("/editor");
+
     if (
       !state.hasUnsavedChanges ||
-      state.currentView !== "editor" ||
+      (!isEditorRoute && state.currentView !== "editor") ||
       state.isSaving
     ) {
       return;
     }
 
+    console.log("[autosave effect armed]", {
+      activeProjectId,
+      hasUnsavedChanges: state.hasUnsavedChanges,
+    });
+
     const autoSaveTimer = setTimeout(async () => {
-      if (!state.currentProjectId) return;
+      if (!activeProjectId) {
+        console.warn("[autosave] skipped: no activeProjectId");
+        return;
+      }
 
       setState((prev) => ({ ...prev, isSaving: true }));
 
@@ -469,15 +536,26 @@ function useCollaborationLogic({
         const { yComponents } = getOrInitDoc();
         const currentComponents = yComponents.toArray();
 
+        console.log("[autosave] starting", {
+          activeProjectId,
+          componentCount: currentComponents.length,
+          hasUnsavedChanges: state.hasUnsavedChanges,
+        });
+
         if (user_id) {
           const { error: saveError } = await saveProject({
-            id: state.currentProjectId,
+            id: activeProjectId,
             name: state.projectName || "Untitled Project",
             user_id,
             project_layout: currentComponents,
             pages: state.pages,
             siteTitle: state.siteTitle,
             siteLogoUrl: state.siteLogoUrl,
+          });
+
+          console.log("[autosave] saveProject result", {
+            activeProjectId,
+            saveError,
           });
 
           persisted = !saveError;
@@ -492,8 +570,13 @@ function useCollaborationLogic({
         if (persisted) {
           const { error: syncAfterSaveError } = await syncProjectComponents(
             currentComponents,
-            state.currentProjectId,
+            activeProjectId,
           );
+
+          console.log("[autosave] sync after save result", {
+            activeProjectId,
+            syncAfterSaveError,
+          });
 
           if (syncAfterSaveError) {
             console.warn(
@@ -506,8 +589,13 @@ function useCollaborationLogic({
         if (!persisted) {
           const { error: syncError } = await syncProjectComponents(
             currentComponents,
-            state.currentProjectId,
+            activeProjectId,
           );
+
+          console.log("[autosave] fallback sync result", {
+            activeProjectId,
+            syncError,
+          });
 
           persisted = !syncError;
           if (syncError) {
@@ -532,11 +620,14 @@ function useCollaborationLogic({
       }
     }, 2000);
 
-    return () => clearTimeout(autoSaveTimer);
+    return () => {
+      console.log("[autosave timer cleared]", { activeProjectId });
+      clearTimeout(autoSaveTimer);
+    };
   }, [
+    activeProjectId,
     state.components,
     state.currentView,
-    state.currentProjectId,
     state.projectName,
     state.pages,
     state.siteTitle,

@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { DndProvider } from "react-dnd"
-import { HTML5Backend } from "react-dnd-html5-backend"
+import type React from "react";
+import { useEffect, useState } from "react";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   PanelRight,
   ChevronLeft,
@@ -11,33 +11,33 @@ import {
   Monitor,
   Laptop,
   Smartphone,
-  Sparkles
-} from "lucide-react"
-import { Sidebar } from "./Sidebar"
-import { Canvas } from "./Canvas"
-import { RemoteCursors } from "./RemoteCursors"
-import { PropertiesPanel } from "./PropertiesPanel"
-import { MobilePropertiesModal } from "./MobilePropertiesModal"
-import { PreviewModal } from "./PreviewModal"
-import { CodeExportModal } from "./CodeExportModal"
-import { TemplateModal } from "./TemplateModal"
-import { PublishModal } from "./PublishModal"
-import { ShareModal } from "./ShareModal"
-import { RightSidebar } from "./RightSidebar"
-import { EditorFooter } from "./EditorFooter"
-import { EditorTopBar } from "./EditorTopBar"
-import { TooltipProvider } from "./ui/tooltip"
-import { ResizeTooltip } from "./ResizeTooltip"
-import { EditTooltip } from "./EditTooltip"
-import { Toaster } from "./ui/sonner"
-import { CodeViewEditor } from "./CodeViewEditor"
-import type { useEditorState } from "../hooks/useEditorState"
-import type { ComponentData } from "../types/editor"
-import { GetOut } from "./UnexpectedEntry/UnexpectedEntry"
+  Sparkles,
+} from "lucide-react";
+import { Sidebar } from "./Sidebar";
+import { Canvas } from "./Canvas";
+import { RemoteCursors } from "./RemoteCursors";
+import { PropertiesPanel } from "./PropertiesPanel";
+import { MobilePropertiesModal } from "./MobilePropertiesModal";
+import { PreviewModal } from "./PreviewModal";
+import { CodeExportModal } from "./CodeExportModal";
+import { TemplateModal } from "./TemplateModal";
+import { PublishModal } from "./PublishModal";
+import { ShareModal } from "./ShareModal";
+import { RightSidebar } from "./RightSidebar";
+import { EditorFooter } from "./EditorFooter";
+import { EditorTopBar } from "./EditorTopBar";
+import { TooltipProvider } from "./ui/tooltip";
+import { ResizeTooltip } from "./ResizeTooltip";
+import { EditTooltip } from "./EditTooltip";
+import { Toaster } from "./ui/sonner";
+import { CodeViewEditor } from "./CodeViewEditor";
+import type { useEditorState } from "../hooks/useEditorState";
+import type { ComponentData } from "../types/editor";
+import { GetOut } from "./UnexpectedEntry/UnexpectedEntry";
 
 interface EditorLayoutProps {
-  editor: ReturnType<typeof useEditorState>
-  onStartTour?: () => void
+  editor: ReturnType<typeof useEditorState>;
+  onStartTour?: () => void;
 }
 
 export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
@@ -74,25 +74,25 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
     handleRightSplitterMouseDown,
     remoteCursors,
     replaceComponents,
-  } = editor
+  } = editor;
 
-  const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false)
+  const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false);
 
   useEffect(() => {
     const isChecking =
       state.currentProjectId &&
-      (state.projectIsPublic === null || state.projectCanView === null)
+      (state.projectIsPublic === null || state.projectCanView === null);
     if (!isChecking) {
-      setAccessCheckTimedOut(false)
-      return
+      setAccessCheckTimedOut(false);
+      return;
     }
 
     const timerId = window.setTimeout(() => {
-      setAccessCheckTimedOut(true)
-    }, 2500)
+      setAccessCheckTimedOut(true);
+    }, 2500);
 
-    return () => window.clearTimeout(timerId)
-  }, [state.currentProjectId, state.projectIsPublic, state.projectCanView])
+    return () => window.clearTimeout(timerId);
+  }, [state.currentProjectId, state.projectIsPublic, state.projectCanView]);
 
   if (
     state.currentProjectId &&
@@ -103,18 +103,18 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
       <div className="h-screen w-full flex items-center justify-center bg-background text-muted-foreground">
         Checking project access...
       </div>
-    )
+    );
   }
 
   if (state.projectCanView === false) {
-    return <GetOut />
+    return <GetOut />;
   }
 
-  const canEditProject = state.projectCanEdit === true
+  const canEditProject = state.projectCanEdit === true;
 
   const selectedComponentObject: ComponentData | null = state.selectedComponent
     ? state.components.find((c) => c.id === state.selectedComponent) || null
-    : null
+    : null;
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -145,13 +145,13 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
               setState((prev) => ({
                 ...prev,
                 projectIsPublic: isPublic,
-              }))
+              }));
             }}
             onTemplatePublishedChange={(published: boolean) => {
               setState((prev) => ({
                 ...prev,
                 projectTemplatePublished: published,
-              }))
+              }));
             }}
             pages={state.pages}
             activePageId={state.activePageId}
@@ -177,7 +177,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                 projectSubdomain: subdomain,
                 projectIsPublished: true,
                 projectLastPublishedAt: new Date().toISOString(),
-              }))
+              }));
             }}
           />
 
@@ -264,6 +264,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         components={state.components}
                         selectedComponent={selectedComponentObject}
                         onSelectComponent={selectComponent}
+                        onAddComponent={addComponent}
                         onUpdateComponent={updateComponent}
                         onDeleteComponent={deleteComponent}
                         onReorderComponent={reorderComponent}
@@ -279,6 +280,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         currentUser={state.currentUser}
                         readOnly={!canEditProject}
                         activePageId={state.activePageId}
+                        remoteCursors={remoteCursors}
                       />
                       <RemoteCursors
                         cursors={Array.from(remoteCursors.values())}
@@ -295,17 +297,21 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         pages={state.pages}
                         activePageId={state.activePageId}
                         onCodeChange={(newComponents) => {
-                          if (!canEditProject) return
-                          replaceComponents(newComponents)
+                          if (!canEditProject) return;
+                          replaceComponents(newComponents);
                           setState((prev) => ({
                             ...prev,
                             components: newComponents,
                             hasUnsavedChanges: true,
-                          }))
+                          }));
                         }}
-                        onPageCreate={canEditProject ? (name, path) => {
-                          editor.addPage(name, path)
-                        } : undefined}
+                        onPageCreate={
+                          canEditProject
+                            ? (name, path) => {
+                                editor.addPage(name, path);
+                              }
+                            : undefined
+                        }
                       />
                     </div>
                   )}
@@ -342,7 +348,9 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                 state.isRightSidebarVisible ? "" : "w-0 border-l-0"
               }`}
               style={{
-                width: state.isRightSidebarVisible ? `${state.rightSidebarWidth}px` : "0px",
+                width: state.isRightSidebarVisible
+                  ? `${state.rightSidebarWidth}px`
+                  : "0px",
                 minWidth: state.isRightSidebarVisible ? "350px" : "0px",
               }}
             >
@@ -360,7 +368,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                  
+
                   <div className="border-b p-3 shrink-0">
                     <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1 rounded-lg">
                       <button
@@ -408,40 +416,40 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                           canEditProject ? updateComponent : () => {}
                         }
                         onUpdateStyle={(id, style) => {
-                          if (!canEditProject) return
+                          if (!canEditProject) return;
                           const component = state.components.find(
                             (c) => c.id === id,
-                          )
+                          );
                           if (component) {
                             updateComponent(id, {
                               style: { ...component.style, ...style },
-                            })
+                            });
                           }
                         }}
                         onUpdateLayout={(id, layout) => {
-                          if (!canEditProject) return
+                          if (!canEditProject) return;
                           const component = state.components.find(
                             (c) => c.id === id,
-                          )
+                          );
                           if (component) {
                             const newStyle: Record<string, any> = {
                               ...component.style,
-                            }
+                            };
                             if (layout.width)
-                              newStyle.width = `${layout.width}px`
+                              newStyle.width = `${layout.width}px`;
                             if (layout.height)
-                              newStyle.height = `${layout.height}px`
+                              newStyle.height = `${layout.height}px`;
 
-                            const newPosition = { ...component.position }
+                            const newPosition = { ...component.position };
                             if (layout.x !== undefined)
-                              newPosition.x = layout.x
+                              newPosition.x = layout.x;
                             if (layout.y !== undefined)
-                              newPosition.y = layout.y
+                              newPosition.y = layout.y;
 
                             updateComponent(id, {
                               style: newStyle,
                               position: newPosition as { x: number; y: number },
-                            })
+                            });
                           }
                         }}
                         canvasBackgroundColor={state.canvasBackgroundColor}
@@ -470,11 +478,11 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                           showGrid: state.showCanvasGrid,
                         }}
                         onUpdateCanvasProperties={(updates) => {
-                          if (!canEditProject) return
+                          if (!canEditProject) return;
                           if (updates.backgroundColor)
-                            updateCanvasBackground(updates.backgroundColor)
+                            updateCanvasBackground(updates.backgroundColor);
                           if (updates.showGrid !== undefined)
-                            toggleCanvasGrid(updates.showGrid)
+                            toggleCanvasGrid(updates.showGrid);
                         }}
                       />
                     )}
@@ -537,7 +545,9 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
           )}
 
           {state.components.length > 0 && <ResizeTooltip />}
-          {state.components.length === 0 && <EditTooltip isCanvasEmpty={true} />}
+          {state.components.length === 0 && (
+            <EditTooltip isCanvasEmpty={true} />
+          )}
 
           {state.showAIAssistantModal && (
             <RightSidebar
@@ -554,5 +564,5 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
         </div>
       </TooltipProvider>
     </DndProvider>
-  )
+  );
 }

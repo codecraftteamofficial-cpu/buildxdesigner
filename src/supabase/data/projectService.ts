@@ -56,10 +56,10 @@ export async function fetchProjectById(
         "projects_id, project_name, description, category, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
       )
       .eq("projects_id", id)
-      .eq("user_id", user?.id) // Security filter
-      .single();
+      .maybeSingle();
 
     if (error) return { data: null, error };
+    if (!data) return { data: null, error: null };
 
     const project: Project = {
       id: data.projects_id,
@@ -229,17 +229,12 @@ export async function saveProjectMetadata(metadata: {
   description?: string;
   category?: string;
   thumbnail?: string;
-  user_id: string;
   project_layout?: any[];
   pages?: any[];
   siteTitle?: string;
   siteLogoUrl?: string;
 }): Promise<{ error: any }> {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const payload: any = {
       last_modified: new Date().toISOString(),
     };
@@ -258,13 +253,10 @@ export async function saveProjectMetadata(metadata: {
     if (metadata.siteLogoUrl !== undefined)
       payload.site_logo_url = metadata.siteLogoUrl;
 
-    const effectiveUserId = user?.id || metadata.user_id;
-
     const { data, error } = await supabase
       .from("projects")
       .update(payload)
       .eq("projects_id", metadata.id)
-      .eq("user_id", effectiveUserId)
       .select("projects_id")
       .maybeSingle();
 
@@ -498,9 +490,10 @@ export async function fetchProjectBySubdomain(
       )
       .eq("subdomain", subdomain)
       .eq("is_published", true)
-      .single();
+      .maybeSingle();
 
     if (error) return { data: null, error };
+    if (!data) return { data: null, error: null };
 
     const project: Project = {
       id: data.projects_id,

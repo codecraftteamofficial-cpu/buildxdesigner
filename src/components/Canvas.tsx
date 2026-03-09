@@ -4,20 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useDrop } from "react-dnd";
 import type { ComponentData } from "../App";
 import { RenderableComponent } from "./RenderableComponent";
-import { getSupabaseSession } from "../supabase/auth/authService";
-import {
-  syncProjectComponents,
-  saveProjectMetadata,
-} from "../supabase/data/projectService";
-import { setLocalProjectCache } from "../supabase/data/projectService";
-
 import { CanvasContextMenu } from "./CanvasContextMenu";
 import { Plus, Loader2 } from "lucide-react";
 
-// Constants
-
-// Local storage key for saving components
-const LOCAL_STORAGE_KEY = "canvas_components";
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 20000;
 const RULER_SIZE = 20;
@@ -28,6 +17,7 @@ interface CanvasProps {
   components: ComponentData[];
   selectedComponent: ComponentData | null;
   onSelectComponent: (component: ComponentData | null) => void;
+  onAddComponent: (component: ComponentData) => void;
   onUpdateComponent: (id: string, updates: Partial<ComponentData>) => void;
   onDeleteComponent: (id: string) => void;
   onReorderComponent: (id: string, direction: "front" | "back") => void;
@@ -46,6 +36,10 @@ interface CanvasProps {
   pages?: { id: string; name: string; path: string }[];
   onMoveLayer: (id: string, action: "forward" | "backward") => void;
   currentUser?: any;
+  remoteCursors?: Map<
+    string,
+    { clientId: string; user: any; x: number; y: number }
+  >;
 }
 
 // Command interface for undo/redo
@@ -64,6 +58,7 @@ interface CanvasProperties {
 export function Canvas({
   components,
   selectedComponent,
+  onAddComponent,
   onSelectComponent,
   onUpdateComponent,
   onDeleteComponent,
@@ -80,6 +75,7 @@ export function Canvas({
   pages = [{ id: "home", name: "Home", path: "/" }],
   onMoveLayer,
   currentUser,
+  remoteCursors = new Map(),
 }: CanvasProps) {
   const clampedCanvasZoom = Math.min(
     MAX_CANVAS_ZOOM,
@@ -102,7 +98,6 @@ export function Canvas({
   const contentRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolled = useRef(false);
   const previousScaleRef = useRef(clampedCanvasZoom / 100);
-  const saveTimerRef = useRef<number | null>(null);
   const [viewportWidth, setViewportWidth] = useState(DESIGN_WIDTH);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editTextPosition, setEditTextPosition] = useState({ x: 0, y: 0 });
@@ -750,7 +745,7 @@ export function Canvas({
       };
 
       const undo = () => {
-        onUpdateComponent(component.id, component);
+        onAddComponent(component);
         onSelectComponent(component);
       };
 
@@ -759,62 +754,6 @@ export function Canvas({
     },
     [addToHistory, onDeleteComponent, onUpdateComponent, onSelectComponent],
   );
-
-  // Save components to localStorage and debounce-persist to Supabase whenever they change
-  // Save components to localStorage and debounce-persist to Supabase whenever they change
-  useEffect(() => {
-    // DO NOT save to local storage or DB if in readOnly mode (e.g. published site view)
-    if (readOnly) return;
-
-    try {
-      if (projectId) {
-        setLocalProjectCache(projectId, {
-          id: projectId,
-          name: projectName,
-          project_layout: components,
-          pages: pages,
-        });
-      } else {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(components));
-      }
-      console.log("Components saved to localStorage:", components);
-    } catch (error) {
-      console.error("Error saving components to localStorage:", error);
-    }
-
-    // Debounced cloud save
-    if (saveTimerRef.current) {
-      window.clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = window.setTimeout(async () => {
-      try {
-        const {
-          data: { session },
-        } = await getSupabaseSession();
-        const user_id = session?.user?.id;
-        if (!user_id) return; // if hindi logged in
-        if (!projectId) return; // para di magcreate ng new project
-
-        // Sync components to the new relational table
-        const { error: syncError } = await syncProjectComponents(
-          components,
-          projectId,
-        );
-
-        if (syncError) {
-          console.error("Autosave components failed:", syncError);
-        }
-      } catch (e) {
-        console.error("Unexpected error during autosave:", e);
-      }
-    }, 800);
-
-    return () => {
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [components, projectId, projectName, readOnly]);
 
   // Load components from localStorage on initial render
 
@@ -1060,7 +999,8 @@ export function Canvas({
       };
 
       const undo = () => {
-        onUpdateComponent(id, previousState);
+        onAddComponent(component);
+        onSelectComponent(component);
       };
 
       // Only add to history if this is a position update (to avoid cluttering history with intermediate states)
@@ -1608,6 +1548,44 @@ export function Canvas({
               ) : (
                 <>
                   {filteredComponents.map((component) => {
+                    {
+                      Array.from(remoteCursors.values()).map((cursor) => (
+                        <div
+                          key={cursor.clientId}
+                          className="absolute pointer-events-none z-[9999]"
+                          style={{
+                            left: `${cursor.x}px`,
+                            top: `${cursor.y}px`,
+                            transform: "translate(-2px, -2px)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              background: cursor.user?.color || "#3b82f6",
+                              border: "2px solid white",
+                              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                            }}
+                          />
+                          <div
+                            style={{
+                              marginTop: 4,
+                              display: "inline-block",
+                              padding: "2px 6px",
+                              borderRadius: 9999,
+                              fontSize: 12,
+                              color: "white",
+                              background: cursor.user?.color || "#3b82f6",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {cursor.user?.name || "Guest"}
+                          </div>
+                        </div>
+                      ));
+                    }
                     const position = component.position || { x: 100, y: 100 };
                     const isSelected = selectedComponents.has(component.id);
                     const isDragging = draggingComponent === component.id;
@@ -1723,7 +1701,9 @@ export function Canvas({
                               ? (childComp, e) => {
                                   e.stopPropagation();
                                   if (e.ctrlKey || e.metaKey) {
-                                    const newSelection = new Set(selectedComponents);
+                                    const newSelection = new Set(
+                                      selectedComponents,
+                                    );
                                     if (newSelection.has(childComp.id)) {
                                       newSelection.delete(childComp.id);
                                     } else {
@@ -1731,7 +1711,9 @@ export function Canvas({
                                     }
                                     setSelectedComponents(newSelection);
                                   } else {
-                                    setSelectedComponents(new Set([childComp.id]));
+                                    setSelectedComponents(
+                                      new Set([childComp.id]),
+                                    );
                                   }
                                   onSelectComponent(childComp);
                                 }

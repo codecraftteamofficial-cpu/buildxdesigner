@@ -1,31 +1,31 @@
 // src/components/DualPaneEditor.tsx
 
-import React, { useState } from 'react';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { 
-  Eye, 
-  Split, 
-  Code2,
-  Copy,
-  RefreshCw
-} from 'lucide-react';
-import { ComponentData } from '../App';
-import { Canvas } from './Canvas';
-import { FileExplorer } from './FileExplorer';
-import { CodeEditorPane } from './CodeEditorPane';
-import { toast } from 'sonner';
+import React, { useState } from "react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "./ui/resizable";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Eye, Split, Code2, Copy, RefreshCw } from "lucide-react";
+import { ComponentData } from "../App";
+import { Canvas } from "./Canvas";
+import { FileExplorer } from "./FileExplorer";
+import { CodeEditorPane } from "./CodeEditorPane";
+import { toast } from "sonner";
+import { on } from "events";
 
 interface DualPaneEditorProps {
   components: ComponentData[];
   selectedComponent: ComponentData | null;
   onSelectComponent: (component: ComponentData | null) => void;
+  onAddComponent: (component: ComponentData) => void;
   onUpdateComponent: (id: string, updates: Partial<ComponentData>) => void;
   onDeleteComponent: (id: string) => void;
   // ADD THESE NEW PROPS TO THE INTERFACE:
-  onReorderComponent: (id: string, direction: 'front' | 'back') => void;
-  onMoveLayer: (id: string, action: 'forward' | 'backward') => void;
+  onReorderComponent: (id: string, direction: "front" | "back") => void;
+  onMoveLayer: (id: string, action: "forward" | "backward") => void;
   onZoomChange: (zoom: number) => void;
   projectId: string | null;
   projectName: string;
@@ -35,6 +35,7 @@ interface DualPaneEditorProps {
 export function DualPaneEditor({
   components,
   selectedComponent,
+  onAddComponent,
   onSelectComponent,
   onUpdateComponent,
   onDeleteComponent,
@@ -44,11 +45,13 @@ export function DualPaneEditor({
   onZoomChange,
   projectId,
   projectName,
-  canvasZoom = 100
+  canvasZoom = 100,
 }: DualPaneEditorProps) {
-  const [viewMode, setViewMode] = useState<'design' | 'split' | 'code'>('design');
+  const [viewMode, setViewMode] = useState<"design" | "split" | "code">(
+    "design",
+  );
   const [isCodeSyncing, setIsCodeSyncing] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<string>('/index.html');
+  const [selectedFile, setSelectedFile] = useState<string>("/index.html");
 
   const handleComponentChange = () => {
     if (isCodeSyncing) {
@@ -59,11 +62,12 @@ export function DualPaneEditor({
 
   const copyCode = async () => {
     try {
-      const codeContent = document.querySelector('.code-editor-content')?.textContent || '';
+      const codeContent =
+        document.querySelector(".code-editor-content")?.textContent || "";
       await navigator.clipboard.writeText(codeContent);
-      toast.success('Code copied to clipboard!');
+      toast.success("Code copied to clipboard!");
     } catch (err) {
-      toast.error('Failed to copy code');
+      toast.error("Failed to copy code");
     }
   };
 
@@ -71,27 +75,27 @@ export function DualPaneEditor({
     <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-card shrink-0">
       <div className="flex items-center gap-1">
         <Button
-          variant={viewMode === 'design' ? 'default' : 'outline'}
+          variant={viewMode === "design" ? "default" : "outline"}
           size="sm"
-          onClick={() => setViewMode('design')}
+          onClick={() => setViewMode("design")}
           title="Design View"
           className="h-9 w-9 p-0"
         >
           <Eye className="w-4 h-4" />
         </Button>
         <Button
-          variant={viewMode === 'split' ? 'default' : 'outline'}
+          variant={viewMode === "split" ? "default" : "outline"}
           size="sm"
-          onClick={() => setViewMode('split')}
+          onClick={() => setViewMode("split")}
           title="Split View"
           className="h-9 w-9 p-0"
         >
           <Split className="w-4 h-4" />
         </Button>
         <Button
-          variant={viewMode === 'code' ? 'default' : 'outline'}
+          variant={viewMode === "code" ? "default" : "outline"}
           size="sm"
-          onClick={() => setViewMode('code')}
+          onClick={() => setViewMode("code")}
           title="Code View"
           className="h-9 w-9 p-0"
         >
@@ -100,23 +104,28 @@ export function DualPaneEditor({
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge variant={isCodeSyncing ? 'default' : 'secondary'} className="text-xs">
-          {isCodeSyncing ? 'Live Sync' : 'Manual'}
+        <Badge
+          variant={isCodeSyncing ? "default" : "secondary"}
+          className="text-xs"
+        >
+          {isCodeSyncing ? "Live Sync" : "Manual"}
         </Badge>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setIsCodeSyncing(!isCodeSyncing)}
-          title={isCodeSyncing ? 'Disable Auto Sync' : 'Enable Auto Sync'}
+          title={isCodeSyncing ? "Disable Auto Sync" : "Enable Auto Sync"}
           className="h-9 w-9 p-0"
         >
-          <RefreshCw className={`w-4 h-4 ${isCodeSyncing ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`w-4 h-4 ${isCodeSyncing ? "animate-spin" : ""}`}
+          />
         </Button>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
+
+        <Button
+          variant="outline"
+          size="sm"
           onClick={copyCode}
           title="Copy Code"
           className="h-9 w-9 p-0"
@@ -134,7 +143,7 @@ export function DualPaneEditor({
           <h3 className="font-medium">Visual Designer</h3>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              {components.length} component{components.length !== 1 ? 's' : ''}
+              {components.length} component{components.length !== 1 ? "s" : ""}
             </Badge>
             {selectedComponent && (
               <Badge variant="secondary" className="text-xs">
@@ -144,12 +153,13 @@ export function DualPaneEditor({
           </div>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-auto">
         <Canvas
           components={components}
           selectedComponent={selectedComponent}
           onSelectComponent={onSelectComponent}
+          onAddComponent={onAddComponent}
           onUpdateComponent={(id, updates) => {
             onUpdateComponent(id, updates);
             handleComponentChange();
@@ -180,12 +190,12 @@ export function DualPaneEditor({
           selectedFile={selectedFile}
         />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <CodeEditorPane
           components={components}
-          fileName={selectedFile.split('/').pop() || 'index.html'}
-          fileType={selectedFile.split('.').pop() || 'html'}
+          fileName={selectedFile.split("/").pop() || "index.html"}
+          fileType={selectedFile.split(".").pop() || "html"}
         />
       </div>
     </div>
@@ -194,11 +204,11 @@ export function DualPaneEditor({
   return (
     <div className="flex flex-col h-full">
       {renderViewControls()}
-      
+
       <div className="flex-1 overflow-hidden">
-        {viewMode === 'design' && renderDesignPane()}
-        
-        {viewMode === 'split' && (
+        {viewMode === "design" && renderDesignPane()}
+
+        {viewMode === "split" && (
           <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={50} minSize={30}>
               {renderDesignPane()}
@@ -209,11 +219,9 @@ export function DualPaneEditor({
             </ResizablePanel>
           </ResizablePanelGroup>
         )}
-        
-        {viewMode === 'code' && (
-          <div className="h-full">
-            {renderCodePane()}
-          </div>
+
+        {viewMode === "code" && (
+          <div className="h-full">{renderCodePane()}</div>
         )}
       </div>
     </div>
