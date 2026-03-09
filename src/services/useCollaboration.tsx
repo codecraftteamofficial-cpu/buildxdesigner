@@ -168,7 +168,7 @@ function useCollaborationLogic({
       if (isHydratingRef.current && uniqueComponents.length === 0) return;
 
       setState((prev) => {
-        if (uniqueComponents.length === 0 && prev.components.length > 0) {
+        if (uniqueComponents.length === 0 && prev.components.length > 0 && !isLocalChanges) {
           // Avoid clearing components during transient Yjs empty states if we already have content
           // unless it's a legitimate clearCanvas action which usually handles it differently.
           // This is a safety guard against accidental wipes during sync.
