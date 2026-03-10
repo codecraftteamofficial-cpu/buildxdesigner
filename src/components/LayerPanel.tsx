@@ -41,17 +41,16 @@ export function LayerPanel({
 }: LayerPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Logic to get the display name of a component
   const getComponentName = (comp: ComponentData) => {
     return comp.props?.content || comp.props?.text || comp.props?.title || comp.type;
   };
 
-  // 2. Filter components based on search query
-  const filteredLayers = [...components]
-    .reverse() // Keep top layers at the top of the list
-    .filter((comp) => 
-      getComponentName(comp).toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  // FIXED: No longer reverse() — components array order now reflects PHP document
+  // order (top of file = index 0 = top of layer list). This keeps the layer panel
+  // in sync with the order components appear in the PHP source after a sync.
+  const filteredLayers = components.filter((comp) =>
+    getComponentName(comp).toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -105,13 +104,13 @@ export function LayerPanel({
                   <div className={`flex items-center gap-0.5 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveLayer(comp.id, 'forward'); }}
-                      className="p-1 hover:bg-background rounded" title="Bring Forward"
+                      className="p-1 hover:bg-background rounded" title="Move Up in Document"
                     >
                       <ChevronUp className="w-3 h-3" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveLayer(comp.id, 'backward'); }}
-                      className="p-1 hover:bg-background rounded" title="Send Backward"
+                      className="p-1 hover:bg-background rounded" title="Move Down in Document"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>

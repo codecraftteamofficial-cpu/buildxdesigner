@@ -342,45 +342,16 @@ const KNOWN_COMPONENT_TYPES = new Set([
 ])
 
 interface UnknownComponentWarning {
-  tag: string        // original HTML tag used
-  className: string  // the comp-xxx class
-  sid: string        // short id
+  tag: string
+  className: string
+  sid: string
   line: number
 }
 
 function detectUnknownComponents(phpCode: string): UnknownComponentWarning[] {
   const warnings: UnknownComponentWarning[] = []
   const seen = new Set<string>()
-  const lines = phpCode.split("\n")
 
-  // Find all elements with comp- classes that were NOT parsed by any known parser
-  const knownSids = new Set<string>()
-
-  // Collect sids that WOULD be parsed by the known parsers
-  const patterns: RegExp[] = [
-    /<h[1-6][^>]*class="([^"]*)"/gi,
-    /<p[^>]*class="([^"]*)"/gi,
-    /<button[^>]*class="([^"]*)"/gi,
-    /<img[^>]*class="([^"]*)"/gi,
-    /<input[^>]*class="([^"]*)"/gi,
-    /<textarea[^>]*class="([^"]*)"/gi,
-    /<nav[^>]*class="([^"]*)"/gi,
-    /<section[^>]*class="([^"]*)"/gi,
-    /<footer[^>]*class="([^"]*)"/gi,
-    /<div[^>]*class="([^"]*)"/gi,
-    /<a[^>]*class="([^"]*)"/gi,
-    /<span[^>]*class="([^"]*)"/gi,
-  ]
-  for (const pat of patterns) {
-    for (const m of phpCode.matchAll(pat)) {
-      const sid = extractShortId(m[1])
-      if (sid) knownSids.add(sid)
-    }
-  }
-
-  // Now find any comp- class that isn't mapped to a known component type
-  // We do this by finding data-component-type or data-type attributes
-  // or by scanning for comp- classes in unusual HTML elements
   const unusualTags = /<([a-z][a-z0-9-]*)[^>]*class="([^"]*comp-[^"]*)"/gi
   for (const m of phpCode.matchAll(unusualTags)) {
     const tag = m[1]
@@ -388,12 +359,9 @@ function detectUnknownComponents(phpCode: string): UnknownComponentWarning[] {
     const sid = extractShortId(cls)
     if (!sid || seen.has(sid)) continue
 
-    // Find which line this is on
     const before = phpCode.slice(0, m.index ?? 0)
     const line = before.split("\n").length
 
-    // Check if this tag+class combination maps to something unknown
-    // We only warn about data-component-type attributes pointing to unknown types
     const dataTypeMatch = m[0].match(/data-component-type="([^"]+)"/)
     if (dataTypeMatch) {
       const declaredType = dataTypeMatch[1]
@@ -412,8 +380,6 @@ function detectUnknownComponents(phpCode: string): UnknownComponentWarning[] {
 // ─────────────────────────────────────────────
 function sanitizeId(id: string) { return id.replace(/[^a-zA-Z0-9_-]/g, "-") }
 
-// ── Readable ID system ─────────────────────────────────────────────────────
-// Generates VSCode-style readable IDs like "navbar-main", "button-primary"
 const SEMANTIC_SUFFIXES: Record<string, string[]> = {
   navbar:          ["main", "top", "site", "primary"],
   hero:            ["main", "banner", "top", "landing"],
@@ -447,41 +413,32 @@ const SEMANTIC_SUFFIXES: Record<string, string[]> = {
   video:           ["main", "hero", "promo", "embed"],
 }
 
-// Track used IDs per session to avoid collisions
 const _usedIds = new Set<string>()
 
 function generateReadableId(type: string, existingIds: string[] = []): string {
   const all = new Set([...existingIds, ..._usedIds])
   const suffixes = SEMANTIC_SUFFIXES[type] ?? ["main", "content", "block", "section"]
 
-  // First pass: try type-suffix combos
   for (const suffix of suffixes) {
     const candidate = `${type}-${suffix}`
     if (!all.has(candidate)) { _usedIds.add(candidate); return candidate }
   }
-  // Second pass: type-suffix-N
   for (const suffix of suffixes) {
     for (let n = 2; n <= 9; n++) {
       const candidate = `${type}-${suffix}-${n}`
       if (!all.has(candidate)) { _usedIds.add(candidate); return candidate }
     }
   }
-  // Fallback: timestamp suffix
   const fallback = `${type}-${Date.now().toString(36).slice(-4)}`
   _usedIds.add(fallback)
   return fallback
 }
 
-// Extract the component ID from a class string.
-// Supports both old "comp-xxx" format AND new "navbar-main" readable format.
 function extractShortId(cls: string): string | null {
   const first = cls.trim().split(/\s+/)[0]
   if (!first) return null
-  // Legacy: comp-xxx
   const legacy = first.match(/^comp-(.+)$/)
   if (legacy) return legacy[1]
-  // New readable format: type-suffix (e.g. navbar-main, button-primary)
-  // Must contain a hyphen and match a known type prefix
   if (first.includes("-")) {
     const typePart = first.split("-")[0]
     const knownTypes = [
@@ -565,7 +522,7 @@ function autoPosition(index: number): { x: number; y: number } { return { x: 60,
 // ─────────────────────────────────────────────
 function generateComponentSnippet(type: string, existingIds: string[] = []): string {
   const id  = generateReadableId(type, existingIds)
-  const cls = id  // class IS the id now
+  const cls = id
 
   const map: Record<string, string> = {
     heading:   `<h1 class="${cls}">New Heading</h1>`,
@@ -677,7 +634,13 @@ function generateComponentSnippet(type: string, existingIds: string[] = []): str
 }
 
 // ─────────────────────────────────────────────
-// FULL PHP → COMPONENT LIST PARSER
+// DOCUMENT-ORDER PHP PARSER
+//
+// KEY FIX: Instead of running one regex per component type (which groups all
+// headings together, then all <p> tags, etc.), we collect ALL candidate matches
+// with their character index first, sort by index, then process in order.
+// This guarantees the resulting components[] array mirrors the top-to-bottom
+// order of elements in the PHP source — so LayerPanel and canvas stay in sync.
 // ─────────────────────────────────────────────
 function parsePHPToFullComponentList(
   phpCode: string,
@@ -687,104 +650,139 @@ function parsePHPToFullComponentList(
   const byId = new Map<string, ComponentData>()
   for (const c of existingComponents) byId.set(sanitizeId(c.id), c)
 
-  const result: ComponentData[] = []
-  const seen   = new Set<string>()
+  // Collect every candidate match: { index, sid, type, parsedProps }
+  type Candidate = { index: number; sid: string; type: string; parsedProps: Record<string, any> }
+  const candidates: Candidate[] = []
+  const seenSids = new Set<string>() // dedupe by sid, not by char index
 
-  const add = (sid: string, type: string, parsedProps: Record<string, any>) => {
-    if (seen.has(sid)) return
-    seen.add(sid)
-    const existing = byId.get(sid)
-    const defs     = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
-
-    const preservedStyle = existing?.style
-      ? normalizeStyleValues(existing.style)
-      : normalizeStyleValues({ ...defs.style })
-
-    result.push({
-      id:       existing?.id ?? sid,
-      type,
-      props:    { ...defs.props, ...(existing?.props ?? {}), ...parsedProps },
-      style:    preservedStyle,
-      position: existing?.position ?? autoPosition(result.length),
-      page_id:  pageId,
-      children: existing?.children,
-    })
+  const push = (index: number, sid: string, type: string, parsedProps: Record<string, any>) => {
+    let uniqueSid = sid
+    if (seenSids.has(sid)) {
+      // Duplicate class — generate a unique sid so it isn't silently dropped
+      let counter = 2
+      while (seenSids.has(`${sid}-${counter}`)) counter++
+      uniqueSid = `${sid}-${counter}`
+    }
+    seenSids.add(uniqueSid)
+    candidates.push({ index, sid: uniqueSid, type, parsedProps })
   }
 
+  // Headings
   for (const m of phpCode.matchAll(/<h([1-6])[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/h[1-6]>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
-    add(sid, "heading", { content: stripTags(m[3].trim()), level: parseInt(m[1]), className: extractClassName(m[2]) })
+    push(m.index ?? 0, sid, "heading", { content: stripTags(m[3].trim()), level: parseInt(m[1]), className: extractClassName(m[2]) })
   }
+
+  // <p> tags
   for (const m of phpCode.matchAll(/<p[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/p>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "text", { content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
+    push(m.index ?? 0, sid, "text", { content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
+
+  // Buttons
   for (const m of phpCode.matchAll(/<button[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/button>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "button", { text: stripTags(m[2].trim()), content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
+    push(m.index ?? 0, sid, "button", { text: stripTags(m[2].trim()), content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
+
+  // Images (src before class)
   for (const m of phpCode.matchAll(/<img[^>]*src="([^"]*)"[^>]*class="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
-    add(sid, "image", { src: m[1], className: extractClassName(m[2]) })
+    push(m.index ?? 0, sid, "image", { src: m[1], className: extractClassName(m[2]) })
   }
+  // Images (class before src)
   for (const m of phpCode.matchAll(/<img[^>]*class="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "image", { src: m[2], className: extractClassName(m[1]) })
+    push(m.index ?? 0, sid, "image", { src: m[2], className: extractClassName(m[1]) })
   }
+
+  // Inputs
   for (const m of phpCode.matchAll(/<input[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "input", { placeholder: m[2], className: extractClassName(m[1]) })
+    push(m.index ?? 0, sid, "input", { placeholder: m[2], className: extractClassName(m[1]) })
   }
+
+  // Textareas
   for (const m of phpCode.matchAll(/<textarea[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "textarea", { placeholder: m[2], className: extractClassName(m[1]) })
+    push(m.index ?? 0, sid, "textarea", { placeholder: m[2], className: extractClassName(m[1]) })
   }
+
+  // Navbars
   for (const m of phpCode.matchAll(/<nav[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/nav>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     const brand = (m[2].match(/<div class="nav-brand">([\s\S]*?)<\/div>/i)?.[1]) ?? "Brand"
     const links = [...m[2].matchAll(/<li><a[^>]*>([\s\S]*?)<\/a><\/li>/gi)].map(l => stripTags(l[1].trim())).filter(Boolean)
-    add(sid, "navbar", { brand: stripTags(brand.trim()), links: links.length ? links : ["Home","About","Contact"] })
+    push(m.index ?? 0, sid, "navbar", { brand: stripTags(brand.trim()), links: links.length ? links : ["Home","About","Contact"] })
   }
+
+  // Hero sections
   for (const m of phpCode.matchAll(/<section[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/section>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "hero", {
+    push(m.index ?? 0, sid, "hero", {
       title:      stripTags((m[2].match(/<h1>([\s\S]*?)<\/h1>/i)?.[1] ?? "Welcome").trim()),
       subtitle:   stripTags((m[2].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()),
       buttonText: stripTags((m[2].match(/<a[^>]*class="hero-btn"[^>]*>([\s\S]*?)<\/a>/i)?.[1] ?? "Get Started").trim()),
     })
   }
+
+  // Footers
   for (const m of phpCode.matchAll(/<footer[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/footer>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    add(sid, "footer", { copyright: stripTags((m[2].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()) })
+    push(m.index ?? 0, sid, "footer", { copyright: stripTags((m[2].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()) })
   }
+
+  // Section headings (<div> with <h2> inside)
   for (const m of phpCode.matchAll(/<div[^>]*class="([^"]*)"[^>]*>\s*<h2>([\s\S]*?)<\/h2>([\s\S]*?)<\/div>/gi)) {
-    const sid = extractShortId(m[1]); if (!sid || seen.has(sid)) continue
-    add(sid, "section-heading", {
+    const sid = extractShortId(m[1]); if (!sid) continue
+    push(m.index ?? 0, sid, "section-heading", {
       title:    stripTags(m[2].trim()),
       subtitle: stripTags((m[3].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()),
     })
   }
 
-  // ── data-component-type="xxx" — explicit type declarations ──
+  // Explicit data-component-type (class before attr)
   for (const m of phpCode.matchAll(/<([a-z][a-z0-9-]*)[^>]*class="([^"]*)"[^>]*data-component-type="([^"]+)"[^>]*>/gi)) {
-    const sid = extractShortId(m[2]); if (!sid || seen.has(sid)) continue
+    const sid = extractShortId(m[2]); if (!sid) continue
     const declaredType = m[3].toLowerCase().trim()
     if (KNOWN_COMPONENT_TYPES.has(declaredType)) {
       const defs = DEFAULT_COMPONENT_DEFS[declaredType] ?? { props: {}, style: {} }
-      add(sid, declaredType, { ...defs.props, className: extractClassName(m[2]) })
+      push(m.index ?? 0, sid, declaredType, { ...defs.props, className: extractClassName(m[2]) })
     } else {
-      add(sid, "__unknown__", { unknownType: declaredType, className: extractClassName(m[2]), htmlTag: m[1] })
+      push(m.index ?? 0, sid, "__unknown__", { unknownType: declaredType, className: extractClassName(m[2]), htmlTag: m[1] })
     }
   }
+  // Explicit data-component-type (attr before class)
   for (const m of phpCode.matchAll(/<([a-z][a-z0-9-]*)[^>]*data-component-type="([^"]+)"[^>]*class="([^"]*)"[^>]*>/gi)) {
-    const sid = extractShortId(m[3]); if (!sid || seen.has(sid)) continue
+    const sid = extractShortId(m[3]); if (!sid) continue
     const declaredType = m[2].toLowerCase().trim()
     if (KNOWN_COMPONENT_TYPES.has(declaredType)) {
       const defs = DEFAULT_COMPONENT_DEFS[declaredType] ?? { props: {}, style: {} }
-      add(sid, declaredType, { ...defs.props, className: extractClassName(m[3]) })
+      push(m.index ?? 0, sid, declaredType, { ...defs.props, className: extractClassName(m[3]) })
     } else {
-      add(sid, "__unknown__", { unknownType: declaredType, className: extractClassName(m[3]), htmlTag: m[1] })
+      push(m.index ?? 0, sid, "__unknown__", { unknownType: declaredType, className: extractClassName(m[3]), htmlTag: m[1] })
     }
+  }
+
+  candidates.sort((a, b) => a.index - b.index)
+
+  const result: ComponentData[] = []
+
+  for (const { sid, type, parsedProps } of candidates) {
+    const existing = byId.get(sid)
+    const defs     = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
+
+    result.push({
+      id:       existing?.id ?? sid,
+      type,
+      props:    { ...defs.props, ...(existing?.props ?? {}), ...parsedProps },
+      style:    existing?.style
+        ? normalizeStyleValues(existing.style)
+        : normalizeStyleValues({ ...defs.style }),
+      position: existing?.position ?? autoPosition(result.length), // existing.position ALWAYS wins
+      page_id:  pageId,
+      children: existing?.children,
+    })
   }
 
   return result
@@ -795,10 +793,8 @@ function parsePHPToFullComponentList(
 // ─────────────────────────────────────────────
 function parseCSSToStyleUpdates(css: string): Map<string, Record<string, any>> {
   const map = new Map<string, Record<string, any>>()
-  // Match both: .comp-xxx { } and .navbar-main { } (readable IDs)
   for (const m of css.matchAll(/\.([\w-]+)\s*\{([^}]*)\}/g)) {
     const rawId = m[1]
-    // Derive the sid: strip comp- prefix for legacy, use as-is for readable IDs
     const sid = rawId.startsWith("comp-") ? rawId.slice(5) : rawId
     const style: Record<string, any> = {}
     for (const line of m[2].split(";")) {
@@ -854,10 +850,12 @@ function syncPHPToCanvas(
     components: [
       ...globals,
       ...otherPage.filter(c => !globalsSet.has(c.id)),
-      ...unrecognised,
-      ...parsedList,
+      ...parsedList,      // already in PHP document order
+      ...unrecognised,    // orphaned canvas items go last
     ],
-    added, deleted, updated,
+    added,
+    deleted,
+    updated,
   }
 }
 
@@ -929,7 +927,6 @@ export function CodeViewEditor({
   const componentsRef = useRef(components)
   useEffect(() => { componentsRef.current = components }, [components])
 
-  // ── Generated + effective files ──────────────
   const generatedFiles = useMemo(
     () => generateProjectFiles(components, pages, projectName),
     [components, pages, projectName]
@@ -939,20 +936,17 @@ export function CodeViewEditor({
     [generatedFiles, fileOverrides, customFiles]
   )
 
-  // ── Derive page_id from the selected PHP file ──
   const activePHPPageId = useMemo(() => {
     if (!selectedFile.startsWith("app/views/") || !selectedFile.endsWith(".php")) return activePageId
     const base = selectedFile.replace("app/views/", "").replace(".php", "")
     return pages.find(p => slugify(p.name) === base)?.id ?? activePageId
   }, [selectedFile, pages, activePageId])
 
-  // ── Auto-select first file ──
   useEffect(() => {
     const page = pages.find(p => p.id === activePageId) ?? pages[0]
     setSelectedFile(prev => prev || `app/views/${slugify(page.name)}.php`)
   }, [activePageId, pages])
 
-  // ── Live diff preview while editing PHP ──
   useEffect(() => {
     if (!isEditing || !selectedFile.startsWith("app/views/") || !selectedFile.endsWith(".php")) {
       setPendingDiff(null); return
@@ -971,10 +965,10 @@ export function CodeViewEditor({
   const isCustomFile    = !!customFiles[selectedFile]
   const diffCount       = hasOverride ? countDiffLines(generatedFiles[selectedFile] ?? "", fileOverrides[selectedFile] ?? "") : 0
 
-  const isViewPHP = selectedFile.startsWith("app/views/") && selectedFile.endsWith(".php")
-  const isCSSFile = selectedFile.endsWith(".css")
-  const isJSFile  = selectedFile.endsWith(".js")
-  const isMDFile  = selectedFile.endsWith(".md")
+  const isViewPHP  = selectedFile.startsWith("app/views/") && selectedFile.endsWith(".php")
+  const isCSSFile  = selectedFile.endsWith(".css")
+  const isJSFile   = selectedFile.endsWith(".js")
+  const isMDFile   = selectedFile.endsWith(".md")
   const isJSONFile = selectedFile.endsWith(".json")
 
   const syntaxLang = isCSSFile ? "css" : isJSFile ? "javascript" : isMDFile ? "markdown" : isJSONFile ? "json" : "php"
@@ -988,32 +982,25 @@ export function CodeViewEditor({
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
   const handleCancelEdit = () => {
-    setIsEditing(false); setDraftContent(""); setPendingDiff(null); 
+    setIsEditing(false); setDraftContent(""); setPendingDiff(null)
   }
   const handleResetOverride = useCallback(() => {
     setFileOverrides(p => { const n = { ...p }; delete n[selectedFile]; return n })
     toast.info("Reset to canvas-generated version.")
   }, [selectedFile])
 
-  // ── Create new file ──
   const handleCreateFile = useCallback((path: string, content: string) => {
     setCustomFiles(prev => ({ ...prev, [path]: content }))
     setSelectedFile(path)
 
-    // If it's a new PHP view, register it as a page in the editor
     if (path.startsWith("app/views/") && path.endsWith(".php") && onPageCreate) {
       const slug = path.replace("app/views/", "").replace(".php", "")
-      // Convert slug to a human-readable name: "about-us" → "About Us"
       const name = slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
       const pagePath = `/${slug}`
-      // Only register if not already in pages list
       const alreadyExists = pages.some(p => slugify(p.name) === slug || p.path === pagePath)
-      if (!alreadyExists) {
-        onPageCreate(name, pagePath)
-      }
+      if (!alreadyExists) onPageCreate(name, pagePath)
     }
 
-    // Auto-expand the parent folder
     const parts = path.split("/")
     setExpandedFolders(prev => {
       const next = new Set(prev)
@@ -1022,7 +1009,6 @@ export function CodeViewEditor({
     })
   }, [onPageCreate, pages])
 
-  // ── Delete custom file ──
   const handleDeleteCustomFile = useCallback((path: string) => {
     setCustomFiles(prev => { const n = { ...prev }; delete n[path]; return n })
     setDeleteConfirm(null)
@@ -1030,45 +1016,31 @@ export function CodeViewEditor({
     toast.success("File deleted.")
   }, [selectedFile])
 
-  // ── Detect warnings in current PHP content ──
   const detectWarningsInContent = useCallback((phpContent: string) => {
-    const warnings: { type: string; sid: string; line?: number }[] = []
-    // Scan for data-component-type pointing to unknown types
     const pat1 = /<[a-z][^>]*data-component-type="([^"]+)"[^>]*class="([^"]*)"/gi
     const pat2 = /<[a-z][^>]*class="([^"]*)"[^>]*data-component-type="([^"]+)"/gi
     for (const m of phpContent.matchAll(pat1)) {
       const type = m[1].toLowerCase()
       const sid = extractShortId(m[2])
-      if (sid && !KNOWN_COMPONENT_TYPES.has(type)) {
-        const before = phpContent.slice(0, m.index ?? 0)
-        warnings.push({ type, sid, line: before.split("\n").length })
-      }
+      if (sid && !KNOWN_COMPONENT_TYPES.has(type)) { /* warn */ }
     }
     for (const m of phpContent.matchAll(pat2)) {
       const type = m[2].toLowerCase()
       const sid = extractShortId(m[1])
-      if (sid && !KNOWN_COMPONENT_TYPES.has(type)) {
-        const before = phpContent.slice(0, m.index ?? 0)
-        warnings.push({ type, sid, line: before.split("\n").length })
-      }
+      if (sid && !KNOWN_COMPONENT_TYPES.has(type)) { /* warn */ }
     }
   }, [])
 
-  // ── Detect missing CSS/JS after a sync ──
   const detectMissingStyles = useCallback((synced: ComponentData[], cssFile: string, jsFile: string) => {
     const cssContent = effectiveFiles[cssFile] ?? ""
     const jsContent  = effectiveFiles[jsFile]  ?? ""
-
     const missCss: { id: string; type: string }[] = []
     const missJs:  { id: string; type: string }[] = []
-
     for (const comp of synced) {
       if (comp.type === "__unknown__" || comp.page_id === "all") continue
       const id = sanitizeId(comp.id)
-      // Check if CSS has any rule for this ID (either .id or .comp-id)
       const hasCss = cssContent.includes(`.${id}`) || cssContent.includes(`.comp-${id}`)
       if (!hasCss) missCss.push({ id, type: comp.type })
-      // Check JS only for interactive types
       if (INTERACTIVE_TYPES.has(comp.type)) {
         const hasJs = jsContent.includes(id) || jsContent.includes(`comp-${id}`)
         if (!hasJs) missJs.push({ id, type: comp.type })
@@ -1078,14 +1050,11 @@ export function CodeViewEditor({
     setMissingJS(missJs)
   }, [effectiveFiles])
 
-  // ── Migrate all component IDs to readable format ──
   const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: ComponentData[]; changed: number } => {
     const usedNew = new Set(comps.map(c => c.id))
     let changed = 0
     const migrated = comps.map(c => {
-      // Already readable (no timestamp, no random chars)
       if (/^[a-z][a-z0-9-]*-[a-z][a-z0-9-]*$/.test(c.id) && !c.id.match(/[0-9]{5,}/)) return c
-      // Generate new readable ID
       usedNew.delete(c.id)
       const newId = generateReadableId(c.type, [...usedNew])
       usedNew.add(newId)
@@ -1095,7 +1064,6 @@ export function CodeViewEditor({
     return { migrated, changed }
   }, [])
 
-  // ── Manual Sync to Canvas ──
   const handleManualSync = useCallback(() => {
     if (!selectedFile || !isViewPHP || !onCodeChange) return
     const content = isEditing ? draftContent : readOnlyContent
@@ -1106,27 +1074,25 @@ export function CodeViewEditor({
       const { components: synced, added, deleted, updated } = syncPHPToCanvas(
         content, cssCode, componentsRef.current, activePHPPageId
       )
-      // Migrate all IDs to readable format
       const { migrated, changed: idsMigrated } = migrateComponentIds(synced)
 
-      // Also save the current content as override
       if (isEditing) {
         if (isCustomFile) setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
         else setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
         setIsEditing(false); setDraftContent(""); setPendingDiff(null)
       }
-      onCodeChange(migrated)
+      onCodeChange(migrated);
       detectWarningsInContent(content)
       detectMissingStyles(migrated, cssFile, jsFile)
       const parts = [
-        added      > 0 ? `+${added} added`       : "",
-        deleted    > 0 ? `-${deleted} deleted`    : "",
-        updated    > 0 ? `${updated} updated`     : "",
+        added       > 0 ? `+${added} added`          : "",
+        deleted     > 0 ? `-${deleted} deleted`       : "",
+        updated     > 0 ? `${updated} updated`        : "",
         idsMigrated > 0 ? `${idsMigrated} IDs renamed` : "",
       ].filter(Boolean)
       const unknowns = migrated.filter(c => c.type === "__unknown__")
       if (unknowns.length > 0) {
-        toast.warning(`Synced with ${unknowns.length} unknown component${unknowns.length > 1 ? "s" : ""} — see warnings panel.`)
+        toast.warning(`Synced with ${unknowns.length} unknown component${unknowns.length > 1 ? "s" : ""}.`)
       } else {
         toast.success(`Canvas synced! ${parts.join("  ") || "No structural changes."}`)
       }
@@ -1138,15 +1104,12 @@ export function CodeViewEditor({
       effectiveFiles, activePHPPageId, isCustomFile, detectWarningsInContent,
       detectMissingStyles, migrateComponentIds])
 
-  // ── Generate CSS for missing components ──
   const handleGenerateCSS = useCallback(() => {
     if (!selectedFile || !isViewPHP) return
     const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
     setGeneratingCSS(true)
     const existing = effectiveFiles[cssFile] ?? ""
-    const newRules = missingCSS
-      .map(({ id, type }) => generateCSSForComponent(id, type))
-      .join("\n")
+    const newRules = missingCSS.map(({ id, type }) => generateCSSForComponent(id, type)).join("\n")
     const updated = existing.trimEnd() + (existing ? "\n\n" : "") + `/* Auto-generated styles */\n` + newRules
     setFileOverrides(prev => ({ ...prev, [cssFile]: updated }))
     setMissingCSS([])
@@ -1154,15 +1117,12 @@ export function CodeViewEditor({
     toast.success(`Generated CSS for ${missingCSS.length} component${missingCSS.length !== 1 ? "s" : ""}.`)
   }, [selectedFile, isViewPHP, effectiveFiles, missingCSS])
 
-  // ── Generate JS for missing interactive components ──
   const handleGenerateJS = useCallback(() => {
     if (!selectedFile || !isViewPHP) return
     const jsFile = selectedFile.replace("app/views/", "public/assets/js/").replace(".php", ".js")
     setGeneratingJS(true)
     const existing = effectiveFiles[jsFile] ?? ""
-    const newCode  = missingJS
-      .map(({ id, type }) => generateJSForComponent(id, type))
-      .join("\n")
+    const newCode  = missingJS.map(({ id, type }) => generateJSForComponent(id, type)).join("\n")
     const updated = existing.trimEnd() + (existing ? "\n\n" : "") + `// Auto-generated interactivity\n` + newCode
     setCustomFiles(prev => ({ ...prev, [jsFile]: updated }))
     setMissingJS([])
@@ -1170,7 +1130,6 @@ export function CodeViewEditor({
     toast.success(`Generated JS for ${missingJS.length} interactive component${missingJS.length !== 1 ? "s" : ""}.`)
   }, [selectedFile, isViewPHP, effectiveFiles, missingJS])
 
-  // ── Insert snippet into PHP ──
   const handleInsertSnippet = (type: string) => {
     const existingIds = componentsRef.current.map(c => c.id)
     const snippet = generateComponentSnippet(type, existingIds)
@@ -1179,31 +1138,25 @@ export function CodeViewEditor({
     const newContent = insertAt !== -1
       ? current.slice(0, insertAt) + `  ${snippet}\n` + current.slice(insertAt)
       : current + "\n" + snippet
-
     setDraftContent(newContent)
     if (!isEditing) { setIsEditing(true); setTimeout(() => textareaRef.current?.focus(), 0) }
     setShowAddPanel(false)
     toast.success(`${type} snippet added — Sync to canvas to apply.`)
-
   }
 
-  // ── Delete component directly from canvas ──
   const handleDeleteComponent = useCallback((compId: string) => {
     if (!onCodeChange) return
     const sid = sanitizeId(compId)
     onCodeChange(componentsRef.current.filter(c => sanitizeId(c.id) !== sid))
-
     setFileOverrides(prev => {
       const next = { ...prev }
       for (const [path, content] of Object.entries(next)) {
         if (path.endsWith(".php")) {
-          // Remove elements with class="sid" or class="comp-sid ..."
           next[path] = content
             .replace(new RegExp(`[ \\t]*<[^>]+class="${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
             .replace(new RegExp(`[ \\t]*<[^>]+class="comp-${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
         }
         if (path.endsWith(".css")) {
-          // Remove .sid { } and .comp-sid { }
           next[path] = content
             .replace(new RegExp(`\\.${sid}[^{]*\\{[^}]*\\}\\n?`, "gi"), "")
             .replace(new RegExp(`\\.comp-${sid}[a-zA-Z0-9_-]*\\s*\\{[^}]*\\}\\n?`, "gi"), "")
@@ -1214,11 +1167,8 @@ export function CodeViewEditor({
     toast.success("Component deleted from canvas.")
   }, [onCodeChange])
 
-  // ── SAVE ──
   const handleSave = useCallback(() => {
     if (!selectedFile) return
-
-    // If editing a custom file, update customFiles; otherwise fileOverrides
     if (isCustomFile) {
       setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
     } else {
@@ -1286,7 +1236,6 @@ export function CodeViewEditor({
     requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = start + sp.length })
   }
 
-  // ── File tree ──
   const fileStructure = useMemo(() => buildTreeFromPaths(Object.keys(effectiveFiles)), [effectiveFiles])
 
   const renderFileIcon = (node: FileNode) => {
@@ -1322,7 +1271,6 @@ export function CodeViewEditor({
             <div className="flex items-center gap-1">
               {overridden && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Manually edited" />}
               {isNew      && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" title="Custom file" />}
-              {/* Delete button for all files */}
               {node.type === "file" && (
                 <button
                   className="w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/20 text-muted-foreground/30 hover:text-red-400 transition-all"
@@ -1339,7 +1287,6 @@ export function CodeViewEditor({
       )
     })
 
-  // ── Page components for sidebar ──
   const pageComponents = useMemo(() =>
     components.filter(c => c.page_id === activePHPPageId || !c.page_id || c.page_id === undefined),
     [components, activePHPPageId]
@@ -1352,16 +1299,8 @@ export function CodeViewEditor({
       const JSZip = (await import("jszip")).default
       const zip = new JSZip()
       const safeProjectName = (projectName || "php-builder")
-        .trim()
-        .replace(/[^a-z0-9-]/gi, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "")
-        .toLowerCase() || "php-builder"
-
-      Object.entries(effectiveFiles).forEach(([filePath, content]) => {
-        zip.file(filePath, content)
-      })
-
+        .trim().replace(/[^a-z0-9-]/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "php-builder"
+      Object.entries(effectiveFiles).forEach(([filePath, content]) => { zip.file(filePath, content) })
       const blob = await zip.generateAsync({ type: "blob" })
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
@@ -1371,7 +1310,6 @@ export function CodeViewEditor({
       anchor.click()
       document.body.removeChild(anchor)
       URL.revokeObjectURL(url)
-
       toast.success("Project zip downloaded")
     } catch (error) {
       console.error("Failed to download project zip", error)
@@ -1379,14 +1317,12 @@ export function CodeViewEditor({
     }
   }, [effectiveFiles, projectName])
 
-
   // ════════════════════════════════════════════
   // RENDER
   // ════════════════════════════════════════════
   return (
     <div className="w-full h-full flex gap-3 p-4 bg-background">
 
-      {/* ── File Creator Modal ── */}
       {showFileCreator && (
         <FileCreatorModal
           existingPaths={Object.keys(effectiveFiles)}
@@ -1395,7 +1331,6 @@ export function CodeViewEditor({
         />
       )}
 
-      {/* ── Delete Confirm Overlay ── */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirm(null)} />
@@ -1418,12 +1353,8 @@ export function CodeViewEditor({
             {Object.keys(fileOverrides).length > 0 &&
               <span className="text-[10px] text-amber-400">{Object.keys(fileOverrides).length} edited</span>
             }
-            {/* ── New File Button ── */}
-            <button
-              onClick={() => setShowFileCreator(true)}
-              title="New File"
-              className="w-5 h-5 flex items-center justify-center rounded hover:bg-[#2b2b2b] text-muted-foreground/60 hover:text-white transition-colors"
-            >
+            <button onClick={() => setShowFileCreator(true)} title="New File"
+              className="w-5 h-5 flex items-center justify-center rounded hover:bg-[#2b2b2b] text-muted-foreground/60 hover:text-white transition-colors">
               <FilePlus className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -1440,21 +1371,15 @@ export function CodeViewEditor({
       {/* ── Editor Pane ── */}
       <div className="flex-1 border rounded-md overflow-hidden flex flex-col bg-[#1f1f1f] h-full min-w-0">
 
-        {/* ── Top bar ── */}
+        {/* Top bar */}
         <div className="px-4 py-2 border-b border-[#2b2b2b] bg-[#181818] flex items-center justify-between gap-2 shrink-0 flex-wrap">
-          {/* Left: badges */}
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">{selectedFile}</span>
-
             {isCustomFile && !isEditing && (
-              <span className="text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded shrink-0">
-                custom
-              </span>
+              <span className="text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded shrink-0">custom</span>
             )}
             {isJSFile && (
-              <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-1.5 py-0.5 rounded shrink-0">
-                JS — export only
-              </span>
+              <span className="text-[10px] bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 px-1.5 py-0.5 rounded shrink-0">JS — export only</span>
             )}
             {hasOverride && !isEditing && (
               <span className="flex items-center gap-1 text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded shrink-0">
@@ -1479,7 +1404,6 @@ export function CodeViewEditor({
             )}
           </div>
 
-          {/* Right: buttons */}
           <div className="flex items-center gap-1 shrink-0">
             {!isEditing ? (
               <>
@@ -1509,31 +1433,24 @@ export function CodeViewEditor({
                   onClick={() => { navigator.clipboard.writeText(readOnlyContent); toast.success("Copied!") }}>
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
-                 <Button size="sm" variant="outline"
+                <Button size="sm" variant="outline"
                   className="h-7 px-2.5 gap-1 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-white"
-                  onClick={handleDownloadZip}
-                  title="Download project as zip">
+                  onClick={handleDownloadZip} title="Download project as zip">
                   <Download className="h-3.5 w-3.5" />
                 </Button>
               </>
             ) : (
               <>
-                {/* ── Save + Sync in editing mode ── */}
                 {isViewPHP && onCodeChange && (
                   <Button size="sm"
                     className="h-7 px-3 gap-1.5 text-xs text-white border-0 bg-purple-600 hover:bg-purple-700"
-                    onClick={handleManualSync}
-                    title="Save and sync to canvas (Ctrl+S)">
+                    onClick={handleManualSync} title="Save and sync to canvas (Ctrl+S)">
                     <RefreshCcw className="h-3.5 w-3.5" />Save & Sync
                   </Button>
                 )}
                 <Button size="sm"
-                  className={`h-7 px-3 gap-1.5 text-xs text-white border-0 ${
-                    isJSFile  ? "bg-yellow-600 hover:bg-yellow-700"
-                    : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                  onClick={handleSave}
-                  title="Save (Ctrl+S)"
+                  className={`h-7 px-3 gap-1.5 text-xs text-white border-0 ${isJSFile ? "bg-yellow-600 hover:bg-yellow-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                  onClick={handleSave} title="Save (Ctrl+S)"
                   style={{ display: isViewPHP ? "none" : undefined }}>
                   <Save className="h-3.5 w-3.5" />Save
                 </Button>
@@ -1547,10 +1464,9 @@ export function CodeViewEditor({
           </div>
         </div>
 
-        {/* ── Add Component Panel ── */}
+        {/* Add Component Panel */}
         {showAddPanel && !isEditing && (
           <div className="shrink-0 border-b border-[#2b2b2b] bg-[#161616] px-4 py-3 animate-in slide-in-from-top-1 duration-150">
-            
             <div className="flex flex-wrap gap-1.5">
               {ADD_COMPONENT_TYPES.map(({ type, label, icon }) => (
                 <button key={type}
@@ -1566,14 +1482,12 @@ export function CodeViewEditor({
           </div>
         )}
 
-        {/* ── Info bars ── */}
         {!isEditing && isJSFile && (
           <div className="shrink-0 px-4 py-1.5 bg-yellow-500/10 border-b border-yellow-500/20 text-[11px] text-yellow-400/80 flex items-center gap-2">
             <AlertCircle className="w-3 h-3 shrink-0" />
             JS edits are saved as overrides and exported — they don't modify canvas components.
           </div>
         )}
-       
         {!isEditing && isCustomFile && (
           <div className="shrink-0 px-4 py-1.5 bg-green-500/10 border-b border-green-500/20 text-[11px] text-green-400/80 flex items-center gap-2">
             <FilePlus className="w-3 h-3 shrink-0" />
@@ -1581,12 +1495,9 @@ export function CodeViewEditor({
           </div>
         )}
 
-        {/* ── Code area + component sidebar ── */}
+        {/* Code area */}
         <div className="flex-1 overflow-hidden flex min-h-0">
-
-          {/* Code / Textarea */}
           <div className="flex-1 overflow-hidden relative">
-            {/* Empty state */}
             {!selectedFile && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#2a2a2a] flex items-center justify-center">
@@ -1596,8 +1507,7 @@ export function CodeViewEditor({
                   <p className="text-sm text-muted-foreground mb-1">No file selected</p>
                   <p className="text-xs text-muted-foreground/40">Select a file from the explorer or create a new one</p>
                 </div>
-                <button
-                  onClick={() => setShowFileCreator(true)}
+                <button onClick={() => setShowFileCreator(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2a2a2a] hover:bg-[#333] border border-[#3a3a3a] hover:border-green-700/40 text-sm text-muted-foreground hover:text-white transition-all">
                   <FilePlus className="w-4 h-4" />Create new file
                 </button>
@@ -1644,7 +1554,6 @@ export function CodeViewEditor({
               </div>
             ))}
           </div>
-
         </div>
       </div>
     </div>

@@ -109,12 +109,10 @@ function useCollaborationLogic({
     }
   }, [state.currentView]);
 
-  // In useCollaboration.ts - replace the problematic useEffect with this:
   useEffect(() => {
     if (state.currentView !== "editor") return;
     if (!activeProjectId) return;
 
-    // Only clear if switching to a DIFFERENT project, not on every re-render
     if (
       docProjectIdRef.current &&
       docProjectIdRef.current !== activeProjectId
@@ -124,7 +122,6 @@ function useCollaborationLogic({
     }
 
     docProjectIdRef.current = activeProjectId;
-    // Remove replaceComponents from deps - it's stable enough via ref
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentView, activeProjectId]);
 
@@ -163,12 +160,18 @@ function useCollaborationLogic({
 
       if (isHydratingRef.current && uniqueComponents.length === 0) return;
 
+      // FIX: Removed the overly-aggressive safety guard that was silently
+      // swallowing legitimate updates (e.g. new components from CodeViewEditor
+      // sync). The old guard blocked any update where uniqueComponents was empty
+      // and prev had content, even for valid local changes. Instead, we only
+      // skip the update if it's genuinely a transient empty-state during
+      // hydration (already handled by the isHydratingRef check above).
+      if (isLocalChanges && uniqueComponents.length === 0) return;
       setState((prev) => {
-        if (uniqueComponents.length === 0 && prev.components.length > 0 && !isLocalChanges) {
-          // Avoid clearing components during transient Yjs empty states if we already have content
-          // unless it's a legitimate clearCanvas action which usually handles it differently.
-          // This is a safety guard against accidental wipes during sync.
-          return prev;
+        // If this is a local change and Yjs somehow returns fewer components
+        // than we already have, keep the existing array to avoid a flash.
+        if (isLocalChanges && uniqueComponents.length < prev.components.length) {
+          return { ...prev, hasUnsavedChanges: true };
         }
         return {
           ...prev,
@@ -327,7 +330,6 @@ function useCollaborationLogic({
 
         if (cancelled) return;
 
-        // Always set basic metadata regardless of Yjs state
         if (projectData) {
           const { yMeta } = getOrInitDoc();
           const currentMetaName = yMeta.get("projectName");
@@ -362,12 +364,10 @@ function useCollaborationLogic({
           loadedProject.length > 0 || !projectError;
 
         if (canHydrateFromDatabase) {
-          // Hydrate components if Yjs is empty
           if (yComponents.length === 0) {
             replaceComponents(loadedProject, false);
           }
 
-          // Hydrate pages if Yjs is empty
           if (yPages.length === 0 && projectData?.pages) {
             replacePages(projectData.pages, false);
           }
@@ -389,7 +389,6 @@ function useCollaborationLogic({
           const allPages = yPages.toArray();
           const uniquePages: any[] = [];
           const seenPageIds = new Set<string>();
-          // Combine yPages with projectData.pages if yPages is still getting synced
           const combinedPages =
             allPages.length > 0 ? allPages : projectData?.pages || prev.pages;
           combinedPages.forEach((p: any) => {
@@ -438,12 +437,10 @@ function useCollaborationLogic({
     if (!activeProjectId) return;
     if (state.projectCanView === false) return;
 
-    // already connected to this room
     if (transportRoomRef.current === activeProjectId) {
       return;
     }
 
-    // switching rooms: close previous transport first
     if (transportCleanupRef.current) {
       console.log("[collab] closing previous room", transportRoomRef.current);
       transportCleanupRef.current();

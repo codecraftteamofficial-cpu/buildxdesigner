@@ -299,11 +299,6 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         onCodeChange={(newComponents) => {
                           if (!canEditProject) return;
                           replaceComponents(newComponents);
-                          setState((prev) => ({
-                            ...prev,
-                            components: newComponents,
-                            hasUnsavedChanges: true,
-                          }));
                         }}
                         onPageCreate={
                           canEditProject
@@ -396,7 +391,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         }
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
                           state.rightSidebarTab === "ai-assistant"
-                            ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-md font-bold"
+                            ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-white shadow-md font-bold"
                             : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
                         }`}
                       >

@@ -43,28 +43,38 @@ export function useCollaborationDoc(
 
   const replaceComponents = useCallback(
     (components: ComponentData[], markLocal = true) => {
-      const { yComponents } = getOrInitDoc();
+      const { ydoc, yComponents } = getOrInitDoc();
       if (markLocal) {
         localChangeRef.current = true;
       }
-      yComponents.delete(0, yComponents.length);
-      if (components.length > 0) {
-        yComponents.push(components);
-      }
+      // FIX: Wrap delete+push in a single transaction so the Yjs observer
+      // fires ONCE with the final state instead of twice (first empty, then
+      // full). Without this, the delete fires the observer first, consuming
+      // localChangeRef with count:0, then the push looks like a remote update
+      // and gets overwritten by the server's stale copy.
+      ydoc.transact(() => {
+        yComponents.delete(0, yComponents.length);
+        if (components.length > 0) {
+          yComponents.push(components);
+        }
+      });
     },
     [getOrInitDoc],
   );
 
   const replacePages = useCallback(
     (pages: any[], markLocal = true) => {
-      const { yPages } = getOrInitDoc();
+      const { ydoc, yPages } = getOrInitDoc();
       if (markLocal) {
         localChangeRef.current = true;
       }
-      yPages.delete(0, yPages.length);
-      if (pages.length > 0) {
-        yPages.push(pages);
-      }
+      // Same fix applied here for consistency
+      ydoc.transact(() => {
+        yPages.delete(0, yPages.length);
+        if (pages.length > 0) {
+          yPages.push(pages);
+        }
+      });
     },
     [getOrInitDoc],
   );
@@ -138,7 +148,7 @@ export function useCollaborationDoc(
 
   const reorderComponent = useCallback(
     (dragId: string, dropId: string) => {
-      const { yComponents } = getOrInitDoc();
+      const { ydoc, yComponents } = getOrInitDoc();
       const components = yComponents.toArray();
       const dragIndex = components.findIndex((c) => c.id === dragId);
       const dropIndex = components.findIndex((c) => c.id === dropId);
@@ -148,8 +158,11 @@ export function useCollaborationDoc(
       localChangeRef.current = true;
       const [dragged] = components.splice(dragIndex, 1);
       components.splice(dropIndex, 0, dragged);
-      yComponents.delete(0, yComponents.length);
-      yComponents.push(components);
+      // FIX: Same transact() fix — delete+push must be atomic
+      ydoc.transact(() => {
+        yComponents.delete(0, yComponents.length);
+        yComponents.push(components);
+      });
     },
     [getOrInitDoc],
   );
