@@ -651,21 +651,15 @@ function parsePHPToFullComponentList(
 
   type Candidate = { index: number; sid: string; type: string; parsedProps: Record<string, any> }
   const candidates: Candidate[] = []
-  const seenSids = new Set<string>()
 
+  // Simple push — no dedup here, we dedup after sorting by index
   const push = (index: number, sid: string, type: string, parsedProps: Record<string, any>) => {
-    let uniqueSid = sid
-    if (seenSids.has(sid)) {
-      let counter = 2
-      while (seenSids.has(`${sid}--${counter}`)) counter++
-      uniqueSid = `${sid}--${counter}`
-    }
-    seenSids.add(uniqueSid)
-    candidates.push({ index, sid: uniqueSid, type, parsedProps })
+    candidates.push({ index, sid, type, parsedProps })
   }
 
   // Blank out inner content of block-level components so nested elements
   // (nav-toggle button, <p> inside hero, etc.) don't parse as separate components.
+  // We preserve the string LENGTH so that character indexes stay valid.
   let cleanedCode = phpCode
   const blockPatterns: RegExp[] = [
     /<nav[^>]*class="[^"]*"[^>]*>[\s\S]*?<\/nav>/gi,
@@ -778,11 +772,34 @@ function parsePHPToFullComponentList(
     }
   }
 
+  // Sort by document order first
   candidates.sort((a, b) => a.index - b.index)
+  console.log("[parser] candidates before sort:", candidates.map(c => ({ index: c.index, sid: c.sid, type: c.type })))
+
+  // Deduplicate: keep only the FIRST occurrence of each sid (by document order).
+  // This handles cases where multiple regex passes match the same element.
+  // Genuine duplicates (same class used twice) get a --2, --3 suffix.
+  const sidCounts = new Map<string, number>()
+  const seenDedup = new Set<string>()
+  const dedupedCandidates = candidates
+    .map(c => {
+      if (!seenDedup.has(c.sid)) {
+        seenDedup.add(c.sid)
+        return c
+      }
+      // Genuine duplicate class — assign a unique suffix
+      const count = (sidCounts.get(c.sid) ?? 1) + 1
+      sidCounts.set(c.sid, count)
+      const uniqueSid = `${c.sid}--${count}`
+      seenDedup.add(uniqueSid)
+      return { ...c, sid: uniqueSid }
+    })
+
+  console.log("[parser] final order:", dedupedCandidates.map(c => ({ index: c.index, sid: c.sid, type: c.type })))  
 
   const result: ComponentData[] = []
 
-  for (const { sid, type, parsedProps } of candidates) {
+  for (const { sid, type, parsedProps } of dedupedCandidates) {
     const existing = byId.get(sid)
     const defs     = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
 

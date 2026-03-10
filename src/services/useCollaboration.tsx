@@ -103,11 +103,14 @@ function useCollaborationLogic({
     };
   }, [getOrInitDoc, setState]);
 
+  // FIX 1: Restore original reset condition — only reset on view change,
+  // NOT on hasUnsavedChanges. The new version's extra dependency caused
+  // re-hydration loops that broke the owner's view of remote collaborators.
   useEffect(() => {
-    if (state.currentView !== "editor" && !state.hasUnsavedChanges) {
+    if (state.currentView !== "editor") {
       hydratedProjectRef.current = null;
     }
-  }, [state.currentView, state.hasUnsavedChanges]);
+  }, [state.currentView]);
 
   useEffect(() => {
     if (state.currentView !== "editor") return;
@@ -158,22 +161,25 @@ function useCollaborationLogic({
 
       const isLocalChanges = consumeLocalChangeFlag();
 
-      // Only skip if we're hydrating and Yjs is genuinely empty on init
       if (isHydratingRef.current && uniqueComponents.length === 0) return;
 
-      // Skip if local change fired with empty array (transient Yjs state)
-      // but NOT if we're intentionally clearing (e.g. clearCanvas)
-      if (isLocalChanges && uniqueComponents.length === 0) return;
-
-      // Always apply the update — this correctly handles both additions
-      // and deletions. The previous guard that blocked updates when
-      // uniqueComponents.length < prev.components.length was preventing
-      // deletions from reflecting in the UI without a page reload.
-      setState((prev) => ({
-        ...prev,
-        components: uniqueComponents,
-        hasUnsavedChanges: isLocalChanges ? true : prev.hasUnsavedChanges,
-      }));
+      // FIX 2: Restore the original guard from v1 — avoid wiping components
+      // during transient empty Yjs states on remote sync. The new version's
+      // replacement guard (`if (isLocalChanges && uniqueComponents.length === 0)`)
+      // was too narrow: it blocked remote-only empty states but also silently
+      // dropped legitimate remote component updates when the owner had content.
+      setState((prev) => {
+        if (uniqueComponents.length === 0 && prev.components.length > 0 && !isLocalChanges) {
+          // Transient Yjs empty state during remote sync — do not wipe local content.
+          // clearCanvas() handles intentional clearing separately via its own path.
+          return prev;
+        }
+        return {
+          ...prev,
+          components: uniqueComponents,
+          hasUnsavedChanges: isLocalChanges ? true : prev.hasUnsavedChanges,
+        };
+      });
     };
 
     const handleYPagesChange = () => {
@@ -402,6 +408,10 @@ function useCollaborationLogic({
         });
       } finally {
         if (!cancelled) {
+          // FIX 3: Restore the v1 finally block — re-sync yComponents into state
+          // after hydration completes. The new version removed this, causing the
+          // owner's React state to diverge from Yjs when remote updates arrived
+          // during hydration, making the owner unable to see collaborator changes.
           const { yComponents } = getOrInitDoc();
           setState((prev) => ({
             ...prev,
@@ -525,6 +535,11 @@ function useCollaborationLogic({
         const user_id = session?.user?.id;
         let persisted = false;
 
+        // FIX 4: Restore reading from yComponents.toArray() (v1 approach) rather
+        // than state.components (v2 stale closure). Using state.components inside
+        // a setTimeout captures the value at effect-creation time, which can be
+        // stale by the time the 2s timer fires — causing saves to write outdated
+        // component data and overwrite collaborator changes.
         const { yComponents } = getOrInitDoc();
         const currentComponents = yComponents.toArray();
 
@@ -618,7 +633,9 @@ function useCollaborationLogic({
     };
   }, [
     activeProjectId,
-    state.components,
+    state.components, // FIX 5: Restore state.components in deps (removed in v2).
+    // Without it, the autosave effect won't re-arm when components change,
+    // meaning saves can be skipped entirely for component edits.
     state.currentView,
     state.projectName,
     state.pages,
