@@ -482,6 +482,9 @@ export function EditorTopBar({
     try {
       setIsTogglingTemplatePublish(true);
 
+      console.log("Calling endpoint:", `${API_URL}/api/insert-template-data`);
+      console.log("Payload", { projectId, userId });
+
       const response = nextChecked
         ? await fetch(`${API_URL}/api/insert-template-data`, {
             method: "POST",
@@ -499,10 +502,13 @@ export function EditorTopBar({
             }),
           });
 
-      const data = await response
-        .clone()
-        .json()
-        .catch(async () => ({ raw: await response.text().catch(() => "") }));
+      const raw = await response.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = { raw };
+      }
 
       console.info("[EditorTopBar] template publish toggle response", {
         status: response.status,

@@ -16,6 +16,5 @@ export const getApiBaseUrl = (): string => {
     return "https://build-x-designer-api.vercel.app";
   }
 
-  // Default to relative if unknown
   return "";
 };
