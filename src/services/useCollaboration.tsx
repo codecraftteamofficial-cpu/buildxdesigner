@@ -368,13 +368,15 @@ function useCollaborationLogic({
           }
         }
 
-        hydratedProjectRef.current = activeProjectId;
+hydratedProjectRef.current = activeProjectId;
 
+        // Use loadedProject directly (DB order) rather than yComponents.toArray()
+        // which may not reflect the transact() yet. The Yjs observer will stay
+        // in sync for all subsequent local changes.
         setState((prev) => {
-          const allComponents = yComponents.toArray();
           const uniqueComponents: ComponentData[] = [];
           const seenCompIds = new Set<string>();
-          allComponents.forEach((c) => {
+          loadedProject.forEach((c: ComponentData) => {
             if (!seenCompIds.has(c.id)) {
               uniqueComponents.push(c);
               seenCompIds.add(c.id);
@@ -402,11 +404,6 @@ function useCollaborationLogic({
         });
       } finally {
         if (!cancelled) {
-          const { yComponents } = getOrInitDoc();
-          setState((prev) => ({
-            ...prev,
-            components: yComponents.toArray(),
-          }));
           isHydratingRef.current = false;
         }
       }
@@ -525,8 +522,7 @@ function useCollaborationLogic({
         const user_id = session?.user?.id;
         let persisted = false;
 
-        const { yComponents } = getOrInitDoc();
-        const currentComponents = yComponents.toArray();
+const currentComponents = state.components;
 
         console.log("[autosave] starting", {
           activeProjectId,
@@ -618,7 +614,6 @@ function useCollaborationLogic({
     };
   }, [
     activeProjectId,
-    state.components,
     state.currentView,
     state.projectName,
     state.pages,
