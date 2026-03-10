@@ -4,16 +4,14 @@ import { ComponentData } from "../App"
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DESIGN_WIDTH = 1920;
 
-// Breakpoints (max-width, so these are "below X" overrides)
 const BREAKPOINTS = {
   tablet: 1024,
   mobile: 768,
 } as const;
 
-// Scale factors relative to desktop (1920px baseline)
 const SCALE = {
-  tablet: BREAKPOINTS.tablet / DESIGN_WIDTH,  // ~0.533
-  mobile: BREAKPOINTS.mobile / DESIGN_WIDTH,  // ~0.400
+  tablet: BREAKPOINTS.tablet / DESIGN_WIDTH,
+  mobile: BREAKPOINTS.mobile / DESIGN_WIDTH,
 } as const;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -26,7 +24,6 @@ const camelToKebab = (value: string): string =>
 const isUnitless = (key: string) =>
   ["opacity", "zIndex", "fontWeight", "lineHeight", "flex", "order"].includes(key);
 
-/** Parse a CSS value to a raw number (strips px / %). Returns null if unparseable. */
 const parsePixelValue = (value: any): number | null => {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
@@ -39,18 +36,39 @@ const parsePixelValue = (value: any): number | null => {
 const sanitizeId = (id: string): string =>
   id.replace(/[^a-zA-Z0-9_-]/g, "-");
 
-const compIdClass = (component: ComponentData): string =>
-  `comp-${sanitizeId(component.id)}`;
+// ── Readable ID detection ──────────────────────────────────────────────────────
+// New IDs look like "navbar-main", "button-primary" (type-suffix, no digits run ≥5)
+// Old IDs look like "code-17729832817420-4459" (has long digit sequences)
+const isReadableId = (id: string): boolean => {
+  if (!id) return false;
+  // If it already has a comp- prefix, it's legacy
+  if (id.startsWith("comp-")) return false;
+  // If it contains a run of 5+ digits, it's a timestamp-based legacy ID
+  if (/\d{5,}/.test(id)) return false;
+  // Must be kebab-case with at least one hyphen
+  return /^[a-z][a-z0-9-]+-[a-z][a-z0-9-]*$/.test(id);
+};
+
+// Return the CSS class name for a component (no comp- prefix for readable IDs)
+const compIdClass = (component: ComponentData): string => {
+  const id = sanitizeId(component.id);
+  // Readable new-format ID → use directly as class
+  if (isReadableId(component.id)) return id;
+  // Legacy ID → keep comp- prefix for backward compatibility
+  return `comp-${id}`;
+};
 
 const compClass = (component: ComponentData): string => {
   const idClass = compIdClass(component);
   const userClass = component.props?.className;
-  const isAutoClass = !userClass || /^comp-/.test(userClass.trim().split(/\s+/)[0]);
+  // Skip userClass if it's auto-generated (matches the idClass, or starts with comp-)
+  const isAutoClass = !userClass
+    || userClass.trim() === idClass
+    || /^comp-/.test(userClass.trim().split(/\s+/)[0]);
   return isAutoClass ? idClass : `${idClass} ${userClass}`;
 };
 
 // ─── CSS rule builder ─────────────────────────────────────────────────────────
-/** Render a plain style object to CSS lines (no responsive transforms). */
 const toCssRule = (style: Record<string, any> = {}): string =>
   Object.entries(style)
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
@@ -60,20 +78,11 @@ const toCssRule = (style: Record<string, any> = {}): string =>
     })
     .join("\n");
 
-/** Scale a single px value by a ratio, returning a rounded px string. */
 const scalePx = (value: number, ratio: number): string =>
   `${Math.round(value * ratio)}px`;
 
-// Component types that should span full width and stack normally on small screens
 const FULL_WIDTH_TYPES = new Set(["navbar", "hero", "footer", "section-heading"]);
 
-/**
- * Build responsive CSS for one component.
- * Desktop : absolute positioning matching the 1920px canvas.
- * Tablet/Mobile:
- *   - FULL_WIDTH_TYPES → position:relative; width:100%  (proper responsive flow)
- *   - Everything else  → keep absolute, scale offsets/sizes by viewport ratio
- */
 const buildResponsiveCss = (
   component: ComponentData,
   position: { x: number; y: number } | undefined,
@@ -82,7 +91,6 @@ const buildResponsiveCss = (
   const cls   = `.${compIdClass(component)}`;
   const isFullWidth = FULL_WIDTH_TYPES.has(component.type);
 
-  // ── Desktop block ──────────────────────────────────────────────────────────
   const desktopLines: string[] = [`  position: absolute;`];
 
   if (position) {
@@ -96,13 +104,10 @@ const buildResponsiveCss = (
   if (rawH !== null) desktopLines.push(`  height: ${rawH}px;`);
 
   for (const [key, value] of Object.entries(style)) {
-    // Skip layout props already handled above; but KEEP position for navbar sticky/fixed
     if (["left","top","right","bottom","width","height"].includes(key)) continue;
-    // Skip position:absolute (we set it ourselves) but keep sticky/fixed/relative from user
     if (key === "position" && value === "absolute") continue;
     if (value === undefined || value === null || value === "") continue;
     const unit = typeof value === "number" && !isUnitless(key) ? "px" : "";
-    // CSS custom properties (--nav-hover etc.) are already kebab-case — don't transform them
     const cssKey = key.startsWith("--") ? key : camelToKebab(key);
     desktopLines.push(`  ${cssKey}: ${value}${unit};`);
   }
@@ -114,13 +119,11 @@ const buildResponsiveCss = (
     css += `\n\n@media (max-width: ${BREAKPOINTS.mobile}px) {\n  ${cls} {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: center;\n  }\n  ${cls} .nav-toggle {\n    display: flex !important;\n  }\n  ${cls} .nav-links {\n    display: none;\n    width: 100%;\n    order: 3;\n  }\n  ${cls} .nav-links.open {\n    display: flex !important;\n  }\n}`;
   }
 
-  // ── Tablet + Mobile overrides ──────────────────────────────────────────────
   for (const [bpName, bpMax] of Object.entries(BREAKPOINTS) as [keyof typeof BREAKPOINTS, number][]) {
     const ratio = SCALE[bpName];
     const bpLines: string[] = [];
 
     if (isFullWidth) {
-      // Full-width components: break out of absolute flow, span the screen
       bpLines.push(`  position: relative;`);
       bpLines.push(`  left: 0;`);
       bpLines.push(`  top: 0;`);
@@ -163,7 +166,8 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
   const props  = component.props ?? {};
   const cls    = compClass(component);
   const idAttr = props.elementId ? ` id="${esc(props.elementId)}"` : "";
-  const btnId  = component.type === "button" ? ` id="btn-${sanitizeId(component.id)}"` : "";
+  // Button JS ID uses the same class name (readable or legacy)
+  const btnId  = component.type === "button" ? ` id="btn-${compIdClass(component)}"` : "";
   const childOutput = (component.children ?? [])
     .map((child) => renderComponentToPHP(child, depth + 1))
     .join("\n");
@@ -188,13 +192,11 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
       return `${indent}<img${idAttr} src="${esc(props.src)}" alt="${esc(props.alt) || "image"}" class="${cls}" />`;
 
     case "navbar": {
-      // PropertiesPanel stores: props.brand (string) + props.links (string[])
       const brand = esc(props.brand || "");
       const links: string[] = Array.isArray(props.links) && props.links.length > 0
         ? props.links
         : ["Home", "About", "Contact"];
 
-      // Map each link label to a URL slug for the href
       const toHref = (label: string) => {
         const slug = label.toLowerCase().replace(/\s+/g, "-");
         return slug === "home" ? "/" : `/${slug}`;
@@ -288,7 +290,7 @@ const generatePageJS = (components: ComponentData[], pageName: string): string =
   const hasNavbar = components.some(c => c.type === "navbar");
   const buttons = components.filter(c => c.type === "button");
   const listeners = buttons.map(btn => {
-    const id = `btn-${sanitizeId(btn.id)}`;
+    const id = `btn-${compIdClass(btn)}`;
     return `// Event listener for ${btn.props?.content || "Button"}\n  document.getElementById("${id}")?.addEventListener("click", () => {\n    console.log("${id} clicked!");\n  });`;
   }).join("\n\n  ");
 
@@ -396,7 +398,6 @@ img { max-width: 100%; height: auto; }
   transition: transform 0.25s ease, opacity 0.2s ease;
   transform-origin: center;
 }
-/* Animated X when open */
 .nav-toggle[aria-expanded="true"] .burger-bar:nth-child(1) {
   transform: translateY(7px) rotate(45deg);
 }
@@ -408,14 +409,12 @@ img { max-width: 100%; height: auto; }
   transform: translateY(-7px) rotate(-45deg);
 }
 
-/* ── Tablet (≤${BREAKPOINTS.tablet}px): switch to normal block flow + show burger ── */
 @media (max-width: ${BREAKPOINTS.tablet}px) {
   .canvas-container {
     position: static;
     display: block;
     min-height: 100svh;
   }
-  /* Full-width components snap to block flow */
   .canvas-container nav,
   .canvas-container .full-width-block {
     position: relative !important;
@@ -423,9 +422,7 @@ img { max-width: 100%; height: auto; }
     top: 0 !important;
     width: 100% !important;
   }
-  /* Show burger on tablet too */
   .canvas-container .nav-toggle { display: flex !important; }
-  /* Hide links by default, show as vertical dropdown */
   .canvas-container nav .nav-links {
     display: none;
     flex-direction: column;
@@ -448,7 +445,6 @@ img { max-width: 100%; height: auto; }
   }
 }
 
-/* ── Mobile (≤${BREAKPOINTS.mobile}px) ── */
 @media (max-width: ${BREAKPOINTS.mobile}px) {
   .canvas-container .nav-toggle { display: flex !important; } 
   .canvas-container {
@@ -471,13 +467,12 @@ img { max-width: 100%; height: auto; }
 }
 `;
 
-// ─── HTML page wrapper (adds viewport meta tag) ────────────────────────────────
+// ─── HTML page wrapper ────────────────────────────────────────────────────────
 const generateHTMLWrapper = (pageName: string, fileName: string, bodyContent: string): string =>
 `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Viewport meta is CRITICAL for responsiveness on mobile devices -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><?php echo htmlspecialchars($pageTitle ?? "${pageName}"); ?></title>
   <link rel="stylesheet" href="assets/css/global.css" />
@@ -490,17 +485,64 @@ ${bodyContent}
 </html>`;
 
 // ─── Main export ──────────────────────────────────────────────────────────────
+// ─── ID migration ────────────────────────────────────────────────────────────
+// Maps component types to readable suffixes (mirrors CodeViewEditor's SEMANTIC_SUFFIXES)
+const SEMANTIC_SUFFIXES_GEN: Record<string, string[]> = {
+  navbar: ["main","top","site","primary"], hero: ["main","banner","top","landing"],
+  footer: ["main","site","bottom","primary"], heading: ["title","main","primary","section"],
+  text: ["body","content","copy","description"], paragraph: ["intro","body","content","description"],
+  button: ["primary","cta","action","submit"], image: ["main","hero","cover","featured"],
+  input: ["field","name","email","search"], textarea: ["message","bio","notes","content"],
+  select: ["field","option","filter","dropdown"], checkbox: ["field","agree","option","toggle"],
+  "radio-group": ["options","choice","field","selector"], card: ["item","feature","product","profile"],
+  container: ["wrapper","section","block","content"], grid: ["layout","gallery","features","cards"],
+  form: ["contact","signup","login","subscribe"], divider: ["section","main","content","break"],
+  accordion: ["faq","main","content","details"], tabs: ["main","content","sections","nav"],
+  modal: ["dialog","popup","confirm","info"], alert: ["info","warning","success","error"],
+  table: ["data","main","list","records"], gallery: ["images","portfolio","photos","work"],
+  carousel: ["slides","hero","featured","promo"], "section-heading": ["main","about","features","services"],
+  "sign-in": ["form","main","user","auth"], "sign-up": ["form","main","register","auth"],
+  "paymongo-button": ["pay","checkout","buy","order"], video: ["main","hero","promo","embed"],
+};
+
+function pickReadableId(type: string, used: Set<string>): string {
+  const suffixes = SEMANTIC_SUFFIXES_GEN[type] ?? ["main","content","block","section"];
+  for (const suffix of suffixes) {
+    const c = `${type}-${suffix}`; if (!used.has(c)) { used.add(c); return c; }
+  }
+  for (const suffix of suffixes) {
+    for (let n = 2; n <= 20; n++) {
+      const c = `${type}-${suffix}-${n}`; if (!used.has(c)) { used.add(c); return c; }
+    }
+  }
+  const c = `${type}-${Date.now().toString(36).slice(-4)}`; used.add(c); return c;
+}
+
+/**
+ * Returns a copy of components with all legacy IDs replaced by readable ones.
+ * Pure function — does NOT mutate the input array.
+ */
+function migrateToReadableIds(components: ComponentData[]): ComponentData[] {
+  const used = new Set(components.filter(c => isReadableId(c.id)).map(c => c.id));
+  return components.map(c => {
+    if (isReadableId(c.id)) return c;
+    const newId = pickReadableId(c.type, used);
+    return { ...c, id: newId };
+  });
+}
+
 export const generateProjectFiles = (
   components: ComponentData[],
   pages: any[],
   projectName: string,
 ): Record<string, string> => {
+  // Migrate all legacy timestamp IDs to readable names before generating any files
+  const migratedComponents = migrateToReadableIds(components);
+
   const files: Record<string, string> = {
     "public/index.php": `<?php require_once __DIR__ . "/../app/views/layout.php"; ?>`,
     "app/views/layout.php": `<?php // Global Layout for ${projectName} ?>`,
-    // Global CSS now includes the responsive reset + viewport rules
     "public/assets/css/global.css": GLOBAL_RESPONSIVE_CSS,
-    // Keep the old styles.css for backward compat — just re-export global reset
     "public/assets/css/styles.css": `/* Deprecated: use global.css */\n@import "global.css";`,
     "config/database.php": `<?php\nreturn [\n    "db_host" => "db.supabase.co",\n    "db_name" => "postgres",\n];`,
     "README.md": `# ${projectName}\nGenerated PHP Project.\n\n## Responsive Design\n- Desktop: 1920px baseline\n- Tablet: ≤${BREAKPOINTS.tablet}px\n- Mobile: ≤${BREAKPOINTS.mobile}px`,
@@ -509,14 +551,13 @@ export const generateProjectFiles = (
   pages.forEach((page, index) => {
     const fileName = slugify(page.name);
 
-    const pageComponents = components.filter(c => {
+    const pageComponents = migratedComponents.filter(c => {
       const isExplicitMatch = c.page_id === page.id;
       const isGlobal = c.page_id === "all";
       const isDefaultHome = !c.page_id && (page.id === "home" || index === 0);
       return isExplicitMatch || isGlobal || isDefaultHome;
     });
 
-    // ── PHP view (now wrapped in a full HTML doc with viewport meta) ──────────
     const bodyContent = [
       `<div class="canvas-container">`,
       pageComponents.length > 0
@@ -527,11 +568,6 @@ export const generateProjectFiles = (
 
     files[`app/views/${fileName}.php`] = generateHTMLWrapper(page.name, fileName, bodyContent);
 
-    // ── Responsive CSS ─────────────────────────────────────────────────────────
-    // Each component gets:
-    //   • Desktop block  — position/size as % of 1920px
-    //   • Tablet block   — scaled positions + sizes for ≤1024px
-    //   • Mobile block   — scaled positions + sizes for ≤768px
     const componentCssBlocks = pageComponents
       .filter(c => (c.style && Object.keys(c.style).length > 0) || c.type === "navbar")
       .map(c => buildResponsiveCss(c, c.position));
@@ -543,7 +579,6 @@ export const generateProjectFiles = (
       ...componentCssBlocks,
     ].join("\n\n");
 
-    // ── JS ─────────────────────────────────────────────────────────────────────
     files[`public/assets/js/${fileName}.js`] = generatePageJS(pageComponents, page.name);
   });
 

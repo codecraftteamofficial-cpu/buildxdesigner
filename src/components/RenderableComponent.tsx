@@ -3170,6 +3170,26 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
+      case '__unknown__':
+        return (
+          <ResizeHandle onResize={handleResize} initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 400)} initialHeight={parseSize(style?.height, 80)}
+            className="group" disabled={isPreview} onResizeStart={onResizeStart} onResizeEnd={onResizeEnd}>
+            <div style={{ ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: '8px', border: '2px dashed #f97316', borderRadius: '8px',
+              backgroundColor: 'rgba(249,115,22,0.08)', padding: '16px' }}>
+              <span style={{ fontSize: '16px' }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#f97316' }}>
+                  Unknown: {props.unknownType || 'unknown'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#9ca3af' }}>Not in component library</div>
+              </div>
+            </div>
+          </ResizeHandle>
+        );
+
       default:
         return (
           <div style={combinedStyle} className={`p-4 border border-dashed rounded ${props.className || ''}`}>
