@@ -53,6 +53,12 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    allowedHosts: ["app.patricklmbn.online", "localhost"]
+    allowedHosts: ["app.patricklmbn.online", "localhost"],
   },
+  esbuild:
+    process.env.NODE_ENV === "production"
+      ? {
+          drop: ["console", "debugger"],
+        }
+      : undefined,
 });
