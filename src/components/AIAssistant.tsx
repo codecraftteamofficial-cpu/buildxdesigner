@@ -57,6 +57,9 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
   const [rating, setRating] = useState<number>(0)
   const [hoveredStar, setHoveredStar] = useState<number>(0)
   const [showRatingCongrats, setShowRatingCongrats] = useState(false)
+  
+  const [thinkingIndex, setThinkingIndex] = useState(0)
+  const thinkingPhrases = ["AI is thinking...", "Reading BuildX docs...", "Analyzing context...", "Preparing answer..."]
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -64,6 +67,26 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
   const MAX_WORDS = 30
   const currentWordCount = inputValue.trim() ? inputValue.trim().split(/\s+/).length : 0
   const isOverLimit = currentWordCount > MAX_WORDS
+
+  useEffect(() => {
+    const pingServer = () => {
+      fetch("https://pyqt-buildx-aiinterface.onrender.com/ask", { method: "OPTIONS" }).catch(() => null)
+    }
+    const pingInterval = setInterval(pingServer, 840000)
+    return () => clearInterval(pingInterval)
+  }, [])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (isLoading) {
+      interval = setInterval(() => {
+        setThinkingIndex((prev) => (prev + 1) % thinkingPhrases.length)
+      }, 2000)
+    } else {
+      setThinkingIndex(0)
+    }
+    return () => clearInterval(interval)
+  }, [isLoading])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -98,7 +121,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
 
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
-      const response = await fetch("https://buildx-aiinterface.onrender.com/ask", {
+      const response = await fetch("https://pyqt-buildx-aiinterface.onrender.com/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: userMessage }),
@@ -179,8 +202,9 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
       )}
 
       <CardHeader className="pb-3 pt-4 px-5 border-b bg-card relative z-20 shadow-sm overflow-hidden">
-        <CardTitle className="text-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <CardTitle className="text-sm flex items-center justify-between w-full">
+          
+          <div className="flex items-center gap-3 ml-4">
             <div className="relative">
               <div className="absolute -inset-1 bg-violet-600 rounded-lg blur opacity-40 animate-pulse"></div>
               <img src="https://media.giphy.com/media/shT902UlQAd9l7lukP/giphy.gif" alt="AI Mentor Profile" className="relative w-8 h-8 rounded-lg object-cover shadow-sm" />
@@ -190,6 +214,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
               BuildX AI Mentor
             </span>
           </div>
+          
           {messages.length > 1 && (
             <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase tracking-widest font-bold text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-900/50 hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-full shadow-sm transition-all" onClick={() => setShowRatingPopup(true)}>
               <Star className="w-3 h-3 mr-1" /> Rate
@@ -274,9 +299,9 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
                     <img src="https://media.giphy.com/media/0JD7et5Wyv8m0mah8z/giphy.gif" alt="AI Avatar" className="w-8 h-8 rounded-full object-cover shadow-md border-0" />
                   </div>
                   <div className="flex flex-col items-start mb-5">
-                    <div className="px-5 py-3.5 text-sm shadow-sm rounded-2xl overflow-hidden bg-violet-600 text-white rounded-tl-sm border-0 shadow-md font-medium flex items-center gap-2">
-                      <span className="font-bold">AI is thinking</span>
-                      <div className="flex gap-1 items-center mt-1">
+                    <div className="px-5 py-3.5 text-sm shadow-sm rounded-2xl overflow-hidden bg-violet-600 text-white rounded-tl-sm border-0 shadow-md font-medium flex items-center gap-2 w-[220px]">
+                      <span className="font-bold">{thinkingPhrases[thinkingIndex]}</span>
+                      <div className="flex gap-1 items-center mt-1 ml-auto">
                         <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
                         <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
                         <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
