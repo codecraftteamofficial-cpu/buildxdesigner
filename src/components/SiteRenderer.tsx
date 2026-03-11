@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { ComponentData } from "../App";
 import { RenderableComponent } from "./RenderableComponent";
+import { scrollToTarget } from "../utils/scrollUtils";
 
 interface SiteRendererProps {
     components: ComponentData[];
@@ -151,6 +152,22 @@ export function SiteRenderer({
         }
     }, []);
 
+    React.useEffect(() => {
+        const handleScrollEvent = (event: Event) => {
+            const customEvent = event as CustomEvent<{ elementId: string }>;
+            if (customEvent.detail?.elementId) {
+                console.log('Received scrollToElement event:', customEvent.detail.elementId);
+                scrollToTarget(customEvent.detail.elementId, 2000, document);
+            }
+        };
+
+        window.addEventListener('scrollToElement', handleScrollEvent as EventListener);
+
+        return () => {
+            window.removeEventListener('scrollToElement', handleScrollEvent as EventListener);
+        };
+    }, []);
+
     const filteredComponents = components.filter((c) => {
         if (c.page_id === "all") return true;
         return (c.page_id || "home") === (activePageId || "home");
@@ -273,15 +290,31 @@ function NavbarRenderer({
     };
 
     const renderLinks = () => {
-        return links.map((link: string) => {
-            const href = toHref(link);
-            const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(e, href);
+        const urlArray: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : [];
+        const typeArray: string[] = Array.isArray(props.linkTypes) ? props.linkTypes : [];
+
+        return links.map((link: string, index: number) => {
+            const url = urlArray[index] || toHref(link);
+            const type = typeArray[index] || "url";
+
+            const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+                if (type === "scroll" && url.startsWith("#")) {
+                    e.preventDefault();
+                    scrollToTarget(url);
+                    setOpen(false);
+                } else if (navigate) {
+                    e.preventDefault();
+                    navigate(url);
+                    setOpen(false);
+                }
+            };
+
             return React.createElement(
                 "li",
-                { key: link },
+                { key: index },
                 React.createElement(
                     "a",
-                    { href: href, onClick: handleClick },
+                    { href: url, onClick: handleClick },
                     link
                 )
             );

@@ -215,6 +215,22 @@ export function RenderableComponent({
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
+  if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
+    combinedStyle.background = combinedStyle.backgroundColor;
+    delete combinedStyle.backgroundColor;
+  }
+
+  // Prevent components from escaping the editor drag container bounds when positioned fixed/absolute
+  if (!isPreview) {
+    delete combinedStyle.position;
+    delete combinedStyle.top;
+    delete combinedStyle.left;
+    delete combinedStyle.right;
+    delete combinedStyle.bottom;
+    delete combinedStyle.margin;
+    delete combinedStyle.zIndex;
+    delete combinedStyle.transform;
+  }
 
   const [editingRow, setEditingRow] = React.useState<Record<string, any> | null>(null);
   const [deletingRow, setDeletingRow] = React.useState<Record<string, any> | null>(null);
@@ -1045,6 +1061,21 @@ export function RenderableComponent({
   const renderComponent = () => {
     const { type, props, style } = component;
     const combinedStyle = { ...style } as React.CSSProperties;
+    if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
+      combinedStyle.background = combinedStyle.backgroundColor;
+      delete combinedStyle.backgroundColor;
+    }
+
+    if (!isPreview) {
+      delete combinedStyle.position;
+      delete combinedStyle.top;
+      delete combinedStyle.left;
+      delete combinedStyle.right;
+      delete combinedStyle.bottom;
+      delete combinedStyle.margin;
+      delete combinedStyle.zIndex;
+      delete combinedStyle.transform;
+    }
 
     switch (type) {
       case 'text':
@@ -1071,7 +1102,14 @@ export function RenderableComponent({
               text={props.content}
               onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
               element="p"
-              style={{ ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}
+              style={{ 
+                ...combinedStyle, 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center',
+                justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
+              }}
               className={props.className || ''}
               placeholder="Sample Text"
               isSelected={isSelected}
@@ -1109,7 +1147,14 @@ export function RenderableComponent({
               text={props.content}
               onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
               element={HeadingElement}
-              style={{ ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}
+              style={{ 
+                ...combinedStyle, 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center',
+                justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
+              }}
               className={props.className || ''}
               placeholder="Heading"
               isSelected={isSelected}
@@ -1153,14 +1198,14 @@ export function RenderableComponent({
               }}
               className={`${props.className || ''} ${isSelected ? 'relative' : ''}`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                e.preventDefault();
-                e.stopPropagation();
-
                 // 1. Safety check for Editor Mode
                 if (!isPreview) {
                   console.log('Action blocked: Toggle Preview Mode to test buttons.');
-                  return;
+                  return; // Don't stop propagation, allow editor selection!
                 }
+
+                e.preventDefault();
+                e.stopPropagation();
 
                 // 2. Combine formal actions + legacy onClick string
                 const allActions = [...((props.actions as Action[]) || [])];
@@ -1225,11 +1270,12 @@ export function RenderableComponent({
           >
             <PayMongoButton
               projectId={projectId}
-              label={props.label || "Buy Now"}
+              label={props.label ?? "Buy Now"}
               amount={props.amount || 100}
               description={props.description || "Product Purchase"}
               currency={props.currency || "PHP"}
               paymentMethodTypes={props.paymentMethodTypes}
+              variant={props.variant || 'default'}
               className={props.className || ''}
               style={{
                 ...combinedStyle,
@@ -1238,7 +1284,7 @@ export function RenderableComponent({
                 pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
                 zIndex: isPreview ? 20 : 'auto'
               }}
-              disabled={disabled}
+              disabled={isPreview ? false : disabled}
               isPreview={isPreview}
             />
           </ResizeHandle>
@@ -1724,7 +1770,10 @@ export function RenderableComponent({
           >
             <div id={props.elementId} style={{ width: '100%', height: '100%' }}>
               <button
-                onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
+                onClick={(e) => { 
+                  if (!isPreview) return; 
+                  setIsModalOpen(true); 
+                }}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -2155,7 +2204,19 @@ export function RenderableComponent({
               }}
               className={`flex justify-between items-center ${props.className || ''}`}
             >
-              <div>
+              <div className="flex items-center gap-3 h-full">
+                {props.logoUrl && (
+                  <img 
+                    src={props.logoUrl} 
+                    alt="Logo" 
+                    style={{ 
+                      height: '80%', 
+                      maxHeight: '100%',
+                      width: 'auto',
+                      objectFit: 'contain'
+                    }} 
+                  />
+                )}
                 <EditableText
                   text={props.brand}
                   onTextChange={(newText) => onUpdate({ props: { ...props, brand: newText } })}
@@ -2164,12 +2225,13 @@ export function RenderableComponent({
                   isSelected={isSelected}
                   disabled={disabled || isPreview}
                 />
-
               </div>
               <div className="flex gap-4">
                 {(props.links || ['Home', 'About', 'Contact']).map((link: string, index: number) => {
                   const urlArray: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : [];
+                  const typeArray: string[] = Array.isArray(props.linkTypes) ? props.linkTypes : [];
                   const url = urlArray[index] || '#';
+                  const type = typeArray[index] || 'url';
                   
                   return (
                     <a 
@@ -2179,7 +2241,13 @@ export function RenderableComponent({
                       onClick={(e) => {
                         if (isPreview) {
                           e.preventDefault();
-                          if (url !== '#' && url !== '') {
+                          if (type === 'scroll' && url.startsWith('#')) {
+                            const elementId = url.substring(1);
+                            const scrollEvent = new CustomEvent('scrollToElement', {
+                              detail: { elementId }
+                            });
+                            window.dispatchEvent(scrollEvent);
+                          } else if (url !== '#' && url !== '') {
                             const isInternal = url.startsWith('/') || url.startsWith('./');
                             if (isInternal && navigate) {
                               navigate(url);
@@ -2188,7 +2256,7 @@ export function RenderableComponent({
                             }
                           }
                         } else {
-                          e.preventDefault(); // Always prevent default in designer mode
+                          e.preventDefault();
                         }
                       }}
                     >

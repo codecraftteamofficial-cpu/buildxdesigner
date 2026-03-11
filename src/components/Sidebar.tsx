@@ -194,7 +194,9 @@ export function Sidebar({
                     label: "Buy Now",
                     amount: 100,
                     description: "Product Purchase",
-                    currency: "PHP"
+                    currency: "PHP",
+                    variant: "default",
+                    size: "default"
                   }}
                 />
               </div>

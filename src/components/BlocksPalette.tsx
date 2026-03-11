@@ -29,7 +29,8 @@ import {
   PanelTopClose,
   Columns,
   AlertTriangle,
-  Maximize2
+  Maximize2,
+  CreditCard
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
@@ -516,6 +517,31 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               borderRadius: '8px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
             }
+          }
+        }
+      ]
+    },
+    {
+      name: 'Payment',
+      icon: <CreditCard className="w-4 h-4" />,
+      blocks: [
+        {
+          id: 'paymongo-button',
+          name: 'PayMongo Button',
+          description: 'Payment button with PayMongo integration',
+          icon: <CreditCard className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'paymongo-button',
+            props: {
+              label: 'Buy Now',
+              amount: 100,
+              description: 'Product Purchase',
+              currency: 'PHP',
+              variant: 'default',
+              size: 'default'
+            },
+            style: {}
           }
         }
       ]

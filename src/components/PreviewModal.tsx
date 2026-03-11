@@ -90,12 +90,13 @@ interface PreviewModalProps {
     supabaseKey: string;
   };
   currentUser?: any;
+  canvasBackgroundColor?: string;
 }
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
 type FitMode = 'fit' | 'fill' | 'actual';
 
-export function PreviewModal({ components, onClose, activePageId = 'home', pages = [], userProjectConfig, currentUser }: PreviewModalProps) {
+export function PreviewModal({ components, onClose, activePageId = 'home', pages = [], userProjectConfig, currentUser, canvasBackgroundColor = '#ffffff' }: PreviewModalProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('desktop');
   const [fitMode, setFitMode] = useState<FitMode>('fit');
   const [zoom, setZoom] = useState(1);
@@ -1005,7 +1006,7 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
               height:   '100%',
               overflow: 'auto',
               position: 'relative',
-              backgroundColor: '#ffffff',
+              background: canvasBackgroundColor || '#ffffff',
             }}
           >
             {filteredComponents.length === 0 ? (
@@ -1055,18 +1056,6 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
                           minWidth: '100px', // Fallback
                           minHeight: '40px' // Fallback
                         }}
-                        onClick={(e) => {
-                          // Don't interfere with table interactions
-                          if (component.type === 'table') {
-                            return;
-                          }
-
-                          // Handle button clicks directly
-                          if (component.type === 'button') {
-                            handleButtonClick(e, component);
-                          }
-                          e.stopPropagation();
-                        }}
                       >
                         <div
                           style={{
@@ -1086,20 +1075,6 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
                             currentUser={currentUser}
                           />
                         </div>
-
-                        {/* Interactive element overlay to ensure clicks are captured in preview */}
-                        {(component.type === 'button') && (
-                          <div
-                            className="absolute inset-0 z-50 cursor-pointer"
-                            style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
-                            onClick={(e) => {
-                              console.log('Preview overlay clicked for component:', component.id);
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleButtonClick(e, component);
-                            }}
-                          />
-                        )}
                       </div>
                     );
                   })}
