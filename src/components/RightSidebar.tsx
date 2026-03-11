@@ -24,6 +24,7 @@ interface RightSidebarProps {
   canvasProperties?: any
   onUpdateCanvasProperties?: (updates: any) => void
   pages?: { id: string; name: string; path?: string }[]
+  userProjectConfig?: any
 }
 
 export function RightSidebar({
@@ -36,6 +37,7 @@ export function RightSidebar({
   canvasProperties,
   onUpdateCanvasProperties,
   pages,
+  userProjectConfig,
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState("content")
 

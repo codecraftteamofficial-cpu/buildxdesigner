@@ -81,6 +81,7 @@ interface PropertiesPanelProps {
   onToggleCanvasGrid?: (show: boolean) => void
   pages?: { id: string; name: string; path?: string }[]
   activePageId?: string
+  userProjectConfig?: any
 }
 
 export function PropertiesPanel({
@@ -95,6 +96,7 @@ export function PropertiesPanel({
   onToggleCanvasGrid,
   pages,
   activePageId,
+  userProjectConfig,
 }: PropertiesPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState("content")
@@ -1890,8 +1892,23 @@ export function PropertiesPanel({
                   }
 
                   try {
+                    // Try to use the prop first, fallback to localStorage if needed
+                    let config = props.userProjectConfig;
+                    if (!config || !config.supabaseUrl || !config.supabaseKey) {
+                      const url = localStorage.getItem('target_supabase_url');
+                      const key = localStorage.getItem('target_supabase_key');
+                      if (url && key) {
+                        config = { supabaseUrl: url, supabaseKey: key };
+                      }
+                    }
+                    
+                    let client = supabase;
+                    if (config?.supabaseUrl && config?.supabaseKey) {
+                      client = createClient(config.supabaseUrl, config.supabaseKey);
+                    }
+
                     const tableName = props.supabaseTable.replace(/^public\./, '');
-                    const { data, error } = await supabase
+                    const { data, error } = await client
                       .from(tableName)
                       .select("*")
                       .limit(1)

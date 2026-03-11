@@ -411,6 +411,28 @@ export function RenderableComponent({
                 dom: '<"flex flex-col sm:flex-row justify-between items-center mb-4 gap-2"lf>rt<"flex flex-col sm:flex-row justify-between items-center mt-4 gap-2"ip>',
                 destroy: true
               });
+
+              // Add delegated event listener for action buttons
+              const $table = $(tableRef.current);
+              $table.find('tbody').on('click', '.datatable-action-btn', function(e) {
+                e.stopPropagation();
+                const $btn = $(this);
+                const action = $btn.data('action');
+                const rowIndex = $btn.data('index');
+                
+                if (rowIndex !== undefined && tableData[rowIndex]) {
+                  const row = tableData[rowIndex];
+                  if (action === 'update') {
+                    if (props.supabaseTable) {
+                      setEditingRow(row);
+                    } else {
+                      toast.info("Update button clicked (No Supabase table connected)");
+                    }
+                  } else if (action === 'delete') {
+                    setDeletingRow(row);
+                  }
+                }
+              });
             } else {
               console.warn('Post-render column mismatch detected. Skipping DataTable init to prevent crash.');
             }
@@ -422,6 +444,10 @@ export function RenderableComponent({
 
       return () => {
         clearTimeout(timer);
+        if (tableRef.current) {
+          // Clean up the delegated listener first
+          $(tableRef.current).find('tbody').off('click', '.datatable-action-btn');
+        }
         if (dataTableInstance.current) {
           try {
             dataTableInstance.current.destroy();
@@ -1415,7 +1441,9 @@ export function RenderableComponent({
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                    className="datatable-action-btn datatable-update-btn h-6 w-6 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                    data-action="update"
+                                    data-index={rIdx}
                                     onClick={(e: MouseEvent) => {
                                       e.stopPropagation();
                                       if (props.supabaseTable) {
@@ -1425,20 +1453,22 @@ export function RenderableComponent({
                                       }
                                     }}
                                   >
-                                    <Edit className="h-3 w-3" />
+                                    <Edit className="h-3 w-3 pointer-events-none" />
                                   </Button>
                                 )}
                                 {props.showDeleteAction && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                    className="datatable-action-btn datatable-delete-btn h-6 w-6 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                    data-action="delete"
+                                    data-index={rIdx}
                                     onClick={(e: MouseEvent) => {
                                       e.stopPropagation();
                                       setDeletingRow(row);
                                     }}
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-3 w-3 pointer-events-none" />
                                   </Button>
                                 )}
                               </div>
@@ -3270,20 +3300,30 @@ export function RenderableComponent({
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4 max-h-[60vh] overflow-y-auto">
-            {editingRow && (tableHeaders || []).map((key: string) => {
-              // Only show if the key exists in the row (or we want to allow adding it)
-              // and if it matches a header.
-              // We use exact match here as headers usually match keys.
+            {editingRow && (tableHeaders || []).map((header: string) => {
+              const parts = header.split(':');
+              const label = parts.length > 1 ? parts[0] : header.replace(/_/g, ' ');
+              const dataKey = parts.length > 1 ? parts[1] : header;
+
+              // Find the actual key in the row data (case insensitive backup)
+              let actualDataKey = dataKey;
+              if (editingRow[actualDataKey] === undefined) {
+                const foundKey = Object.keys(editingRow).find(k => k.toLowerCase() === dataKey.toLowerCase());
+                if (foundKey) actualDataKey = foundKey;
+              }
+
+              const isId = actualDataKey.toLowerCase() === 'id';
+
               return (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <Label htmlFor={`edit-${key}`} className="text-left text-xs font-medium uppercase text-muted-foreground">
-                    {key}
+                <div key={header} className="flex flex-col gap-1.5">
+                  <Label htmlFor={`edit-${actualDataKey}`} className="text-left text-xs font-medium uppercase text-muted-foreground">
+                    {label}
                   </Label>
                   <Input
-                    id={`edit-${key}`}
-                    value={editingRow[key] || ''}
-                    onChange={(e) => setEditingRow({ ...editingRow, [key]: e.target.value })}
-                    disabled={key === 'id'}
+                    id={`edit-${actualDataKey}`}
+                    value={editingRow[actualDataKey] || ''}
+                    onChange={(e) => setEditingRow({ ...editingRow, [actualDataKey]: e.target.value })}
+                    disabled={isId}
                     className="w-full h-9"
                   />
                 </div>
