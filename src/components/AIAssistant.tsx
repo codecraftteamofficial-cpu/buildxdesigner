@@ -81,7 +81,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
     if (isLoading) {
       interval = setInterval(() => {
         setThinkingIndex((prev) => (prev + 1) % thinkingPhrases.length)
-      }, 2000)
+      }, 5000)
     } else {
       setThinkingIndex(0)
     }
@@ -299,7 +299,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
                     <img src="https://media.giphy.com/media/0JD7et5Wyv8m0mah8z/giphy.gif" alt="AI Avatar" className="w-8 h-8 rounded-full object-cover shadow-md border-0" />
                   </div>
                   <div className="flex flex-col items-start mb-5">
-                    <div className="px-5 py-3.5 text-sm shadow-sm rounded-2xl overflow-hidden bg-violet-600 text-white rounded-tl-sm border-0 shadow-md font-medium flex items-center gap-2 w-[220px]">
+                    <div className="px-6 py-4 text-sm shadow-sm rounded-2xl overflow-hidden bg-violet-600 text-white rounded-tl-sm border-0 shadow-md font-medium flex items-center gap-2 w-[250px]">
                       <span className="font-bold">{thinkingPhrases[thinkingIndex]}</span>
                       <div className="flex gap-1 items-center mt-1 ml-auto">
                         <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
