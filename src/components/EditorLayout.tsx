@@ -455,6 +455,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         onToggleCanvasGrid={
                           canEditProject ? toggleCanvasGrid : undefined
                         }
+                        userProjectConfig={state.userProjectConfig}
                       />
                     )}
 
