@@ -117,12 +117,26 @@ export function initializeCollaborationTransport(
     }
   };
 
-  const handleSyncRequest = (message?: { data?: { clientId?: string } }) => {
+  const handleSyncRequest = async (message?: {
+    data?: { clientId?: string };
+  }) => {
     if (isClosed || !isReady) return;
     if (message?.data?.clientId === client.clientId) return;
 
     const fullUpdate = Y.encodeStateAsUpdate(ydoc);
-    void safePublish("yjs-sync", encodeUpdate(fullUpdate));
+    await safePublish("yjs-sync", encodeUpdate(fullUpdate));
+
+    try {
+      const localState = awareness.getLocalState();
+      if (localState) {
+        const awarenessUpdate = encodeAwarenessUpdate(awareness, [
+          awareness.clientID,
+        ]);
+        await safePublish("yjs-awareness", encodeUpdate(awarenessUpdate));
+      }
+    } catch (error) {
+      console.warn("Failed to publish awareness during sync request:", error);
+    }
   };
 
   const hydrateFromHistory = async () => {
@@ -182,6 +196,20 @@ export function initializeCollaborationTransport(
     }
   };
 
+  const publishLocalAwarenessSnapshot = async () => {
+    if (isClosed || !isReady) return;
+
+    try {
+      const localState = awareness.getLocalState();
+      if (!localState) return;
+
+      const update = encodeAwarenessUpdate(awareness, [awareness.clientID]);
+      await safePublish("yjs-awareness", encodeUpdate(update));
+    } catch (error) {
+      console.warn("Failed to publish local awareness snapshot:", error);
+    }
+  };
+
   const setup = async () => {
     try {
       await waitForConnected();
@@ -201,6 +229,7 @@ export function initializeCollaborationTransport(
       awareness.on("update", handleAwarenessUpdate);
 
       await hydrateFromHistory();
+      await publishLocalAwarenessSnapshot();
       await safePublish("yjs-request-sync", { clientId: client.clientId });
 
       console.log("[collab transport ready]", {
