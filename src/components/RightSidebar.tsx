@@ -10,7 +10,7 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { RangeSlider } from "./ui/range-slider"
-import { ChevronDown, Bot, X } from "lucide-react"
+import { ChevronDown, Bot, X, Trash2 } from "lucide-react"
 import { AIAssistant } from "./AIAssistant"
 import { CanvasPropertiesPanel } from "./CanvasPropertiesPanel"
 
@@ -23,6 +23,7 @@ interface RightSidebarProps {
   onToggleAIAssistant?: () => void
   canvasProperties?: any
   onUpdateCanvasProperties?: (updates: any) => void
+  pages?: { id: string; name: string; path?: string }[]
 }
 
 export function RightSidebar({
@@ -34,6 +35,7 @@ export function RightSidebar({
   onToggleAIAssistant,
   canvasProperties,
   onUpdateCanvasProperties,
+  pages,
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState("content")
 
@@ -185,30 +187,179 @@ export function RightSidebar({
         )
 
       case "navbar":
+        const navLinks: string[] = Array.isArray(props.links) ? props.links : []
+        const navLinkUrls: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : []
+
+        const addNavLink = () => {
+          onUpdateComponent(selectedComponent.id, {
+            props: {
+              ...selectedComponent.props,
+              links: [...navLinks, "New Link"],
+              linkUrls: [...navLinkUrls, "#"],
+            },
+          })
+        }
+
+        const updateNavLink = (index: number, value: string) => {
+          const updated = [...navLinks]
+          updated[index] = value
+          updateProps("links", updated)
+        }
+
+        const updateNavLinkUrl = (index: number, url: string) => {
+          const updatedUrls = [...navLinkUrls]
+          while (updatedUrls.length <= index) {
+            updatedUrls.push("#")
+          }
+          updatedUrls[index] = url
+          updateProps("linkUrls", updatedUrls)
+        }
+
+        const removeNavLink = (index: number) => {
+          onUpdateComponent(selectedComponent.id, {
+            props: {
+              ...selectedComponent.props,
+              links: navLinks.filter((_, i) => i !== index),
+              linkUrls: navLinkUrls.filter((_, i) => i !== index),
+            },
+          })
+        }
+
+        const moveNavLink = (index: number, direction: "up" | "down") => {
+          const updatedLinks = [...navLinks]
+          const updatedUrls = [...navLinkUrls]
+          const target = direction === "up" ? index - 1 : index + 1
+          if (target < 0 || target >= updatedLinks.length) return
+          
+          while (updatedUrls.length <= Math.max(index, target)) {
+             updatedUrls.push("#")
+          }
+
+          ;[updatedLinks[index], updatedLinks[target]] = [updatedLinks[target], updatedLinks[index]]
+          ;[updatedUrls[index], updatedUrls[target]] = [updatedUrls[target], updatedUrls[index]]
+          
+          onUpdateComponent(selectedComponent.id, {
+             props: {
+               ...selectedComponent.props,
+               links: updatedLinks,
+               linkUrls: updatedUrls,
+             }
+          })
+        }
+
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="brand">Brand Name</Label>
+              <Label htmlFor="brand" className="text-xs">Brand Name</Label>
               <Input
                 id="brand"
                 value={props.brand || ""}
                 onChange={(e) => updateProps("brand", e.target.value)}
                 placeholder="Brand"
+                className="h-8 text-xs mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="links">Navigation Links (comma-separated)</Label>
-              <Textarea
-                id="links"
-                value={props.links?.join(", ") || ""}
-                onChange={(e) =>
-                  updateProps(
-                    "links",
-                    e.target.value.split(",").map((s: string) => s.trim()),
-                  )
-                }
-                placeholder="Home, About, Contact"
-              />
+            
+            <div className="pt-2 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-medium">Navigation Links</Label>
+                <Button variant="ghost" size="sm" onClick={addNavLink} className="h-6 text-xs px-2">
+                  <span className="text-lg leading-none mr-1">+</span> Add Link
+                </Button>
+              </div>
+
+              {navLinks.length === 0 ? (
+                <div className="text-center py-3 border border-dashed rounded-md">
+                  <p className="text-xs text-muted-foreground">No links yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {navLinks.map((link, idx) => {
+                    const currentUrl = navLinkUrls[idx] || "#"
+                    return (
+                      <div key={idx} className="flex gap-2 group p-2 border border-border rounded bg-muted/20">
+                        {/* Reorder buttons */}
+                        <div className="flex flex-col gap-1 items-center justify-center -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => moveNavLink(idx, "up")}
+                            disabled={idx === 0}
+                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
+                          >
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                              <path d="M4 1L7 6H1L4 1Z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => moveNavLink(idx, "down")}
+                            disabled={idx === navLinks.length - 1}
+                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
+                          >
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                              <path d="M4 7L1 2H7L4 7Z" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className="flex-1 space-y-2">
+                          {/* Link label input */}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] w-10 shrink-0">Label</Label>
+                            <Input
+                              value={link}
+                              onChange={(e) => updateNavLink(idx, e.target.value)}
+                              placeholder={`Link ${idx + 1}`}
+                              className="h-7 text-xs flex-1"
+                            />
+                            {/* Remove button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={() => removeNavLink(idx)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Link target selection */}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] w-10 shrink-0">Link To</Label>
+                            <div className="flex-1 flex flex-col gap-1">
+                              <Select
+                                value={currentUrl === "#" ? "none" : currentUrl}
+                                onValueChange={(val: string) => {
+                                  if (val === "none") {
+                                    updateNavLinkUrl(idx, "#")
+                                  } else {
+                                    updateNavLinkUrl(idx, val)
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-full">
+                                  <SelectValue placeholder="Select target..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None (#)</SelectItem>
+                                  {pages && pages.length > 0 && (
+                                    <>
+                                      <SelectItem value="separator" disabled>--- Pages ---</SelectItem>
+                                      {pages.map((p: any) => (
+                                        <SelectItem key={p.id} value={p.path || "/"}>
+                                          {p.name}
+                                        </SelectItem>
+                                      ))}
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )

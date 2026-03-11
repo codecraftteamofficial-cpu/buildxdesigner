@@ -479,6 +479,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                           if (updates.showGrid !== undefined)
                             toggleCanvasGrid(updates.showGrid);
                         }}
+                        pages={state.pages}
                       />
                     )}
                   </div>
@@ -544,6 +545,7 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
               onToggleProperties={() => {}}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
+              pages={state.pages}
             />
           )}
 

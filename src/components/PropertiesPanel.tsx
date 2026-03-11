@@ -2917,9 +2917,16 @@ export function PropertiesPanel({
 
       case "navbar":
         const navLinks: string[] = Array.isArray(props.links) ? props.links : []
+        const navLinkUrls: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : []
 
         const addNavLink = () => {
-          updateProps("links", [...navLinks, "New Link"])
+          onUpdateComponent(selectedComponent.id, {
+            props: {
+              ...selectedComponent.props,
+              links: [...navLinks, "New Link"],
+              linkUrls: [...navLinkUrls, "#"],
+            },
+          })
         }
 
         const updateNavLink = (index: number, value: string) => {
@@ -2928,19 +2935,47 @@ export function PropertiesPanel({
           updateProps("links", updated)
         }
 
+        const updateNavLinkUrl = (index: number, url: string) => {
+          const updatedUrls = [...navLinkUrls]
+          // Ensure array is long enough if it was missing entries
+          while (updatedUrls.length <= index) {
+            updatedUrls.push("#")
+          }
+          updatedUrls[index] = url
+          updateProps("linkUrls", updatedUrls)
+        }
+
         const removeNavLink = (index: number) => {
-          updateProps(
-            "links",
-            navLinks.filter((_, i) => i !== index),
-          )
+          onUpdateComponent(selectedComponent.id, {
+            props: {
+              ...selectedComponent.props,
+              links: navLinks.filter((_, i) => i !== index),
+              linkUrls: navLinkUrls.filter((_, i) => i !== index),
+            },
+          })
         }
 
         const moveNavLink = (index: number, direction: "up" | "down") => {
-          const updated = [...navLinks]
+          const updatedLinks = [...navLinks]
+          const updatedUrls = [...navLinkUrls]
           const target = direction === "up" ? index - 1 : index + 1
-          if (target < 0 || target >= updated.length) return
-          ;[updated[index], updated[target]] = [updated[target], updated[index]]
-          updateProps("links", updated)
+          if (target < 0 || target >= updatedLinks.length) return
+          
+          // Pad urls array if needed before swapping
+          while (updatedUrls.length <= Math.max(index, target)) {
+             updatedUrls.push("#")
+          }
+
+          ;[updatedLinks[index], updatedLinks[target]] = [updatedLinks[target], updatedLinks[index]]
+          ;[updatedUrls[index], updatedUrls[target]] = [updatedUrls[target], updatedUrls[index]]
+          
+          onUpdateComponent(selectedComponent.id, {
+             props: {
+               ...selectedComponent.props,
+               links: updatedLinks,
+               linkUrls: updatedUrls,
+             }
+          })
         }
 
         return (
@@ -2978,55 +3013,98 @@ export function PropertiesPanel({
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  {navLinks.map((link, idx) => (
-                    <div key={idx} className="flex items-center gap-1 group">
-                      {/* Reorder buttons */}
-                      <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => moveNavLink(idx, "up")}
-                          disabled={idx === 0}
-                          className="h-3.5 w-3.5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                        >
-                          <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-                            <path d="M4 1L7 6H1L4 1Z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => moveNavLink(idx, "down")}
-                          disabled={idx === navLinks.length - 1}
-                          className="h-3.5 w-3.5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20"
-                        >
-                          <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-                            <path d="M4 7L1 2H7L4 7Z" />
-                          </svg>
-                        </button>
+                <div className="space-y-2">
+                  {navLinks.map((link, idx) => {
+                    const currentUrl = navLinkUrls[idx] || "#"
+                    // Check if the current URL matches any page
+                    
+                    return (
+                      <div key={idx} className="flex gap-2 group p-2 border border-border rounded bg-muted/20">
+                        {/* Reorder buttons */}
+                        <div className="flex flex-col gap-1 items-center justify-center -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => moveNavLink(idx, "up")}
+                            disabled={idx === 0}
+                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
+                          >
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                              <path d="M4 1L7 6H1L4 1Z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => moveNavLink(idx, "down")}
+                            disabled={idx === navLinks.length - 1}
+                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
+                          >
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                              <path d="M4 7L1 2H7L4 7Z" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className="flex-1 space-y-2">
+                          {/* Link label input */}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] w-10 shrink-0">Label</Label>
+                            <Input
+                              value={link}
+                              onChange={(e) => updateNavLink(idx, e.target.value)}
+                              placeholder={`Link ${idx + 1}`}
+                              className="h-7 text-xs flex-1"
+                            />
+                            {/* Remove button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={() => removeNavLink(idx)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Link target selection */}
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] w-10 shrink-0">Link To</Label>
+                            <div className="flex-1 flex flex-col gap-1">
+                              <Select
+                                value={currentUrl === "#" ? "none" : currentUrl}
+                                onValueChange={(val: string) => {
+                                  if (val === "none") {
+                                    updateNavLinkUrl(idx, "#")
+                                  } else {
+                                    updateNavLinkUrl(idx, val)
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-full">
+                                  <SelectValue placeholder="Select target..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None (#)</SelectItem>
+                                  {pages && pages.length > 0 && (
+                                    <>
+                                      <SelectItem value="separator" disabled>--- Pages ---</SelectItem>
+                                      {pages.map((p) => (
+                                        <SelectItem key={p.id} value={p.path || "/"}>
+                                          {p.name}
+                                        </SelectItem>
+                                      ))}
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-
-                      {/* Link label input */}
-                      <Input
-                        value={link}
-                        onChange={(e) => updateNavLink(idx, e.target.value)}
-                        placeholder={`Link ${idx + 1}`}
-                        className="h-7 text-xs flex-1"
-                      />
-
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => removeNavLink(idx)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
               <p className="text-[10px] text-muted-foreground mt-2">
-                {navLinks.length} link{navLinks.length !== 1 ? "s" : ""} · Hover a row to reorder or remove
+                {navLinks.length} link{navLinks.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>

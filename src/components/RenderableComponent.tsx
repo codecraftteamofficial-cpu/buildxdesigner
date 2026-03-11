@@ -2137,22 +2137,45 @@ export function RenderableComponent({
 
               </div>
               <div className="flex gap-4">
-                {(props.links || ['Home', 'About', 'Contact']).map((link: string, index: number) => (
-                  <a key={index} href="#" className="hover:text-gray-300">
-                    <EditableText
-                      text={link}
-                      onTextChange={(newText) => {
-                        const newLinks = [...(props.links || ['Home', 'About', 'Contact'])];
-                        newLinks[index] = newText;
-                        onUpdate({ props: { ...props, links: newLinks } });
+                {(props.links || ['Home', 'About', 'Contact']).map((link: string, index: number) => {
+                  const urlArray: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : [];
+                  const url = urlArray[index] || '#';
+                  
+                  return (
+                    <a 
+                      key={index} 
+                      href={url} 
+                      className="hover:text-gray-300"
+                      onClick={(e) => {
+                        if (isPreview) {
+                          e.preventDefault();
+                          if (url !== '#' && url !== '') {
+                            const isInternal = url.startsWith('/') || url.startsWith('./');
+                            if (isInternal && navigate) {
+                              navigate(url);
+                            } else if (!isInternal) {
+                              window.open(url, '_blank');
+                            }
+                          }
+                        } else {
+                          e.preventDefault(); // Always prevent default in designer mode
+                        }
                       }}
-                      element="span"
-                      isSelected={isSelected}
-                      disabled={disabled || isPreview}
-                    />
-
-                  </a>
-                ))}
+                    >
+                      <EditableText
+                        text={link}
+                        onTextChange={(newText) => {
+                          const newLinks = [...(props.links || ['Home', 'About', 'Contact'])];
+                          newLinks[index] = newText;
+                          onUpdate({ props: { ...props, links: newLinks } });
+                        }}
+                        element="span"
+                        isSelected={isSelected}
+                        disabled={disabled || isPreview}
+                      />
+                    </a>
+                  );
+                })}
               </div>
             </nav>
           </ResizeHandle>
