@@ -36,6 +36,10 @@ const parsePixelValue = (value: any): number | null => {
 const sanitizeId = (id: string): string =>
   id.replace(/[^a-zA-Z0-9_-]/g, "-");
 
+// ── Collect all components recursively (flattens nested children) ──
+const collectAllComponents = (components: ComponentData[]): ComponentData[] =>
+  components.flatMap(c => [c, ...collectAllComponents(c.children ?? [])]);
+
 // ── Readable ID detection ──────────────────────────────────────────────────────
 // New IDs look like "navbar-main", "button-primary" (type-suffix, no digits run ≥5)
 // Old IDs look like "code-17729832817420-4459" (has long digit sequences)
@@ -196,15 +200,17 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
       const links: string[] = Array.isArray(props.links) && props.links.length > 0
         ? props.links
         : ["Home", "About", "Contact"];
+      const linkUrls: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : [];
 
-      const toHref = (label: string) => {
-        const slug = label.toLowerCase().replace(/\s+/g, "-");
-        return slug === "home" ? "/" : `/${slug}`;
-      };
-
-      const linkItems = links
-        .map((l: string) => `${indent}    <li><a href="${toHref(l)}">${esc(l)}</a></li>`)
-        .join("\n");
+const linkItems = links
+  .map((l: string, i: number) => {
+    const raw = linkUrls[i];
+    const href = raw && raw.trim() !== "" && raw.trim() !== "#"
+      ? raw.trim()
+      : "#";
+    return `${indent}    <li><a href="${esc(href)}">${esc(l)}</a></li>`;
+  })
+  .join("\n");
 
       return [
         `${indent}<nav${idAttr} class="${cls} full-width-block">`,
@@ -524,11 +530,17 @@ function pickReadableId(type: string, used: Set<string>): string {
  */
 function migrateToReadableIds(components: ComponentData[]): ComponentData[] {
   const used = new Set(components.filter(c => isReadableId(c.id)).map(c => c.id));
-  return components.map(c => {
-    if (isReadableId(c.id)) return c;
-    const newId = pickReadableId(c.type, used);
-    return { ...c, id: newId };
-  });
+  
+  const migrate = (c: ComponentData): ComponentData => {
+    const newId = isReadableId(c.id) ? c.id : pickReadableId(c.type, used);
+    return {
+      ...c,
+      id: newId,
+      children: c.children?.map(migrate),  // ← recurse into children
+    };
+  };
+  
+  return components.map(migrate);
 }
 
 export const generateProjectFiles = (
@@ -568,9 +580,10 @@ export const generateProjectFiles = (
 
     files[`app/views/${fileName}.php`] = generateHTMLWrapper(page.name, fileName, bodyContent);
 
-    const componentCssBlocks = pageComponents
+    const allPageComponents = collectAllComponents(pageComponents);
+    const componentCssBlocks = allPageComponents
       .filter(c => (c.style && Object.keys(c.style).length > 0) || c.type === "navbar")
-      .map(c => buildResponsiveCss(c, c.position));
+      .map(c => buildResponsiveCss(c, (c as any).position as { x: number; y: number } | undefined));
 
     files[`public/assets/css/${fileName}.css`] = [
       `/* Page: ${page.name} — auto-generated responsive styles */`,

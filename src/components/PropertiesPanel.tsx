@@ -2952,15 +2952,20 @@ export function PropertiesPanel({
           updateProps("links", updated)
         }
 
-        const updateNavLinkUrl = (index: number, url: string) => {
-          const updatedUrls = [...navLinkUrls]
-          // Ensure array is long enough if it was missing entries
-          while (updatedUrls.length <= index) {
-            updatedUrls.push("#")
-          }
-          updatedUrls[index] = url
-          updateProps("linkUrls", updatedUrls)
-        }
+const updateNavLinkUrl = (index: number, url: string) => {
+  const updatedUrls = [...navLinkUrls]
+  while (updatedUrls.length <= index) {
+    updatedUrls.push("#")
+  }
+  updatedUrls[index] = url
+  onUpdateComponent(selectedComponent.id, {
+    props: {
+      ...selectedComponent.props,
+      links: navLinks,
+      linkUrls: updatedUrls,
+    },
+  })
+}
 
         const removeNavLink = (index: number) => {
           onUpdateComponent(selectedComponent.id, {
@@ -3032,8 +3037,11 @@ export function PropertiesPanel({
               ) : (
                 <div className="space-y-2">
                   {navLinks.map((link, idx) => {
-                    const currentUrl = navLinkUrls[idx] || "#"
-                    // Check if the current URL matches any page
+const currentUrl = navLinkUrls[idx] || "#"
+
+// Add this derived value right below:
+const isKnownUrl = pages?.some(p => p.path === currentUrl)
+const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" : currentUrl
                     
                     return (
                       <div key={idx} className="flex gap-2 group p-2 border border-border rounded bg-muted/20">
@@ -3085,7 +3093,7 @@ export function PropertiesPanel({
                             <Label className="text-[10px] w-10 shrink-0">Link To</Label>
                             <div className="flex-1 flex flex-col gap-1">
                               <Select
-                                value={currentUrl === "#" ? "none" : currentUrl}
+                                value={selectValue}
                                 onValueChange={(val: string) => {
                                   if (val === "none") {
                                     updateNavLinkUrl(idx, "#")
@@ -3094,11 +3102,16 @@ export function PropertiesPanel({
                                   }
                                 }}
                               >
-                                <SelectTrigger className="h-7 text-xs w-full">
-                                  <SelectValue placeholder="Select target..." />
-                                </SelectTrigger>
+<SelectTrigger className="h-7 text-xs w-full">
+  <SelectValue>
+    {selectValue === "none"
+      ? <span className="text-muted-foreground italic">No link (—)</span>
+      : <span>{pages?.find(p => p.path === currentUrl)?.name ?? currentUrl}</span>
+    }
+  </SelectValue>
+</SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="none">None (#)</SelectItem>
+                                  <SelectItem value="none">No link (—)</SelectItem>
                                   {pages && pages.length > 0 && (
                                     <>
                                       <SelectItem value="separator" disabled>--- Pages ---</SelectItem>
