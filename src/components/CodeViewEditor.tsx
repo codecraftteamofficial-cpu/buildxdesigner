@@ -69,9 +69,15 @@ type FileOverrides = Record<string, string>
 // FILE TEMPLATES
 // ─────────────────────────────────────────────
 const FILE_TEMPLATES: Record<string, (name: string) => string> = {
-  php: (name) => `<?php
+php: (name) => `<?php
 // ${name}
 // Created: ${new Date().toLocaleDateString()}
+require_once __DIR__ . '/../../app/lib/supabase.php';
+
+$db   = new Supabase();
+$user = SupabaseSession::getUser();
+
+// Example: $result = $db->select('my_table', '*', [], 10);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -523,7 +529,8 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
   const id  = generateReadableId(type, existingIds)
   const cls = id
 
-  const map: Record<string, string> = {
+  // Simple types — return immediately
+  const simple: Record<string, string> = {
     heading:   `<h1 class="${cls}">New Heading</h1>`,
     text:      `<p class="${cls}">New text block.</p>`,
     paragraph: `<p class="${cls}">New paragraph text.</p>`,
@@ -533,13 +540,24 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
     textarea:  `<textarea placeholder="Enter message..." class="${cls}"></textarea>`,
     select:    `<select class="${cls}" data-component-type="select"><option value="">Select...</option></select>`,
     checkbox:  `<input type="checkbox" class="${cls}" data-component-type="checkbox" />`,
-    "radio-group": [
-      `<div class="${cls}" data-component-type="radio-group">`,
-      `  <input type="radio" name="${cls}-group" value="option1" /> Option 1`,
-      `  <input type="radio" name="${cls}-group" value="option2" /> Option 2`,
-      `</div>`,
-    ].join("\n"),
-    navbar: (() => {
+    container: `<div class="${cls}"><!-- Container content --></div>`,
+    divider:   `<hr class="${cls}" />`,
+    modal:     `<button class="${cls}" data-component-type="modal">Open Modal</button>`,
+    alert:     `<div class="${cls}" data-component-type="alert">This is an alert message.</div>`,
+  }
+  if (simple[type]) return simple[type]
+
+  // Multi-line types — only built when actually needed
+  switch (type) {
+    case "radio-group":
+      return [
+        `<div class="${cls}" data-component-type="radio-group">`,
+        `  <input type="radio" name="${cls}-group" value="option1" /> Option 1`,
+        `  <input type="radio" name="${cls}-group" value="option2" /> Option 2`,
+        `</div>`,
+      ].join("\n")
+
+    case "navbar": {
       const brand = componentProps?.brand || "Brand"
       const links: string[] = Array.isArray(componentProps?.links) ? componentProps.links : ["Home", "About", "Contact"]
       const linkUrls: string[] = Array.isArray(componentProps?.linkUrls) ? componentProps.linkUrls : links.map(() => "#")
@@ -558,85 +576,105 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
         `  </ul>`,
         `</nav>`,
       ].join("\n")
-    })(),
-    hero: [
-      `<section class="${cls} full-width-block">`,
-      `  <h1>Welcome</h1>`,
-      `  <p>Hero subtitle text.</p>`,
-      `  <a href="#" class="hero-btn">Get Started</a>`,
-      `</section>`,
-    ].join("\n"),
-    footer: [
-      `<footer class="${cls} full-width-block">`,
-      `  <p>© 2024 Your Company</p>`,
-      `</footer>`,
-    ].join("\n"),
-    "section-heading": [
-      `<div class="${cls}">`,
-      `  <h2>Section Title</h2>`,
-      `  <p>Section subtitle text.</p>`,
-      `</div>`,
-    ].join("\n"),
-    card: [
-      `<div class="${cls}">`,
-      `  <h3>Card Title</h3>`,
-      `  <p>Card description text.</p>`,
-      `  <a href="#" class="card-btn">Learn More</a>`,
-      `</div>`,
-    ].join("\n"),
-    container: `<div class="${cls}"><!-- Container content --></div>`,
-    grid: [
-      `<div class="${cls}" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">`,
-      `  <div>Column 1</div>`,
-      `  <div>Column 2</div>`,
-      `  <div>Column 3</div>`,
-      `</div>`,
-    ].join("\n"),
-    form: [
-      `<form class="${cls}">`,
-      `  <input type="text" placeholder="Name" />`,
-      `  <input type="email" placeholder="Email" />`,
-      `  <textarea placeholder="Message"></textarea>`,
-      `  <button type="submit">Submit</button>`,
-      `</form>`,
-    ].join("\n"),
-    divider: `<hr class="${cls}" />`,
-    accordion: [
-      `<div class="${cls}" data-component-type="accordion">`,
-      `  <div class="accordion-item">`,
-      `    <h3>Question 1</h3>`,
-      `    <p>Answer 1</p>`,
-      `  </div>`,
-      `</div>`,
-    ].join("\n"),
-    tabs: [
-      `<div class="${cls}" data-component-type="tabs">`,
-      `  <div class="tab" data-label="Tab 1">Tab 1 content</div>`,
-      `  <div class="tab" data-label="Tab 2">Tab 2 content</div>`,
-      `</div>`,
-    ].join("\n"),
-    modal: `<button class="${cls}" data-component-type="modal">Open Modal</button>`,
-    alert: `<div class="${cls}" data-component-type="alert">This is an alert message.</div>`,
-    table: [
-      `<table class="${cls}" data-component-type="table">`,
-      `  <thead><tr><th>Name</th><th>Value</th></tr></thead>`,
-      `  <tbody><tr><td>Row 1</td><td>Data</td></tr></tbody>`,
-      `</table>`,
-    ].join("\n"),
-    gallery: [
-      `<div class="${cls}" data-component-type="gallery">`,
-      `  <img src="" alt="Image 1" />`,
-      `  <img src="" alt="Image 2" />`,
-      `</div>`,
-    ].join("\n"),
-    carousel: [
-      `<div class="${cls}" data-component-type="carousel">`,
-      `  <div class="slide"><img src="" alt="Slide 1" /></div>`,
-      `  <div class="slide"><img src="" alt="Slide 2" /></div>`,
-      `</div>`,
-    ].join("\n"),
+    }
+
+    case "hero":
+      return [
+        `<section class="${cls} full-width-block">`,
+        `  <h1>Welcome</h1>`,
+        `  <p>Hero subtitle text.</p>`,
+        `  <a href="#" class="hero-btn">Get Started</a>`,
+        `</section>`,
+      ].join("\n")
+
+    case "footer":
+      return [
+        `<footer class="${cls} full-width-block">`,
+        `  <p>© 2024 Your Company</p>`,
+        `</footer>`,
+      ].join("\n")
+
+    case "section-heading":
+      return [
+        `<div class="${cls}">`,
+        `  <h2>Section Title</h2>`,
+        `  <p>Section subtitle text.</p>`,
+        `</div>`,
+      ].join("\n")
+
+    case "card":
+      return [
+        `<div class="${cls}">`,
+        `  <h3>Card Title</h3>`,
+        `  <p>Card description text.</p>`,
+        `  <a href="#" class="card-btn">Learn More</a>`,
+        `</div>`,
+      ].join("\n")
+
+    case "grid":
+      return [
+        `<div class="${cls}" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">`,
+        `  <div>Column 1</div>`,
+        `  <div>Column 2</div>`,
+        `  <div>Column 3</div>`,
+        `</div>`,
+      ].join("\n")
+
+    case "form":
+      return [
+        `<form class="${cls}">`,
+        `  <input type="text" placeholder="Name" />`,
+        `  <input type="email" placeholder="Email" />`,
+        `  <textarea placeholder="Message"></textarea>`,
+        `  <button type="submit">Submit</button>`,
+        `</form>`,
+      ].join("\n")
+
+    case "accordion":
+      return [
+        `<div class="${cls}" data-component-type="accordion">`,
+        `  <div class="accordion-item">`,
+        `    <h3>Question 1</h3>`,
+        `    <p>Answer 1</p>`,
+        `  </div>`,
+        `</div>`,
+      ].join("\n")
+
+    case "tabs":
+      return [
+        `<div class="${cls}" data-component-type="tabs">`,
+        `  <div class="tab" data-label="Tab 1">Tab 1 content</div>`,
+        `  <div class="tab" data-label="Tab 2">Tab 2 content</div>`,
+        `</div>`,
+      ].join("\n")
+
+    case "table":
+      return [
+        `<table class="${cls}" data-component-type="table">`,
+        `  <thead><tr><th>Name</th><th>Value</th></tr></thead>`,
+        `  <tbody><tr><td>Row 1</td><td>Data</td></tr></tbody>`,
+        `</table>`,
+      ].join("\n")
+
+    case "gallery":
+      return [
+        `<div class="${cls}" data-component-type="gallery">`,
+        `  <img src="" alt="Image 1" />`,
+        `  <img src="" alt="Image 2" />`,
+        `</div>`,
+      ].join("\n")
+
+    case "carousel":
+      return [
+        `<div class="${cls}" data-component-type="carousel">`,
+        `  <div class="slide"><img src="" alt="Slide 1" /></div>`,
+        `  <div class="slide"><img src="" alt="Slide 2" /></div>`,
+        `</div>`,
+      ].join("\n")
+
+    default:
+      return `<div class="${cls}" data-component-type="${type}"><!-- ${type} --></div>`
   }
-  return map[type] ?? `<div class="${cls}" data-component-type="${type}"><!-- ${type} --></div>`
 }
 
 // ─────────────────────────────────────────────
