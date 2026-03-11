@@ -169,7 +169,11 @@ function useCollaborationLogic({
       // was too narrow: it blocked remote-only empty states but also silently
       // dropped legitimate remote component updates when the owner had content.
       setState((prev) => {
-        if (uniqueComponents.length === 0 && prev.components.length > 0 && !isLocalChanges) {
+        if (
+          uniqueComponents.length === 0 &&
+          prev.components.length > 0 &&
+          !isLocalChanges
+        ) {
           // Transient Yjs empty state during remote sync — do not wipe local content.
           // clearCanvas() handles intentional clearing separately via its own path.
           return prev;
@@ -260,7 +264,11 @@ function useCollaborationLogic({
 
     awareness.setLocalStateField("user", {
       id: currentUser?.id ?? clientIdRef.current,
-      name: currentUser?.name ?? currentUser?.email ?? "Guest",
+      name:
+        currentUser?.name ||
+        currentUser?.user_metadata?.name ||
+        currentUser?.full_name ||
+        "Guest",
       color: userColorRef.current,
     });
   }, [currentUser]);

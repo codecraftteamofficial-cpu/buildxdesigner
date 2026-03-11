@@ -1547,45 +1547,64 @@ export function Canvas({
                 </div>
               ) : (
                 <>
-                  {filteredComponents.map((component) => {
-                    {
-                      Array.from(remoteCursors.values()).map((cursor) => (
-                        <div
-                          key={cursor.clientId}
-                          className="absolute pointer-events-none z-[9999]"
+                  {Array.from(remoteCursors.values()).map((cursor) => (
+                    <div
+                      key={cursor.clientId}
+                      className="absolute pointer-events-none z-[9999]"
+                      style={{
+                        left: `${cursor.x}px`,
+                        top: `${cursor.y}px`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "relative",
+                          transform: "translate(-1px, -1px)",
+                        }}
+                      >
+                        <svg
+                          width="18"
+                          height="24"
+                          viewBox="0 0 18 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
                           style={{
-                            left: `${cursor.x}px`,
-                            top: `${cursor.y}px`,
-                            transform: "translate(-2px, -2px)",
+                            display: "block",
+                            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
                           }}
                         >
-                          <div
-                            style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: "50%",
-                              background: cursor.user?.color || "#3b82f6",
-                              border: "2px solid white",
-                              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                            }}
+                          <path
+                            d="M2 2L2 18L6.5 14.5L9.5 21L12 20L9 13.5L15.5 13L2 2Z"
+                            fill={cursor.user?.color || "#3b82f6"}
+                            stroke="white"
+                            strokeWidth="1.5"
+                            strokeLinejoin="round"
                           />
-                          <div
-                            style={{
-                              marginTop: 4,
-                              display: "inline-block",
-                              padding: "2px 6px",
-                              borderRadius: 9999,
-                              fontSize: 12,
-                              color: "white",
-                              background: cursor.user?.color || "#3b82f6",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {cursor.user?.name || "Guest"}
-                          </div>
+                        </svg>
+
+                        <div
+                          style={{
+                            marginTop: 2,
+                            marginLeft: 10,
+                            display: "inline-block",
+                            padding: "2px 8px",
+                            borderRadius: 9999,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            lineHeight: 1.4,
+                            color: "white",
+                            background: cursor.user?.color || "#3b82f6",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {cursor.user?.name || "Guest"}
                         </div>
-                      ));
-                    }
+                      </div>
+                    </div>
+                  ))}
+
+                  {filteredComponents.map((component) => {
                     const position = component.position || { x: 100, y: 100 };
                     const isSelected = selectedComponents.has(component.id);
                     const isDragging = draggingComponent === component.id;
