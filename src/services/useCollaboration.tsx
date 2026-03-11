@@ -103,9 +103,6 @@ function useCollaborationLogic({
     };
   }, [getOrInitDoc, setState]);
 
-  // FIX 1: Restore original reset condition — only reset on view change,
-  // NOT on hasUnsavedChanges. The new version's extra dependency caused
-  // re-hydration loops that broke the owner's view of remote collaborators.
   useEffect(() => {
     if (state.currentView !== "editor") {
       hydratedProjectRef.current = null;
@@ -125,7 +122,6 @@ function useCollaborationLogic({
     }
 
     docProjectIdRef.current = activeProjectId;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentView, activeProjectId]);
 
   useEffect(() => {
@@ -162,20 +158,12 @@ function useCollaborationLogic({
       const isLocalChanges = consumeLocalChangeFlag();
 
       if (isHydratingRef.current && uniqueComponents.length === 0) return;
-
-      // FIX 2: Restore the original guard from v1 — avoid wiping components
-      // during transient empty Yjs states on remote sync. The new version's
-      // replacement guard (`if (isLocalChanges && uniqueComponents.length === 0)`)
-      // was too narrow: it blocked remote-only empty states but also silently
-      // dropped legitimate remote component updates when the owner had content.
       setState((prev) => {
         if (
           uniqueComponents.length === 0 &&
           prev.components.length > 0 &&
           !isLocalChanges
         ) {
-          // Transient Yjs empty state during remote sync — do not wipe local content.
-          // clearCanvas() handles intentional clearing separately via its own path.
           return prev;
         }
         return {
@@ -266,6 +254,7 @@ function useCollaborationLogic({
       id: currentUser?.id ?? clientIdRef.current,
       name:
         currentUser?.name ||
+        currentUser?.user_metadata?.full_name ||
         currentUser?.user_metadata?.name ||
         currentUser?.full_name ||
         "Guest",
@@ -273,21 +262,26 @@ function useCollaborationLogic({
     });
   }, [currentUser]);
 
-  const handleCanvasMouseMove = (e: MouseEvent) => {
-    const canvas = document.getElementById("canvas-area");
+  useEffect(() => {
+    if (state.currentView !== "editor") return;
+    if (!activeProjectId) return;
+
+    const { awareness } = getOrInitDoc();
+    const canvas = document.getElementById("canvas-area") as HTMLElement | null;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
 
-    const x = e.clientX - rect.left + canvas.scrollLeft;
-    const y = e.clientY - rect.top + canvas.scrollTop;
+      const x = e.clientX - rect.left + canvas.scrollLeft;
+      const y = e.clientY - rect.top + canvas.scrollTop;
 
-    const { awareness } = getOrInitDoc();
-    awareness.setLocalStateField("cursor", { x, y });
-  };
+      awareness.setLocalStateField("cursor", { x, y });
+    };
 
-  useEffect(() => {
-    const { awareness } = getOrInitDoc();
+    const handleMouseLeave = () => {
+      awareness.setLocalStateField("cursor", null);
+    };
 
     const handleAwarenessChange = () => {
       const newCursors = new Map<string, any>();
@@ -309,13 +303,18 @@ function useCollaborationLogic({
     };
 
     awareness.on("change", handleAwarenessChange);
-    document.addEventListener("mousemove", handleCanvasMouseMove);
+    handleAwarenessChange();
+
+    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("mouseleave", handleMouseLeave);
 
     return () => {
       awareness.off("change", handleAwarenessChange);
-      document.removeEventListener("mousemove", handleCanvasMouseMove);
+      canvas.removeEventListener("mousemove", handleMouseMove);
+      canvas.removeEventListener("mouseleave", handleMouseLeave);
+      awareness.setLocalStateField("cursor", null);
     };
-  }, [getOrInitDoc]);
+  }, [getOrInitDoc, state.currentView, activeProjectId]);
 
   useEffect(() => {
     if (state.currentView !== "editor") return;
