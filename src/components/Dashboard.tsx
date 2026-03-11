@@ -3352,7 +3352,7 @@ export function Dashboard({
                 placeholder="Describe your website (optional)..."
                 value={editProjectDescription}
                 onChange={(e) => setEditProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
 
@@ -3429,7 +3429,7 @@ export function Dashboard({
                 placeholder="Describe what kind of website you want to create..."
                 value={newProjectDescription}
                 onChange={(e) => setNewProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
           </div>

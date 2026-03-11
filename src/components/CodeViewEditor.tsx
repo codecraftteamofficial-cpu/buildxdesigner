@@ -519,7 +519,7 @@ function autoPosition(index: number): { x: number; y: number } { return { x: 60,
 // ─────────────────────────────────────────────
 // PHP SNIPPET GENERATOR
 // ─────────────────────────────────────────────
-function generateComponentSnippet(type: string, existingIds: string[] = []): string {
+function generateComponentSnippet(type: string, existingIds: string[] = [], componentProps?: Record<string, any>): string {
   const id  = generateReadableId(type, existingIds)
   const cls = id
 
@@ -539,19 +539,26 @@ function generateComponentSnippet(type: string, existingIds: string[] = []): str
       `  <input type="radio" name="${cls}-group" value="option2" /> Option 2`,
       `</div>`,
     ].join("\n"),
-    navbar: [
-      `<nav class="${cls} full-width-block">`,
-      `  <div class="nav-brand">Brand</div>`,
-      `  <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">`,
-      `    <span class="burger-bar"></span><span class="burger-bar"></span><span class="burger-bar"></span>`,
-      `  </button>`,
-      `  <ul class="nav-links">`,
-      `    <li><a href="/">Home</a></li>`,
-      `    <li><a href="/about">About</a></li>`,
-      `    <li><a href="/contact">Contact</a></li>`,
-      `  </ul>`,
-      `</nav>`,
-    ].join("\n"),
+    navbar: (() => {
+      const brand = componentProps?.brand || "Brand"
+      const links: string[] = Array.isArray(componentProps?.links) ? componentProps.links : ["Home", "About", "Contact"]
+      const linkUrls: string[] = Array.isArray(componentProps?.linkUrls) ? componentProps.linkUrls : links.map(() => "#")
+      const navItems = links.map((link, i) => {
+        const href = linkUrls[i] || "#"
+        return `    <li><a href="${href}">${link}</a></li>`
+      }).join("\n")
+      return [
+        `<nav class="${cls} full-width-block">`,
+        `  <div class="nav-brand">${brand}</div>`,
+        `  <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">`,
+        `    <span class="burger-bar"></span><span class="burger-bar"></span><span class="burger-bar"></span>`,
+        `  </button>`,
+        `  <ul class="nav-links">`,
+        navItems,
+        `  </ul>`,
+        `</nav>`,
+      ].join("\n")
+    })(),
     hero: [
       `<section class="${cls} full-width-block">`,
       `  <h1>Welcome</h1>`,
@@ -720,8 +727,17 @@ function parsePHPToFullComponentList(
   for (const m of phpCode.matchAll(/<nav[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/nav>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     const brand = (m[2].match(/<div class="nav-brand">([\s\S]*?)<\/div>/i)?.[1]) ?? "Brand"
-    const links = [...m[2].matchAll(/<li><a[^>]*>([\s\S]*?)<\/a><\/li>/gi)].map(l => stripTags(l[1].trim())).filter(Boolean)
-    push(m.index ?? 0, sid, "navbar", { brand: stripTags(brand.trim()), links: links.length ? links : ["Home","About","Contact"] })
+    const anchorMatches = [...m[2].matchAll(/<li><a([^>]*)>([\s\S]*?)<\/a><\/li>/gi)]
+    const links = anchorMatches.map(l => stripTags(l[2].trim())).filter(Boolean)
+    const linkUrls = anchorMatches.map(l => {
+      const hrefMatch = l[1].match(/href="([^"]*)"/)
+      return hrefMatch ? hrefMatch[1] : "#"
+    })
+    push(m.index ?? 0, sid, "navbar", {
+      brand: stripTags(brand.trim()),
+      links: links.length ? links : ["Home", "About", "Contact"],
+      linkUrls: linkUrls.length ? linkUrls : links.map(() => "#"),
+    })
   }
 
   // Hero sections (original phpCode — needs inner content)
@@ -1167,7 +1183,9 @@ const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: Co
 
   const handleInsertSnippet = (type: string) => {
     const existingIds = componentsRef.current.map(c => c.id)
-    const snippet = generateComponentSnippet(type, existingIds)
+    // Pass props of the currently selected component if it matches the type being inserted
+    const matchingComp = componentsRef.current.find(c => c.type === type)
+    const snippet = generateComponentSnippet(type, existingIds, matchingComp?.props)
     const current = isEditing ? draftContent : readOnlyContent
     const insertAt = current.lastIndexOf("</div>")
     const newContent = insertAt !== -1
