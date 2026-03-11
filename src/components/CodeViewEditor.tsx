@@ -711,6 +711,8 @@ function parsePHPToFullComponentList(
     /<nav[^>]*class="[^"]*"[^>]*>[\s\S]*?<\/nav>/gi,
     /<section[^>]*class="[^"]*"[^>]*>[\s\S]*?<\/section>/gi,
     /<footer[^>]*class="[^"]*"[^>]*>[\s\S]*?<\/footer>/gi,
+    /<form[^>]*(?:class|data-component-type)="[^"]*"[^>]*>[\s\S]*?<\/form>/gi,
+    /<div[^>]*data-component-type="(?:container|grid|accordion|tabs|gallery|carousel|alert|modal|radio-group)"[^>]*>[\s\S]*?<\/div>/gi,
   ]
   for (const pattern of blockPatterns) {
     cleanedCode = cleanedCode.replace(pattern, (match) => {
@@ -751,9 +753,10 @@ function parsePHPToFullComponentList(
   }
 
   // Inputs (cleanedCode)
-  for (const m of cleanedCode.matchAll(/<input[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*\/?>/gi)) {
+  for (const m of cleanedCode.matchAll(/<input[^>]*class="([^"]*)"[^>]*(?:placeholder="([^"]*)")?[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    push(m.index ?? 0, sid, "input", { placeholder: m[2], className: extractClassName(m[1]) })
+    if (m[0].includes('data-component-type="checkbox"')) continue
+    push(m.index ?? 0, sid, "input", { placeholder: m[2] ?? "", className: extractClassName(m[1]) })
   }
 
   // Textareas (cleanedCode)
@@ -798,6 +801,7 @@ function parsePHPToFullComponentList(
   // Section headings: <div> with <h2> inside (cleanedCode)
   for (const m of cleanedCode.matchAll(/<div[^>]*class="([^"]*)"[^>]*>\s*<h2>([\s\S]*?)<\/h2>([\s\S]*?)<\/div>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
+    if (m[0].includes('data-component-type')) continue  // ← ADD THIS LINE
     push(m.index ?? 0, sid, "section-heading", {
       title:    stripTags(m[2].trim()),
       subtitle: stripTags((m[3].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()),
@@ -1178,8 +1182,11 @@ const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: Co
     const jsFile  = selectedFile.replace("app/views/", "public/assets/js/").replace(".php", ".js")
     const cssCode = effectiveFiles[cssFile] ?? null
     try {
+      const nonPageComponents = componentsRef.current.filter(c =>
+        c.page_id !== activePHPPageId && c.page_id !== undefined && c.page_id !== null
+      )
       const { components: synced, added, deleted, updated } = syncPHPToCanvas(
-        content, cssCode, componentsRef.current, activePHPPageId
+        content, cssCode, [...nonPageComponents, ...componentsRef.current.filter(c => c.page_id === "all")], activePHPPageId
       )
       const { migrated, changed: idsMigrated } = migrateComponentIds(synced)
 
@@ -1251,7 +1258,7 @@ const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: Co
     const classMatch = snippet.match(/class="([^"\s]+)/)
     const snippetClass = classMatch?.[1]
 
-    if (snippetClass && current.includes(`class="${snippetClass}`)) {
+    if (snippetClass && new RegExp(`class="[^"]*\\b${snippetClass}\\b`).test(current)) {
       toast.error(`A "${snippetClass}" component already exists in this file.`)
       return
     }

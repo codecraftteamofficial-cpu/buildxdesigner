@@ -266,16 +266,20 @@ const linkItems = links
       ].filter(Boolean).join("\n");
 
     case "input":
-      return `${indent}<input${idAttr} type="${esc(props.type) || "text"}" placeholder="${esc(props.placeholder)}" class="${cls}" />`;
+      return `${indent}<input${idAttr} class="${cls}" type="${esc(props.type) || "text"}" placeholder="${esc(props.placeholder)}" />`;
 
     case "textarea":
-      return `${indent}<textarea${idAttr} placeholder="${esc(props.placeholder)}" class="${cls}"></textarea>`;
+      return `${indent}<textarea${idAttr} class="${cls}" placeholder="${esc(props.placeholder)}"></textarea>`;
 
     case "container":
     case "group":
+      return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${childOutput || `${indent}  <!-- ${component.type} -->`}\n${indent}</div>`;
+
     case "grid":
+      return `${indent}<div${idAttr} class="${cls}" data-component-type="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">\n${childOutput || `${indent}  <!-- grid -->`}\n${indent}</div>`;
+
     case "form":
-      return `${indent}<div${idAttr} class="${cls}">\n${childOutput || `${indent}  <!-- ${component.type} -->`}\n${indent}</div>`;
+      return `${indent}<form${idAttr} class="${cls}" data-component-type="form">\n${childOutput || `${indent}  <!-- form -->`}\n${indent}</form>`;
 
     case "video":
       return [
