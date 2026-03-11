@@ -331,7 +331,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-              placeholder="Ask for design help..."
+              placeholder="Ask AI Mentor for help..."
               className={`rounded-xl bg-background border-border focus-visible:ring-violet-500 ${isOverLimit ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               disabled={isLoading}
             />
