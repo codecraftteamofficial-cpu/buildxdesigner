@@ -66,11 +66,12 @@ import { getLocalCanvasComponents } from "../supabase/data/projectService";
 import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
-
 
 interface DashboardProps {
   onCreateFromScratch: () => void;
@@ -110,7 +111,10 @@ const resolveSessionAvatar = (user: any): string | null => {
   const googleIdentity = Array.isArray(user?.identities)
     ? user.identities.find((identity: any) => identity?.provider === "google")
     : null;
-  const identityData = (googleIdentity?.identity_data || {}) as Record<string, unknown>;
+  const identityData = (googleIdentity?.identity_data || {}) as Record<
+    string,
+    unknown
+  >;
 
   return firstNonEmptyString(
     metadata.avatar_url,
@@ -173,81 +177,6 @@ interface SharedProject {
     };
   };
 }
-
-// Mock recommended templates
-const recommendedTemplates: TemplateCardData[] = [
-  {
-    id: "getting-started-guide",
-    name: "Getting Started Guide",
-    category: "Onboarding",
-    thumbnail:
-      "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop", // Changed thumbnail for unique look
-    description:
-      "Learn how to use the editor: drag, drop, style, and save. Includes an example welcome section.",
-    creator: "BuildX Team",
-    creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Builder",
-    views: 99999, // High views to show popularity
-    favorites: 1000,
-    premium: false,
-    tags: ["guide", "onboarding", "tutorial"],
-  },
-  {
-    id: "portfolio-modern",
-    name: "Modern Portfolio",
-    category: "Portfolio",
-    thumbnail:
-      "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=400&h=300&fit=crop",
-    description: "Professional portfolio template",
-    creator: "Sarah Johnson",
-    creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-    views: 15200,
-    favorites: 342,
-    premium: false,
-    tags: ["portfolio", "modern", "professional"],
-  },
-  {
-    id: "ecommerce-pro",
-    name: "E-commerce Pro",
-    category: "E-commerce",
-    thumbnail:
-      "https://images.unsplash.com/photo-1557821552-17105176677c?w=400&h=300&fit=crop",
-    description: "Full-featured online store",
-    creator: "Mike Chen",
-    creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike",
-    views: 23400,
-    favorites: 567,
-    premium: false,
-    tags: ["portfolio", "modern", "professional"],
-  },
-  {
-    id: "blog-minimal",
-    name: "Minimal Blog",
-    category: "Blog",
-    thumbnail:
-      "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=300&fit=crop",
-    description: "Clean and simple blog layout",
-    creator: "Emma Davis",
-    creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
-    views: 18900,
-    favorites: 421,
-    premium: false,
-    tags: ["portfolio", "modern", "professional"],
-  },
-  {
-    id: "landing-startup",
-    name: "Startup Landing",
-    category: "Landing Page",
-    thumbnail:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop",
-    description: "Modern startup landing page",
-    creator: "Alex Martinez",
-    creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex",
-    views: 31500,
-    favorites: 892,
-    premium: false,
-    tags: ["portfolio", "modern", "professional"],
-  },
-];
 
 const projectCategoryOptions = [
   "Starter",
@@ -362,7 +291,7 @@ export function Dashboard({
   const userAvatarUrl = profileData.avatarUrl;
   const userInitial =
     profileData.fullName.substring(0, 2).toUpperCase() || "GU";
-     const resolvedSidebarAvatarUrl =
+  const resolvedSidebarAvatarUrl =
     userAvatarUrl ||
     (userEmail
       ? `https://ui-avatars.com/api/?name=${encodeURIComponent(userEmail)}&background=2563eb&color=ffffff&bold=true`
@@ -376,7 +305,8 @@ export function Dashboard({
   // --- EXISTING DASHBOARD STATES ---
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [activeSection, setActiveSection] = useState<DashboardSection>("new-chat");
+  const [activeSection, setActiveSection] =
+    useState<DashboardSection>("new-chat");
   const [projectsFilter, setProjectsFilter] = useState<
     "all" | "published" | "shared"
   >("all");
@@ -436,8 +366,7 @@ export function Dashboard({
   const [editProjectCategory, setEditProjectCategory] = useState("Starter");
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [isSavingProjectEdits, setIsSavingProjectEdits] = useState(false);
-
-  
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -572,15 +501,23 @@ export function Dashboard({
     let mounted = true;
 
     const fetchPublishedTemplates = async () => {
-      // Only fetch if we have a userId
       if (!currentUserId) {
+        if (mounted) {
+          setPublishedTemplateCards([]);
+          setRecommendationsLoading(false);
+        }
         return;
       }
 
       try {
+        if (mounted) {
+          setRecommendationsLoading(true);
+        }
+
         const cbfApiUrl =
           import.meta.env.VITE_CBF_API_URL ||
           "http://buildx-cbfapi.buildxdesigner.site:5000";
+
         const response = await fetch(
           `${cbfApiUrl}/recommendations?user_id=${currentUserId}`,
         );
@@ -624,24 +561,6 @@ export function Dashboard({
           {},
         );
 
-        const recommendationLikedMap = payload.reduce(
-          (acc: Record<string, boolean>, item: any) => {
-            const projectId = resolveTemplateProjectId(item, "");
-            if (!projectId) return acc;
-
-            const isLikedByCurrentUser =
-              item?.is_liked_by_current_user === true ||
-              item?.isLikedByCurrentUser === true;
-
-            if (isLikedByCurrentUser) {
-              acc[projectId] = true;
-            }
-
-            return acc;
-          },
-          {},
-        );
-
         if (mounted) {
           const normalizedCards = payload.map(normalizeTemplateCard);
           setPublishedTemplateCards(normalizedCards);
@@ -653,16 +572,21 @@ export function Dashboard({
             }));
           }
 
-          // Don't set liked state here - let fetchAndSetProjectLikes handle it
-          // The recommendations API may have stale data
+          setIsApiReachable(true);
         }
-        setIsApiReachable(true);
       } catch (error) {
-        setIsApiReachable(false);
-        console.error(
-          "Failed to load recommended templates for dashboard:",
-          error,
-        );
+        if (mounted) {
+          setIsApiReachable(false);
+          setPublishedTemplateCards([]);
+          console.error(
+            "Failed to load recommended templates for dashboard:",
+            error,
+          );
+        }
+      } finally {
+        if (mounted) {
+          setRecommendationsLoading(false);
+        }
       }
     };
 
@@ -673,10 +597,7 @@ export function Dashboard({
     };
   }, [currentUserId]);
 
-  const visibleRecommendedTemplates =
-    publishedTemplateCards.length > 0
-      ? publishedTemplateCards
-      : recommendedTemplates;
+  const visibleRecommendedTemplates = publishedTemplateCards;
 
   const getTemplateLikeKey = (template: TemplateCardData) =>
     String(template.projectId ?? "").trim();
@@ -1045,7 +966,7 @@ export function Dashboard({
         const user = session.user;
         const metadata = (user.user_metadata || {}) as Record<string, unknown>;
         const sessionAvatarUrl = resolveSessionAvatar(user);
-  if (profileError || !fullProfile) {
+        if (profileError || !fullProfile) {
           setProfileData({
             userId: user.id,
             fullName:
@@ -1055,13 +976,13 @@ export function Dashboard({
                 user.email?.split("@")[0],
               ) || "User",
             email: user.email || "",
-             avatarUrl: sessionAvatarUrl,
+            avatarUrl: sessionAvatarUrl,
           });
           console.error("Failed to load full profile data:", profileError);
         } else {
           setProfileData({
             userId: fullProfile.user_id,
-             fullName:
+            fullName:
               firstNonEmptyString(
                 fullProfile.fullName,
                 metadata.full_name,
@@ -1069,7 +990,10 @@ export function Dashboard({
                 fullProfile.email?.split("@")?.[0],
               ) || "User",
             email: fullProfile.email,
-             avatarUrl: firstNonEmptyString(fullProfile.avatarUrl, sessionAvatarUrl),
+            avatarUrl: firstNonEmptyString(
+              fullProfile.avatarUrl,
+              sessionAvatarUrl,
+            ),
           });
         }
       } else {
@@ -1364,8 +1288,9 @@ export function Dashboard({
       }
     }
 
-    if (templateComponents.length === 0) {
-      templateComponents = getTemplateComponents(templateId);
+    if (templateComponents.length === 0 && templateId !== "blank") {
+      alert("Template layout could not be loaded.");
+      return;
     }
 
     const newProjectData: Partial<Project> & { user_id: string } = {
@@ -1425,9 +1350,22 @@ export function Dashboard({
       return;
     }
 
-    const templateComponents = getTemplateComponents(
-      selectedTemplateId as string,
-    ); // Asserting selectedTemplateId is a string
+    const templateId = selectedTemplateId as string;
+    let templateComponents: ComponentData[] = [];
+
+    if (templateId && templateId !== "blank") {
+      templateComponents = prefetchedTemplateLayouts[templateId] || [];
+
+      if (templateComponents.length === 0) {
+        try {
+          templateComponents = await fetchTemplateLayoutByProjectId(templateId);
+        } catch (error) {
+          console.error("Failed to fetch template layout:", error);
+          alert("Template layout could not be loaded.");
+          return;
+        }
+      }
+    }
     const normalizedCategory = normalizeProjectCategory(newProjectCategory);
 
     const newProjectData: Partial<Project> & { user_id: string } = {
@@ -1441,6 +1379,7 @@ export function Dashboard({
       user_id: user_id,
       type: "design",
       status: "draft",
+      project_layout: templateComponents,
     };
 
     const { data: savedProject, error: saveError } =
@@ -1593,11 +1532,10 @@ export function Dashboard({
         throw deleteError;
       }
 
-      
       setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
 
-        // Force a full refresh to avoid stale dialog overlays blocking clicks.
+      // Force a full refresh to avoid stale dialog overlays blocking clicks.
       window.location.reload();
     } catch (err) {
       console.error("Failed to delete project:", err);
@@ -1749,594 +1687,6 @@ export function Dashboard({
     }
   };
 
-  const getTemplateComponents = (templateId: string): ComponentData[] => {
-    switch (templateId) {
-      case "getting-started-guide":
-        return [
-          {
-            id: "guide-hero-1",
-            type: "hero",
-            props: {
-              heading: "Welcome to BuildX!",
-              subtitle: "Your step-by-step guide to building a website.",
-              buttonText: "Start Designing",
-            },
-            style: {
-              backgroundColor: "#5a67d8",
-              color: "#ffffff",
-              padding: "80px 20px",
-              textAlign: "center",
-            },
-            position: { x: 300, y: 100 },
-          },
-          {
-            id: "guide-instruction-2",
-            type: "text",
-            props: {
-              content:
-                "1. Look left: Find the 'Sidebar' to drag components onto this canvas. Try dragging a Container below this text!",
-            },
-            style: {
-              width: "600px",
-              padding: "20px",
-              border: "1px dashed #5a67d8",
-              backgroundColor: "#ffffff",
-            },
-            position: { x: 300, y: 350 },
-          },
-        ];
-      case "blank":
-        return [];
-      case "portfolio-modern":
-        return [
-          {
-            id: "1763555375439",
-            type: "navbar",
-            props: {
-              brand: "@YourBrandLogo",
-              links: ["Home", "Projects", "Skills", "Contact"],
-              showBrand: false,
-              showHamburger: true,
-            },
-            style: {
-              color: "#000000",
-              width: "1150px",
-              height: "99px",
-              padding: "1rem",
-              position: "sticky",
-              boxShadow: "5px 5px 4px 0px rgba(0,0,0,0.1)",
-              "--nav-hover": "#000000",
-              "--nav-active": "#000000",
-              borderRadius: "010px",
-              "--nav-spacing": "0.5rem",
-              backgroundColor: "#ffffff",
-            },
-            position: { x: 333, y: 133 },
-          },
-          {
-            id: "1763560723769",
-            type: "container",
-            props: { content: "" },
-            style: {
-              width: "1148px",
-              height: "829px",
-              boxShadow: "5px 5px 4px 0px rgba(0,0,0,0.1)",
-              borderRadius: "010px",
-              backgroundColor: "#ffffff",
-            },
-            position: { x: 333, y: 250 },
-          },
-          {
-            id: "1763566412390",
-            type: "text",
-            props: {
-              content:
-                "Hi, I’m 'Name' .\nI’m a BSIT student from 'School Name' who enjoys building websites and learning new tech. I like creating clean and useful projects, especially with HTML, CSS, JavaScript, PHP, and Tailwind. I always try to work smarter, not harder, and I’m excited to grow my skills and build real solutions that help people.",
-            },
-            style: {
-              color: "#000000",
-              width: "803px",
-              height: "181px",
-              textAlign: "left",
-              fontFamily: "monospace",
-              fontWeight: "500",
-              lineHeight: "1.5",
-              borderRadius: "0",
-              letterSpacing: "02px",
-            },
-            position: { x: 645, y: 322 },
-          },
-          {
-            id: "1763566455262",
-            type: "image",
-            props: {
-              alt: "Sample image",
-              src: "",
-              width: "250",
-              height: "250",
-            },
-            style: {
-              width: "auto",
-              boxShadow: "5px 10px 10px 4px rgba(0,0,0,0.1)",
-              borderRadius: "0px",
-            },
-            position: { x: 361, y: 305 },
-          },
-          {
-            id: "1763566614320",
-            type: "heading",
-            props: {
-              level: 6,
-              style: { margin: "px", textAlign: "left" },
-              content: "Projects",
-            },
-            style: {
-              color: "#000000",
-              fontSize: "25px",
-              fontStyle: "normal",
-              fontFamily: "monospace",
-            },
-            position: { x: 380, y: 599 },
-          },
-          {
-            id: "1763570091948",
-            type: "button",
-            props: {
-              text: "Learn More About me",
-              actions: [
-                {
-                  id: "action-1763572063649",
-                  url: "",
-                  type: "onClick",
-                  selector: "container-54735k1yb",
-                  handlerType: "scroll",
-                  handler:
-                    "{ try { const element = document.getElementById('container-54735k1yb'); if (element) { element.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; } return false; } catch (error) { return false; } }",
-                },
-              ],
-              onClick: "Alert('na click mo na');",
-              variant: "default",
-              elementId: "btn",
-            },
-            style: {
-              width: "200px",
-              height: "40px",
-              padding: "0.75rem 1.5rem",
-            },
-            position: { x: 645, y: 527 },
-          },
-          {
-            id: "1763573928438",
-            type: "container",
-            props: {
-              content: "",
-              className: "skill-tab",
-              elementId: "skill-tab",
-            },
-            style: {
-              width: "1148px",
-              height: "829px",
-              boxShadow: "5px 5px 4px 0px rgba(0,0,0,0.1)",
-              borderRadius: "010px",
-              backgroundColor: "#ffffff",
-            },
-            position: { x: 335, y: 1097 },
-          },
-          {
-            id: "1763580637906",
-            type: "heading",
-            props: {
-              level: 6,
-              style: { margin: "px", textAlign: "left" },
-              content: "Skills",
-            },
-            style: {
-              color: "#000000",
-              fontSize: "25px",
-              fontStyle: "normal",
-              fontFamily: "monospace",
-            },
-            position: { x: 407, y: 1134 },
-          },
-          {
-            id: "1763580709186",
-            type: "footer",
-            props: {
-              copyright: "© 2025 Your Company. All rights reserved.",
-            },
-            style: {
-              width: "1144px",
-              height: "100px",
-              borderRadius: "010px",
-            },
-            position: { x: 340, y: 2796 },
-          },
-          {
-            id: "1763596784877",
-            type: "container",
-            props: {
-              children: [],
-              className: "",
-              elementId: "container-qzsyigw5g",
-            },
-            style: {
-              color: "#000000",
-              width: "100px",
-              height: "100px",
-              borderRadius: "200px",
-              backgroundColor: "#ff7070",
-            },
-            position: { x: 401, y: 1234 },
-          },
-          {
-            id: "1763597345547",
-            type: "container",
-            props: {
-              content: "",
-              className: "skill-tab",
-              elementId: "skill-tab-2",
-            },
-            style: {
-              width: "1148px",
-              height: "829px",
-              boxShadow: "5px 5px 4px 0px rgba(0,0,0,0.1)",
-              borderRadius: "010px",
-              backgroundColor: "#ffffff",
-            },
-            position: { x: 342, y: 1945 },
-          },
-          {
-            id: "1763597417839",
-            type: "container",
-            props: {
-              children: [],
-              className: "",
-              elementId: "container-qzs-2",
-            },
-            style: {
-              width: "100px",
-              height: "100px",
-              borderRadius: "200px",
-              backgroundColor: "#4b0aff",
-            },
-            position: { x: 401, y: 1365 },
-          },
-          {
-            id: "1763597421247",
-            type: "container",
-            props: {
-              children: [],
-              className: "",
-              elementId: "container-qzs-3",
-            },
-            style: {
-              width: "100px",
-              height: "100px",
-              borderRadius: "200px",
-              backgroundColor: "#be2af4",
-            },
-            position: { x: 399, y: 1494 },
-          },
-          {
-            id: "1763597426740",
-            type: "container",
-            props: {
-              children: [],
-              className: "",
-              elementId: "container-qzs-4",
-            },
-            style: {
-              width: "100px",
-              height: "100px",
-              borderRadius: "200px",
-              backgroundColor: "#ffe438",
-            },
-            position: { x: 397, y: 1626 },
-          },
-          {
-            id: "1763597431095",
-            type: "container",
-            props: {
-              children: [],
-              className: "",
-              elementId: "container-qzs-5",
-            },
-            style: {
-              width: "100px",
-              height: "100px",
-              borderRadius: "200px",
-              backgroundColor: "#3bff05",
-            },
-            position: { x: 392, y: 1763 },
-          },
-          {
-            id: "1763597872244",
-            type: "text",
-            props: { content: "HTML" },
-            style: {
-              color: "#ffffff",
-              fontSize: "30px",
-              textAlign: "center",
-              fontFamily: "monospace",
-            },
-            position: { x: 414, y: 1261 },
-          },
-          {
-            id: "1763597967651",
-            type: "text",
-            props: { content: "CSS" },
-            style: {
-              color: "#ffffff",
-              fontSize: "30px",
-              textAlign: "center",
-              fontFamily: "monospace",
-            },
-            position: { x: 422, y: 1394 },
-          },
-          {
-            id: "1763598029368",
-            type: "text",
-            props: { content: "PHP" },
-            style: {
-              color: "#ffffff",
-              fontSize: "30px",
-              textAlign: "center",
-              fontFamily: "monospace",
-            },
-            position: { x: 420, y: 1522 },
-          },
-          {
-            id: "1763598063728",
-            type: "text",
-            props: { content: "JS" },
-            style: {
-              color: "#ffffff",
-              fontSize: "30px",
-              textAlign: "center",
-              fontFamily: "monospace",
-            },
-            position: { x: 426, y: 1655 },
-          },
-          {
-            id: "1763598224042",
-            type: "text",
-            props: { content: "NPM" },
-            style: {
-              color: "#ffffff",
-              fontSize: "30px",
-              textAlign: "center",
-              fontFamily: "monospace",
-            },
-            position: { x: 417, y: 1791 },
-          },
-          {
-            id: "1763598322027",
-            type: "container",
-            props: {
-              children: [],
-              className: "p-4 border border-gray-200 rounded-lg bg-white",
-              elementId: "project-box-1",
-            },
-            style: { width: "305px", height: "206px" },
-            position: { x: 401, y: 681 },
-          },
-          {
-            id: "1763598472793",
-            type: "text",
-            props: { content: "Project Title" },
-            style: {},
-            position: { x: 407, y: 898 },
-          },
-          {
-            id: "1763598523175",
-            type: "container",
-            props: {
-              children: [],
-              className: "p-4 border border-gray-200 rounded-lg bg-white",
-              elementId: "project-box-2",
-            },
-            style: { width: "305px", height: "206px" },
-            position: { x: 756, y: 681 },
-          },
-          {
-            id: "1763598523530",
-            type: "container",
-            props: {
-              children: [],
-              className: "p-4 border border-gray-200 rounded-lg bg-white",
-              elementId: "project-box-3",
-            },
-            style: { width: "305px", height: "206px" },
-            position: { x: 1103, y: 681 },
-          },
-          {
-            id: "1763598569349",
-            type: "text",
-            props: { content: "Project Title" },
-            style: {},
-            position: { x: 761, y: 899 },
-          },
-          {
-            id: "1763598572766",
-            type: "text",
-            props: { content: "Project Title" },
-            style: {},
-            position: { x: 1109, y: 897 },
-          },
-          {
-            id: "1763598579905",
-            type: "text",
-            props: { content: "Project Description" },
-            style: { fontSize: "12px" },
-            position: { x: 406, y: 948 },
-          },
-          {
-            id: "1763598606111",
-            type: "text",
-            props: { content: "Project Description" },
-            style: { fontSize: "12px" },
-            position: { x: 759, y: 950 },
-          },
-          {
-            id: "1763598609803",
-            type: "text",
-            props: { content: "Project Description" },
-            style: { fontSize: "12px" },
-            position: { x: 1106, y: 949 },
-          },
-          {
-            id: "1763598642646",
-            type: "heading",
-            props: {
-              level: 6,
-              style: { margin: "px", textAlign: "left" },
-              content: "Contact",
-            },
-            style: {
-              color: "#000000",
-              fontSize: "25px",
-              fontStyle: "normal",
-              fontFamily: "monospace",
-            },
-            position: { x: 394, y: 1982 },
-          },
-          {
-            id: "1763598665827",
-            type: "form",
-            props: { title: "", namePlaceholder: "" },
-            style: { width: "920px", height: "439px" },
-            position: { x: 401, y: 2055 },
-          },
-          {
-            id: "1763598830398",
-            type: "heading",
-            props: {
-              level: 6,
-              style: { margin: "px", textAlign: "left" },
-              content: "Connect With Us: ",
-            },
-            style: {
-              color: "#000000",
-              fontSize: "25px",
-              fontStyle: "normal",
-              fontFamily: "monospace",
-            },
-            position: { x: 405, y: 2552 },
-          },
-          {
-            id: "1763598941963",
-            type: "image",
-            props: { alt: "Sample image", src: "", width: "50", height: "50" },
-            style: {},
-            position: { x: 718, y: 2552 },
-          },
-          {
-            id: "1763599003671",
-            type: "image",
-            props: { alt: "Sample image", src: "", width: "50", height: "50" },
-            style: {},
-            position: { x: 786, y: 2552 },
-          },
-          {
-            id: "1763599007462",
-            type: "image",
-            props: { alt: "Sample image", src: "", width: "50", height: "50" },
-            style: {},
-            position: { x: 856, y: 2552 },
-          },
-          {
-            id: "1763599012544",
-            type: "image",
-            props: { alt: "Sample image", src: "", width: "50", height: "50" },
-            style: {},
-            position: { x: 922, y: 2551 },
-          },
-          {
-            id: "1763599023987",
-            type: "heading",
-            props: {
-              level: 6,
-              style: { margin: "px", textAlign: "left" },
-              content: "Social Media",
-            },
-            style: {
-              color: "#000000",
-              fontSize: "10px",
-              fontStyle: "normal",
-              fontFamily: "monospace",
-            },
-            position: { x: 724, y: 2503 },
-          },
-        ];
-
-      case "ecommerce-pro":
-        return [
-          {
-            id: "1",
-            type: "navbar",
-            props: {
-              brand: "Store",
-              links: ["Products", "Categories", "Cart"],
-            },
-            style: {},
-          },
-          {
-            id: "2",
-            type: "hero",
-            props: {
-              title: "Shop Premium Products",
-              subtitle: "Discover quality items",
-            },
-            style: {},
-          },
-        ];
-      case "blog-minimal":
-        return [
-          {
-            id: "1",
-            type: "navbar",
-            props: { brand: "Blog", links: ["Home", "Articles", "About"] },
-            style: {},
-          },
-          {
-            id: "2",
-            type: "heading",
-            props: { content: "Latest Stories", level: 1 },
-            style: { textAlign: "center", margin: "2rem 0" },
-          },
-        ];
-      case "landing-startup":
-        return [
-          {
-            id: "1",
-            type: "navbar",
-            props: {
-              brand: "Startup",
-              links: ["Features", "Pricing", "Contact"],
-            },
-            style: {},
-          },
-          {
-            id: "2",
-            type: "hero",
-            props: {
-              title: "Transform Your Business",
-              subtitle: "Powerful solutions that drive results",
-            },
-            style: {},
-          },
-          {
-            id: "3",
-            type: "grid",
-            props: { columns: 3 },
-            style: { margin: "4rem 0" },
-          },
-        ];
-      default:
-        return [];
-    }
-  };
-
   const generateUIWithGemini = async (prompt: string) => {
     try {
       setIsGenerating(true);
@@ -2376,6 +1726,7 @@ export function Dashboard({
         user_id: user_id,
         type: "design",
         status: "draft",
+        project_layout: components,
       };
 
       const { data: savedProject, error: saveError } =
@@ -2540,6 +1891,14 @@ export function Dashboard({
     return `Updated on ${new Date(lastModified).toLocaleDateString()}`;
   };
   const filteredProjects = getFilteredProjects();
+
+  const filteredRecommendedTemplates = visibleRecommendedTemplates.filter(
+    (template) =>
+      template.id !== "getting-started-guide" &&
+      (selectedTemplateCategory === "All" ||
+        template.category === selectedTemplateCategory),
+  );
+
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredPublishedTemplates = normalizedSearchQuery
     ? publishedTemplates.filter((template) =>
@@ -2618,6 +1977,37 @@ export function Dashboard({
 
   const ThemeIcon = themeIcons[theme];
 
+  const renderRecommendedTemplateSkeletons = () =>
+    Array.from({ length: 4 }).map((_, index) => (
+      <div
+        key={`template-skeleton-${index}`}
+        className="rounded-xl overflow-hidden border border-border bg-card"
+      >
+        <div className="aspect-video">
+          <Skeleton width="100%" height="100%" />
+        </div>
+
+        <div className="p-4 space-y-3">
+          <Skeleton width="70%" height="20px" />
+          <Skeleton width="35%" height="18px" />
+          <Skeleton width="100%" height="14px" />
+          <Skeleton width="85%" height="14px" />
+
+          <div className="pt-3 border-t border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton width="24px" height="24px" borderRadius="9999px" />
+              <Skeleton width="80px" height="12px" />
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Skeleton width="16px" height="16px" />
+              <Skeleton width="20px" height="12px" />
+            </div>
+          </div>
+        </div>
+      </div>
+    ));
+
   return (
     // Use flex h-screen and allow page scrolling so gallery and bottom content are reachable
     <div className="dashboard-gradient-surface flex h-screen overflow-auto">
@@ -2651,10 +2041,7 @@ export function Dashboard({
               >
                 <Avatar className="h-8 w-8 ring-2 ring-blue-500/50 shrink-0">
                   {/* Use actual avatar URL from Supabase Storage */}
-                  <AvatarImage
-                   src={resolvedSidebarAvatarUrl}
-                    alt={userName}
-                  />
+                  <AvatarImage src={resolvedSidebarAvatarUrl} alt={userName} />
                   <AvatarFallback className="bg-linear-to-br from-blue-600 to-violet-600 text-white text-sm">
                     {userInitial}
                   </AvatarFallback>
@@ -2823,12 +2210,9 @@ export function Dashboard({
           <div className="p-3 md:p-6">
             {activeSection === "new-chat" ? (
               <>
-              
                 <div className="flex flex-col min-h-[calc(100vh-200px)]">
-                 
-
                   {/* Templates Section */}
-                   <div className="flex-1 px-4 pb-8 pt-0">
+                  <div className="flex-1 px-4 pb-8 pt-0">
                     {/* Updated max-width for better content spacing */}
                     <div className="w-full max-w-6xl mx-auto">
                       <div className="mb-6">
@@ -2856,8 +2240,9 @@ export function Dashboard({
 
                         {!isApiReachable && (
                           <div className="mb-4 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                            Backend is offline. Showing fallback templates and
-                            pausing live likes until connection is restored.
+                            Backend is offline. Recommended templates could not
+                            be loaded, and live likes are paused until
+                            connection is restored.
                           </div>
                         )}
 
@@ -2885,15 +2270,10 @@ export function Dashboard({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
-                          {visibleRecommendedTemplates
-                            .filter(
-                              (template) =>
-                                template.id !== "getting-started-guide" &&
-                                (selectedTemplateCategory === "All" ||
-                                  template.category ===
-                                    selectedTemplateCategory),
-                            )
-                            .map((template) => (
+                          {recommendationsLoading ? (
+                            renderRecommendedTemplateSkeletons()
+                          ) : filteredRecommendedTemplates.length > 0 ? (
+                            filteredRecommendedTemplates.map((template) => (
                               <div
                                 key={template.id}
                                 className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
@@ -2925,9 +2305,7 @@ export function Dashboard({
                                     {template.description}
                                   </p>
 
-                                  {/* Creator and stats row */}
                                   <div className="flex items-center justify-between pt-3 border-t border-border">
-                                    {/* Creator info */}
                                     <div className="flex items-center gap-2">
                                       <img
                                         src={
@@ -2942,7 +2320,6 @@ export function Dashboard({
                                       </span>
                                     </div>
 
-                                    {/* Favorites */}
                                     <div className="flex items-center gap-3">
                                       <button
                                         type="button"
@@ -2967,7 +2344,12 @@ export function Dashboard({
                                   </div>
                                 </div>
                               </div>
-                            ))}
+                            ))
+                          ) : (
+                            <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                              No recommended templates available.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
