@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { Canvas } from "./Canvas";
-import { RemoteCursors } from "./RemoteCursors";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { MobilePropertiesModal } from "./MobilePropertiesModal";
 import { PreviewModal } from "./PreviewModal";
@@ -284,10 +283,6 @@ export function EditorLayout({ editor, onStartTour }: EditorLayoutProps) {
                         remoteCursors={remoteCursors}
                         onCursorMove={setLocalCursor}
                         onCursorLeave={clearLocalCursor}
-                      />
-                      <RemoteCursors
-                        cursors={Array.from(remoteCursors.values())}
-                        zoom={state.canvasZoom}
                       />
                     </div>
                   )}
