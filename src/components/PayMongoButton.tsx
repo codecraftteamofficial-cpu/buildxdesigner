@@ -16,26 +16,30 @@ interface PayMongoButtonProps {
     isPreview?: boolean;
     paymentMethodTypes?: string[];
     projectId?: string;
+    variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+    size?: "default" | "sm" | "lg" | "icon";
 }
 
 export function PayMongoButton({
     amount,
     description,
-    label = "Buy Now",
+    label,
     currency = "PHP",
     className,
     style,
     disabled,
     isPreview,
     paymentMethodTypes,
-    projectId
+    projectId,
+    variant = "default",
+    size = "default"
 }: PayMongoButtonProps) {
     const [loading, setLoading] = useState(false);
 
     const handleCheckout = async (e: React.MouseEvent) => {
         e.stopPropagation();
 
-        if (disabled) return;
+        if (disabled && !isPreview) return;
 
         setLoading(true);
         try {
@@ -100,6 +104,8 @@ export function PayMongoButton({
             style={style}
             onClick={handleCheckout}
             disabled={disabled && !isPreview}
+            variant={variant}
+            size={size}
         >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
             <span>{label}</span>
