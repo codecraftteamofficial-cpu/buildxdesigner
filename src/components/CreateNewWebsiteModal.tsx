@@ -1013,6 +1013,7 @@ export function CreateNewWebsiteModal({
                 <div className="space-y-3 border-t pt-4">
                   <div className="space-y-2">
                     <Textarea
+                      data-tour="template-comment-textarea"
                       placeholder="Write a comment..."
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}

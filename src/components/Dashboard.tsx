@@ -65,6 +65,9 @@ import type { Project } from "../supabase/types/project";
 import { getLocalCanvasComponents } from "../supabase/data/projectService";
 import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
+import { GettingStartedModal } from "./GettingStartedModal";
+import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
+import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { getApiBaseUrl } from "../utils/apiConfig";
 
 interface DashboardProps {
@@ -353,6 +356,10 @@ export function Dashboard({
   ); // Updated to string | null
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
+  const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
+  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
+    useState(false);
+  const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -434,6 +441,26 @@ export function Dashboard({
           }
         }
       })();
+    }
+  }, []);
+
+  useEffect(() => {
+    const shouldShow =
+      localStorage.getItem("buildx-show-getting-started") === "1";
+    if (!shouldShow) return;
+
+    localStorage.removeItem("buildx-show-getting-started");
+    setShowGettingStartedModal(true);
+  }, []);
+
+  useEffect(() => {
+    const introDone = localStorage.getItem("buildx-tutorial-intro") === "1";
+    const hasShownOnce =
+      localStorage.getItem("buildx-tutorial-getting-started-shown") === "1";
+
+    if (!introDone && !hasShownOnce) {
+      setShowGettingStartedModal(true);
+      localStorage.setItem("buildx-tutorial-getting-started-shown", "1");
     }
   }, []);
 
@@ -564,10 +591,24 @@ export function Dashboard({
     };
   }, []);
 
-  const visibleRecommendedTemplates =
-    publishedTemplateCards.length > 0
-      ? publishedTemplateCards
-      : recommendedTemplates;
+  const visibleRecommendedTemplates = (() => {
+    const guideTemplate = recommendedTemplates.find(
+      (t) => t.id === "getting-started-guide",
+    );
+
+    const base =
+      publishedTemplateCards.length > 0
+        ? publishedTemplateCards
+        : recommendedTemplates;
+
+    // Remove potential duplicate of the guide from base
+    const withoutGuide = guideTemplate
+      ? base.filter((t) => t.id !== guideTemplate.id)
+      : base;
+
+    // Place guide at front if available
+    return guideTemplate ? [guideTemplate, ...withoutGuide] : base;
+  })();
 
   const getTemplateLikeKey = (template: TemplateCardData) =>
     String(template.projectId ?? "").trim();
@@ -1210,6 +1251,15 @@ export function Dashboard({
   };
 
   const handleQuickTemplateClick = (template: TemplateCardData) => {
+    // special case: open tutorial modal instead of creating from template
+    if (
+      template.id === "getting-started-guide" ||
+      template.id === "getting-started"
+    ) {
+      setShowGettingStartedModal(true);
+      return;
+    }
+
     setSelectedTemplateId(template.id);
     setShowTemplateBrowser(false);
     setShowCreateTemplateModal(true);
@@ -2692,7 +2742,7 @@ export function Dashboard({
                   </div>
 
                   {/* Templates Section */}
-                  <div className="flex-1 px-4 pb-8">
+                  <div className="flex-1 px-4 pb-8" data-tour="recommended-templates">
                     {/* Updated max-width for better content spacing */}
                     <div className="w-full max-w-6xl mx-auto">
                       <div className="mb-6">
@@ -2752,14 +2802,13 @@ export function Dashboard({
                           {visibleRecommendedTemplates
                             .filter(
                               (template) =>
-                                template.id !== "getting-started-guide" &&
-                                (selectedTemplateCategory === "All" ||
-                                  template.category ===
-                                    selectedTemplateCategory),
+                                selectedTemplateCategory === "All" ||
+                                template.category === selectedTemplateCategory,
                             )
                             .map((template) => (
                               <div
                                 key={template.id}
+                                data-tour="recommended-template-card"
                                 className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
                                 onClick={() =>
                                   handleQuickTemplateClick(template)
@@ -2818,6 +2867,7 @@ export function Dashboard({
                                             getTemplateLikeKey(template)
                                           ]
                                         }
+                                        data-tour="template-like-button"
                                         className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template) ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}
                                       >
                                         <Heart
@@ -3965,6 +4015,42 @@ export function Dashboard({
         onTrackSearch={(query) => console.log("Search:", query)}
         recommendedTemplates={visibleRecommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
+      />
+
+      <GettingStartedModal
+        isOpen={showGettingStartedModal}
+        onClose={() => setShowGettingStartedModal(false)}
+        onStartBuildXIntroduction={() => {
+          // Ensure the DOM contains the elements the tour targets.
+          setShowBuildXIntroductionTour(false);
+          setActiveSection("new-chat");
+          setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+        }}
+        onStartWebsiteCreation={() => {
+          localStorage.setItem("buildx-pending-editor-tour", "1");
+          setSelectedTemplateId("blank");
+          setShowCreateTemplateModal(true);
+        }}
+      />
+
+      <BuildXIntroduction
+        showOnMount={showBuildXIntroductionTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-intro", "1");
+          setShowBuildXIntroductionTour(false);
+          setShowCreateTemplateModal(false);
+          setSelectedTemplateId(null);
+          setShowGettingStartedModal(true);
+        }}
+      />
+
+      <WebsiteCreation
+        showOnMount={showWebsiteCreationTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-website-creation", "1");
+          setShowWebsiteCreationTour(false);
+          setShowGettingStartedModal(true);
+        }}
       />
     </div>
   );

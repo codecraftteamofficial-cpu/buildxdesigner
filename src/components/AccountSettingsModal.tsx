@@ -658,8 +658,8 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
                                     </div>
                                 </TabsContent>
 
-                                {/* Integration Tab (NEW) */}
-                                <TabsContent value="integration" className="mt-0">
+                                {/* Integration Tab */}
+                                <TabsContent value="integration" className="mt-0" data-tour="integration-settings">
                                     <div className="space-y-6">
                                         <div>
                                             <h3 className="text-foreground mb-1">Integrations</h3>
@@ -670,13 +670,15 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
 
                                         <div className="space-y-4">
                                             {/* PayMongo Integration */}
-                                            <PayMongoSettings
-                                                apiKey={profileData.paymongo_key || ''}
-                                                onChange={(value) => handleInputChange('paymongo_key', value)}
-                                            />
+                                            <div data-tour="paymongo-integration">
+                                                <PayMongoSettings
+                                                    apiKey={profileData.paymongo_key || ''}
+                                                    onChange={(value) => handleInputChange('paymongo_key', value)}
+                                                />
+                                            </div>
 
                                             {/* Supabase Integration Card */}
-                                            <Card className="border-border">
+                                            <Card className="border-border" data-tour="supabase-connection">
                                                 <CardContent className="pt-6">
                                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                                         <div className="flex items-center gap-4">
@@ -770,13 +772,16 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
 
                     {/* Footer Actions */}
                     <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
-                        <Button variant="outline" onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            document.body.style.pointerEvents = '';
-                            document.body.removeAttribute('data-scroll-locked');
-                            onClose();
-                        }}>
+                        <Button
+                            variant="outline"
+                            data-tour="account-settings-close"
+                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                document.body.style.pointerEvents = '';
+                                document.body.removeAttribute('data-scroll-locked');
+                                onClose();
+                            }}>
                             Close
                         </Button>
                         <Button

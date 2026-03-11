@@ -487,6 +487,7 @@ export function CodeViewEditor({
               <>
                 {isSyncableFile && onCodeChange && (
                   <Button
+                    data-tour="edit-code"
                     size="sm"
                     variant="outline"
                     className="h-7 px-3 gap-1.5 text-xs border-[#3a3a3a] bg-[#2a2a2a] hover:bg-[#333] text-muted-foreground hover:text-white"

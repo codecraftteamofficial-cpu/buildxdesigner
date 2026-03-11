@@ -17,7 +17,7 @@ export const startGettingStartedTour = (
         },
       },
       {
-        element: "#sidebar-palette",
+        element: '[data-tour="sidebar-palette"]',
         popover: {
           title: "Components Palette",
           description: "This is your toolbox! Drag any component from here onto the canvas to start building your website.",
@@ -26,7 +26,7 @@ export const startGettingStartedTour = (
         },
       },
       {
-        element: "#canvas-area",
+        element: '[data-tour="canvas-area"]',
         popover: {
           title: "Canvas Area",
           description: "This is your workspace. Drop components here, resize them, and arrange them to create your layout.",
@@ -40,7 +40,7 @@ export const startGettingStartedTour = (
         },
       },
       {
-        element: "#properties-panel",
+        element: '[data-tour="properties-panel"]',
         popover: {
           title: "Properties Panel",
           description: "Click on any component on the canvas to edit its properties here - change colors, text, spacing, and more!",
@@ -106,7 +106,7 @@ export const startGettingStartedTour = (
         },
       },
       {
-        element: "#save-button",
+        element: '[data-tour="save-button"]',
         popover: {
           title: "Save Your Work",
           description: "Don't forget to save! Your project will be stored and you can come back to it anytime.",

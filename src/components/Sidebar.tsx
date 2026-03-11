@@ -116,7 +116,11 @@ export function Sidebar({
   ]
 
   return (
-    <div id="sidebar-palette" className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact">
+    <div
+      id="sidebar-palette"
+      data-tour="sidebar-palette"
+      className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact"
+    >
       <Tabs defaultValue="blocks" className="flex flex-col h-full overflow-hidden">
         <div className="border-b p-3 shrink-0">
           <TabsList className="grid w-full grid-cols-3 h-8">
