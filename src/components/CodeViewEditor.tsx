@@ -69,9 +69,15 @@ type FileOverrides = Record<string, string>
 // FILE TEMPLATES
 // ─────────────────────────────────────────────
 const FILE_TEMPLATES: Record<string, (name: string) => string> = {
-  php: (name) => `<?php
+php: (name) => `<?php
 // ${name}
 // Created: ${new Date().toLocaleDateString()}
+require_once __DIR__ . '/../../app/lib/supabase.php';
+
+$db   = new Supabase();
+$user = SupabaseSession::getUser();
+
+// Example: $result = $db->select('my_table', '*', [], 10);
 ?>
 <!DOCTYPE html>
 <html lang="en">
