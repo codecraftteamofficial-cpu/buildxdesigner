@@ -1037,13 +1037,16 @@ export function CodeViewEditor({
     if (!isEditing || !selectedFile.startsWith("app/views/") || !selectedFile.endsWith(".php")) {
       setPendingDiff(null); return
     }
-    try {
-      const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
-      const { added, deleted, updated } = syncPHPToCanvas(
-        draftContent, effectiveFiles[cssFile] ?? null, componentsRef.current, activePHPPageId
-      )
-      setPendingDiff({ added, deleted, updated })
-    } catch { setPendingDiff(null) }
+    const timer = setTimeout(() => {
+      try {
+        const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
+        const { added, deleted, updated } = syncPHPToCanvas(
+          draftContent, effectiveFiles[cssFile] ?? null, componentsRef.current, activePHPPageId
+        )
+        setPendingDiff({ added, deleted, updated })
+      } catch { setPendingDiff(null) }
+    }, 300)
+    return () => clearTimeout(timer)
   }, [draftContent, isEditing, selectedFile, activePHPPageId, effectiveFiles])
 
   const readOnlyContent = effectiveFiles[selectedFile] ?? ""
