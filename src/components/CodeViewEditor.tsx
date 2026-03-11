@@ -334,6 +334,11 @@ const ADD_COMPONENT_TYPES = [
   { type: "table",           label: "Table",           icon: "⊞"  },
   { type: "gallery",         label: "Gallery",         icon: "⊟"  },
   { type: "carousel",        label: "Carousel",        icon: "↻"  },
+  { type: "video",           label: "Video",           icon: "▶"  },
+  { type: "group",           label: "Group",           icon: "⬚"  },
+  { type: "sign-in",         label: "Sign In",         icon: "🔑" },
+  { type: "sign-up",         label: "Sign Up",         icon: "📝" },
+  { type: "paymongo-button", label: "PayMongo",        icon: "💳" },
 ]
 
 // ─────────────────────────────────────────────
@@ -419,25 +424,21 @@ const SEMANTIC_SUFFIXES: Record<string, string[]> = {
   video:           ["main", "hero", "promo", "embed"],
 }
 
-const _usedIds = new Set<string>()
-
 function generateReadableId(type: string, existingIds: string[] = []): string {
-  const all = new Set([...existingIds, ..._usedIds])
+  const all = new Set(existingIds)
   const suffixes = SEMANTIC_SUFFIXES[type] ?? ["main", "content", "block", "section"]
 
   for (const suffix of suffixes) {
     const candidate = `${type}-${suffix}`
-    if (!all.has(candidate)) { _usedIds.add(candidate); return candidate }
+    if (!all.has(candidate)) return candidate
   }
   for (const suffix of suffixes) {
     for (let n = 2; n <= 9; n++) {
       const candidate = `${type}-${suffix}-${n}`
-      if (!all.has(candidate)) { _usedIds.add(candidate); return candidate }
+      if (!all.has(candidate)) return candidate
     }
   }
-  const fallback = `${type}-${Date.now().toString(36).slice(-4)}`
-  _usedIds.add(fallback)
-  return fallback
+  return `${type}-${Date.now().toString(36).slice(-4)}`
 }
 
 function extractShortId(cls: string): string | null {
@@ -536,12 +537,12 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
     paragraph: `<p class="${cls}">New paragraph text.</p>`,
     button:    `<button class="${cls}">Click Me</button>`,
     image:     `<img src="" alt="image" class="${cls}" />`,
-    input:     `<input type="text" placeholder="Enter text..." class="${cls}" />`,
-    textarea:  `<textarea placeholder="Enter message..." class="${cls}"></textarea>`,
+    input:    `<input class="${cls}" type="text" placeholder="Enter text..." />`,
+    textarea: `<textarea class="${cls}" placeholder="Enter message..."></textarea>`,
     select:    `<select class="${cls}" data-component-type="select"><option value="">Select...</option></select>`,
     checkbox:  `<input type="checkbox" class="${cls}" data-component-type="checkbox" />`,
-    container: `<div class="${cls}"><!-- Container content --></div>`,
-    divider:   `<hr class="${cls}" />`,
+    container: `<div class="${cls}" data-component-type="container"><!-- Container content --></div>`,
+    divider:   `<hr class="${cls}" data-component-type="divider" />`,
     modal:     `<button class="${cls}" data-component-type="modal">Open Modal</button>`,
     alert:     `<div class="${cls}" data-component-type="alert">This is an alert message.</div>`,
   }
@@ -613,7 +614,7 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
 
     case "grid":
       return [
-        `<div class="${cls}" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">`,
+        `<div class="${cls}" data-component-type="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">`,
         `  <div>Column 1</div>`,
         `  <div>Column 2</div>`,
         `  <div>Column 3</div>`,
@@ -622,7 +623,7 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
 
     case "form":
       return [
-        `<form class="${cls}">`,
+        `<form class="${cls}" data-component-type="form">`,
         `  <input type="text" placeholder="Name" />`,
         `  <input type="email" placeholder="Email" />`,
         `  <textarea placeholder="Message"></textarea>`,
@@ -1036,13 +1037,16 @@ export function CodeViewEditor({
     if (!isEditing || !selectedFile.startsWith("app/views/") || !selectedFile.endsWith(".php")) {
       setPendingDiff(null); return
     }
-    try {
-      const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
-      const { added, deleted, updated } = syncPHPToCanvas(
-        draftContent, effectiveFiles[cssFile] ?? null, componentsRef.current, activePHPPageId
-      )
-      setPendingDiff({ added, deleted, updated })
-    } catch { setPendingDiff(null) }
+    const timer = setTimeout(() => {
+      try {
+        const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
+        const { added, deleted, updated } = syncPHPToCanvas(
+          draftContent, effectiveFiles[cssFile] ?? null, componentsRef.current, activePHPPageId
+        )
+        setPendingDiff({ added, deleted, updated })
+      } catch { setPendingDiff(null) }
+    }, 300)
+    return () => clearTimeout(timer)
   }, [draftContent, isEditing, selectedFile, activePHPPageId, effectiveFiles])
 
   const readOnlyContent = effectiveFiles[selectedFile] ?? ""
@@ -1220,15 +1224,35 @@ const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: Co
   }, [selectedFile, isViewPHP, effectiveFiles, missingJS])
 
   const handleInsertSnippet = (type: string) => {
-    const existingIds = componentsRef.current.map(c => c.id)
-    // Pass props of the currently selected component if it matches the type being inserted
+    const current = isEditing ? draftContent : readOnlyContent
+
+    // Collect IDs from both canvas AND current file content
+    const existingIds = [
+      ...componentsRef.current.map(c => c.id),
+      ...[...current.matchAll(/class="([^"\s]+)/g)].map(m => m[1]),
+    ]
+
     const matchingComp = componentsRef.current.find(c => c.type === type)
     const snippet = generateComponentSnippet(type, existingIds, matchingComp?.props)
-    const current = isEditing ? draftContent : readOnlyContent
-    const insertAt = current.lastIndexOf("</div>")
+
+    // Extract the class name from the generated snippet to check for duplicates
+    const classMatch = snippet.match(/class="([^"\s]+)/)
+    const snippetClass = classMatch?.[1]
+
+    // Guard: if a class with this ID already exists in the file, don't insert
+    if (snippetClass && current.includes(`class="${snippetClass}`)) {
+      toast.error(`A "${snippetClass}" component already exists in this file.`)
+      return
+    }
+
+    // Insert before </main> if present, otherwise before the last </div>, otherwise append
+    let insertAt = current.lastIndexOf("</main>")
+    if (insertAt === -1) insertAt = current.lastIndexOf("</div>")
+
     const newContent = insertAt !== -1
       ? current.slice(0, insertAt) + `  ${snippet}\n` + current.slice(insertAt)
       : current + "\n" + snippet
+
     setDraftContent(newContent)
     if (!isEditing) { setIsEditing(true); setTimeout(() => textareaRef.current?.focus(), 0) }
     setShowAddPanel(false)
