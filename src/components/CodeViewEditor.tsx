@@ -939,9 +939,8 @@ const isThisPage = (c: ComponentData) =>
     .filter((c): c is ComponentData => c !== null)
 
   // Append genuinely new components (present in PHP but not on canvas yet)
-const allExistingIds = new Set(allComponents.map(c => sanitizeId(c.id)))
-
-const newlyAdded = parsedList.filter(c => !allExistingIds.has(sanitizeId(c.id)))
+  const mergedIds = new Set(mergedInOrder.map(c => sanitizeId(c.id)))
+const newlyAdded = parsedList.filter(c => !mergedIds.has(sanitizeId(c.id)))
 
   const globalsSet = new Set(globals.map(c => c.id))
   return {
@@ -1177,9 +1176,9 @@ const handleManualSync = useCallback(() => {
   const jsFile  = selectedFile.replace("app/views/", "public/assets/js/").replace(".php", ".js")
   const cssCode = effectiveFiles[cssFile] ?? null
   try {
-    const { components: synced, added, deleted, updated } = syncPHPToCanvas(
-      draftContent, cssCode, componentsRef.current, activePHPPageId
-    )
+const { components: synced, added, deleted, updated } = syncPHPToCanvas(
+  content, cssCode, componentsRef.current, activePHPPageId
+)
     const { migrated, changed: idsMigrated } = migrateComponentIds(synced)
     onCodeChange(migrated)
 
