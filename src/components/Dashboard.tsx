@@ -57,12 +57,10 @@ import { getSupabaseSession } from "../supabase/auth/authService";
 import { supabase } from "../supabase/config/supabaseClient";
 import { fetchUserProfile } from "../supabase/data/userProfile";
 import {
-  fetchUserProjects,
   saveProject,
   saveProjectMetadata,
 } from "../supabase/data/projectService";
 import type { Project } from "../supabase/types/project";
-import { getLocalCanvasComponents } from "../supabase/data/projectService";
 import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
@@ -72,11 +70,11 @@ import { GettingStartedModal } from "./GettingStartedModal";
 import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
+import { fetchDraftProjectsFromApi } from "../utils/apiHelper";
 
 type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
-
 
 interface DashboardProps {
   onCreateFromScratch: () => void;
@@ -326,9 +324,11 @@ export function Dashboard({
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
-  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] = useState(false);
+  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
+    useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
-  const [showPublishingBasicsTour, setShowPublishingBasicsTour] = useState(false);
+  const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
+    useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -376,7 +376,6 @@ export function Dashboard({
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [isSavingProjectEdits, setIsSavingProjectEdits] = useState(false);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -531,7 +530,6 @@ export function Dashboard({
     let mounted = true;
 
     const fetchPublishedTemplates = async () => {
-
       if (!currentUserId) {
         if (mounted) {
           setPublishedTemplateCards([]);
@@ -592,24 +590,6 @@ export function Dashboard({
           {},
         );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         if (mounted) {
           const normalizedCards = payload.map(normalizeTemplateCard);
           setPublishedTemplateCards(normalizedCards);
@@ -622,9 +602,7 @@ export function Dashboard({
           }
 
           setIsApiReachable(true);
-
         }
-
       } catch (error) {
         if (mounted) {
           setIsApiReachable(false);
@@ -648,12 +626,11 @@ export function Dashboard({
     };
   }, [currentUserId]);
 
- const visibleRecommendedTemplates = (() => {
+  const visibleRecommendedTemplates = (() => {
     // Try to find an existing "getting started" template from the backend
     const existingGuide =
       publishedTemplateCards.find(
-        (t) =>
-          t.id === "getting-started-guide" || t.id === "getting-started",
+        (t) => t.id === "getting-started-guide" || t.id === "getting-started",
       ) ?? null;
 
     // If backend did not provide one, create a synthetic guide card
@@ -662,7 +639,8 @@ export function Dashboard({
       projectId: "",
       name: "Getting Started Guide",
       category: "Starter",
-      thumbnail: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop",
+      thumbnail:
+        "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop",
       description:
         "Start here to learn the basics of BuildX Designer with an interactive tour.",
       creator: "BuildX Designer",
@@ -677,14 +655,12 @@ export function Dashboard({
 
     // Remove potential duplicate of the guide from base by id
     const withoutGuide = base.filter(
-      (t) =>
-        t.id !== "getting-started-guide" && t.id !== "getting-started",
+      (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
     );
 
     // Always place the guide card at the front
     return [guideTemplate, ...withoutGuide];
   })();
-
 
   const getTemplateLikeKey = (template: TemplateCardData) =>
     String(template.projectId ?? "").trim();
@@ -1117,31 +1093,28 @@ export function Dashboard({
       setProjectsLoading(true);
       setProjectsError(null);
 
-      const { data, error } = await fetchUserProjects();
-
-      if (!mounted) return;
-
-      if (error) {
+      try {
+        const projects = await fetchDraftProjectsFromApi(profileData.userId!);
+        if (!mounted) return;
+        setProjects(projects);
+      } catch (error) {
+        if (!mounted) return;
         console.error("Failed to load user projects:", error);
         setProjectsError("Failed to load projects. Please try again.");
         setProjects([]);
-      } else if (data) {
-        setProjects(data);
       }
 
       setProjectsLoading(false);
     };
 
-    // Only load projects if the user's profile has been fetched (i.e. we have their email/fullName)
-    // This avoids fetching projects immediately before we even know if they are logged in.
-    if (profileData.email) {
+    if (profileData.userId) {
       loadUserProjects();
     }
 
     return () => {
       mounted = false;
     };
-  }, [profileData.email]);
+  }, [profileData.userId]);
 
   useEffect(() => {
     let mounted = true;
@@ -1154,16 +1127,17 @@ export function Dashboard({
 
       try {
         if (projectsFilter === "all") {
-          // Load regular user projects
-          const { data, error } = await fetchUserProjects();
-          if (!mounted) return;
-
-          if (error) {
+          try {
+            const projects = await fetchDraftProjectsFromApi(
+              profileData.userId,
+            );
+            if (!mounted) return;
+            setProjects(projects);
+          } catch (error) {
+            if (!mounted) return;
             console.error("Failed to load user projects:", error);
             setProjectsError("Failed to load projects. Please try again.");
             setProjects([]);
-          } else if (data) {
-            setProjects(data);
           }
 
           const apiBaseUrl = getApiBaseUrl();
@@ -1403,10 +1377,8 @@ export function Dashboard({
       return;
     }
 
-    const { data: refreshedProjects } = await fetchUserProjects();
-    if (refreshedProjects) {
-      setProjects(refreshedProjects);
-    }
+    const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+    setProjects(refreshedProjects);
 
     onOpenProject(savedProject.id, savedProject.name, templateId);
 
@@ -1489,10 +1461,8 @@ export function Dashboard({
     }
 
     if (savedProject) {
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
 
       // First set the opened project so App knows the currentProjectId
       onOpenProject(
@@ -1550,10 +1520,8 @@ export function Dashboard({
       }
 
       // Refresh projects list
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
 
       setProjectsLoading(false);
 
@@ -1591,10 +1559,8 @@ export function Dashboard({
       if (duplicateError) {
         throw duplicateError;
       }
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
       setProjectsLoading(false);
     } catch (err) {
       console.error("Failed to duplicate project:", err);
@@ -1605,11 +1571,15 @@ export function Dashboard({
 
   // Utility function to reload projects (defined here for convenience in the handler)
   const reloadProjects = async () => {
+    if (!profileData.userId) return;
+
     setProjectsLoading(true);
-    const { data, error } = await fetchUserProjects();
-    if (data) {
-      setProjects(data);
-    } else {
+    try {
+      const refreshedProjects = await fetchDraftProjectsFromApi(
+        profileData.userId,
+      );
+      setProjects(refreshedProjects);
+    } catch (error) {
       console.error("Error refreshing projects after delete:", error);
     }
     setProjectsLoading(false);
@@ -1627,7 +1597,6 @@ export function Dashboard({
       if (deleteError) {
         throw deleteError;
       }
-
 
       setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
@@ -1704,16 +1673,8 @@ export function Dashboard({
         throw error;
       }
 
-      const { data: refreshedProjects, error: refreshError } =
-        await fetchUserProjects();
-
-      if (refreshError) {
-        console.error("Failed to refresh projects after edit:", refreshError);
-      }
-
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(currentUserId);
+      setProjects(refreshedProjects);
 
       if (profileData.userId && projectsFilter === "published") {
         const apiBaseUrl = getApiBaseUrl();
@@ -1783,594 +1744,6 @@ export function Dashboard({
       alert(`Failed to move project to ${status}. Check console for details.`);
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   const generateUIWithGemini = async (prompt: string) => {
     try {
@@ -2727,8 +2100,6 @@ export function Dashboard({
                   {/* Use actual avatar URL from Supabase Storage */}
                   <AvatarImage src={resolvedSidebarAvatarUrl} alt={userName} />
 
-
-
                   <AvatarFallback className="bg-linear-to-br from-blue-600 to-violet-600 text-white text-sm">
                     {userInitial}
                   </AvatarFallback>
@@ -2897,12 +2268,12 @@ export function Dashboard({
           <div className="p-3 md:p-6">
             {activeSection === "new-chat" ? (
               <>
-
                 <div className="flex flex-col min-h-[calc(100vh-200px)]">
-
-
                   {/* Templates Section */}
-                  <div className="flex-1 px-4 pb-8 pt-0" data-tour="recommended-templates">
+                  <div
+                    className="flex-1 px-4 pb-8 pt-0"
+                    data-tour="recommended-templates"
+                  >
                     {/* Updated max-width for better content spacing */}
                     <div className="w-full max-w-6xl mx-auto">
                       <div className="mb-6">
@@ -2964,11 +2335,6 @@ export function Dashboard({
                             renderRecommendedTemplateSkeletons()
                           ) : filteredRecommendedTemplates.length > 0 ? (
                             filteredRecommendedTemplates.map((template) => (
-
-
-
-
-
                               <div
                                 key={template.id}
                                 className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
@@ -3000,9 +2366,7 @@ export function Dashboard({
                                     {template.description}
                                   </p>
 
-
                                   <div className="flex items-center justify-between pt-3 border-t border-border">
-
                                     <div className="flex items-center gap-2">
                                       <img
                                         src={
@@ -3017,8 +2381,10 @@ export function Dashboard({
                                       </span>
                                     </div>
 
-
-                                    <div className="flex items-center gap-3" data-tour="template-like-button">
+                                    <div
+                                      className="flex items-center gap-3"
+                                      data-tour="template-like-button"
+                                    >
                                       <button
                                         type="button"
                                         onClick={(event) =>
@@ -4232,7 +3598,6 @@ export function Dashboard({
           setShowGettingStartedModal(true);
         }}
       />
-
     </div>
   );
 }

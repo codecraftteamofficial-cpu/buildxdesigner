@@ -895,28 +895,27 @@ export function useEditorState() {
       } = await getSupabaseSession();
       const user_id = session?.user?.id;
 
-      if (user_id) {
-        const payloadBase = {
+      if (!projectId) {
+        const { data, error } = await saveProject({
           name: state.projectName || "Untitled Project",
           user_id,
           project_layout: newComponents,
-        };
+        });
 
-        if (!projectId) {
-          const { data, error } = await saveProject(payloadBase);
-          if (!error && data) {
-            projectId = data.id;
-          } else {
-            console.error("Error creating project from template:", error);
-          }
+        if (!error && data) {
+          projectId = data.id;
         } else {
-          const { error } = await saveProject({
-            ...payloadBase,
-            id: projectId,
-          });
-          if (error) {
-            console.error("Error updating project with template:", error);
-          }
+          console.error("Error creating project from template:", error);
+        }
+      } else {
+        const { error } = await saveProject({
+          id: projectId,
+          name: state.projectName || "Untitled Project",
+          project_layout: newComponents,
+        });
+
+        if (error) {
+          console.error("Error updating project with template:", error);
         }
       }
 
@@ -991,7 +990,6 @@ export function useEditorState() {
         await saveProject({
           id: state.currentProjectId,
           name: state.projectName || "Untitled Project",
-          user_id,
           project_layout: currentComponents,
           pages: state.pages,
           siteTitle: state.siteTitle,
