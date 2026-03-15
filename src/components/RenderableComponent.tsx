@@ -1315,6 +1315,9 @@ export function RenderableComponent({
                 isPreview={isPreview}
                 userProjectConfig={userProjectConfig}
                 className={props.className}
+                switchToSignUpText={props.switchToSignUpText}
+                switchToSignUpUrl={props.switchToSignUpUrl}
+                navigate={navigate}
                 style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
               />
             </div>
@@ -1347,6 +1350,9 @@ export function RenderableComponent({
                 isPreview={isPreview}
                 userProjectConfig={userProjectConfig}
                 className={props.className}
+                switchToSignInText={props.switchToSignInText}
+                switchToSignInUrl={props.switchToSignInUrl}
+                navigate={navigate}
                 style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
               />
             </div>

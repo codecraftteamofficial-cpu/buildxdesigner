@@ -17,8 +17,9 @@ export function PublishedSite() {
     const getActivePageFromPath = (path: string, pages: any[]) => {
         if (!pages || pages.length === 0) return 'home';
 
-        // Normalize path for comparison
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        // Normalize path for comparison (ignore search parameters)
+        const pathname = path.split('?')[0];
+        const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
 
         // Handle root path or /home alias
         if (normalizedPath === '/' || normalizedPath === '/home') {

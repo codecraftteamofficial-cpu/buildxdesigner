@@ -1959,39 +1959,86 @@ export function PropertiesPanel({
               <Label htmlFor="title" className="text-xs">Form Title</Label>
               <Input
                 id="title"
-                value={props.title || "Sign In"}
+                value={props.title ?? ""}
                 onChange={(e) => updateProps("title", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The main heading shown at the top of the form.</p>
             </div>
             <div>
               <Label htmlFor="description" className="text-xs">Description</Label>
               <Input
                 id="description"
-                value={props.description || "Enter your email and password to access your account."}
+                value={props.description ?? ""}
                 onChange={(e) => updateProps("description", e.target.value)}
+                placeholder="Enter your email and password to access your account."
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Sub-text providing instructions or details to your users.</p>
             </div>
             <div>
               <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
               <Input
                 id="buttonText"
-                value={props.buttonText || "Sign In"}
+                value={props.buttonText ?? ""}
                 onChange={(e) => updateProps("buttonText", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The label displayed on the login button.</p>
             </div>
             <div>
               <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Select
+                value={props.redirectUrl ?? "/"}
+                onValueChange={(value: string) => updateProps("redirectUrl", value)}
+              >
+                <SelectTrigger id="redirectUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select a page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Where users are sent after login. URL context is preserved.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignUpText" className="text-xs">Switch to Sign Up Text</Label>
               <Input
-                id="redirectUrl"
-                value={props.redirectUrl || "/"}
-                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                id="switchToSignUpText"
+                value={props.switchToSignUpText ?? ""}
+                onChange={(e) => updateProps("switchToSignUpText", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Label for the register link.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignUpUrl" className="text-xs">Select Sign Up Page</Label>
+              <Select
+                value={props.switchToSignUpUrl ?? "/sign-up"}
+                onValueChange={(value: string) => updateProps("switchToSignUpUrl", value)}
+              >
+                <SelectTrigger id="switchToSignUpUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select register page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Which page contains your Sign Up form?</p>
             </div>
             <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 <b>Usage Hint:</b> The Switch links automatically carry over URL parameters (like <code>subdomain</code>) to keep your users on the same site.
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100">
               <p className="text-[10px] text-blue-800">
                 💡 This block automatically connects to your Project's Supabase credentials to handle authentication.
               </p>
@@ -2030,37 +2077,84 @@ export function PropertiesPanel({
               <Label htmlFor="title" className="text-xs">Form Title</Label>
               <Input
                 id="title"
-                value={props.title || "Sign Up"}
+                value={props.title ?? ""}
                 onChange={(e) => updateProps("title", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The main heading shown at the top of the form.</p>
             </div>
             <div>
               <Label htmlFor="description" className="text-xs">Description</Label>
               <Input
                 id="description"
-                value={props.description || "Create a new account by filling out the form below."}
+                value={props.description ?? ""}
                 onChange={(e) => updateProps("description", e.target.value)}
+                placeholder="Create a new account by filling out the form below."
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Brief explanation shown below the title.</p>
             </div>
             <div>
               <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
               <Input
                 id="buttonText"
-                value={props.buttonText || "Sign Up"}
+                value={props.buttonText ?? ""}
                 onChange={(e) => updateProps("buttonText", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The text displayed on the registration button.</p>
             </div>
             <div>
               <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Select
+                value={props.redirectUrl ?? "/"}
+                onValueChange={(value: string) => updateProps("redirectUrl", value)}
+              >
+                <SelectTrigger id="redirectUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select a page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Target URL after success. Maintains current site context.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignInText" className="text-xs">Switch to Sign In Text</Label>
               <Input
-                id="redirectUrl"
-                value={props.redirectUrl || "/"}
-                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                id="switchToSignInText"
+                value={props.switchToSignInText ?? ""}
+                onChange={(e) => updateProps("switchToSignInText", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Label for the login link.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignInUrl" className="text-xs">Select Sign In Page</Label>
+              <Select
+                value={props.switchToSignInUrl ?? "/sign-in"}
+                onValueChange={(value: string) => updateProps("switchToSignInUrl", value)}
+              >
+                <SelectTrigger id="switchToSignInUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select login page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Which page contains your Sign In form?</p>
+            </div>
+            <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 <b>Usage Hint:</b> The Switch links automatically carry over URL parameters (like <code>subdomain</code>) to keep your users on the same site.
+              </p>
             </div>
 
             <div className="pt-2 border-t">

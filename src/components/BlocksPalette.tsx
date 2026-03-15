@@ -484,7 +484,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               title: 'Sign In',
               description: 'Enter your email and password to access your account.',
               buttonText: 'Sign In',
-              redirectUrl: '/'
+              redirectUrl: '/',
+              switchToSignUpText: 'Sign Up',
+              switchToSignUpUrl: '/sign-up'
             },
             style: {
               width: '400px',
@@ -508,7 +510,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               description: 'Create a new account by filling out the form below.',
               buttonText: 'Sign Up',
               redirectUrl: '/',
-              extraFields: []
+              extraFields: [],
+              switchToSignInText: 'Sign In',
+              switchToSignInUrl: '/sign-in'
             },
             style: {
               width: '400px',
