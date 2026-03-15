@@ -12,6 +12,7 @@ import { EditableText } from './EditableText';
 import { PayMongoButton } from './PayMongoButton';
 import { SignInBlock } from './auth/SignInBlock';
 import { SignUpBlock } from './auth/SignUpBlock';
+import { ProfileBlock } from './auth/ProfileBlock';
 import { supabase } from '../supabase/config/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import $ from 'jquery';
@@ -1354,6 +1355,35 @@ export function RenderableComponent({
                 switchToSignInUrl={props.switchToSignInUrl}
                 navigate={navigate}
                 style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
+              />
+            </div>
+          </ResizeHandle>
+        );
+
+      case 'profile':
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 50)}
+            initialHeight={parseSize(style?.height, 50)}
+            className="group inline-block"
+            minWidth={40}
+            minHeight={40}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ProfileBlock
+                id={props.elementId || `profile-${component.id}`}
+                menuItems={props.menuItems}
+                isPreview={isPreview}
+                userProjectConfig={userProjectConfig}
+                className={props.className}
+                navigate={navigate}
+                style={{ ...combinedStyle, margin: 0 }}
               />
             </div>
           </ResizeHandle>
@@ -2743,67 +2773,49 @@ export function RenderableComponent({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative">
-                  <Input
-                    placeholder={props.namePlaceholder || "Name"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit name placeholder:', props.namePlaceholder || 'Name');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, namePlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    type="email"
-                    placeholder={props.emailPlaceholder || "Email"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit email placeholder:', props.emailPlaceholder || 'Email');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, emailPlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Textarea
-                    placeholder={props.messagePlaceholder || "Message"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-4 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit message placeholder:', props.messagePlaceholder || 'Message');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, messagePlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
-                    </span>
-                  )}
-                </div>
+                {props.fields && props.fields.length > 0 ? (
+                  props.fields.map((field: any) => (
+                    <div key={field.id} className="space-y-1.5 relative">
+                      {field.label && <Label className="text-xs">{field.label}</Label>}
+                      {field.type === 'textarea' ? (
+                        <Textarea
+                          placeholder={field.placeholder}
+                          onClick={(e) => isSelected && e.stopPropagation()}
+                          required={field.required}
+                        />
+                      ) : (
+                        <Input
+                          type={field.type || 'text'}
+                          placeholder={field.placeholder}
+                          onClick={(e) => isSelected && e.stopPropagation()}
+                          required={field.required}
+                        />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Input
+                        placeholder={props.namePlaceholder || "Name"}
+                        onClick={(e) => isSelected && e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder={props.emailPlaceholder || "Email"}
+                        onClick={(e) => isSelected && e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        placeholder={props.messagePlaceholder || "Message"}
+                        onClick={(e) => isSelected && e.stopPropagation()}
+                      />
+                    </div>
+                  </>
+                )}
                 <Button onClick={(e: React.MouseEvent<HTMLButtonElement>) => isSelected && e.preventDefault()}>
                   <EditableText
                     text={props.submitText}
