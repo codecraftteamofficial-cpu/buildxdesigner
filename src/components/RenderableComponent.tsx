@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Label } from "./ui/label";
-import { formatUrl } from '../utils/urlUtils';
+import { formatUrl, labelToPath } from '../utils/urlUtils';
 import { BACKEND_URL } from '../utils/backendConfig';
 import {
   Select,
@@ -1658,10 +1658,6 @@ export function RenderableComponent({
                   margin: 0
                 }}
               />
-              {/* Invisible overlay to make selecting it easier in the editor */}
-              {!isPreview && (
-                <div className="absolute inset-0 z-10" />
-              )}
             </div>
           </ResizeHandle>
         );
@@ -2332,12 +2328,14 @@ export function RenderableComponent({
                               detail: { elementId }
                             });
                             window.dispatchEvent(scrollEvent);
-                          } else if (url !== '#' && url !== '') {
-                            const isInternal = url.startsWith('/') || url.startsWith('./');
+                          } else if (url !== '' || link) {
+                            const targetUrl = (url !== '#' && url !== '') ? url : labelToPath(link);
+                            
+                            const isInternal = targetUrl.startsWith('/') || targetUrl.startsWith('./');
                             if (isInternal && navigate) {
-                              navigate(url);
-                            } else if (!isInternal) {
-                              window.open(url, '_blank');
+                              navigate(targetUrl);
+                            } else if (!isInternal && targetUrl !== '#') {
+                              window.open(targetUrl, '_blank');
                             }
                           }
                         } else {

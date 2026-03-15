@@ -239,11 +239,13 @@ export function PageSelector({
                                     <div key={page.id} className="relative flex items-center px-1">
                                         <SelectItem
                                             value={page.id}
-                                            className="flex-1 cursor-pointer pr-14 focus:bg-accent focus:text-accent-foreground [&>span:first-child]:right-8"
+                                            hideIndicator={true}
+                                            className={`flex-1 cursor-pointer pr-4 focus:bg-accent focus:text-accent-foreground 
+                                                ${page.id === activePageId ? 'bg-primary/10 text-primary hover:bg-primary/20' : ''}`}
                                         >
-                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                <span className="truncate max-w-[130px]">{page.name}</span>
-                                                <span className="text-muted-foreground text-[10px] shrink-0 opacity-70">
+                                            <div className="flex items-center gap-2 overflow-hidden py-1">
+                                                <span className={`truncate max-w-[130px] ${page.id === activePageId ? 'font-semibold' : ''}`}>{page.name}</span>
+                                                <span className={`text-muted-foreground text-[10px] shrink-0 opacity-70 ${page.id === activePageId ? 'text-primary/70' : ''}`}>
                                                     {page.path}
                                                 </span>
                                             </div>

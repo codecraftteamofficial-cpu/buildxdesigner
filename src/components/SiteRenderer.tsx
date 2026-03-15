@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { ComponentData } from "../App";
 import { RenderableComponent } from "./RenderableComponent";
 import { scrollToTarget } from "../utils/scrollUtils";
+import { labelToPath } from "../utils/urlUtils";
 import { Toaster } from "./ui/sonner";
 
 interface SiteRendererProps {
@@ -276,10 +277,6 @@ function NavbarRenderer({
             ? props.links
             : ["Home", "About", "Contact"];
 
-    const toHref = (label: string) => {
-        const slug = label.toLowerCase().replace(/\s+/g, "-");
-        return slug === "home" ? "/" : `/${slug}`;
-    };
 
     const style = component.style ?? {};
 
@@ -296,7 +293,8 @@ function NavbarRenderer({
         const typeArray: string[] = Array.isArray(props.linkTypes) ? props.linkTypes : [];
 
         return links.map((link: string, index: number) => {
-            const url = urlArray[index] || toHref(link);
+            const rawUrl = urlArray[index] || "";
+            const url = (rawUrl !== "#" && rawUrl !== "") ? rawUrl : labelToPath(link);
             const type = typeArray[index] || "url";
 
             const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {

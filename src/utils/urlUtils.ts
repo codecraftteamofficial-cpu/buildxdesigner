@@ -33,3 +33,14 @@ export const formatUrl = (url: string): string => {
     // Default fallback
     return trimmedUrl;
 };
+/**
+ * Converts a label (e.g., "Home", "About Us") into a URL slug (e.g., "/", "/about-us").
+ * 
+ * @param label The label to convert
+ * @returns The generated path
+ */
+export const labelToPath = (label: string): string => {
+    if (!label) return '/';
+    const slug = label.toLowerCase().trim().replace(/\s+/g, '-');
+    return slug === 'home' || slug === '' ? '/' : `/${slug}`;
+};

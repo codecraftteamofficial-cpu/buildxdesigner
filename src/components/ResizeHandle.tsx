@@ -281,12 +281,24 @@ export function ResizeHandle({
     >
       {children}
 
+      {/* Hover/Selection Border Identifier */}
+      {!disabled && (
+        <div 
+          className="absolute inset-0 pointer-events-none border-2 border-transparent group-hover:border-primary/40 rounded-sm z-[5]" 
+        />
+      )}
+
+      {/* Editor selection overlay for easier interaction */}
+      {!disabled && (
+        <div className="absolute inset-0 z-[1] cursor-pointer" />
+      )}
+
       {/* Resize handles - visible on hover and when selected */}
       {!disabled && (
-        <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto transition-opacity z-10">
+        <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto z-10">
           {/* Top handle */}
           <div
-            className="absolute -top-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-t-2 border-transparent hover:border-primary touch-none"
+            className="absolute -top-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-t-2 border-transparent hover:border-primary touch-none"
             onMouseDown={(e) => handleMouseDown(e, 'top')}
             onContextMenu={(e) => e.stopPropagation()}
             onTouchStart={(e) => handleTouchStart(e, 'top')}
@@ -297,7 +309,7 @@ export function ResizeHandle({
 
           {/* Left handle */}
           <div
-            className="absolute top-0 -left-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-l-2 border-transparent hover:border-primary touch-none"
+            className="absolute top-0 -left-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-l-2 border-transparent hover:border-primary touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'left')}
             onTouchStart={(e) => handleTouchStart(e, 'left')}
@@ -308,7 +320,7 @@ export function ResizeHandle({
 
           {/* Right handle (width) */}
           <div
-            className="absolute top-0 -right-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-r-2 border-transparent hover:border-primary touch-none"
+            className="absolute top-0 -right-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-r-2 border-transparent hover:border-primary touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'right')}
             onTouchStart={(e) => handleTouchStart(e, 'right')}
@@ -319,7 +331,7 @@ export function ResizeHandle({
 
           {/* Bottom handle (height) */}
           <div
-            className="absolute -bottom-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center border-b-2 border-transparent hover:border-primary touch-none"
+            className="absolute -bottom-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-b-2 border-transparent hover:border-primary touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'bottom')}
             onTouchStart={(e) => handleTouchStart(e, 'bottom')}
@@ -330,7 +342,7 @@ export function ResizeHandle({
 
           {/* Top-Left handle */}
           <div
-            className="absolute -top-2 -left-2 w-4 h-4 cursor-nwse-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className="absolute -top-2 -left-2 w-4 h-4 cursor-nwse-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'topLeft')}
             onTouchStart={(e) => handleTouchStart(e, 'topLeft')}
@@ -339,7 +351,7 @@ export function ResizeHandle({
 
           {/* Top-Right handle */}
           <div
-            className="absolute -top-2 -right-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className="absolute -top-2 -right-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'topRight')}
             onTouchStart={(e) => handleTouchStart(e, 'topRight')}
@@ -348,7 +360,7 @@ export function ResizeHandle({
 
           {/* Bottom-Left handle */}
           <div
-            className="absolute -bottom-2 -left-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className="absolute -bottom-2 -left-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'bottomLeft')}
             onTouchStart={(e) => handleTouchStart(e, 'bottomLeft')}
@@ -357,7 +369,7 @@ export function ResizeHandle({
 
           {/* Bottom-Right handle (both) - most prominent */}
           <div
-            className="absolute -bottom-2 -right-2 w-5 h-5 cursor-nwse-resize bg-primary hover:bg-primary/80 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className="absolute -bottom-2 -right-2 w-5 h-5 cursor-nwse-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'bottomRight')}
             onTouchStart={(e) => handleTouchStart(e, 'bottomRight')}
