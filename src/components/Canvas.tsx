@@ -111,6 +111,7 @@ export function Canvas({
     x: number;
     y: number;
   } | null>(null);
+  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
   const [canvasProperties, setCanvasProperties] = useState<CanvasProperties>({
     backgroundColor: backgroundColor,
     showGrid: false,
@@ -1636,7 +1637,7 @@ export function Canvas({
                         ? "z-50 ring-2 ring-primary shadow-2xl"
                         : isDragging
                           ? "z-40"
-                          : "z-auto"
+                            : "z-auto"
                     } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
                     style={{
                       left: `${position.x}px`,

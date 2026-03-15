@@ -1243,7 +1243,7 @@ export function RenderableComponent({
                 width: '100%',
                 height: '100%',
                 // In editor, if selected, we disable pointer events so the user can drag/resize
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 zIndex: isPreview ? 20 : 'auto'
               }}
               className={`${props.className || ''} ${isSelected ? 'relative' : ''}`}
@@ -1331,7 +1331,7 @@ export function RenderableComponent({
                 ...combinedStyle,
                 width: '100%',
                 height: '100%',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 zIndex: isPreview ? 20 : 'auto'
               }}
               disabled={isPreview ? false : disabled}
@@ -1355,7 +1355,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignInBlock
                 id={props.elementId || `signin-${component.id}`}
                 title={props.title}
@@ -1389,7 +1389,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignUpBlock
                 id={props.elementId || `signup-${component.id}`}
                 title={props.title}
@@ -1424,7 +1424,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ProfileBlock
                 id={props.elementId || `profile-${component.id}`}
                 menuItems={props.menuItems}
@@ -1646,7 +1646,7 @@ export function RenderableComponent({
               className={`flex items-center w-full h-full ${props.className || ''}`}
               style={{
                 ...combinedStyle,
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 padding: '10px 0' // Give it some click area in the editor
               }}
             >
@@ -1708,7 +1708,7 @@ export function RenderableComponent({
                 width: '100%',
                 height: '100%',
                 overflow: 'auto',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                pointerEvents: 'auto'
               }}
             >
               {items.map((item: any, idx: number) => (
@@ -1789,7 +1789,7 @@ export function RenderableComponent({
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                pointerEvents: 'auto'
               }}
             >
               {/* Tab headers */}
@@ -1871,7 +1871,7 @@ export function RenderableComponent({
                   fontSize: '14px',
                   fontWeight: 500,
                   ...combinedStyle,
-                  pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                  pointerEvents: 'auto'
                 }}
               >
                 {props.triggerText || 'Open Modal'}
@@ -1999,7 +1999,7 @@ export function RenderableComponent({
                 height: '100%',
                 boxSizing: 'border-box',
                 ...combinedStyle,
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 display: (isTriggered && isPreview && !isTriggeredVisible) ? 'none' : 'flex'
               }}
             >

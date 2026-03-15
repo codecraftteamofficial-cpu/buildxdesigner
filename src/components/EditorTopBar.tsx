@@ -123,6 +123,8 @@ interface EditorTopBarProps {
   onSwitchPage?: (pageId: string) => void;
   onAddPage?: (name: string, path: string) => void;
   onDeletePage?: (pageId: string) => void;
+  onDuplicatePage?: (pageId: string) => void;
+  onUpdatePage?: (pageId: string, updates: { name?: string; path?: string }) => void;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
 }
@@ -251,6 +253,8 @@ export function EditorTopBar({
   onSwitchPage,
   onAddPage,
   onDeletePage,
+  onDuplicatePage,
+  onUpdatePage,
   onStartTour,
   onStartPublishingBasics,
 }: EditorTopBarProps) {
@@ -1252,6 +1256,8 @@ export function EditorTopBar({
             onSwitchPage={onSwitchPage}
             onAddPage={onAddPage}
             onRemovePage={onDeletePage}
+            onDuplicatePage={onDuplicatePage}
+            onUpdatePage={onUpdatePage}
           />
         )}
 

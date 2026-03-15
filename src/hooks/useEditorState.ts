@@ -1338,27 +1338,63 @@ export function useEditorState() {
     replacePages(newPages);
   };
 
+  const duplicatePage = (pageId: string) => {
+    if (!state.projectCanEdit) return;
+    const pageToDuplicate = state.pages.find((p) => p.id === pageId);
+    if (!pageToDuplicate) return;
+
+    const newPageId = `page-${Date.now().toString()}`;
+    const newPage = {
+      ...pageToDuplicate,
+      id: newPageId,
+      name: `${pageToDuplicate.name} (Copy)`,
+      path: `${pageToDuplicate.path}-copy`,
+    };
+
+    const newPages = [...state.pages, newPage];
+
+    const pageComponents = state.components.filter((c) => c.page_id === pageId);
+    const duplicatedComponents = pageComponents.map((c) => ({
+      ...c,
+      id: `${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`,
+      page_id: newPageId,
+    }));
+
+    const newComponents = [...state.components, ...duplicatedComponents];
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      components: newComponents,
+      activePageId: newPageId,
+      selectedComponent: null,
+      hasUnsavedChanges: true,
+    }));
+
+    replacePages(newPages);
+    replaceComponents(newComponents);
+  };
+
   const deletePage = (pageId: string) => {
     if (!state.projectCanEdit) return;
-    setState((prev) => {
-      if (prev.pages.length <= 1) return prev; // Cannot delete last page
-      const newPages = prev.pages.filter((p) => p.id !== pageId);
-      const newActiveId =
-        prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
-      // Also remove components belonging to this page
-      const newComponents = prev.components.filter((c) => c.page_id !== pageId);
+    if (state.pages.length <= 1) return; // Cannot delete last page
 
-      replacePages(newPages);
+    const newPages = state.pages.filter((p) => p.id !== pageId);
+    const newActiveId =
+      state.activePageId === pageId ? newPages[0].id : state.activePageId;
+    const newComponents = state.components.filter((c) => c.page_id !== pageId);
 
-      return {
-        ...prev,
-        pages: newPages,
-        components: newComponents,
-        activePageId: newActiveId,
-        selectedComponent: null,
-        hasUnsavedChanges: true,
-      };
-    });
+    replacePages(newPages);
+    replaceComponents(newComponents);
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      components: newComponents,
+      activePageId: newActiveId,
+      selectedComponent: null,
+      hasUnsavedChanges: true,
+    }));
   };
 
   const updatePage = (
@@ -1366,19 +1402,18 @@ export function useEditorState() {
     updates: Partial<{ name: string; path: string }>,
   ) => {
     if (!state.projectCanEdit) return;
-    setState((prev) => {
-      const newPages = prev.pages.map((p) =>
-        p.id === pageId ? { ...p, ...updates } : p,
-      );
 
-      replacePages(newPages);
+    const newPages = state.pages.map((p) =>
+      p.id === pageId ? { ...p, ...updates } : p,
+    );
 
-      return {
-        ...prev,
-        pages: newPages,
-        hasUnsavedChanges: true,
-      };
-    });
+    replacePages(newPages);
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      hasUnsavedChanges: true,
+    }));
   };
 
   // src/hooks/useEditorState.ts
@@ -1554,6 +1589,7 @@ export function useEditorState() {
     // Page Management
     switchPage,
     addPage,
+    duplicatePage,
     deletePage,
     updatePage,
     // Onboarding

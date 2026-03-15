@@ -573,16 +573,7 @@ export function PropertiesPanel({
 
   const updateStyle = (key: string, value: any) => {
     if (!selectedComponent) return
-
-    const updatedComponent = {
-      ...selectedComponent,
-      style: {
-        ...selectedComponent.style,
-        [key]: value,
-      },
-    }
-
-    onUpdateComponent(selectedComponent.id, updatedComponent)
+    onUpdateStyle(selectedComponent.id, { [key]: value })
   }
 
   const renderPropertyInputs = () => {
