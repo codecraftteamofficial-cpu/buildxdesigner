@@ -685,7 +685,7 @@ export function PropertiesPanel({
             <div className="pt-2 border-t border-border">
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs font-medium">Actions</Label>
-                <Button variant="ghost" size="xs" onClick={addAction} className="h-6 text-xs">
+                <Button variant="ghost" size="sm" onClick={addAction} className="h-6 text-xs px-2 py-0">
                   <Plus className="h-3 w-3 mr-1" /> Add Action
                 </Button>
               </div>
@@ -2236,6 +2236,104 @@ export function PropertiesPanel({
           </div>
         )
 
+      case "profile":
+        const menuItems = Array.isArray(props.menuItems) ? props.menuItems : [];
+
+        const addMenuItem = () => {
+          const newItem = {
+            id: Date.now().toString(),
+            label: "New Page",
+            path: "/",
+          };
+          updateProps("menuItems", [...menuItems, newItem]);
+        };
+
+        const updateMenuItem = (index: number, updates: any) => {
+          const newItems = [...menuItems];
+          newItems[index] = { ...newItems[index], ...updates };
+          updateProps("menuItems", newItems);
+        };
+
+        const removeMenuItem = (index: number) => {
+          const newItems = [...menuItems];
+          newItems.splice(index, 1);
+          updateProps("menuItems", newItems);
+        };
+
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Dropdown Menu Items</Label>
+              <Button variant="ghost" size="sm" onClick={addMenuItem} className="h-6 w-6 p-0">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {menuItems.map((item: any, idx: number) => (
+                <div key={item.id} className="p-3 border rounded-lg bg-slate-50 relative group space-y-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeMenuItem(idx)}
+                    className="absolute top-2 right-2 h-6 w-6 p-0 text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Item Label</Label>
+                      <Input
+                        value={item.label}
+                        onChange={(e) => updateMenuItem(idx, { label: e.target.value })}
+                        className="h-8 text-xs mt-1 bg-white"
+                        placeholder="e.g. Settings"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Redirect Page</Label>
+                      <Select
+                        value={item.path}
+                        onValueChange={(val: string) => updateMenuItem(idx, { path: val })}
+                      >
+                        <SelectTrigger className="h-8 text-xs mt-1 bg-white">
+                          <SelectValue placeholder="Select page" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pages && pages.map(p => (
+                            <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {menuItems.length === 0 && (
+                <div className="text-center py-6 border border-dashed rounded-lg bg-white">
+                  <p className="text-xs text-muted-foreground">No custom menu items</p>
+                  <Button variant="link" size="sm" onClick={addMenuItem} className="text-xs h-auto p-0 mt-1">
+                    Add your first item
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100 space-y-2">
+              <p className="text-[11px] font-medium text-blue-900 leading-tight">
+                💡 Logout Link
+              </p>
+              <p className="text-[10px] text-blue-800 leading-relaxed">
+                A default "Log out" button is always included at the bottom of the dropdown. It uses your project's Supabase configuration to sign users out.
+              </p>
+            </div>
+          </div>
+        )
+
+
       case "carousel":
         const handleAddSlide = () => {
           const slides = Array.isArray(props.slides) ? props.slides : []
@@ -3545,8 +3643,33 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
         )
 
       case "form":
+        const formFields = props.fields || []
+
+        const addFormField = () => {
+          const newField = {
+            id: `field-${Date.now()}`,
+            label: "New Field",
+            placeholder: "Enter value",
+            type: "text",
+            required: false,
+          }
+          updateProps("fields", [...formFields, newField])
+        }
+
+        const updateFormField = (id: string, updates: any) => {
+          const updatedFields = formFields.map((f: any) => (f.id === id ? { ...f, ...updates } : f))
+          updateProps("fields", updatedFields)
+        }
+
+        const removeFormField = (id: string) => {
+          updateProps(
+            "fields",
+            formFields.filter((f: any) => f.id !== id),
+          )
+        }
+
         return (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
               <Label htmlFor="form-title" className="text-xs">
                 Form Title
@@ -3571,41 +3694,85 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                 className="h-8 text-xs mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="namePlaceholder" className="text-xs">
-                Name Placeholder
-              </Label>
-              <Input
-                id="namePlaceholder"
-                value={props.namePlaceholder || ""}
-                onChange={(e) => updateProps("namePlaceholder", e.target.value)}
-                placeholder="Name"
-                className="h-8 text-xs mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="emailPlaceholder" className="text-xs">
-                Email Placeholder
-              </Label>
-              <Input
-                id="emailPlaceholder"
-                value={props.emailPlaceholder || ""}
-                onChange={(e) => updateProps("emailPlaceholder", e.target.value)}
-                placeholder="Email"
-                className="h-8 text-xs mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="messagePlaceholder" className="text-xs">
-                Message Placeholder
-              </Label>
-              <Input
-                id="messagePlaceholder"
-                value={props.messagePlaceholder || ""}
-                onChange={(e) => updateProps("messagePlaceholder", e.target.value)}
-                placeholder="Message"
-                className="h-8 text-xs mt-1"
-              />
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Form Fields</Label>
+                <Button variant="ghost" size="sm" onClick={addFormField} className="h-7 text-xs px-2">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Field
+                </Button>
+              </div>
+
+              {formFields.length === 0 ? (
+                <div className="text-center py-4 border border-dashed rounded-md">
+                  <p className="text-[10px] text-muted-foreground">No fields added</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formFields.map((field: any) => (
+                    <div key={field.id} className="p-3 border rounded-md space-y-2 relative group">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={() => removeFormField(field.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Label</Label>
+                        <Input
+                          value={field.label || ""}
+                          onChange={(e) => updateFormField(field.id, { label: e.target.value })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Type</Label>
+                          <Select
+                            value={field.type || "text"}
+                            onValueChange={(val: any) => updateFormField(field.id, { type: val })}
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text">Text</SelectItem>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="textarea">Textarea</SelectItem>
+                              <SelectItem value="number">Number</SelectItem>
+                              <SelectItem value="tel">Phone</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Required</Label>
+                          <div className="flex items-center h-7">
+                            <Switch
+                              checked={!!field.required}
+                              onCheckedChange={(checked) => updateFormField(field.id, { required: checked })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Placeholder</Label>
+                        <Input
+                          value={field.placeholder || ""}
+                          onChange={(e) => updateFormField(field.id, { placeholder: e.target.value })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -3684,7 +3851,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Selected</span>
-            <Button variant="outline" size="xs" className="h-6 text-xs bg-transparent" onClick={testScrollToElement}>
+            <Button variant="outline" size="sm" className="h-6 text-xs bg-transparent" onClick={testScrollToElement}>
               Test Scroll
             </Button>
           </div>
