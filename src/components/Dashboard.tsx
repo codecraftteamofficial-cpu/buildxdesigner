@@ -57,12 +57,10 @@ import { getSupabaseSession } from "../supabase/auth/authService";
 import { supabase } from "../supabase/config/supabaseClient";
 import { fetchUserProfile } from "../supabase/data/userProfile";
 import {
-  fetchUserProjects,
   saveProject,
   saveProjectMetadata,
 } from "../supabase/data/projectService";
 import type { Project } from "../supabase/types/project";
-import { getLocalCanvasComponents } from "../supabase/data/projectService";
 import { generateUIAndCode } from "../services/geminiCodeGenerator";
 import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
@@ -72,11 +70,14 @@ import { GettingStartedModal } from "./GettingStartedModal";
 import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
+import {
+  fetchDraftProjectsFromApi,
+  fetchTrendingTemplatesFromApi,
+} from "../utils/apiHelper";
 
 type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
-
 
 interface DashboardProps {
   onCreateFromScratch: () => void;
@@ -326,9 +327,11 @@ export function Dashboard({
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
   const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
-  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] = useState(false);
+  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
+    useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
-  const [showPublishingBasicsTour, setShowPublishingBasicsTour] = useState(false);
+  const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
+    useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -376,7 +379,13 @@ export function Dashboard({
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [isSavingProjectEdits, setIsSavingProjectEdits] = useState(false);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-
+  const [sortBy, setSortBy] = useState<"last_modified" | "name">(
+    "last_modified",
+  );
+  const [trendingTemplates, setTrendingTemplates] = useState<
+    TemplateCardData[]
+  >([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
@@ -530,8 +539,41 @@ export function Dashboard({
   useEffect(() => {
     let mounted = true;
 
-    const fetchPublishedTemplates = async () => {
+    const loadTrendingTemplates = async () => {
+      try {
+        setTrendingLoading(true);
 
+        const data = await fetchTrendingTemplatesFromApi(20);
+
+        if (!mounted) return;
+
+        const normalized = Array.isArray(data)
+          ? data.map(normalizeTemplateCard)
+          : [];
+
+        setTrendingTemplates(normalized);
+      } catch (error) {
+        if (!mounted) return;
+        console.error("Failed to load trending templates:", error);
+        setTrendingTemplates([]);
+      } finally {
+        if (mounted) {
+          setTrendingLoading(false);
+        }
+      }
+    };
+
+    loadTrendingTemplates();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchPublishedTemplates = async () => {
       if (!currentUserId) {
         if (mounted) {
           setPublishedTemplateCards([]);
@@ -592,24 +634,6 @@ export function Dashboard({
           {},
         );
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         if (mounted) {
           const normalizedCards = payload.map(normalizeTemplateCard);
           setPublishedTemplateCards(normalizedCards);
@@ -622,9 +646,7 @@ export function Dashboard({
           }
 
           setIsApiReachable(true);
-
         }
-
       } catch (error) {
         if (mounted) {
           setIsApiReachable(false);
@@ -648,12 +670,11 @@ export function Dashboard({
     };
   }, [currentUserId]);
 
- const visibleRecommendedTemplates = (() => {
+  const visibleRecommendedTemplates = (() => {
     // Try to find an existing "getting started" template from the backend
     const existingGuide =
       publishedTemplateCards.find(
-        (t) =>
-          t.id === "getting-started-guide" || t.id === "getting-started",
+        (t) => t.id === "getting-started-guide" || t.id === "getting-started",
       ) ?? null;
 
     // If backend did not provide one, create a synthetic guide card
@@ -662,7 +683,8 @@ export function Dashboard({
       projectId: "",
       name: "Getting Started Guide",
       category: "Starter",
-      thumbnail: "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop",
+      thumbnail:
+        "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop",
       description:
         "Start here to learn the basics of BuildX Designer with an interactive tour.",
       creator: "BuildX Designer",
@@ -677,14 +699,12 @@ export function Dashboard({
 
     // Remove potential duplicate of the guide from base by id
     const withoutGuide = base.filter(
-      (t) =>
-        t.id !== "getting-started-guide" && t.id !== "getting-started",
+      (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
     );
 
     // Always place the guide card at the front
     return [guideTemplate, ...withoutGuide];
   })();
-
 
   const getTemplateLikeKey = (template: TemplateCardData) =>
     String(template.projectId ?? "").trim();
@@ -988,6 +1008,10 @@ export function Dashboard({
   const fetchTemplateLayoutByProjectId = async (
     projectId: string,
   ): Promise<ComponentData[]> => {
+    if (!projectId || projectId === "blank") {
+      return getLocalTemplateComponents(projectId);
+    }
+
     const response = await fetch(
       `${API_URL}/api/template-data/${encodeURIComponent(projectId)}`,
     );
@@ -1000,8 +1024,17 @@ export function Dashboard({
     return extractTemplateLayoutFromApiResponse(json);
   };
 
+  const getLocalTemplateComponents = (templateId: string): ComponentData[] => {
+    switch (templateId) {
+      case "blank":
+        return [];
+      default:
+        return [];
+    }
+  };
+
   const prefetchTemplateLayout = async (projectId: string) => {
-    if (!projectId) return;
+    if (!projectId || projectId === "blank") return;
     if (prefetchedTemplateLayouts[projectId]) return;
     if (prefetchingTemplateIds[projectId]) return;
 
@@ -1117,31 +1150,28 @@ export function Dashboard({
       setProjectsLoading(true);
       setProjectsError(null);
 
-      const { data, error } = await fetchUserProjects();
-
-      if (!mounted) return;
-
-      if (error) {
+      try {
+        const projects = await fetchDraftProjectsFromApi(profileData.userId!);
+        if (!mounted) return;
+        setProjects(projects);
+      } catch (error) {
+        if (!mounted) return;
         console.error("Failed to load user projects:", error);
         setProjectsError("Failed to load projects. Please try again.");
         setProjects([]);
-      } else if (data) {
-        setProjects(data);
       }
 
       setProjectsLoading(false);
     };
 
-    // Only load projects if the user's profile has been fetched (i.e. we have their email/fullName)
-    // This avoids fetching projects immediately before we even know if they are logged in.
-    if (profileData.email) {
+    if (profileData.userId) {
       loadUserProjects();
     }
 
     return () => {
       mounted = false;
     };
-  }, [profileData.email]);
+  }, [profileData.userId]);
 
   useEffect(() => {
     let mounted = true;
@@ -1154,16 +1184,17 @@ export function Dashboard({
 
       try {
         if (projectsFilter === "all") {
-          // Load regular user projects
-          const { data, error } = await fetchUserProjects();
-          if (!mounted) return;
-
-          if (error) {
+          try {
+            const projects = await fetchDraftProjectsFromApi(
+              profileData.userId,
+            );
+            if (!mounted) return;
+            setProjects(projects);
+          } catch (error) {
+            if (!mounted) return;
             console.error("Failed to load user projects:", error);
             setProjectsError("Failed to load projects. Please try again.");
             setProjects([]);
-          } else if (data) {
-            setProjects(data);
           }
 
           const apiBaseUrl = getApiBaseUrl();
@@ -1316,7 +1347,6 @@ export function Dashboard({
         break;
     }
 
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(
         (project) =>
@@ -1325,7 +1355,18 @@ export function Dashboard({
       );
     }
 
-    return filtered;
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+
+      const aTime = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+      const bTime = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+
+      return bTime - aTime;
+    });
+
+    return sorted;
   };
 
   const handleTemplateClick = (templateId: string) => {
@@ -1403,10 +1444,8 @@ export function Dashboard({
       return;
     }
 
-    const { data: refreshedProjects } = await fetchUserProjects();
-    if (refreshedProjects) {
-      setProjects(refreshedProjects);
-    }
+    const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+    setProjects(refreshedProjects);
 
     onOpenProject(savedProject.id, savedProject.name, templateId);
 
@@ -1489,10 +1528,8 @@ export function Dashboard({
     }
 
     if (savedProject) {
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
 
       // First set the opened project so App knows the currentProjectId
       onOpenProject(
@@ -1550,10 +1587,8 @@ export function Dashboard({
       }
 
       // Refresh projects list
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
 
       setProjectsLoading(false);
 
@@ -1591,10 +1626,8 @@ export function Dashboard({
       if (duplicateError) {
         throw duplicateError;
       }
-      const { data: refreshedProjects } = await fetchUserProjects();
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(user_id);
+      setProjects(refreshedProjects);
       setProjectsLoading(false);
     } catch (err) {
       console.error("Failed to duplicate project:", err);
@@ -1605,11 +1638,15 @@ export function Dashboard({
 
   // Utility function to reload projects (defined here for convenience in the handler)
   const reloadProjects = async () => {
+    if (!profileData.userId) return;
+
     setProjectsLoading(true);
-    const { data, error } = await fetchUserProjects();
-    if (data) {
-      setProjects(data);
-    } else {
+    try {
+      const refreshedProjects = await fetchDraftProjectsFromApi(
+        profileData.userId,
+      );
+      setProjects(refreshedProjects);
+    } catch (error) {
       console.error("Error refreshing projects after delete:", error);
     }
     setProjectsLoading(false);
@@ -1627,7 +1664,6 @@ export function Dashboard({
       if (deleteError) {
         throw deleteError;
       }
-
 
       setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
@@ -1704,16 +1740,8 @@ export function Dashboard({
         throw error;
       }
 
-      const { data: refreshedProjects, error: refreshError } =
-        await fetchUserProjects();
-
-      if (refreshError) {
-        console.error("Failed to refresh projects after edit:", refreshError);
-      }
-
-      if (refreshedProjects) {
-        setProjects(refreshedProjects);
-      }
+      const refreshedProjects = await fetchDraftProjectsFromApi(currentUserId);
+      setProjects(refreshedProjects);
 
       if (profileData.userId && projectsFilter === "published") {
         const apiBaseUrl = getApiBaseUrl();
@@ -1783,594 +1811,6 @@ export function Dashboard({
       alert(`Failed to move project to ${status}. Check console for details.`);
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   const generateUIWithGemini = async (prompt: string) => {
     try {
@@ -2650,7 +2090,10 @@ export function Dashboard({
 
   const handleCreateBlankClick = () => {
     setSelectedTemplateId("blank");
-    setShowCreateTemplateModal(true);
+    setProjectName("");
+    setNewProjectDescription("");
+    setNewProjectCategory("Starter");
+    setShowNameProjectDialog(true);
   };
 
   const themeIcons = {
@@ -2726,8 +2169,6 @@ export function Dashboard({
                 <Avatar className="h-8 w-8 ring-2 ring-blue-500/50 shrink-0">
                   {/* Use actual avatar URL from Supabase Storage */}
                   <AvatarImage src={resolvedSidebarAvatarUrl} alt={userName} />
-
-
 
                   <AvatarFallback className="bg-linear-to-br from-blue-600 to-violet-600 text-white text-sm">
                     {userInitial}
@@ -2897,12 +2338,12 @@ export function Dashboard({
           <div className="p-3 md:p-6">
             {activeSection === "new-chat" ? (
               <>
-
                 <div className="flex flex-col min-h-[calc(100vh-200px)]">
-
-
                   {/* Templates Section */}
-                  <div className="flex-1 px-4 pb-8 pt-0" data-tour="recommended-templates">
+                  <div
+                    className="flex-1 px-4 pb-8 pt-0"
+                    data-tour="recommended-templates"
+                  >
                     {/* Updated max-width for better content spacing */}
                     <div className="w-full max-w-6xl mx-auto">
                       <div className="mb-6">
@@ -2964,11 +2405,6 @@ export function Dashboard({
                             renderRecommendedTemplateSkeletons()
                           ) : filteredRecommendedTemplates.length > 0 ? (
                             filteredRecommendedTemplates.map((template) => (
-
-
-
-
-
                               <div
                                 key={template.id}
                                 className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
@@ -3000,9 +2436,7 @@ export function Dashboard({
                                     {template.description}
                                   </p>
 
-
                                   <div className="flex items-center justify-between pt-3 border-t border-border">
-
                                     <div className="flex items-center gap-2">
                                       <img
                                         src={
@@ -3017,8 +2451,10 @@ export function Dashboard({
                                       </span>
                                     </div>
 
-
-                                    <div className="flex items-center gap-3" data-tour="template-like-button">
+                                    <div
+                                      className="flex items-center gap-3"
+                                      data-tour="template-like-button"
+                                    >
                                       <button
                                         type="button"
                                         onClick={(event) =>
@@ -3053,6 +2489,105 @@ export function Dashboard({
                     </div>
                   </div>
                 </div>
+                <div className="w-full max-w-6xl mx-auto mt-10">
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-semibold text-foreground">
+                        Trending
+                      </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+                      {trendingLoading ? (
+                        renderRecommendedTemplateSkeletons()
+                      ) : trendingTemplates.length > 0 ? (
+                        trendingTemplates.map((template) => (
+                          <div
+                            key={template.id}
+                            className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                            onClick={() => handleQuickTemplateClick(template)}
+                          >
+                            <div className="aspect-video bg-muted relative overflow-hidden">
+                              <img
+                                src={template.thumbnail || "/placeholder.svg"}
+                                alt={template.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                            </div>
+
+                            <div className="p-4">
+                              <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                {template.name}
+                              </h3>
+
+                              <Badge
+                                variant="outline"
+                                className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                              >
+                                {template.category}
+                              </Badge>
+
+                              <p className="text-sm text-muted-foreground mb-3">
+                                {template.description}
+                              </p>
+
+                              <div className="flex items-center justify-between pt-3 border-t border-border">
+                                <div className="flex items-center gap-2">
+                                  <img
+                                    src={
+                                      template.creatorAvatar ||
+                                      "/placeholder.svg"
+                                    }
+                                    alt={template.creator}
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                  <span className="text-xs text-muted-foreground font-medium">
+                                    {template.creator}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={(event) =>
+                                      handleLikeTemplate(event, template)
+                                    }
+                                    disabled={
+                                      likingTemplateIds[
+                                        getTemplateLikeKey(template)
+                                      ]
+                                    }
+                                    className={`flex items-center gap-1 transition-colors ${
+                                      isTemplateLiked(template)
+                                        ? "text-red-500"
+                                        : "text-muted-foreground hover:text-red-500"
+                                    }`}
+                                  >
+                                    <Heart
+                                      className={`w-4 h-4 ${
+                                        isTemplateLiked(template)
+                                          ? "fill-red-500 text-red-500"
+                                          : ""
+                                      }`}
+                                    />
+                                    <span className="text-xs">
+                                      {getTemplateLikeCount(template)}
+                                    </span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                          No trending templates available.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </>
             ) : activeSection === "all" ||
               activeSection === "drafts" ||
@@ -3074,14 +2609,21 @@ export function Dashboard({
                             size="sm"
                             className="h-8 gap-1"
                           >
-                            Last viewed
+                            {sortBy === "last_modified"
+                              ? "Last modified"
+                              : "Name"}
                             <ChevronDown className="w-3 h-3" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          <DropdownMenuItem>Last viewed</DropdownMenuItem>
-                          <DropdownMenuItem>Last modified</DropdownMenuItem>
-                          <DropdownMenuItem>Name</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setSortBy("last_modified")}
+                          >
+                            Last modified
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSortBy("name")}>
+                            Name
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
 
@@ -4232,7 +3774,6 @@ export function Dashboard({
           setShowGettingStartedModal(true);
         }}
       />
-
     </div>
   );
 }

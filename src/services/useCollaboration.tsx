@@ -57,6 +57,9 @@ function useCollaborationLogic({
     clearCanvas,
     consumeLocalChangeFlag,
     replaceProjectName,
+    setActivePageId,
+    undo,
+    redo,
   } = initCollaborationDoc;
 
   const collabInstanceRef = useRef(
@@ -104,6 +107,10 @@ function useCollaborationLogic({
   }, [getOrInitDoc, setState]);
 
   useEffect(() => {
+    setActivePageId(state.activePageId);
+  }, [state.activePageId, setActivePageId]);
+
+  useEffect(() => {
     if (state.currentView !== "editor") {
       hydratedProjectRef.current = null;
     }
@@ -117,7 +124,7 @@ function useCollaborationLogic({
       docProjectIdRef.current &&
       docProjectIdRef.current !== activeProjectId
     ) {
-      replaceComponents([], false);
+      replaceComponents([], false, "system");
       hydratedProjectRef.current = null;
     }
 
@@ -147,11 +154,12 @@ function useCollaborationLogic({
         console.warn(
           `Detected ${duplicateIndices.length} duplicate components in Yjs. Cleaning up...`,
         );
-        yComponents.doc?.transact(() => {
+        const { ydoc } = getOrInitDoc();
+        ydoc.transact(() => {
           for (let i = duplicateIndices.length - 1; i >= 0; i--) {
             yComponents.delete(duplicateIndices[i], 1);
           }
-        });
+        }, "system");
         return;
       }
 
@@ -194,11 +202,12 @@ function useCollaborationLogic({
         console.warn(
           `Detected ${duplicateIndices.length} duplicate pages in Yjs. Cleaning up...`,
         );
-        yPages.doc?.transact(() => {
+        const { ydoc } = getOrInitDoc();
+        ydoc.transact(() => {
           for (let i = duplicateIndices.length - 1; i >= 0; i--) {
             yPages.delete(duplicateIndices[i], 1);
           }
-        });
+        }, "system");
         return;
       }
 
@@ -206,15 +215,20 @@ function useCollaborationLogic({
 
       setState((prev) => {
         const nextPages = uniquePages.length > 0 ? uniquePages : prev.pages;
-        const fallbackPageId = nextPages[0]?.id ?? "home";
         const hasActive = nextPages.some(
           (page: any) => page.id === prev.activePageId,
         );
 
+        // Only fallback if the current page is actually gone and we have other pages
+        let newActivePageId = prev.activePageId;
+        if (!hasActive && nextPages.length > 0) {
+          newActivePageId = nextPages[0]?.id ?? "home";
+        }
+
         return {
           ...prev,
           pages: nextPages,
-          activePageId: hasActive ? prev.activePageId : fallbackPageId,
+          activePageId: newActivePageId,
         };
       });
     };
@@ -333,7 +347,7 @@ function useCollaborationLogic({
             projectData.name.trim() &&
             currentMetaName !== projectData.name
           ) {
-            replaceProjectName(projectData.name, false);
+            replaceProjectName(projectData.name, false, "system");
           }
 
           setState((prev) => ({
@@ -359,11 +373,11 @@ function useCollaborationLogic({
 
         if (canHydrateFromDatabase) {
           if (yComponents.length === 0) {
-            replaceComponents(loadedProject, false);
+            replaceComponents(loadedProject, false, "system");
           }
 
           if (yPages.length === 0 && projectData?.pages) {
-            replacePages(projectData.pages, false);
+            replacePages(projectData.pages, false, "system");
           }
         }
 
@@ -643,6 +657,9 @@ function useCollaborationLogic({
     replaceProjectName,
     setLocalCursor,
     clearLocalCursor,
+    undo,
+    redo,
+    setActivePageId,
   };
 }
 

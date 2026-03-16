@@ -63,10 +63,12 @@ function getInitialTheme(): "light" | "dark" | "system" {
 function getInitialUserProjectConfig() {
   const url = localStorage.getItem("target_supabase_url");
   const key = localStorage.getItem("target_supabase_key");
-  if (url && key) {
-    return { supabaseUrl: url, supabaseKey: key };
-  }
-  return { supabaseUrl: "", supabaseKey: "" };
+  const resendKey = localStorage.getItem("target_resend_api_key");
+  return {
+    supabaseUrl: url || "",
+    supabaseKey: key || "",
+    resendApiKey: resendKey || "",
+  };
 }
 
 function getInitialView(): EditorState["currentView"] {
@@ -170,6 +172,8 @@ export function useEditorState() {
     replaceProjectName,
     setLocalCursor,
     clearLocalCursor,
+    undo,
+    redo,
   } = useCollaboration({
     projectId: state.currentProjectId || "",
     setState,
@@ -374,6 +378,52 @@ export function useEditorState() {
       window.removeEventListener("popstate", syncViewFromPath);
       window.removeEventListener("hashchange", syncViewFromPath);
     };
+  }, []);
+
+  // Listen for resend API key changes from Account Settings
+  useEffect(() => {
+    const handleConfigUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.resendApiKey !== undefined) {
+        setState((prev) => ({
+          ...prev,
+          userProjectConfig: {
+            ...prev.userProjectConfig,
+            resendApiKey: detail.resendApiKey,
+          },
+        }));
+      }
+    };
+    window.addEventListener("userProjectConfigUpdated", handleConfigUpdate);
+    return () => {
+      window.removeEventListener("userProjectConfigUpdated", handleConfigUpdate);
+    };
+  }, []);
+
+  // Sync resend API key from Supabase user metadata on load
+  useEffect(() => {
+    const syncResendKeyFromProfile = async () => {
+      try {
+        const { data: { session } } = await getSupabaseSession();
+        if (session?.user) {
+          const metadata = session.user.user_metadata as Record<string, unknown>;
+          const resendKey = (metadata?.resend_api_key as string) || "";
+          if (resendKey) {
+            localStorage.setItem("target_resend_api_key", resendKey);
+            setState((prev) => ({
+              ...prev,
+              userProjectConfig: {
+                ...prev.userProjectConfig,
+                resendApiKey: resendKey,
+              },
+            }));
+          }
+        }
+      } catch (err) {
+        // Non-critical — silently ignore
+      }
+    };
+    syncResendKeyFromProfile();
   }, []);
 
   useEffect(() => {
@@ -854,12 +904,23 @@ export function useEditorState() {
     localStorage.setItem("fulldev-ai-project-name", name);
   };
 
-  const updateUserProjectConfig = (url: string, key: string) => {
-    const config = { supabaseUrl: url, supabaseKey: key };
-    localStorage.setItem(
-      "fulldev-ai-user-project-config",
-      JSON.stringify(config),
-    );
+  const updateUserProjectConfig = (
+    url: string,
+    key: string,
+    resendKey?: string,
+  ) => {
+    const config = {
+      supabaseUrl: url,
+      supabaseKey: key,
+      resendApiKey: resendKey,
+    };
+    localStorage.setItem("target_supabase_url", url);
+    localStorage.setItem("target_supabase_key", key);
+    if (resendKey) {
+      localStorage.setItem("target_resend_api_key", resendKey);
+    } else {
+      localStorage.removeItem("target_resend_api_key");
+    }
     setState((prev) => ({ ...prev, userProjectConfig: config }));
   };
 
@@ -895,28 +956,27 @@ export function useEditorState() {
       } = await getSupabaseSession();
       const user_id = session?.user?.id;
 
-      if (user_id) {
-        const payloadBase = {
+      if (!projectId) {
+        const { data, error } = await saveProject({
           name: state.projectName || "Untitled Project",
           user_id,
           project_layout: newComponents,
-        };
+        });
 
-        if (!projectId) {
-          const { data, error } = await saveProject(payloadBase);
-          if (!error && data) {
-            projectId = data.id;
-          } else {
-            console.error("Error creating project from template:", error);
-          }
+        if (!error && data) {
+          projectId = data.id;
         } else {
-          const { error } = await saveProject({
-            ...payloadBase,
-            id: projectId,
-          });
-          if (error) {
-            console.error("Error updating project with template:", error);
-          }
+          console.error("Error creating project from template:", error);
+        }
+      } else {
+        const { error } = await saveProject({
+          id: projectId,
+          name: state.projectName || "Untitled Project",
+          project_layout: newComponents,
+        });
+
+        if (error) {
+          console.error("Error updating project with template:", error);
         }
       }
 
@@ -991,7 +1051,6 @@ export function useEditorState() {
         await saveProject({
           id: state.currentProjectId,
           name: state.projectName || "Untitled Project",
-          user_id,
           project_layout: currentComponents,
           pages: state.pages,
           siteTitle: state.siteTitle,
@@ -1195,6 +1254,25 @@ export function useEditorState() {
         togglePreview();
       }
 
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        if (!state.projectCanEdit) return;
+        event.preventDefault();
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        (event.key === "y" || (event.shiftKey && event.key === "Z"))
+      ) {
+        if (!state.projectCanEdit) return;
+        event.preventDefault();
+        redo();
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key === "n") {
         if (!state.projectCanEdit) return;
         event.preventDefault();
@@ -1281,27 +1359,63 @@ export function useEditorState() {
     replacePages(newPages);
   };
 
+  const duplicatePage = (pageId: string) => {
+    if (!state.projectCanEdit) return;
+    const pageToDuplicate = state.pages.find((p) => p.id === pageId);
+    if (!pageToDuplicate) return;
+
+    const newPageId = `page-${Date.now().toString()}`;
+    const newPage = {
+      ...pageToDuplicate,
+      id: newPageId,
+      name: `${pageToDuplicate.name} (Copy)`,
+      path: `${pageToDuplicate.path}-copy`,
+    };
+
+    const newPages = [...state.pages, newPage];
+
+    const pageComponents = state.components.filter((c) => c.page_id === pageId);
+    const duplicatedComponents = pageComponents.map((c) => ({
+      ...c,
+      id: `${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`,
+      page_id: newPageId,
+    }));
+
+    const newComponents = [...state.components, ...duplicatedComponents];
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      components: newComponents,
+      activePageId: newPageId,
+      selectedComponent: null,
+      hasUnsavedChanges: true,
+    }));
+
+    replacePages(newPages);
+    replaceComponents(newComponents);
+  };
+
   const deletePage = (pageId: string) => {
     if (!state.projectCanEdit) return;
-    setState((prev) => {
-      if (prev.pages.length <= 1) return prev; // Cannot delete last page
-      const newPages = prev.pages.filter((p) => p.id !== pageId);
-      const newActiveId =
-        prev.activePageId === pageId ? newPages[0].id : prev.activePageId;
-      // Also remove components belonging to this page
-      const newComponents = prev.components.filter((c) => c.page_id !== pageId);
+    if (state.pages.length <= 1) return; // Cannot delete last page
 
-      replacePages(newPages);
+    const newPages = state.pages.filter((p) => p.id !== pageId);
+    const newActiveId =
+      state.activePageId === pageId ? newPages[0].id : state.activePageId;
+    const newComponents = state.components.filter((c) => c.page_id !== pageId);
 
-      return {
-        ...prev,
-        pages: newPages,
-        components: newComponents,
-        activePageId: newActiveId,
-        selectedComponent: null,
-        hasUnsavedChanges: true,
-      };
-    });
+    replacePages(newPages);
+    replaceComponents(newComponents);
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      components: newComponents,
+      activePageId: newActiveId,
+      selectedComponent: null,
+      hasUnsavedChanges: true,
+    }));
   };
 
   const updatePage = (
@@ -1309,19 +1423,18 @@ export function useEditorState() {
     updates: Partial<{ name: string; path: string }>,
   ) => {
     if (!state.projectCanEdit) return;
-    setState((prev) => {
-      const newPages = prev.pages.map((p) =>
-        p.id === pageId ? { ...p, ...updates } : p,
-      );
 
-      replacePages(newPages);
+    const newPages = state.pages.map((p) =>
+      p.id === pageId ? { ...p, ...updates } : p,
+    );
 
-      return {
-        ...prev,
-        pages: newPages,
-        hasUnsavedChanges: true,
-      };
-    });
+    replacePages(newPages);
+
+    setState((prev) => ({
+      ...prev,
+      pages: newPages,
+      hasUnsavedChanges: true,
+    }));
   };
 
   // src/hooks/useEditorState.ts
@@ -1497,6 +1610,7 @@ export function useEditorState() {
     // Page Management
     switchPage,
     addPage,
+    duplicatePage,
     deletePage,
     updatePage,
     // Onboarding

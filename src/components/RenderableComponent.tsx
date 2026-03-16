@@ -12,6 +12,7 @@ import { EditableText } from './EditableText';
 import { PayMongoButton } from './PayMongoButton';
 import { SignInBlock } from './auth/SignInBlock';
 import { SignUpBlock } from './auth/SignUpBlock';
+import { ProfileBlock } from './auth/ProfileBlock';
 import { supabase } from '../supabase/config/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import $ from 'jquery';
@@ -20,6 +21,7 @@ import 'datatables.net-dt/css/dataTables.dataTables.css';
 import 'datatables.net-responsive-dt';
 import 'datatables.net-responsive-dt/css/responsive.dataTables.css';
 import { toast } from 'sonner';
+import { validateForm, sendFormEmail } from "../utils/formEmailUtils";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +41,8 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Label } from "./ui/label";
-import { formatUrl } from '../utils/urlUtils';
+import { formatUrl, labelToPath } from '../utils/urlUtils';
+import { BACKEND_URL } from '../utils/backendConfig';
 import {
   Select,
   SelectContent,
@@ -187,6 +190,7 @@ interface RenderableComponentProps {
   userProjectConfig?: {
     supabaseUrl: string;
     supabaseKey: string;
+    resendApiKey?: string;
   };
   currentUser?: any;
   activePageId?: string;
@@ -215,6 +219,8 @@ export function RenderableComponent({
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
+  
+  // Background gradient support
   if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
     combinedStyle.background = combinedStyle.backgroundColor;
     delete combinedStyle.backgroundColor;
@@ -242,6 +248,8 @@ export function RenderableComponent({
   const dataTableInstance = React.useRef<any>(null);
   
   const [checkboxChecked, setCheckboxChecked] = React.useState(props.checked || false);
+  const [formState, setFormState] = React.useState<Record<string, string>>({});
+  const [isSubmittingForm, setIsSubmittingForm] = React.useState(false);
 
   React.useEffect(() => {
     if (type === 'checkbox') {
@@ -1053,8 +1061,52 @@ export function RenderableComponent({
       rootActions.forEach((rootAction) => {
         executeSingleAction(rootAction);
       });
-    } else {
-      console.log('Not in preview mode, skipping action execution');
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isPreview) return;
+
+    const recipientEmail = props.recipientEmail;
+    const apiKey = userProjectConfig?.resendApiKey;
+
+    if (!recipientEmail) {
+      toast.error("Form missing recipient email configuration.");
+      return;
+    }
+
+    if (!apiKey && !projectId) {
+      toast.error("Resend API key missing in integration settings.");
+      return;
+    }
+
+    // Use utility for validation
+    const validation = validateForm(props.fields || [], formState);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
+    setIsSubmittingForm(true);
+    
+    try {
+      await sendFormEmail({
+        apiKey,
+        projectId,
+        to: recipientEmail,
+        subject: props.title || 'New Form Submission',
+        formState,
+        from: 'Contact Form <onboarding@resend.dev>'
+      });
+
+      toast.success("Message sent successfully!");
+      setFormState({});
+    } catch (err: any) {
+      console.error("Form submission error:", err);
+      toast.error(err.message || "Failed to send message. Please try again.");
+    } finally {
+      setIsSubmittingForm(false);
     }
   };
 
@@ -1193,7 +1245,7 @@ export function RenderableComponent({
                 width: '100%',
                 height: '100%',
                 // In editor, if selected, we disable pointer events so the user can drag/resize
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 zIndex: isPreview ? 20 : 'auto'
               }}
               className={`${props.className || ''} ${isSelected ? 'relative' : ''}`}
@@ -1281,7 +1333,7 @@ export function RenderableComponent({
                 ...combinedStyle,
                 width: '100%',
                 height: '100%',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 zIndex: isPreview ? 20 : 'auto'
               }}
               disabled={isPreview ? false : disabled}
@@ -1305,7 +1357,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignInBlock
                 id={props.elementId || `signin-${component.id}`}
                 title={props.title}
@@ -1315,6 +1367,9 @@ export function RenderableComponent({
                 isPreview={isPreview}
                 userProjectConfig={userProjectConfig}
                 className={props.className}
+                switchToSignUpText={props.switchToSignUpText}
+                switchToSignUpUrl={props.switchToSignUpUrl}
+                navigate={navigate}
                 style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
               />
             </div>
@@ -1336,7 +1391,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <div style={{ pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'), width: '100%', height: '100%' }}>
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignUpBlock
                 id={props.elementId || `signup-${component.id}`}
                 title={props.title}
@@ -1347,7 +1402,39 @@ export function RenderableComponent({
                 isPreview={isPreview}
                 userProjectConfig={userProjectConfig}
                 className={props.className}
+                switchToSignInText={props.switchToSignInText}
+                switchToSignInUrl={props.switchToSignInUrl}
+                navigate={navigate}
                 style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
+              />
+            </div>
+          </ResizeHandle>
+        );
+
+      case 'profile':
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 50)}
+            initialHeight={parseSize(style?.height, 50)}
+            className="group inline-block"
+            minWidth={40}
+            minHeight={40}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ProfileBlock
+                id={props.elementId || `profile-${component.id}`}
+                menuItems={props.menuItems}
+                isPreview={isPreview}
+                userProjectConfig={userProjectConfig}
+                className={props.className}
+                navigate={navigate}
+                style={{ ...combinedStyle, margin: 0 }}
               />
             </div>
           </ResizeHandle>
@@ -1561,7 +1648,7 @@ export function RenderableComponent({
               className={`flex items-center w-full h-full ${props.className || ''}`}
               style={{
                 ...combinedStyle,
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 padding: '10px 0' // Give it some click area in the editor
               }}
             >
@@ -1573,10 +1660,6 @@ export function RenderableComponent({
                   margin: 0
                 }}
               />
-              {/* Invisible overlay to make selecting it easier in the editor */}
-              {!isPreview && (
-                <div className="absolute inset-0 z-10" />
-              )}
             </div>
           </ResizeHandle>
         );
@@ -1623,7 +1706,7 @@ export function RenderableComponent({
                 width: '100%',
                 height: '100%',
                 overflow: 'auto',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                pointerEvents: 'auto'
               }}
             >
               {items.map((item: any, idx: number) => (
@@ -1704,7 +1787,7 @@ export function RenderableComponent({
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                pointerEvents: 'auto'
               }}
             >
               {/* Tab headers */}
@@ -1786,7 +1869,7 @@ export function RenderableComponent({
                   fontSize: '14px',
                   fontWeight: 500,
                   ...combinedStyle,
-                  pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto')
+                  pointerEvents: 'auto'
                 }}
               >
                 {props.triggerText || 'Open Modal'}
@@ -1914,7 +1997,7 @@ export function RenderableComponent({
                 height: '100%',
                 boxSizing: 'border-box',
                 ...combinedStyle,
-                pointerEvents: isPreview ? 'auto' : (isSelected ? 'none' : 'auto'),
+                pointerEvents: 'auto',
                 display: (isTriggered && isPreview && !isTriggeredVisible) ? 'none' : 'flex'
               }}
             >
@@ -2037,8 +2120,22 @@ export function RenderableComponent({
                   alt={props.alt || 'Image'}
                   width="100%"
                   height="100%"
-                  style={{ ...combinedStyle, width: '100%', height: '100%', objectFit: 'fill' }}
-                  className={`rounded-lg ${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
+                  style={{ 
+                    ...combinedStyle, 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: props.imageShape && props.imageShape !== 'original' ? 'cover' : 'fill',
+                    borderRadius: props.imageShape === 'circle' ? '50%' : 
+                                  props.imageShape === 'rounded' ? '12px' : 
+                                  props.imageShape === 'pill' ? '9999px' : 
+                                  props.imageShape === 'squircle' ? '25% 10%' : '0',
+                    clipPath: props.imageShape === 'hexagon' ? 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' :
+                              props.imageShape === 'diamond' ? 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' :
+                              props.imageShape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
+                              props.imageShape === 'parallelogram' ? 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)' :
+                              props.imageShape === 'star' ? 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' : 'none'
+                  }}
+                  className={`${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
                 />
               </div>
             ) : (
@@ -2212,8 +2309,10 @@ export function RenderableComponent({
                     style={{ 
                       height: '80%', 
                       maxHeight: '100%',
-                      width: 'auto',
-                      objectFit: 'contain'
+                      width: props.logoShape === 'circle' || props.logoShape === 'square' ? 'auto' : 'auto',
+                      aspectRatio: props.logoShape === 'circle' || props.logoShape === 'square' ? '1/1' : 'auto',
+                      objectFit: props.logoShape === 'original' ? 'contain' : 'cover',
+                      borderRadius: props.logoShape === 'circle' ? '50%' : props.logoShape === 'rounded' ? '8px' : '0',
                     }} 
                   />
                 )}
@@ -2238,6 +2337,7 @@ export function RenderableComponent({
                       key={index} 
                       href={url} 
                       className="hover:text-gray-300"
+                      style={{ fontSize: props.linkFontSize ? `${props.linkFontSize}px` : undefined }}
                       onClick={(e) => {
                         if (isPreview) {
                           e.preventDefault();
@@ -2247,12 +2347,14 @@ export function RenderableComponent({
                               detail: { elementId }
                             });
                             window.dispatchEvent(scrollEvent);
-                          } else if (url !== '#' && url !== '') {
-                            const isInternal = url.startsWith('/') || url.startsWith('./');
+                          } else if (url !== '' || link) {
+                            const targetUrl = (url !== '#' && url !== '') ? url : labelToPath(link);
+                            
+                            const isInternal = targetUrl.startsWith('/') || targetUrl.startsWith('./');
                             if (isInternal && navigate) {
-                              navigate(url);
-                            } else if (!isInternal) {
-                              window.open(url, '_blank');
+                              navigate(targetUrl);
+                            } else if (!isInternal && targetUrl !== '#') {
+                              window.open(targetUrl, '_blank');
                             }
                           }
                         } else {
@@ -2717,6 +2819,7 @@ export function RenderableComponent({
             initialWidth={formWidth}
             initialHeight={formHeight}
             className="group"
+            disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
@@ -2727,85 +2830,99 @@ export function RenderableComponent({
             >
               <CardHeader>
                 <CardTitle>
-                  <EditableText
-                    text={props.title}
-                    onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
-                    element="span"
-                    placeholder="Contact Form"
-                    isSelected={isSelected}
-                  />
+                  {isPreview ? (
+                    <span>{props.title || 'Contact Form'}</span>
+                  ) : (
+                    <EditableText
+                      text={props.title}
+                      onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
+                      element="span"
+                      placeholder="Contact Form"
+                      isSelected={isSelected}
+                    />
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="relative">
-                  <Input
-                    placeholder={props.namePlaceholder || "Name"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit name placeholder:', props.namePlaceholder || 'Name');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, namePlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
+                {props.fields && props.fields.length > 0 ? (
+                  props.fields.map((field: any) => (
+                    <div key={field.id} className="space-y-1.5 relative">
+                      {field.label && <Label className="text-xs">{field.label}</Label>}
+                      {field.type === 'textarea' ? (
+                        <Textarea
+                          placeholder={field.placeholder}
+                          value={formState[field.label || field.id] || ''}
+                          onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          required={field.required}
+                        />
+                      ) : (
+                        <Input
+                          type={field.type || 'text'}
+                          placeholder={field.placeholder}
+                          value={formState[field.label || field.id] || ''}
+                          onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          required={field.required}
+                        />
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Input
+                        placeholder={props.namePlaceholder || "Name"}
+                        value={formState['Name'] || ''}
+                        onChange={(e) => setFormState({ ...formState, 'Name': e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Input
+                        type="email"
+                        placeholder={props.emailPlaceholder || "Email"}
+                        value={formState['Email'] || ''}
+                        onChange={(e) => setFormState({ ...formState, 'Email': e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        placeholder={props.messagePlaceholder || "Message"}
+                        value={formState['Message'] || ''}
+                        onChange={(e) => setFormState({ ...formState, 'Message': e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </>
+                )}
+                <Button 
+                  disabled={isSubmittingForm}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (isPreview) {
+                      handleFormSubmit(e as any);
+                    }
+                  }}
+                >
+                  {isSubmittingForm ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Sending...
                     </span>
+                  ) : isPreview ? (
+                    <span>{props.submitText || 'Submit'}</span>
+                  ) : (
+                    <EditableText
+                      text={props.submitText}
+                      onTextChange={(newText) => onUpdate({ props: { ...props, submitText: newText } })}
+                      element="span"
+                      placeholder="Submit"
+                      isSelected={isSelected}
+                    />
                   )}
-                </div>
-                <div className="relative">
-                  <Input
-                    type="email"
-                    placeholder={props.emailPlaceholder || "Email"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-1/2 -translate-y-1/2 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit email placeholder:', props.emailPlaceholder || 'Email');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, emailPlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  <Textarea
-                    placeholder={props.messagePlaceholder || "Message"}
-                    onClick={(e) => isSelected && e.stopPropagation()}
-                  />
-                  {isSelected && (
-                    <span
-                      className="absolute -left-2 top-4 text-xs text-blue-500 cursor-pointer hover:text-blue-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newPlaceholder = prompt('Edit message placeholder:', props.messagePlaceholder || 'Message');
-                        if (newPlaceholder !== null) {
-                          onUpdate({ props: { ...props, messagePlaceholder: newPlaceholder } });
-                        }
-                      }}
-                      title="Edit placeholder"
-                    >
-                    </span>
-                  )}
-                </div>
-                <Button onClick={(e: React.MouseEvent<HTMLButtonElement>) => isSelected && e.preventDefault()}>
-                  <EditableText
-                    text={props.submitText}
-                    onTextChange={(newText) => onUpdate({ props: { ...props, submitText: newText } })}
-                    element="span"
-                    placeholder="Submit"
-                    isSelected={isSelected}
-                  />
                 </Button>
               </CardContent>
             </Card>

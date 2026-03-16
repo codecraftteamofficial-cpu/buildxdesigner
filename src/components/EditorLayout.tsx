@@ -163,6 +163,8 @@ export function EditorLayout({
             onSwitchPage={editor.switchPage}
             onAddPage={canEditProject ? editor.addPage : undefined}
             onDeletePage={canEditProject ? editor.deletePage : undefined}
+            onDuplicatePage={canEditProject ? editor.duplicatePage : undefined}
+            onUpdatePage={canEditProject ? editor.updatePage : undefined}
             onStartTour={onStartTour}
             onStartPublishingBasics={onStartPublishingBasics}
             currentProject={{
@@ -460,6 +462,9 @@ export function EditorLayout({
                           canEditProject ? toggleCanvasGrid : undefined
                         }
                         userProjectConfig={state.userProjectConfig}
+                        onUpdateUserProjectConfig={
+                          canEditProject ? editor.updateUserProjectConfig : undefined
+                        }
                       />
                     )}
 

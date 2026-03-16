@@ -88,6 +88,7 @@ interface PreviewModalProps {
   userProjectConfig?: {
     supabaseUrl: string;
     supabaseKey: string;
+    resendApiKey?: string;
   };
   currentUser?: any;
   canvasBackgroundColor?: string;
@@ -119,8 +120,9 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
     const getActivePageFromPath = (path: string, pages: { id: string; name: string; path: string }[]): string | null => {
       if (!pages || pages.length === 0) return 'home'; // If no pages, default to home
 
-      // Normalize path for comparison
-      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      // Normalize path for comparison (ignore search parameters)
+      const pathname = path.split('?')[0];
+      const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
 
       // Handle root path or /home alias
       if (normalizedPath === '/' || normalizedPath === '/home') {

@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { SiteRenderer } from "./SiteRenderer";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { Toaster } from "./ui/sonner";
 
 
 export function PublishedSite() {
@@ -17,8 +18,9 @@ export function PublishedSite() {
     const getActivePageFromPath = (path: string, pages: any[]) => {
         if (!pages || pages.length === 0) return 'home';
 
-        // Normalize path for comparison
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        // Normalize path for comparison (ignore search parameters)
+        const pathname = path.split('?')[0];
+        const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
 
         // Handle root path or /home alias
         if (normalizedPath === '/' || normalizedPath === '/home') {
@@ -126,6 +128,7 @@ export function PublishedSite() {
 
     return (
         <DndProvider backend={HTML5Backend}>
+            <Toaster position="top-right" richColors />
             <SiteRenderer
                 projectId={project.id}
                 components={project.project_layout || []}

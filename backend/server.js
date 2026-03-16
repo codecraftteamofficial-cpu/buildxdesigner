@@ -754,6 +754,97 @@ app.get("/api/project-likes", async (req, res) => {
   }
 });
 
+// Resend Email Proxy Endpoint
+app.post("/api/send-email", async (req, res) => {
+  const { resendApiKey, to, subject, html, from, projectId, replyTo } = req.body;
+
+  let finalApiKey = resendApiKey;
+
+  if (!finalApiKey && projectId) {
+    console.log(`Looking up Resend API key for project: ${projectId}`);
+    try {
+      const supabaseUrl =
+        process.env.SUPABASE_URL || "https://odswfrqmqbybfkhpemsv.supabase.co";
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (serviceRoleKey) {
+        const projectResponse = await axios.get(
+          `${supabaseUrl}/rest/v1/projects?projects_id=eq.${projectId}&select=user_id`,
+          {
+            headers: {
+              apikey: serviceRoleKey,
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+          },
+        );
+
+        if (projectResponse.data && projectResponse.data.length > 0) {
+          const userId = projectResponse.data[0].user_id;
+
+          const ownerResponse = await axios.get(
+            `${supabaseUrl}/auth/v1/admin/users/${userId}`,
+            {
+              headers: {
+                apikey: serviceRoleKey,
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+            },
+          );
+
+          finalApiKey = ownerResponse.data.user_metadata?.resend_api_key;
+          if (finalApiKey) {
+            console.log("Successfully retrieved Resend API key from owner metadata.");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to look up project owner Resend key:", err.message);
+    }
+  }
+
+  if (!finalApiKey) {
+    return res.status(400).json({ error: "Resend API key is required (Directly or via project owner settings)." });
+  }
+  if (!to) {
+    return res.status(400).json({ error: "Recipient email (to) is required." });
+  }
+  if (!html) {
+    return res.status(400).json({ error: "Email body (html) is required." });
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from: from || "Contact Form <onboarding@resend.dev>",
+        to: Array.isArray(to) ? to : [to],
+        subject: subject || "New Form Submission",
+        html: html,
+        reply_to: replyTo,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${finalApiKey}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    console.log("Email sent successfully:", response.data);
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error(
+      "Resend Email Error:",
+      JSON.stringify(error.response?.data, null, 2) || error.message,
+    );
+    res.status(error.response?.status || 500).json({
+      error: "Failed to send email",
+      message: error.response?.data?.message || error.message,
+      details: error.response?.data || error.message,
+    });
+  }
+});
+
 app.get("/", (req, res) => {
   res.json({
     status: "ok",

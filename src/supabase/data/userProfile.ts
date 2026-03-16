@@ -13,7 +13,8 @@ interface UserProfileData {
     avatarUrl: string | null;
     provider: string;
     isConnected?: number;
-    paymongo_key?: string; // Added paymongo_key
+    paymongo_key?: string;
+    resend_api_key?: string;
 }
 
 const AVATAR_BUCKET = 'avatars';
@@ -44,7 +45,7 @@ export async function fetchUserProfile(): Promise<{ data: UserProfileData | null
 
     const createdAt = new Date(user.created_at);
     const joinedDate = createdAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-    const authMetadata = user.user_metadata as { full_name?: string, paymongo_key?: string };
+    const authMetadata = user.user_metadata as { full_name?: string, paymongo_key?: string, resend_api_key?: string };
 
     const combinedData: UserProfileData = {
         user_id: profileUserId,
@@ -56,14 +57,15 @@ export async function fetchUserProfile(): Promise<{ data: UserProfileData | null
         avatarUrl: profileRow?.avatar_url || null,
         provider: provider,
         isConnected: profileRow?.isConnected,
-        paymongo_key: authMetadata.paymongo_key || ''
+        paymongo_key: authMetadata.paymongo_key || '',
+        resend_api_key: authMetadata.resend_api_key || ''
     };
 
     return { data: combinedData, error: null };
 }
 
 // --- UPDATING PROFILE DATA ---
-type ProfileUpdateFields = Partial<Omit<UserProfileData, 'user_id' | 'joinedDate' | 'avatarUrl' | 'provider'>> & { paymongoKey?: string };
+type ProfileUpdateFields = Partial<Omit<UserProfileData, 'user_id' | 'joinedDate' | 'avatarUrl' | 'provider'>> & { paymongoKey?: string, resendApiKey?: string };
 
 export async function updateProfile(data: ProfileUpdateFields & { email?: string, phone?: string }): Promise<{ success: boolean, error: string | null }> {
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -72,14 +74,15 @@ export async function updateProfile(data: ProfileUpdateFields & { email?: string
     }
     const userId = authData.user.id;
 
-    const authUpdates: { data?: { full_name?: string, paymongo_key?: string }, phone?: string, email?: string } = {};
+    const authUpdates: { data?: { full_name?: string, paymongo_key?: string, resend_api_key?: string }, phone?: string, email?: string } = {};
 
     if (data.email !== undefined) authUpdates.email = data.email;
     if (data.phone !== undefined) authUpdates.phone = data.phone;
 
     // Handle metadata updates
-    const metadataUpdates: { full_name?: string, paymongo_key?: string } = {};
+    const metadataUpdates: { full_name?: string, paymongo_key?: string, resend_api_key?: string } = {};
     if (data.paymongoKey !== undefined) metadataUpdates.paymongo_key = data.paymongoKey;
+    if (data.resendApiKey !== undefined) metadataUpdates.resend_api_key = data.resendApiKey;
     if (data.fullName !== undefined) metadataUpdates.full_name = data.fullName; // Ensure fullName is also updated in metadata if handled
 
     if (Object.keys(metadataUpdates).length > 0) {

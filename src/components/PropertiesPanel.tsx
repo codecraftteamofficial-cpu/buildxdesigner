@@ -28,6 +28,9 @@ import {
   MousePointer,
   RefreshCw,
   HelpCircle,
+  Eye,
+  EyeOff,
+  Sparkles
 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@supabase/supabase-js"
@@ -42,6 +45,8 @@ const AUTOPLAY_SPEEDS = [500, 1000, 1500, 2000, 3000, 4000, 5000, 7500, 10000];
 const LETTER_SPACING_VALUES = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
 const LINE_HEIGHT_VALUES = [0.8, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 2, 2.2, 2.5, 3];
 const BORDER_RADIUS_VALUES = [0, 2, 4, 6, 8, 12, 16, 24, 32, 48, 9999];
+const BORDER_WIDTHS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16];
+const BORDER_STYLES = ["none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"];
 const DIVIDER_THICKNESS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
 const DIMENSION_VALUES = ["auto", "10%", "20%", "25%", "30%", "40%", "50%", "60%", "70%", "75%", "80%", "90%", "100%", "50px", "100px", "150px", "200px", "250px", "300px", "400px", "500px"];
 
@@ -91,6 +96,7 @@ interface PropertiesPanelProps {
   pages?: { id: string; name: string; path?: string }[]
   activePageId?: string
   userProjectConfig?: any
+  onUpdateUserProjectConfig?: (url: string, key: string, resendKey?: string) => void
 }
 // ─── Gradient-aware ColorPicker (module-level to prevent state reset) ────────
 const SOLID_PRESETS = [
@@ -114,9 +120,9 @@ function buildGradient(type: 'linear' | 'radial', angle: number, c1: string, p1:
     : `radial-gradient(circle, ${c1} ${p1}%, ${c2} ${p2}%)`
 }
 
-function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (val: string) => void }) {
+function ColorPicker({ label, value, onChange, hideGradient }: { label: string; value: string; onChange: (val: string) => void; hideGradient?: boolean }) {
   const isGradient = value?.startsWith('linear-gradient') || value?.startsWith('radial-gradient')
-  const [mode, setMode] = React.useState<'solid' | 'gradient'>(isGradient ? 'gradient' : 'solid')
+  const [mode, setMode] = React.useState<'solid' | 'gradient'>(hideGradient ? 'solid' : (isGradient ? 'gradient' : 'solid'))
   const [gradientType, setGradientType] = React.useState<'linear' | 'radial'>('linear')
   const [gradientAngle, setGradientAngle] = React.useState(135)
   const [stop1Color, setStop1Color] = React.useState('#6366f1')
@@ -125,6 +131,10 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
   const [stop2Pos, setStop2Pos] = React.useState(100)
 
   React.useEffect(() => {
+    if (hideGradient) {
+      setMode('solid');
+      return;
+    }
     if (value?.startsWith('linear-gradient')) {
       setMode('gradient'); setGradientType('linear')
       const m = value.match(/(\d+)deg/)
@@ -149,10 +159,12 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
 
       {/* Mode toggle */}
-      <div className="flex rounded-md overflow-hidden border border-input h-7 text-[11px]">
-        <button className={`flex-1 font-medium transition-colors ${mode === 'solid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('solid')}>Solid</button>
-        <button className={`flex-1 font-medium transition-colors ${mode === 'gradient' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('gradient')}>Gradient</button>
-      </div>
+      {!hideGradient && (
+        <div className="flex rounded-md overflow-hidden border border-input h-7 text-[11px]">
+          <button className={`flex-1 font-medium transition-colors ${mode === 'solid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('solid')}>Solid</button>
+          <button className={`flex-1 font-medium transition-colors ${mode === 'gradient' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('gradient')}>Gradient</button>
+        </div>
+      )}
 
       {mode === 'solid' ? (
         <div className="flex flex-col gap-2">
@@ -257,9 +269,12 @@ export function PropertiesPanel({
   pages,
   activePageId,
   userProjectConfig,
+  onUpdateUserProjectConfig,
 }: PropertiesPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState("content")
+  const [showResendApiKey, setShowResendApiKey] = useState(false)
+  const [showIndividualBorders, setShowIndividualBorders] = useState(false)
   const [isPickingElement, setIsPickingElement] = useState<string | null>(null) // actionId or null
   const [pickingMode, setPickingMode] = useState<{ type: "selector" | "column"; column?: string } | null>(null)
   const [boxShadowValues, setBoxShadowValues] = useState({
@@ -567,16 +582,7 @@ export function PropertiesPanel({
 
   const updateStyle = (key: string, value: any) => {
     if (!selectedComponent) return
-
-    const updatedComponent = {
-      ...selectedComponent,
-      style: {
-        ...selectedComponent.style,
-        [key]: value,
-      },
-    }
-
-    onUpdateComponent(selectedComponent.id, updatedComponent)
+    onUpdateStyle(selectedComponent.id, { [key]: value })
   }
 
   const renderPropertyInputs = () => {
@@ -685,7 +691,7 @@ export function PropertiesPanel({
             <div className="pt-2 border-t border-border">
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs font-medium">Actions</Label>
-                <Button variant="ghost" size="xs" onClick={addAction} className="h-6 text-xs">
+                <Button variant="ghost" size="sm" onClick={addAction} className="h-6 text-xs px-2 py-0">
                   <Plus className="h-3 w-3 mr-1" /> Add Action
                 </Button>
               </div>
@@ -1959,39 +1965,86 @@ export function PropertiesPanel({
               <Label htmlFor="title" className="text-xs">Form Title</Label>
               <Input
                 id="title"
-                value={props.title || "Sign In"}
+                value={props.title ?? ""}
                 onChange={(e) => updateProps("title", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The main heading shown at the top of the form.</p>
             </div>
             <div>
               <Label htmlFor="description" className="text-xs">Description</Label>
               <Input
                 id="description"
-                value={props.description || "Enter your email and password to access your account."}
+                value={props.description ?? ""}
                 onChange={(e) => updateProps("description", e.target.value)}
+                placeholder="Enter your email and password to access your account."
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Sub-text providing instructions or details to your users.</p>
             </div>
             <div>
               <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
               <Input
                 id="buttonText"
-                value={props.buttonText || "Sign In"}
+                value={props.buttonText ?? ""}
                 onChange={(e) => updateProps("buttonText", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The label displayed on the login button.</p>
             </div>
             <div>
               <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Select
+                value={props.redirectUrl ?? "/"}
+                onValueChange={(value: string) => updateProps("redirectUrl", value)}
+              >
+                <SelectTrigger id="redirectUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select a page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Where users are sent after login. URL context is preserved.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignUpText" className="text-xs">Switch to Sign Up Text</Label>
               <Input
-                id="redirectUrl"
-                value={props.redirectUrl || "/"}
-                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                id="switchToSignUpText"
+                value={props.switchToSignUpText ?? ""}
+                onChange={(e) => updateProps("switchToSignUpText", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Label for the register link.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignUpUrl" className="text-xs">Select Sign Up Page</Label>
+              <Select
+                value={props.switchToSignUpUrl ?? "/sign-up"}
+                onValueChange={(value: string) => updateProps("switchToSignUpUrl", value)}
+              >
+                <SelectTrigger id="switchToSignUpUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select register page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Which page contains your Sign Up form?</p>
             </div>
             <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 <b>Usage Hint:</b> The Switch links automatically carry over URL parameters (like <code>subdomain</code>) to keep your users on the same site.
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100">
               <p className="text-[10px] text-blue-800">
                 💡 This block automatically connects to your Project's Supabase credentials to handle authentication.
               </p>
@@ -2030,37 +2083,84 @@ export function PropertiesPanel({
               <Label htmlFor="title" className="text-xs">Form Title</Label>
               <Input
                 id="title"
-                value={props.title || "Sign Up"}
+                value={props.title ?? ""}
                 onChange={(e) => updateProps("title", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The main heading shown at the top of the form.</p>
             </div>
             <div>
               <Label htmlFor="description" className="text-xs">Description</Label>
               <Input
                 id="description"
-                value={props.description || "Create a new account by filling out the form below."}
+                value={props.description ?? ""}
                 onChange={(e) => updateProps("description", e.target.value)}
+                placeholder="Create a new account by filling out the form below."
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Brief explanation shown below the title.</p>
             </div>
             <div>
               <Label htmlFor="buttonText" className="text-xs">Button Text</Label>
               <Input
                 id="buttonText"
-                value={props.buttonText || "Sign Up"}
+                value={props.buttonText ?? ""}
                 onChange={(e) => updateProps("buttonText", e.target.value)}
+                placeholder="Sign Up"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">The text displayed on the registration button.</p>
             </div>
             <div>
               <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+              <Select
+                value={props.redirectUrl ?? "/"}
+                onValueChange={(value: string) => updateProps("redirectUrl", value)}
+              >
+                <SelectTrigger id="redirectUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select a page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Target URL after success. Maintains current site context.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignInText" className="text-xs">Switch to Sign In Text</Label>
               <Input
-                id="redirectUrl"
-                value={props.redirectUrl || "/"}
-                onChange={(e) => updateProps("redirectUrl", e.target.value)}
+                id="switchToSignInText"
+                value={props.switchToSignInText ?? ""}
+                onChange={(e) => updateProps("switchToSignInText", e.target.value)}
+                placeholder="Sign In"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Label for the login link.</p>
+            </div>
+            <div>
+              <Label htmlFor="switchToSignInUrl" className="text-xs">Select Sign In Page</Label>
+              <Select
+                value={props.switchToSignInUrl ?? "/sign-in"}
+                onValueChange={(value: string) => updateProps("switchToSignInUrl", value)}
+              >
+                <SelectTrigger id="switchToSignInUrl" className="h-8 text-xs mt-1">
+                  <SelectValue placeholder="Select login page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pages && pages.map(p => (
+                    <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1 px-1">Which page contains your Sign In form?</p>
+            </div>
+            <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 <b>Usage Hint:</b> The Switch links automatically carry over URL parameters (like <code>subdomain</code>) to keep your users on the same site.
+              </p>
             </div>
 
             <div className="pt-2 border-t">
@@ -2141,6 +2241,160 @@ export function PropertiesPanel({
             </div>
           </div>
         )
+
+      case "profile":
+        const menuItems = Array.isArray(props.menuItems) ? props.menuItems : [];
+
+        const addMenuItem = () => {
+          const newItem = {
+            id: Date.now().toString(),
+            label: "New Page",
+            path: "/",
+          };
+          updateProps("menuItems", [...menuItems, newItem]);
+        };
+
+        const updateMenuItem = (index: number, updates: any) => {
+          const newItems = [...menuItems];
+          newItems[index] = { ...newItems[index], ...updates };
+          updateProps("menuItems", newItems);
+        };
+
+        const removeMenuItem = (index: number) => {
+          const newItems = [...menuItems];
+          newItems.splice(index, 1);
+          updateProps("menuItems", newItems);
+        };
+
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Dropdown Menu Items</Label>
+              <Button variant="ghost" size="sm" onClick={addMenuItem} className="h-6 w-6 p-0">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {menuItems.map((item: any, idx: number) => (
+                <div key={item.id} className="p-3 border rounded-lg bg-slate-50 relative group space-y-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeMenuItem(idx)}
+                    className="absolute top-2 right-2 h-6 w-6 p-0 text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Item Label</Label>
+                      <Input
+                        value={item.label}
+                        onChange={(e) => updateMenuItem(idx, { label: e.target.value })}
+                        className="h-8 text-xs mt-1 bg-white"
+                        placeholder="e.g. Settings"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Redirect Page</Label>
+                      <Select
+                        value={item.path}
+                        onValueChange={(val: string) => updateMenuItem(idx, { path: val })}
+                      >
+                        <SelectTrigger className="h-8 text-xs mt-1 bg-white">
+                          <SelectValue placeholder="Select page" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pages && pages.map(p => (
+                            <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {menuItems.length === 0 && (
+                <div className="text-center py-6 border border-dashed rounded-lg bg-white">
+                  <p className="text-xs text-muted-foreground">No custom menu items</p>
+                  <Button variant="link" size="sm" onClick={addMenuItem} className="text-xs h-auto p-0 mt-1">
+                    Add your first item
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100 space-y-2">
+              <p className="text-[11px] font-medium text-blue-900 leading-tight">
+                💡 Logout Link
+              </p>
+              <p className="text-[10px] text-blue-800 leading-relaxed">
+                A default "Log out" button is always included at the bottom of the dropdown. It uses your project's Supabase configuration to sign users out.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <Label className="text-xs font-semibold flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                Integrations
+              </Label>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="resend-api-key" className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                    Resend API Key
+                  </Label>
+                  {userProjectConfig?.resendApiKey && !userProjectConfig.resendApiKey.startsWith('re_') && (
+                    <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-600 border-amber-200">
+                      Invalid Format
+                    </Badge>
+                  )}
+                </div>
+                <div className="relative">
+                  <Input
+                    id="resend-api-key"
+                    type={showResendApiKey ? "text" : "password"}
+                    value={userProjectConfig?.resendApiKey || ""}
+                    onChange={(e) => {
+                      onUpdateUserProjectConfig?.(
+                        userProjectConfig?.supabaseUrl || "",
+                        userProjectConfig?.supabaseKey || "",
+                        e.target.value
+                      );
+                    }}
+                    placeholder="re_123456789..."
+                    className={`h-8 text-xs mt-1 bg-white pr-8 ${
+                      userProjectConfig?.resendApiKey && !userProjectConfig.resendApiKey.startsWith('re_') 
+                        ? "border-amber-400 focus-visible:ring-amber-400" 
+                        : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResendApiKey(!showResendApiKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showResendApiKey ? (
+                      <EyeOff className="h-3 w-3" />
+                    ) : (
+                      <Eye className="h-3 w-3" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Required for form submissions. Must start with <code>re_</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+
 
       case "carousel":
         const handleAddSlide = () => {
@@ -2881,6 +3135,31 @@ export function PropertiesPanel({
                 </Select>
               </div>
             </div>
+            <div>
+              <Label htmlFor="imageShape" className="text-xs">
+                Image Shape
+              </Label>
+              <Select
+                value={props.imageShape || "original"}
+                onValueChange={(value) => updateProps("imageShape", value)}
+              >
+                <SelectTrigger id="imageShape" className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="original">Original (Default)</SelectItem>
+                  <SelectItem value="circle">Circle</SelectItem>
+                  <SelectItem value="rounded">Rounded Corners</SelectItem>
+                  <SelectItem value="pill">Pill Shape</SelectItem>
+                  <SelectItem value="squircle">Squircle</SelectItem>
+                  <SelectItem value="hexagon">Hexagon</SelectItem>
+                  <SelectItem value="diamond">Diamond</SelectItem>
+                  <SelectItem value="triangle">Triangle</SelectItem>
+                  <SelectItem value="parallelogram">Parallelogram</SelectItem>
+                  <SelectItem value="star">Star</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )
 
@@ -3029,6 +3308,47 @@ export function PropertiesPanel({
                   placeholder="Your Brand"
                   className="h-8 text-xs mt-1"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="linkFontSize" className="text-xs">
+                  Link Font Size
+                </Label>
+                <Select
+                  value={String(props.linkFontSize || "14")}
+                  onValueChange={(value) => updateProps("linkFontSize", value)}
+                >
+                  <SelectTrigger id="linkFontSize" className="h-8 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}px
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="logoShape" className="text-xs">
+                  Logo Shape
+                </Label>
+                <Select
+                  value={props.logoShape || "original"}
+                  onValueChange={(value) => updateProps("logoShape", value)}
+                >
+                  <SelectTrigger id="logoShape" className="h-8 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="original">Original</SelectItem>
+                    <SelectItem value="circle">Circle</SelectItem>
+                    <SelectItem value="rounded">Rounded</SelectItem>
+                    <SelectItem value="square">Square</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -3451,8 +3771,33 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
         )
 
       case "form":
+        const formFields = props.fields || []
+
+        const addFormField = () => {
+          const newField = {
+            id: `field-${Date.now()}`,
+            label: "New Field",
+            placeholder: "Enter value",
+            type: "text",
+            required: false,
+          }
+          updateProps("fields", [...formFields, newField])
+        }
+
+        const updateFormField = (id: string, updates: any) => {
+          const updatedFields = formFields.map((f: any) => (f.id === id ? { ...f, ...updates } : f))
+          updateProps("fields", updatedFields)
+        }
+
+        const removeFormField = (id: string) => {
+          updateProps(
+            "fields",
+            formFields.filter((f: any) => f.id !== id),
+          )
+        }
+
         return (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
               <Label htmlFor="form-title" className="text-xs">
                 Form Title
@@ -3478,40 +3823,100 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
               />
             </div>
             <div>
-              <Label htmlFor="namePlaceholder" className="text-xs">
-                Name Placeholder
+              <Label htmlFor="recipientEmail" className="text-xs">
+                Recipient Email
               </Label>
               <Input
-                id="namePlaceholder"
-                value={props.namePlaceholder || ""}
-                onChange={(e) => updateProps("namePlaceholder", e.target.value)}
-                placeholder="Name"
+                id="recipientEmail"
+                type="email"
+                value={props.recipientEmail || ""}
+                onChange={(e) => updateProps("recipientEmail", e.target.value)}
+                placeholder="hello@example.com"
                 className="h-8 text-xs mt-1"
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                The email address that will receive form submissions.
+              </p>
             </div>
-            <div>
-              <Label htmlFor="emailPlaceholder" className="text-xs">
-                Email Placeholder
-              </Label>
-              <Input
-                id="emailPlaceholder"
-                value={props.emailPlaceholder || ""}
-                onChange={(e) => updateProps("emailPlaceholder", e.target.value)}
-                placeholder="Email"
-                className="h-8 text-xs mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="messagePlaceholder" className="text-xs">
-                Message Placeholder
-              </Label>
-              <Input
-                id="messagePlaceholder"
-                value={props.messagePlaceholder || ""}
-                onChange={(e) => updateProps("messagePlaceholder", e.target.value)}
-                placeholder="Message"
-                className="h-8 text-xs mt-1"
-              />
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Form Fields</Label>
+                <Button variant="ghost" size="sm" onClick={addFormField} className="h-7 text-xs px-2">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Field
+                </Button>
+              </div>
+
+              {formFields.length === 0 ? (
+                <div className="text-center py-4 border border-dashed rounded-md">
+                  <p className="text-[10px] text-muted-foreground">No fields added</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formFields.map((field: any) => (
+                    <div key={field.id} className="p-3 border rounded-md space-y-2 relative group">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={() => removeFormField(field.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Label</Label>
+                        <Input
+                          value={field.label || ""}
+                          onChange={(e) => updateFormField(field.id, { label: e.target.value })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Type</Label>
+                          <Select
+                            value={field.type || "text"}
+                            onValueChange={(val: any) => updateFormField(field.id, { type: val })}
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="text">Text</SelectItem>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="textarea">Textarea</SelectItem>
+                              <SelectItem value="number">Number</SelectItem>
+                              <SelectItem value="tel">Phone</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Required</Label>
+                          <div className="flex items-center h-7">
+                            <Switch
+                              checked={!!field.required}
+                              onCheckedChange={(checked) => updateFormField(field.id, { required: checked })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">Placeholder</Label>
+                        <Input
+                          value={field.placeholder || ""}
+                          onChange={(e) => updateFormField(field.id, { placeholder: e.target.value })}
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )
@@ -3590,7 +3995,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Selected</span>
-            <Button variant="outline" size="xs" className="h-6 text-xs bg-transparent" onClick={testScrollToElement}>
+            <Button variant="outline" size="sm" className="h-6 text-xs bg-transparent" onClick={testScrollToElement}>
               Test Scroll
             </Button>
           </div>
@@ -4377,6 +4782,179 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                   </div>
                 </div>
 
+                {/* Border Section */}
+                <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs font-semibold">Border</Label>
+                      <div className="flex items-center gap-1.5 ml-2">
+                        <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
+                        <Switch
+                          id="individual-border-toggle"
+                          checked={showIndividualBorders}
+                          onCheckedChange={(val) => {
+                            setShowIndividualBorders(val)
+                            
+                            const individualKeys = [
+                              "borderTopWidth", "borderTopStyle", "borderTopColor",
+                              "borderRightWidth", "borderRightStyle", "borderRightColor",
+                              "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                              "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                            ];
+                            const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
+                            
+                            const newStyle = { ...selectedComponent.style };
+                            if (val) {
+                              // If switching to individual, clear global
+                              globalKeys.forEach(k => delete newStyle[k]);
+                            } else {
+                              // If switching back to global, clear individual
+                              individualKeys.forEach(k => delete newStyle[k]);
+                            }
+                            
+                            onUpdateComponent(selectedComponent.id, {
+                              ...selectedComponent,
+                              style: newStyle
+                            });
+                          }}
+                          className="scale-75 origin-left"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => {
+                        const styleKeys = [
+                          "border", "borderWidth", "borderStyle", "borderColor",
+                          "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
+                          "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
+                          "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                          "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                        ];
+                        const newStyle = { ...selectedComponent.style };
+                        styleKeys.forEach(key => delete newStyle[key]);
+                        onUpdateComponent(selectedComponent.id, {
+                          ...selectedComponent,
+                          style: newStyle
+                        });
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  {!showIndividualBorders ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Width</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
+                            onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-1">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_WIDTHS.map((w) => (
+                                <SelectItem key={w} value={String(w)}>
+                                  {w}px
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Style</Label>
+                          <Select
+                            value={selectedComponent.style?.borderStyle || "none"}
+                            onValueChange={(value: string) => updateStyle("borderStyle", value)}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-1">
+                              <SelectValue placeholder="none" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_STYLES.map((s) => (
+                                <SelectItem key={s} value={s} className="capitalize">
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <ColorPicker
+                        label="Border Color"
+                        value={selectedComponent.style?.borderColor || "#000000"}
+                        onChange={(val) => updateStyle("borderColor", val)}
+                        hideGradient={true}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {["Top", "Right", "Bottom", "Left"].map((side) => {
+                        const sideKey = side === "All" ? "" : side;
+                        const widthKey = `border${sideKey}Width`;
+                        const styleKey = `border${sideKey}Style`;
+                        const colorKey = `border${sideKey}Color`;
+
+                        return (
+                          <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
+                            <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
+                                  onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-[11px]">
+                                    <SelectValue placeholder="Width" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_WIDTHS.map((w) => (
+                                      <SelectItem key={w} value={String(w)} className="text-[11px]">
+                                        {w}px
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <Select
+                                  value={selectedComponent.style?.[styleKey] || "none"}
+                                  onValueChange={(value: string) => updateStyle(styleKey, value)}
+                                >
+                                  <SelectTrigger className="h-7 text-[11px]">
+                                    <SelectValue placeholder="Style" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_STYLES.map((s) => (
+                                      <SelectItem key={s} value={s} className="capitalize text-[11px]">
+                                        {s}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <ColorPicker
+                              label={`${side} Color`}
+                              value={selectedComponent.style?.[colorKey] || "#000000"}
+                              onChange={(val) => updateStyle(colorKey, val)}
+                              hideGradient={true}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs font-medium">Border Radius</Label>
@@ -4433,142 +5011,82 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                       {/* Top Row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Top Left</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                  styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderTopLeftRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                              styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderTopLeftRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Top Right</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                   styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderTopRightRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                               styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderTopRightRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       {/* Bottom Row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Bottom Left</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                   styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderBottomLeftRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                               styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderBottomLeftRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Bottom Right</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                  styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderBottomRightRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                              styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderBottomRightRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>

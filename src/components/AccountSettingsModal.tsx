@@ -15,7 +15,9 @@ import {
     Loader2,
     ArrowRight,
     Database,
-    CreditCard
+    CreditCard,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -43,6 +45,7 @@ interface ProfileDataState {
     provider: string;
     isConnected?: number;
     paymongo_key?: string;
+    resend_api_key?: string;
 }
 
 interface AccountSettingsModalProps {
@@ -61,7 +64,8 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
         avatarUrl: null,
         provider: 'email',
         isConnected: 0,
-        paymongo_key: ''
+        paymongo_key: '',
+        resend_api_key: ''
     });
     const [initialData, setInitialData] = useState<ProfileDataState | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -82,6 +86,7 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
 
     const [isConnectingSupabase, setIsConnectingSupabase] = useState(false);
     const [isDisconnectingSupabase, setIsDisconnectingSupabase] = useState(false);
+    const [showResendApiKey, setShowResendApiKey] = useState(false);
 
     // --- Data Fetching Effect ---
     useEffect(() => {
@@ -98,11 +103,13 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
             } else {
                 setProfileData({
                     ...data,
-                    paymongo_key: data.paymongo_key || ''
+                    paymongo_key: data.paymongo_key || '',
+                    resend_api_key: data.resend_api_key || ''
                 });
                 setInitialData({
                     ...data,
-                    paymongo_key: data.paymongo_key || ''
+                    paymongo_key: data.paymongo_key || '',
+                    resend_api_key: data.resend_api_key || ''
                 });
                 // Clear password fields on modal open
                 setCurrentPassword('');
@@ -153,6 +160,7 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
         if (profileData.phone !== initialData?.phone) updates.phone = profileData.phone;
         if (profileData.location !== initialData?.location) updates.location = profileData.location;
         if (profileData.paymongo_key !== initialData?.paymongo_key) updates.paymongoKey = profileData.paymongo_key;
+        if (profileData.resend_api_key !== initialData?.resend_api_key) updates.resendApiKey = profileData.resend_api_key;
 
         const { error } = await updateProfile(updates);
 
@@ -161,6 +169,16 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
         } else {
             setSuccessMessage("Profile updated successfully!");
             setInitialData({ ...profileData });
+            // Sync resend API key to localStorage so the editor state picks it up
+            if (profileData.resend_api_key) {
+                localStorage.setItem("target_resend_api_key", profileData.resend_api_key);
+            } else {
+                localStorage.removeItem("target_resend_api_key");
+            }
+            // Notify editor state of config change
+            window.dispatchEvent(new CustomEvent('userProjectConfigUpdated', {
+                detail: { resendApiKey: profileData.resend_api_key || '' }
+            }));
         }
         setIsSaving(false);
     };
@@ -676,6 +694,64 @@ export function AccountSettingsModal({ isOpen, onClose, defaultTab = "profile" }
                                                     onChange={(value) => handleInputChange('paymongo_key', value)}
                                                 />
                                             </div>
+
+                                            {/* Resend Integration Card */}
+                                            <Card className="border-border">
+                                                <CardContent className="pt-6">
+                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="p-3 bg-violet-100 dark:bg-violet-900/30 rounded-full shrink-0">
+                                                                <Mail className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <h4 className="font-semibold text-foreground">Resend</h4>
+                                                                    {profileData.resend_api_key && profileData.resend_api_key.startsWith('re_') ? (
+                                                                        <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                                            Configured
+                                                                        </span>
+                                                                    ) : profileData.resend_api_key ? (
+                                                                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                                                            Invalid Format
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                                <p className="text-sm text-muted-foreground max-w-[300px]">
+                                                                    Modern email infrastructure for developers. Used for sending transactional emails.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-4 space-y-2">
+                                                        <Label htmlFor="resend-api-key" className="text-xs">API Key</Label>
+                                                        <div className="relative">
+                                                            <Input
+                                                                id="resend-api-key"
+                                                                type={showResendApiKey ? "text" : "password"}
+                                                                placeholder="re_123456789..."
+                                                                value={profileData.resend_api_key || ''}
+                                                                onChange={(e) => handleInputChange('resend_api_key', e.target.value)}
+                                                                className={`pr-10 ${profileData.resend_api_key && !profileData.resend_api_key.startsWith('re_') ? "border-amber-500" : ""}`}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowResendApiKey(!showResendApiKey)}
+                                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                            >
+                                                                {showResendApiKey ? (
+                                                                    <EyeOff className="h-4 w-4" />
+                                                                ) : (
+                                                                    <Eye className="h-4 w-4" />
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground">
+                                                            Required for contact forms to send emails. Keys start with <code>re_</code>.
+                                                        </p>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
 
                                             {/* Supabase Integration Card */}
                                             <Card className="border-border" data-tour="supabase-connection">

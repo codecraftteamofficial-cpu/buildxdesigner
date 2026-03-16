@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import type { ComponentData } from "../App";
 import { RenderableComponent } from "./RenderableComponent";
 import { scrollToTarget } from "../utils/scrollUtils";
+import { labelToPath } from "../utils/urlUtils";
+import { Toaster } from "./ui/sonner";
 
 interface SiteRendererProps {
     components: ComponentData[];
     projectId?: string;
-    userProjectConfig?: { supabaseUrl: string; supabaseKey: string };
+    userProjectConfig?: { supabaseUrl: string; supabaseKey: string; resendApiKey?: string };
     backgroundColor?: string;
     showGrid?: boolean;
     activePageId?: string;
@@ -192,6 +194,7 @@ export function SiteRenderer({
                     : { backgroundColor }
             }
         >
+            <Toaster position="top-right" richColors />
             {filteredComponents.map((component) => {
                 const position = component.position || { x: 0, y: 0 };
                 const isFullWidth = FULL_WIDTH_TYPES.has(component.type);
@@ -274,12 +277,11 @@ function NavbarRenderer({
             ? props.links
             : ["Home", "About", "Contact"];
 
-    const toHref = (label: string) => {
-        const slug = label.toLowerCase().replace(/\s+/g, "-");
-        return slug === "home" ? "/" : `/${slug}`;
-    };
 
     const style = component.style ?? {};
+    
+    // Handle gradient borders
+    
 
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
         if (navigate) {
@@ -294,7 +296,8 @@ function NavbarRenderer({
         const typeArray: string[] = Array.isArray(props.linkTypes) ? props.linkTypes : [];
 
         return links.map((link: string, index: number) => {
-            const url = urlArray[index] || toHref(link);
+            const rawUrl = urlArray[index] || "";
+            const url = (rawUrl !== "#" && rawUrl !== "") ? rawUrl : labelToPath(link);
             const type = typeArray[index] || "url";
 
             const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -314,7 +317,11 @@ function NavbarRenderer({
                 { key: index },
                 React.createElement(
                     "a",
-                    { href: url, onClick: handleClick },
+                    { 
+                        href: url, 
+                        onClick: handleClick,
+                        style: { fontSize: props.linkFontSize ? `${props.linkFontSize}px` : undefined }
+                    },
                     link
                 )
             );
@@ -327,12 +334,50 @@ function NavbarRenderer({
             style={{
                 backgroundColor: style.backgroundColor as string,
                 color: style.color as string,
-                padding: "0.75rem 1.5rem",
+                padding: style.padding as string || "0.75rem 1.5rem",
                 fontSize: style.fontSize as string,
                 fontFamily: style.fontFamily as string,
+                borderWidth: style.borderWidth as string,
+                borderStyle: style.borderStyle as string,
+                borderColor: style.borderColor as string,
+                borderTopWidth: style.borderTopWidth as string,
+                borderTopStyle: style.borderTopStyle as any,
+                borderTopColor: style.borderTopColor as string,
+                borderRightWidth: style.borderRightWidth as string,
+                borderRightStyle: style.borderRightStyle as any,
+                borderRightColor: style.borderRightColor as string,
+                borderBottomWidth: style.borderBottomWidth as string,
+                borderBottomStyle: style.borderBottomStyle as any,
+                borderBottomColor: style.borderBottomColor as string,
+                borderLeftWidth: style.borderLeftWidth as string,
+                borderLeftStyle: style.borderLeftStyle as any,
+                borderLeftColor: style.borderLeftColor as string,
+                borderRadius: style.borderRadius as string,
+                boxShadow: style.boxShadow as string,
+                position: style.position as any,
+                top: style.top as string,
+                left: style.left as string,
+                right: style.right as string,
+                bottom: style.bottom as string,
+                zIndex: style.zIndex as any,
             }}
         >
-            <div className="nav-brand">{brand}</div>
+            <div className="flex items-center gap-3">
+                {props.logoUrl && (
+                    <img 
+                        src={props.logoUrl} 
+                        alt="Logo" 
+                        style={{ 
+                            height: '2rem', 
+                            width: props.logoShape === 'circle' || props.logoShape === 'square' ? '2rem' : 'auto',
+                            aspectRatio: props.logoShape === 'circle' || props.logoShape === 'square' ? '1/1' : 'auto',
+                            objectFit: props.logoShape === 'original' ? 'contain' : 'cover',
+                            borderRadius: props.logoShape === 'circle' ? '50%' : props.logoShape === 'rounded' ? '8px' : '0',
+                        }} 
+                    />
+                )}
+                <div className="nav-brand">{brand}</div>
+            </div>
             <button
                 className="nav-toggle"
                 aria-label="Toggle navigation"

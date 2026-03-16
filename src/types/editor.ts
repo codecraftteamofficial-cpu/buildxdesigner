@@ -75,6 +75,7 @@ export interface EditorState {
   userProjectConfig: {
     supabaseUrl: string;
     supabaseKey: string;
+    resendApiKey?: string;
   };
   projectIsPublic: boolean | null;
   projectAuthorId: string | null;

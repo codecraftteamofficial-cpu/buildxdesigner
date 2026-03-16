@@ -137,52 +137,73 @@ export async function fetchUserProjects(): Promise<{
 }
 
 export async function saveProject(
-  project: Partial<Project> & { user_id: string },
+  project: Partial<Project> & { user_id?: string },
 ): Promise<{ data: Project | null; error: any }> {
   const isNewProject =
     !project.id ||
     project.id.startsWith("new-") ||
     project.id.startsWith("ai-generated-");
 
-  const payload: any = {
-    project_name: project.name,
-    description: project.description,
-    category: project.category,
-    thumbnail: project.thumbnail,
-    user_id: project.user_id,
-    type: project.type,
-    status: project.status ?? (isNewProject ? "draft" : undefined),
-    project_layout: project.project_layout,
-    pages: project.pages,
-    site_title: project.siteTitle,
-    site_logo_url: project.siteLogoUrl,
-    last_modified: new Date().toISOString(),
-  };
-
-  // Only include ID if updating
-  if (!isNewProject) {
-    payload.projects_id = project.id;
-  }
-
   try {
     let row: any;
     let errObj: any = null;
 
     if (!isNewProject) {
+      // UPDATE: never allow user_id / ownership to be changed here
+      const updatePayload: any = {
+        project_name: project.name,
+        description: project.description,
+        category: project.category,
+        thumbnail: project.thumbnail,
+        type: project.type,
+        status: project.status,
+        project_layout: project.project_layout,
+        pages: project.pages,
+        site_title: project.siteTitle,
+        site_logo_url: project.siteLogoUrl,
+        last_modified: new Date().toISOString(),
+      };
+
+      Object.keys(updatePayload).forEach((key) => {
+        if (updatePayload[key] === undefined) delete updatePayload[key];
+      });
+
       const { data, error } = await supabase
         .from("projects")
-        .update(payload)
+        .update(updatePayload)
         .eq("projects_id", project.id!)
         .select()
         .single();
+
       row = data;
       errObj = error;
     } else {
+      // CREATE: user_id is required only here
+      const insertPayload: any = {
+        project_name: project.name,
+        description: project.description,
+        category: project.category,
+        thumbnail: project.thumbnail,
+        user_id: project.user_id,
+        type: project.type,
+        status: project.status ?? "draft",
+        project_layout: project.project_layout,
+        pages: project.pages,
+        site_title: project.siteTitle,
+        site_logo_url: project.siteLogoUrl,
+        last_modified: new Date().toISOString(),
+      };
+
+      Object.keys(insertPayload).forEach((key) => {
+        if (insertPayload[key] === undefined) delete insertPayload[key];
+      });
+
       const { data, error } = await supabase
         .from("projects")
-        .insert(payload)
+        .insert(insertPayload)
         .select()
         .single();
+
       row = data;
       errObj = error;
     }
@@ -195,7 +216,7 @@ export async function saveProject(
       };
     }
 
-    if (isNewProject && row) {
+    if (isNewProject && row && project.user_id) {
       await supabase.rpc("append_project_to_profile", {
         user_uuid: project.user_id,
         project_uuid: row.projects_id,
@@ -217,6 +238,7 @@ export async function saveProject(
         { id: "home", name: "Home", path: "/" },
       ],
     };
+
     return { data: savedProject, error: null };
   } catch (err) {
     return { data: null, error: err };

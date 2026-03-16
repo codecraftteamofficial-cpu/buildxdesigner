@@ -329,7 +329,16 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
           component: {
             id: '',
             type: 'form',
-            props: { title: 'Get In Touch' },
+            props: { 
+            title: 'Get In Touch',
+            submitText: 'Submit',
+            recipientEmail: '',
+            fields: [
+              { id: 'field-1', label: 'Name', placeholder: 'Enter your name', type: 'text', required: true },
+              { id: 'field-2', label: 'Email', placeholder: 'Enter your email', type: 'email', required: true },
+              { id: 'field-3', label: 'Message', placeholder: 'Enter your message', type: 'textarea', required: true }
+            ]
+          },
             style: {}
           }
         },
@@ -484,7 +493,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               title: 'Sign In',
               description: 'Enter your email and password to access your account.',
               buttonText: 'Sign In',
-              redirectUrl: '/'
+              redirectUrl: '/',
+              switchToSignUpText: 'Sign Up',
+              switchToSignUpUrl: '/sign-up'
             },
             style: {
               width: '400px',
@@ -508,7 +519,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               description: 'Create a new account by filling out the form below.',
               buttonText: 'Sign Up',
               redirectUrl: '/',
-              extraFields: []
+              extraFields: [],
+              switchToSignInText: 'Sign In',
+              switchToSignInUrl: '/sign-in'
             },
             style: {
               width: '400px',
@@ -516,6 +529,25 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               backgroundColor: '#ffffff',
               borderRadius: '8px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }
+          }
+        },
+        {
+          id: 'profile',
+          name: 'Profile Dropdown',
+          description: 'User avatar with customizable dropdown menu',
+          icon: <Users className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'profile',
+            props: {
+              menuItems: [
+                { id: '1', label: 'Settings', path: '/settings' }
+              ]
+            },
+            style: {
+              width: '50px',
+              height: '50px'
             }
           }
         }

@@ -64,196 +64,17 @@ interface TemplateComment {
   userAvatar?: string;
 }
 
-const templates: Template[] = [
-  {
-    id: "blank",
-    name: "Blank Canvas",
-    description:
-      "Start from scratch with a clean workspace and build your design from the ground up",
-    thumbnail:
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Blank",
-    premium: false,
-    tags: ["blank", "scratch", "empty", "custom"],
-    creator: "BuildX Team",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=BuildX",
-    views: 45600,
-    favorites: 892,
-  },
-  {
-    id: "portfolio-modern",
-    name: "Modern Portfolio",
-    description:
-      "Clean and modern portfolio template perfect for showcasing your work",
-    thumbnail:
-      "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Portfolio",
-    premium: false,
-    tags: ["modern", "clean", "portfolio", "personal"],
-    creator: "Sarah Chen",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=SarahChen",
-    views: 23400,
-    favorites: 567,
-  },
-  {
-    id: "ecommerce-pro",
-    name: "E-commerce Pro",
-    description: "Full-featured online store template with shopping cart",
-    thumbnail:
-      "https://images.unsplash.com/photo-1557821552-17105176677c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "E-commerce",
-    premium: true,
-    tags: ["ecommerce", "store", "shopping", "business"],
-    creator: "Alex Rodriguez",
-    creatorAvatar:
-      "https://api.dicebear.com/7.x/initials/svg?seed=AlexRodriguez",
-    views: 34200,
-    favorites: 1240,
-  },
-  {
-    id: "blog-minimal",
-    name: "Minimal Blog",
-    description: "Minimalist blog template focused on content",
-    thumbnail:
-      "https://images.unsplash.com/photo-1499750310107-5fef28a66643?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Blog",
-    premium: false,
-    tags: ["blog", "minimal", "content", "writing"],
-    creator: "Emma Wilson",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=EmmaWilson",
-    views: 18900,
-    favorites: 423,
-  },
-  {
-    id: "landing-startup",
-    name: "Startup Landing",
-    description: "Modern startup landing page with CTAs",
-    thumbnail:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Landing Page",
-    premium: false,
-    tags: ["landing", "startup", "business", "modern"],
-    creator: "Michael Park",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=MichaelPark",
-    views: 29800,
-    favorites: 745,
-  },
-  {
-    id: "dashboard-admin",
-    name: "Admin Dashboard",
-    description: "Professional admin dashboard template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Dashboard",
-    premium: true,
-    tags: ["dashboard", "admin", "analytics", "professional"],
-    creator: "James Kumar",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=JamesKumar",
-    views: 41200,
-    favorites: 1580,
-  },
-  {
-    id: "restaurant-menu",
-    name: "Restaurant Website",
-    description: "Beautiful restaurant website with menu",
-    thumbnail:
-      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Business",
-    premium: false,
-    tags: ["restaurant", "business", "food", "menu"],
-    creator: "Sofia Martinez",
-    creatorAvatar:
-      "https://api.dicebear.com/7.x/initials/svg?seed=SofiaMartinez",
-    views: 15600,
-    favorites: 389,
-  },
-  {
-    id: "agency-creative",
-    name: "Creative Agency",
-    description: "Bold creative agency portfolio",
-    thumbnail:
-      "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Agency",
-    premium: true,
-    tags: ["agency", "creative", "portfolio", "bold"],
-    creator: "David Lee",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=DavidLee",
-    views: 27300,
-    favorites: 892,
-  },
-  {
-    id: "photography-portfolio",
-    name: "Photography Portfolio",
-    description: "Stunning photography portfolio template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Portfolio",
-    premium: false,
-    tags: ["photography", "portfolio", "gallery", "visual"],
-    creator: "Olivia Brown",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=OliviaBrown",
-    views: 19700,
-    favorites: 534,
-  },
-  {
-    id: "saas-landing",
-    name: "SaaS Landing Page",
-    description: "Convert visitors with this SaaS template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1551650975-87deedd944c3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Landing Page",
-    premium: true,
-    tags: ["saas", "landing", "business", "conversion"],
-    creator: "Ryan Zhang",
-    creatorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=RyanZhang",
-    views: 36500,
-    favorites: 1120,
-  },
-  {
-    id: "corporate-business",
-    name: "Corporate Business",
-    description: "Professional corporate website template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Business",
-    premium: false,
-    tags: ["corporate", "business", "professional", "enterprise"],
-    creator: "Jennifer Taylor",
-    creatorAvatar:
-      "https://api.dicebear.com/7.x/initials/svg?seed=JenniferTaylor",
-    views: 21800,
-    favorites: 467,
-  },
-  {
-    id: "fashion-store",
-    name: "Fashion Store",
-    description: "Trendy fashion e-commerce template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "E-commerce",
-    premium: true,
-    tags: ["fashion", "ecommerce", "store", "trendy"],
-    creator: "Isabella Garcia",
-    creatorAvatar:
-      "https://api.dicebear.com/7.x/initials/svg?seed=IsabellaGarcia",
-    views: 31200,
-    favorites: 978,
-  },
-  {
-    id: "real-estate",
-    name: "Real Estate Listings",
-    description: "Property listing website template",
-    thumbnail:
-      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800",
-    category: "Business",
-    premium: false,
-    tags: ["real estate", "property", "listings", "business"],
-    creator: "Thomas Anderson",
-    creatorAvatar:
-      "https://api.dicebear.com/7.x/initials/svg?seed=ThomasAnderson",
-    views: 17400,
-    favorites: 412,
-  },
+const projectCategoryOptions = [
+  "Starter",
+  "Business",
+  "Portfolio",
+  "E-commerce",
+  "Blog",
+  "Restaurant",
+  "Events",
+  "Health",
+  "Landing Page",
+  "Other",
 ];
 
 const categories = [
@@ -266,19 +87,6 @@ const categories = [
   "Dashboard",
   "Business",
   "Agency",
-];
-
-const projectCategoryOptions = [
-  "Starter",
-  "Business",
-  "Portfolio",
-  "E-commerce",
-  "Blog",
-  "Restaurant",
-  "Events",
-  "Health",
-  "Landing Page",
-  "Other",
 ];
 
 const normalizeProjectCategory = (category?: string) => {
@@ -344,79 +152,103 @@ export function CreateNewWebsiteModal({
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const isBlankTemplateSelected = selectedTemplate?.id === "blank";
+  const [mlRecommendedTemplates, setMlRecommendedTemplates] = useState<
+    Template[]
+  >([]);
+  const [isLoadingRecommendedTemplates, setIsLoadingRecommendedTemplates] =
+    useState(false);
 
   // 1. We sync state DURING the render phase instead of waiting for a useEffect.
   // This calculates the correct view BEFORE the browser paints, completely eliminating the flash on open.
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
+  const normalizeTemplate = (item: any, index: number): Template => ({
+    id: String(
+      item?.id ??
+        item?._id ??
+        item?.project_id ??
+        item?.project?.projects_id ??
+        item?.projects?.projects_id ??
+        item?.templateId ??
+        `template-${index}`,
+    ),
+    name: String(
+      item?.name ??
+        item?.title ??
+        item?.project_name ??
+        item?.project?.project_name ??
+        item?.projects?.project_name ??
+        "Untitled Template",
+    ),
+    description: String(
+      item?.description ??
+        item?.template_description ??
+        item?.project_description ??
+        item?.summary ??
+        item?.project?.description ??
+        item?.project?.project_description ??
+        item?.projects?.description ??
+        item?.projects?.project_description ??
+        "No description available",
+    ),
+    thumbnail: String(
+      item?.thumbnail ??
+        item?.thumbnailUrl ??
+        item?.image ??
+        item?.project?.thumbnail ??
+        item?.projects?.thumbnail ??
+        "/placeholder.svg",
+    ),
+    category: String(
+      item?.category ??
+        item?.template_category ??
+        item?.project_category ??
+        item?.project?.category ??
+        item?.project?.project_category ??
+        item?.projects?.category ??
+        item?.projects?.project_category ??
+        "Business",
+    ),
+    premium: Boolean(item?.premium ?? item?.isPremium ?? item?.isPro ?? false),
+    tags: Array.isArray(item?.tags)
+      ? item.tags.map(String)
+      : Array.isArray(item?.project?.tags)
+        ? item.project.tags.map(String)
+        : Array.isArray(item?.projects?.tags)
+          ? item.projects.tags.map(String)
+          : [],
+    creator: item?.creator
+      ? String(item.creator)
+      : item?.author?.full_name
+        ? String(item.author.full_name)
+        : item?.profiles?.full_name
+          ? String(item.profiles.full_name)
+          : "BuildX Team",
+    creatorAvatar: item?.creatorAvatar
+      ? String(item.creatorAvatar)
+      : item?.author?.avatar_url
+        ? String(item.author.avatar_url)
+        : item?.profiles?.avatar_url
+          ? String(item.profiles.avatar_url)
+          : "https://api.dicebear.com/7.x/initials/svg?seed=BuildX",
+    views: Number(
+      item?.views ?? item?.project?.views ?? item?.projects?.views ?? 0,
+    ),
+    favorites: Number(
+      item?.favorites ??
+        item?.likeCount ??
+        item?.like_count ??
+        item?.likes ??
+        item?.project?.likes ??
+        item?.projects?.likes ??
+        0,
+    ),
+  });
+
   useEffect(() => {
     if (!isOpen) return;
 
     let isMounted = true;
-
-    const normalizeTemplate = (item: any, index: number): Template => ({
-      id: String(
-        item?.id ??
-          item?._id ??
-          item?.project_id ??
-          item?.projects?.projects_id ??
-          item?.templateId ??
-          `template-${index}`,
-      ),
-      name: String(
-        item?.name ??
-          item?.title ??
-          item?.project_name ??
-          item?.projects?.project_name ??
-          "Untitled Template",
-      ),
-      description: String(
-        item?.description ??
-          item?.template_description ??
-          item?.project_description ??
-          item?.summary ??
-          item?.projects?.description ??
-          item?.projects?.project_description ??
-          "No description available",
-      ),
-      thumbnail: String(
-        item?.thumbnail ??
-          item?.thumbnailUrl ??
-          item?.image ??
-          item?.projects?.thumbnail ??
-          "/placeholder.svg",
-      ),
-      category: String(
-        item?.category ??
-          item?.template_category ??
-          item?.project_category ??
-          item?.projects?.category ??
-          item?.projects?.project_category ??
-          "Business",
-      ),
-      premium: Boolean(
-        item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
-      ),
-      tags: Array.isArray(item?.tags)
-        ? item.tags.map(String)
-        : Array.isArray(item?.projects?.tags)
-          ? item.projects.tags.map(String)
-          : [],
-      creator: item?.creator
-        ? String(item.creator)
-        : item?.profiles?.full_name
-          ? String(item.profiles.full_name)
-          : "BuildX Team",
-      creatorAvatar: item?.creatorAvatar
-        ? String(item.creatorAvatar)
-        : item?.profiles?.avatar_url
-          ? String(item.profiles.avatar_url)
-          : "https://api.dicebear.com/7.x/initials/svg?seed=BuildX",
-      views: Number(item?.views ?? item?.projects?.views ?? 0),
-      favorites: Number(
-        item?.favorites ?? item?.likes ?? item?.projects?.likes ?? 0,
-      ),
-    });
 
     const fetchProjectTemplates = async () => {
       setIsLoadingTemplates(true);
@@ -473,6 +305,72 @@ export function CreateNewWebsiteModal({
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let mounted = true;
+
+    const loadRecommendedTemplates = async () => {
+      try {
+        setIsLoadingRecommendedTemplates(true);
+
+        const {
+          data: { session },
+        } = await getSupabaseSession();
+
+        const userId = session?.user?.id;
+
+        if (!userId) {
+          if (mounted) setMlRecommendedTemplates([]);
+          return;
+        }
+
+        const cbfApiUrl =
+          import.meta.env.VITE_CBF_API_URL ||
+          "http://buildx-cbfapi.buildxdesigner.site:5000";
+
+        const response = await fetch(
+          `${cbfApiUrl}/recommendations?user_id=${encodeURIComponent(userId)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch recommendations: ${response.status}`,
+          );
+        }
+
+        const json = await response.json();
+        console.log("recommended templates response", json);
+        const payload = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.templates)
+            ? json.templates
+            : Array.isArray(json?.recommendations)
+              ? json.recommendations
+              : [];
+
+        if (mounted) {
+          setMlRecommendedTemplates(payload.map(normalizeTemplate));
+        }
+      } catch (error) {
+        console.error("Failed to fetch ML recommended templates:", error);
+        if (mounted) {
+          setMlRecommendedTemplates([]);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoadingRecommendedTemplates(false);
+        }
+      }
+    };
+
+    loadRecommendedTemplates();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
 
   const normalizeCommentsPayload = (payload: any): TemplateComment[] => {
     const rows = Array.isArray(payload)
@@ -635,8 +533,7 @@ export function CreateNewWebsiteModal({
     return new Date(value).toLocaleDateString();
   };
 
-  const availableTemplates =
-    projectTemplates.length > 0 ? projectTemplates : templates;
+  const availableTemplates = projectTemplates;
 
   const resolveProjectCategory = (template: Template) =>
     normalizeProjectCategory(
@@ -647,11 +544,7 @@ export function CreateNewWebsiteModal({
     setPrevIsOpen(isOpen);
     if (isOpen) {
       if (initialTemplateId) {
-        const allTemplates = [
-          ...availableTemplates,
-          ...recommendedTemplates,
-          ...templates,
-        ];
+        const allTemplates = [...availableTemplates, ...recommendedTemplates];
         const template = allTemplates.find((t) => t.id === initialTemplateId);
         if (template) {
           setSelectedTemplate(template);
@@ -780,76 +673,81 @@ export function CreateNewWebsiteModal({
               </div>
 
               <ScrollArea className="flex-1 px-6 py-4 overflow-visible">
-                {recommendedTemplates.length > 0 &&
-                  selectedCategory === "All" &&
-                  !searchQuery && (
-                    <div className="mb-8">
-                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-violet-600" />
-                        Recommended Template
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                        {recommendedTemplates.slice(0, 3).map((template) => (
-                          <Card
-                            key={template.id}
-                            className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-violet-200 hover:border-violet-400 group overflow-hidden"
-                            onClick={() => handleTemplateClick(template)}
-                          >
-                            <div className="relative aspect-video overflow-hidden">
-                              <img
-                                src={template.thumbnail || "/placeholder.svg"}
-                                alt={template.name}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                              />
-                              {template.premium && (
-                                <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
-                                  Premium
-                                </Badge>
-                              )}
-                              <div className="absolute top-2 left-2">
-                                <Badge
-                                  variant="secondary"
-                                  className="bg-violet-600 text-white"
-                                >
-                                  <Sparkles className="w-3 h-3 mr-1" />
-                                  Recommended
-                                </Badge>
+                {selectedCategory === "All" && !searchQuery && (
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-violet-600" />
+                      Recommended Template
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                      {mlRecommendedTemplates.slice(0, 10).map((template) => (
+                        <Card
+                          key={template.id}
+                          className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 border-violet-200 hover:border-violet-400 group overflow-hidden"
+                          onClick={() => handleTemplateClick(template)}
+                        >
+                          <div className="relative aspect-video overflow-hidden">
+                            <img
+                              src={template.thumbnail || "/placeholder.svg"}
+                              alt={template.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                            {template.premium && (
+                              <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
+                                Premium
+                              </Badge>
+                            )}
+                            <div className="absolute top-2 left-2">
+                              <Badge
+                                variant="secondary"
+                                className="bg-violet-600 text-white"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                Recommended
+                              </Badge>
+                            </div>
+                          </div>
+                          <CardContent className="p-4">
+                            <h4 className="font-medium mb-1 line-clamp-1">
+                              {template.name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                              {template.description}
+                            </p>
+                            <div className="flex items-center justify-between pt-3 border-t">
+                              <div className="flex items-center gap-2">
+                                <img
+                                  src={
+                                    template.creatorAvatar ||
+                                    "https://api.dicebear.com/7.x/initials/svg?seed=User"
+                                  }
+                                  alt={template.creator}
+                                  className="w-6 h-6 rounded-full"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                  {template.creator}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Heart className="w-3.5 h-3.5" />
+                                  <span>{template.favorites || 0}</span>
+                                </div>
                               </div>
                             </div>
-                            <CardContent className="p-4">
-                              <h4 className="font-medium mb-1 line-clamp-1">
-                                {template.name}
-                              </h4>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                                {template.description}
-                              </p>
-                              <div className="flex items-center justify-between pt-3 border-t">
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={
-                                      template.creatorAvatar ||
-                                      "https://api.dicebear.com/7.x/initials/svg?seed=User"
-                                    }
-                                    alt={template.creator}
-                                    className="w-6 h-6 rounded-full"
-                                  />
-                                  <span className="text-xs text-muted-foreground">
-                                    {template.creator}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <div className="flex items-center gap-1">
-                                    <Heart className="w-3.5 h-3.5" />
-                                    <span>{template.favorites || 0}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="mb-4 mt-2">
+                  <h3 className="text-lg font-semibold">All Templates</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Browse all available templates
+                  </p>
+                </div>
 
                 <TabsContent
                   value={selectedCategory}

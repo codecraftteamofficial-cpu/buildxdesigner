@@ -30,6 +30,7 @@ interface CanvasProps {
   userProjectConfig?: {
     supabaseUrl: string;
     supabaseKey: string;
+    resendApiKey?: string;
   };
   readOnly?: boolean;
   activePageId?: string;
@@ -110,6 +111,7 @@ export function Canvas({
     x: number;
     y: number;
   } | null>(null);
+  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
   const [canvasProperties, setCanvasProperties] = useState<CanvasProperties>({
     backgroundColor: backgroundColor,
     showGrid: false,
@@ -1579,8 +1581,8 @@ export function Canvas({
                   }}
                 >
                   <svg
-                    width="22"
-                    height="30"
+                    width="45"
+                    height="45"
                     viewBox="0 0 18 24"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
@@ -1602,12 +1604,12 @@ export function Canvas({
                   <div
                     style={{
                       position: "absolute",
-                      top: 16,
-                      left: 12,
+                      top: 12,
+                      left: 35,
                       display: "inline-block",
                       padding: "2px 8px",
                       borderRadius: 9999,
-                      fontSize: 12,
+                      fontSize: 25,
                       fontWeight: 600,
                       lineHeight: 1.4,
                       color: "white",
@@ -1635,7 +1637,7 @@ export function Canvas({
                         ? "z-50 ring-2 ring-primary shadow-2xl"
                         : isDragging
                           ? "z-40"
-                          : "z-auto"
+                            : "z-auto"
                     } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
                     style={{
                       left: `${position.x}px`,
