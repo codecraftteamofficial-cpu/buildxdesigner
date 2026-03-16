@@ -79,6 +79,7 @@ export interface EditorState {
     resendApiKey?: string;
   };
   projectIsPublic: boolean | null;
+  projectAnyoneCan: "view" | "edit";
   projectAuthorId: string | null;
   projectCanView: boolean | null;
   projectRole: "owner" | "editor" | "viewer" | null;
