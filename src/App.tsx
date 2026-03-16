@@ -106,7 +106,8 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   const onboardingCheckUserIdRef = useRef<string | null>(null);
   const [showEditorTour, setShowEditorTour] = useState(false);
   const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
-  const [showPublishingBasicsTour, setShowPublishingBasicsTour] = useState(false);
+  const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
+    useState(false);
 
   //Ito is ihohold niya muna yung tutorial to create a project, and then kapag nakacreate na siya ng project, dun na magcocontinue yung tutorial
   useEffect(() => {
@@ -374,33 +375,45 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     if (!routeProjectId) return;
     if (state.projectIsPublic === null) return;
     if (state.projectCanView === null) return;
+    if (state.projectAuthorId === null && state.projectIsPublic === false)
+      return;
 
     const isPrivate = state.projectIsPublic === false;
-    const canViewPrivateProject = state.projectCanView === true;
+    const canView = state.projectCanView === true;
+    const isOwner =
+      !!state.currentUser?.id && state.currentUser.id === state.projectAuthorId;
+
     const basePath = `/editor/${routeProjectId}`;
+    const privateViewerPath = `/project-private/${routeProjectId}`;
+    const privateOwnerPath = `/editor/${routeProjectId}/private`;
 
-    const isPrivatePath = location.pathname === privateAccessPath;
-    const isPrivateEditorPath = location.pathname === ownerPrivateEditorPath;
+    const isOnPrivateViewerPath = location.pathname === privateViewerPath;
+    const isOnPrivateOwnerPath = location.pathname === privateOwnerPath;
 
-    if (isPrivate && !canViewPrivateProject && !isPrivatePath) {
-      navigate(privateAccessPath, { replace: true });
+    if (isPrivate && !canView && !isOnPrivateViewerPath) {
+      navigate(privateViewerPath, { replace: true });
       return;
     }
 
-    if (isPrivate && canViewPrivateProject && !isPrivateEditorPath) {
-      navigate(ownerPrivateEditorPath, { replace: true });
+    if (isPrivate && canView && isOwner && !isOnPrivateOwnerPath) {
+      navigate(privateOwnerPath, { replace: true });
       return;
     }
 
-    if (!isPrivate && (isPrivatePath || isPrivateEditorPath)) {
+    if (isPrivate && canView && !isOwner && isOnPrivateOwnerPath) {
+      navigate(basePath, { replace: true });
+      return;
+    }
+
+    if (!isPrivate && (isOnPrivateViewerPath || isOnPrivateOwnerPath)) {
       navigate(basePath, { replace: true });
     }
   }, [
     routeProjectId,
     state.projectIsPublic,
     state.projectCanView,
-    privateAccessPath,
-    ownerPrivateEditorPath,
+    state.projectAuthorId,
+    currentUser?.id,
     location.pathname,
     navigate,
   ]);
@@ -582,19 +595,28 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       <Route
         path="/editor/:projectId/private"
         element={
-          state.projectIsPublic === null || state.projectCanView === null ? (
+          state.projectIsPublic === null ||
+          state.projectCanView === null ||
+          (state.projectIsPublic === false &&
+            state.projectAuthorId === null) ? (
             <div className="flex justify-center items-center h-screen w-full bg-background">
               <Loader2 className="w-8 h-8 mr-2 text-blue-600 animate-spin" />
               <p className="text-xl text-foreground">Checking access...</p>
             </div>
           ) : state.projectIsPublic === false && !state.projectCanView ? (
             <Navigate to={privateAccessPath} replace />
+          ) : state.projectIsPublic === false &&
+            state.currentUser?.id &&
+            state.currentUser.id !== state.projectAuthorId ? (
+            <Navigate to={`/editor/${routeProjectId}`} replace />
           ) : (
             <>
               <EditorLayout
                 editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
                 onStartTour={() => setShowEditorTour(true)}
-                onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
+                onStartPublishingBasics={() =>
+                  setShowPublishingBasicsTour(true)
+                }
               />
               <WebsiteCreation
                 showOnMount={showEditorTour}
@@ -607,7 +629,10 @@ function AppRoutes({ editor }: { editor: EditorController }) {
               <PublishingBasics
                 showOnMount={showPublishingBasicsTour}
                 onComplete={() => {
-                  localStorage.setItem("buildx-tutorial-publishing-basics", "1");
+                  localStorage.setItem(
+                    "buildx-tutorial-publishing-basics",
+                    "1",
+                  );
                   setShowPublishingBasicsTour(false);
                   setShowGettingStartedModal(true);
                 }}

@@ -463,7 +463,9 @@ export function EditorLayout({
                         }
                         userProjectConfig={state.userProjectConfig}
                         onUpdateUserProjectConfig={
-                          canEditProject ? editor.updateUserProjectConfig : undefined
+                          canEditProject
+                            ? editor.updateUserProjectConfig
+                            : undefined
                         }
                       />
                     )}

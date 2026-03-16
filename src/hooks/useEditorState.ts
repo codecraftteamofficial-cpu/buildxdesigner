@@ -147,6 +147,7 @@ export function useEditorState() {
     currentUser: null,
     isSupabaseConnected: false,
     userProjectConfig: getInitialUserProjectConfig(),
+    projectAnyoneCan: "view",
     projectIsPublic: null,
     projectAuthorId: null,
     projectCanView: null,
@@ -396,7 +397,10 @@ export function useEditorState() {
     };
     window.addEventListener("userProjectConfigUpdated", handleConfigUpdate);
     return () => {
-      window.removeEventListener("userProjectConfigUpdated", handleConfigUpdate);
+      window.removeEventListener(
+        "userProjectConfigUpdated",
+        handleConfigUpdate,
+      );
     };
   }, []);
 
@@ -404,9 +408,14 @@ export function useEditorState() {
   useEffect(() => {
     const syncResendKeyFromProfile = async () => {
       try {
-        const { data: { session } } = await getSupabaseSession();
+        const {
+          data: { session },
+        } = await getSupabaseSession();
         if (session?.user) {
-          const metadata = session.user.user_metadata as Record<string, unknown>;
+          const metadata = session.user.user_metadata as Record<
+            string,
+            unknown
+          >;
           const resendKey = (metadata?.resend_api_key as string) || "";
           if (resendKey) {
             localStorage.setItem("target_resend_api_key", resendKey);
@@ -568,6 +577,7 @@ export function useEditorState() {
           .toLowerCase();
 
         const isPublic = !!projectRecord.is_public;
+        const anyoneCan: "view" | "edit" = "view";
         const ownerId = projectRecord.user_id || null;
         const isOwner =
           !!currentSessionUserId &&
@@ -674,7 +684,11 @@ export function useEditorState() {
           : collaboratorRole || "viewer";
 
         const canView = isPublic || isOwner || collaboratorRole !== null;
-        const canEdit = effectiveRole === "owner" || effectiveRole === "editor";
+
+        const canEdit =
+          effectiveRole === "owner" ||
+          effectiveRole === "editor" ||
+          (isPublic && anyoneCan === "edit");
 
         setState((prev) => {
           if (prev.currentProjectId !== requestedProjectId) return prev;
@@ -684,6 +698,7 @@ export function useEditorState() {
             projectAuthorId: ownerId,
             projectCanView: canView,
             projectRole: effectiveRole,
+            projectAnyoneCan: anyoneCan,
             projectCanEdit: canEdit,
             projectSubdomain: projectRecord.subdomain || undefined,
             projectIsPublished: !!projectRecord.is_published,
@@ -833,6 +848,7 @@ export function useEditorState() {
       currentView: "dashboard",
       currentPage: "dashboard",
       currentProjectId: null,
+      projectAnyoneCan: "view",
       projectIsPublic: null,
       projectAuthorId: null,
       projectCanView: null,
@@ -878,6 +894,7 @@ export function useEditorState() {
       currentPage: "editor",
       currentProjectId: projectId,
       projectIsPublic: null,
+      projectAnyoneCan: "view",
       projectAuthorId: null,
       projectCanView: null,
       projectRole: null,

@@ -105,7 +105,7 @@ interface EditorTopBarProps {
     email: string;
     name?: string;
     avatar_url?: string;
-     avatarUrl?: string;
+    avatarUrl?: string;
     picture?: string;
     user_metadata?: {
       avatar_url?: string;
@@ -124,7 +124,10 @@ interface EditorTopBarProps {
   onAddPage?: (name: string, path: string) => void;
   onDeletePage?: (pageId: string) => void;
   onDuplicatePage?: (pageId: string) => void;
-  onUpdatePage?: (pageId: string, updates: { name?: string; path?: string }) => void;
+  onUpdatePage?: (
+    pageId: string,
+    updates: { name?: string; path?: string },
+  ) => void;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
 }
@@ -193,6 +196,7 @@ const normalizeCollaboratorRows = (raw: any): any[] => {
 
   const candidates = [
     raw?.collaborators,
+    raw?.permissions?.collaborators,
     raw?.permissions,
     raw?.members,
     raw?.users,
@@ -264,7 +268,7 @@ export function EditorTopBar({
   const projectNameRef = useRef<HTMLInputElement>(null);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const shareButtonRef = useRef<HTMLButtonElement>(null);
-   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   const profileDisplayName =
     currentUser?.name ||
@@ -282,7 +286,6 @@ export function EditorTopBar({
     (currentUser?.email
       ? `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.email)}&background=2563eb&color=ffffff&bold=true`
       : null);
-
 
   // Modal states
   const [showPreferences, setShowPreferences] = useState(false);
@@ -335,6 +338,10 @@ export function EditorTopBar({
   const [supabaseIntegrationToken, setSupabaseIntegrationToken] = useState<
     string | null
   >(null);
+  const [anyoneCanPermission, setAnyoneCanPermission] = useState<
+    "view" | "edit"
+  >(currentProject?.anyone_can === "edit" ? "edit" : "view");
+
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
     setSupabaseIntegrationToken(
@@ -441,6 +448,13 @@ export function EditorTopBar({
     if (typeof resolvedTemplatePublished !== "boolean") return;
     setTemplatePublishedState(resolvedTemplatePublished);
   }, [isTogglingTemplatePublish, resolvedTemplatePublished]);
+
+  useEffect(() => {
+    const nextPermission =
+      currentProject?.anyone_can === "edit" ? "edit" : "view";
+
+    setAnyoneCanPermission(nextPermission);
+  }, [currentProject?.anyone_can]);
 
   const handleProjectNameDoubleClick = () => {
     setIsEditingProjectName(true);
@@ -692,6 +706,21 @@ export function EditorTopBar({
         const rows = normalizeCollaboratorRows(payload);
         const dedupedByIdentity = new Map<string, ProjectCollaborator>();
 
+        const rawAnyoneCan =
+          payload?.anyone_can ??
+          payload?.anyoneCan ??
+          payload?.project?.anyone_can ??
+          payload?.project?.anyoneCan ??
+          payload?.permissions?.anyone_can ??
+          payload?.permissions?.anyoneCan;
+
+        if (
+          !didCancel &&
+          (rawAnyoneCan === "view" || rawAnyoneCan === "edit")
+        ) {
+          setAnyoneCanPermission(rawAnyoneCan);
+        }
+
         rows.forEach((row: any) => {
           const id = String(
             row?.user_id ??
@@ -766,19 +795,35 @@ export function EditorTopBar({
 
         if (currentUser?.email || currentUser?.id) {
           const currentUserEmail = (currentUser?.email || "").toLowerCase();
-          const key = `${currentUser?.id || ""}|${currentUserEmail}`;
-          if (!dedupedByIdentity.has(key)) {
-            dedupedByIdentity.set(key, {
-              id: currentUser?.id || currentUser?.email || "current-user",
-              name:
-                currentUser?.name ||
-                currentUser?.email?.split("@")[0] ||
-                "User",
-              email: currentUser?.email || "",
-              avatarUrl: currentUser?.avatar_url || null,
-              role: "Owner",
-              isCurrentUser: true,
-            });
+
+          const alreadyPresent = Array.from(dedupedByIdentity.values()).some(
+            (entry) => {
+              const sameId =
+                Boolean(currentUser?.id && entry.id) &&
+                entry.id === currentUser.id;
+              const sameEmail =
+                Boolean(currentUserEmail && entry.email) &&
+                entry.email.trim().toLowerCase() === currentUserEmail;
+
+              return sameId || sameEmail;
+            },
+          );
+
+          if (!alreadyPresent) {
+            dedupedByIdentity.set(
+              `self|${currentUser?.id || currentUserEmail}`,
+              {
+                id: currentUser?.id || currentUser?.email || "current-user",
+                name:
+                  currentUser?.name ||
+                  currentUser?.email?.split("@")[0] ||
+                  "User",
+                email: currentUser?.email || "",
+                avatarUrl: currentUser?.avatar_url || null,
+                role: "Viewer",
+                isCurrentUser: true,
+              },
+            );
           }
         }
 
@@ -807,7 +852,7 @@ export function EditorTopBar({
                   "User",
                 email: currentUser?.email || "",
                 avatarUrl: currentUser?.avatar_url || null,
-                role: "Owner",
+                role: "Viewer",
                 isCurrentUser: true,
               },
             ]);
@@ -928,6 +973,47 @@ export function EditorTopBar({
       toast.error(message);
     } finally {
       setIsUpdatingVisibility(false);
+    }
+  };
+
+  const updateAnyoneCanPermission = async (nextPermission: "view" | "edit") => {
+    const projectId = resolveProjectId();
+
+    if (!projectId) {
+      toast.error("Missing project id.");
+      return;
+    }
+
+    const previousPermission = anyoneCanPermission;
+    setAnyoneCanPermission(nextPermission);
+
+    try {
+      const response = await fetch(`${API_URL}/api/update-anyone-can`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          anyoneCan: nextPermission,
+        }),
+      });
+
+      const data = await response
+        .clone()
+        .json()
+        .catch(async () => ({ raw: await response.text().catch(() => "") }));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || data?.message || "Failed to update permission.",
+        );
+      }
+
+      toast.success(`Anyone with the link can now ${nextPermission}.`);
+    } catch (error) {
+      setAnyoneCanPermission(previousPermission);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update permission.",
+      );
     }
   };
 
@@ -1699,7 +1785,9 @@ export function EditorTopBar({
               ? "h-9 px-3 text-green-600 bg-green-50/50 hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors gap-2 border border-green-200 dark:border-green-800"
               : "h-9 px-3 text-foreground/70 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
           }
-          title={isSupabaseConnected ? "Manage Integrations" : "Go to Integration"}
+          title={
+            isSupabaseConnected ? "Manage Integrations" : "Go to Integration"
+          }
         >
           <Database className="w-4 h-4" />
           {isSupabaseConnected ? (
@@ -1739,7 +1827,7 @@ export function EditorTopBar({
             className="w-9 h-9 rounded-full object-cover cursor-pointer hover:opacity-90 transition-opacity border border-border"
           />
         ) : (
-           <div
+          <div
             title={currentUser?.email || profileDisplayName}
             className="w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:opacity-90 transition-opacity"
           >
@@ -1900,14 +1988,11 @@ export function EditorTopBar({
                     </div>
 
                     {(() => {
-                      // Determine if the current user is an owner
                       const currentUserIsOwner = collaborators.some(
-                        (c) => c.isCurrentUser && c.role === "Owner",
+                        (c) =>
+                          c.isCurrentUser &&
+                          c.role.trim().toLowerCase() === "owner",
                       );
-
-                      // Show select dropdown only if:
-                      // 1. Current user is the owner
-                      // 2. The collaborator is not the current user (can't change own role)
                       const canChangeRole =
                         currentUserIsOwner && !collaborator.isCurrentUser;
 
@@ -2026,6 +2111,33 @@ export function EditorTopBar({
                     </div>
                   )}
                 </div>
+
+                {shareVisibility === "anyone" && (
+                  <div className="space-y-2 pt-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      Anyone with the link can
+                    </h4>
+
+                    <Select
+                      value={anyoneCanPermission}
+                      onValueChange={(value: "view" | "edit") => {
+                        void updateAnyoneCanPermission(value);
+                      }}
+                      disabled={isUpdatingVisibility}
+                    >
+                      <SelectTrigger className="w-full h-11">
+                        <SelectValue placeholder="Select permission" />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="view">View</SelectItem>
+                          <SelectItem value="edit">Edit</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
