@@ -196,6 +196,7 @@ const normalizeCollaboratorRows = (raw: any): any[] => {
 
   const candidates = [
     raw?.collaborators,
+    raw?.permissions?.collaborators,
     raw?.permissions,
     raw?.members,
     raw?.users,
@@ -339,7 +340,7 @@ export function EditorTopBar({
   >(null);
   const [anyoneCanPermission, setAnyoneCanPermission] = useState<
     "view" | "edit"
-  >("view");
+  >(currentProject?.anyone_can === "edit" ? "edit" : "view");
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
@@ -447,6 +448,13 @@ export function EditorTopBar({
     if (typeof resolvedTemplatePublished !== "boolean") return;
     setTemplatePublishedState(resolvedTemplatePublished);
   }, [isTogglingTemplatePublish, resolvedTemplatePublished]);
+
+  useEffect(() => {
+    const nextPermission =
+      currentProject?.anyone_can === "edit" ? "edit" : "view";
+
+    setAnyoneCanPermission(nextPermission);
+  }, [currentProject?.anyone_can]);
 
   const handleProjectNameDoubleClick = () => {
     setIsEditingProjectName(true);
@@ -702,7 +710,9 @@ export function EditorTopBar({
           payload?.anyone_can ??
           payload?.anyoneCan ??
           payload?.project?.anyone_can ??
-          payload?.project?.anyoneCan;
+          payload?.project?.anyoneCan ??
+          payload?.permissions?.anyone_can ??
+          payload?.permissions?.anyoneCan;
 
         if (
           !didCancel &&
@@ -842,7 +852,7 @@ export function EditorTopBar({
                   "User",
                 email: currentUser?.email || "",
                 avatarUrl: currentUser?.avatar_url || null,
-                role: "Owner",
+                role: "Viewer",
                 isCurrentUser: true,
               },
             ]);
