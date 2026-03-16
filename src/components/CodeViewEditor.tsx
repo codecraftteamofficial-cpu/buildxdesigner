@@ -389,7 +389,9 @@ function detectUnknownComponents(phpCode: string): UnknownComponentWarning[] {
 // ─────────────────────────────────────────────
 // UTILITIES
 // ─────────────────────────────────────────────
-function sanitizeId(id: string) { return id.replace(/[^a-zA-Z0-9_-]/g, "-") }
+function sanitizeId(id: string) { 
+  return id.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase(); 
+}
 
 const SEMANTIC_SUFFIXES: Record<string, string[]> = {
   navbar:          ["main", "top", "site", "primary"],
@@ -425,19 +427,21 @@ const SEMANTIC_SUFFIXES: Record<string, string[]> = {
 }
 
 function generateReadableId(type: string, existingIds: string[] = []): string {
-  const all = new Set(existingIds)
+  const all = new Set(existingIds.map(id => sanitizeId(id).toLowerCase()))
   const suffixes = SEMANTIC_SUFFIXES[type] ?? ["main", "content", "block", "section"]
 
   for (const suffix of suffixes) {
-    const candidate = `${type}-${suffix}`
+    const candidate = `${type}-${suffix}`.toLowerCase()
     if (!all.has(candidate)) return candidate
   }
+  
   for (const suffix of suffixes) {
-    for (let n = 2; n <= 9; n++) {
-      const candidate = `${type}-${suffix}-${n}`
+    for (let n = 2; n <= 99; n++) {
+      const candidate = `${type}-${suffix}-${n}`.toLowerCase()
       if (!all.has(candidate)) return candidate
     }
   }
+  
   return `${type}-${Date.now().toString(36).slice(-4)}`
 }
 
@@ -452,7 +456,6 @@ function extractShortId(cls: string): string | null {
     return null
   }
 
-  // Accept any valid CSS identifier with at least one letter
   if (/^[a-zA-Z][a-zA-Z0-9-_]*$/.test(first) && first.length >= 2) {
     return first
   }
@@ -530,7 +533,6 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
   const id  = generateReadableId(type, existingIds)
   const cls = id
 
-  // Simple types — return immediately
   const simple: Record<string, string> = {
     heading:   `<h1 class="${cls}">New Heading</h1>`,
     text:      `<p class="${cls}">New text block.</p>`,
@@ -548,7 +550,6 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
   }
   if (simple[type]) return simple[type]
 
-  // Multi-line types — only built when actually needed
   switch (type) {
     case "radio-group":
       return [
@@ -680,12 +681,6 @@ function generateComponentSnippet(type: string, existingIds: string[] = [], comp
 
 // ─────────────────────────────────────────────
 // DOCUMENT-ORDER PHP PARSER
-//
-// KEY FIX: Instead of running one regex per component type (which groups all
-// headings together, then all <p> tags, etc.), we collect ALL candidate matches
-// with their character index first, sort by index, then process in order.
-// This guarantees the resulting components[] array mirrors the top-to-bottom
-// order of elements in the PHP source — so LayerPanel and canvas stay in sync.
 // ─────────────────────────────────────────────
 function parsePHPToFullComponentList(
   phpCode: string,
@@ -698,14 +693,10 @@ function parsePHPToFullComponentList(
   type Candidate = { index: number; sid: string; type: string; parsedProps: Record<string, any> }
   const candidates: Candidate[] = []
 
-  // Simple push — no dedup here, we dedup after sorting by index
   const push = (index: number, sid: string, type: string, parsedProps: Record<string, any>) => {
     candidates.push({ index, sid, type, parsedProps })
   }
 
-  // Blank out inner content of block-level components so nested elements
-  // (nav-toggle button, <p> inside hero, etc.) don't parse as separate components.
-  // We preserve the string LENGTH so that character indexes stay valid.
   let cleanedCode = phpCode
   const blockPatterns: RegExp[] = [
     /<nav[^>]*class="[^"]*"[^>]*>[\s\S]*?<\/nav>/gi,
@@ -723,43 +714,43 @@ function parsePHPToFullComponentList(
     })
   }
 
-  // Headings (cleanedCode)
+  // Headings
   for (const m of cleanedCode.matchAll(/<h([1-6])[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/h[1-6]>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
     push(m.index ?? 0, sid, "heading", { content: stripTags(m[3].trim()), level: parseInt(m[1]), className: extractClassName(m[2]) })
   }
 
-  // <p> tags (cleanedCode)
+  // <p> tags
   for (const m of cleanedCode.matchAll(/<p[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/p>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "text", { content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
 
-  // Buttons (cleanedCode — nav-toggle inside <nav> is already blanked out)
+  // Buttons
   for (const m of cleanedCode.matchAll(/<button[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/button>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "button", { text: stripTags(m[2].trim()), content: stripTags(m[2].trim()), className: extractClassName(m[1]) })
   }
 
-  // Images src before class (cleanedCode)
+  // Images src before class
   for (const m of cleanedCode.matchAll(/<img[^>]*src="([^"]*)"[^>]*class="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
     push(m.index ?? 0, sid, "image", { src: m[1], className: extractClassName(m[2]) })
   }
-  // Images class before src (cleanedCode)
+  // Images class before src
   for (const m of cleanedCode.matchAll(/<img[^>]*class="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "image", { src: m[2], className: extractClassName(m[1]) })
   }
 
-  // Inputs (cleanedCode)
+  // Inputs
   for (const m of cleanedCode.matchAll(/<input[^>]*class="([^"]*)"[^>]*(?:placeholder="([^"]*)")?[^>]*\/?>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     if (m[0].includes('data-component-type="checkbox"')) continue
     push(m.index ?? 0, sid, "input", { placeholder: m[2] ?? "", className: extractClassName(m[1]) })
   }
 
-  // Textareas (cleanedCode)
+  // Textareas
   for (const m of cleanedCode.matchAll(/<textarea[^>]*class="([^"]*)"[^>]*placeholder="([^"]*)"[^>]*>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "textarea", { placeholder: m[2], className: extractClassName(m[1]) })
@@ -782,7 +773,7 @@ function parsePHPToFullComponentList(
     })
   }
 
-  // Hero sections (original phpCode — needs inner content)
+  // Hero sections
   for (const m of phpCode.matchAll(/<section[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/section>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "hero", {
@@ -792,23 +783,23 @@ function parsePHPToFullComponentList(
     })
   }
 
-  // Footers (original phpCode — needs inner content)
+  // Footers
   for (const m of phpCode.matchAll(/<footer[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/footer>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
     push(m.index ?? 0, sid, "footer", { copyright: stripTags((m[2].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()) })
   }
 
-  // Section headings: <div> with <h2> inside (cleanedCode)
+  // Section headings
   for (const m of cleanedCode.matchAll(/<div[^>]*class="([^"]*)"[^>]*>\s*<h2>([\s\S]*?)<\/h2>([\s\S]*?)<\/div>/gi)) {
     const sid = extractShortId(m[1]); if (!sid) continue
-    if (m[0].includes('data-component-type')) continue  // ← ADD THIS LINE
+    if (m[0].includes('data-component-type')) continue
     push(m.index ?? 0, sid, "section-heading", {
       title:    stripTags(m[2].trim()),
       subtitle: stripTags((m[3].match(/<p>([\s\S]*?)<\/p>/i)?.[1] ?? "").trim()),
     })
   }
 
-  // Explicit data-component-type — class before attr (cleanedCode)
+  // Explicit data-component-type — class before attr
   for (const m of cleanedCode.matchAll(/<([a-z][a-z0-9-]*)[^>]*class="([^"]*)"[^>]*data-component-type="([^"]+)"[^>]*>/gi)) {
     const sid = extractShortId(m[2]); if (!sid) continue
     const declaredType = m[3].toLowerCase().trim()
@@ -819,7 +810,7 @@ function parsePHPToFullComponentList(
       push(m.index ?? 0, sid, "__unknown__", { unknownType: declaredType, className: extractClassName(m[2]), htmlTag: m[1] })
     }
   }
-  // Explicit data-component-type — attr before class (cleanedCode)
+  // Explicit data-component-type — attr before class
   for (const m of cleanedCode.matchAll(/<([a-z][a-z0-9-]*)[^>]*data-component-type="([^"]+)"[^>]*class="([^"]*)"[^>]*>/gi)) {
     const sid = extractShortId(m[3]); if (!sid) continue
     const declaredType = m[2].toLowerCase().trim()
@@ -831,13 +822,9 @@ function parsePHPToFullComponentList(
     }
   }
 
-  // Sort by document order first
   candidates.sort((a, b) => a.index - b.index)
   console.log("[parser] candidates before sort:", candidates.map(c => ({ index: c.index, sid: c.sid, type: c.type })))
 
-  // Deduplicate: keep only the FIRST occurrence of each sid (by document order).
-  // This handles cases where multiple regex passes match the same element.
-  // Genuine duplicates (same class used twice) get a --2, --3 suffix.
   const seenDedup = new Set<string>()
   const dedupedCandidates = candidates.filter(c => {
     if (seenDedup.has(c.sid)) return false
@@ -845,23 +832,39 @@ function parsePHPToFullComponentList(
     return true
   })
 
-  console.log("[parser] final order:", dedupedCandidates.map(c => ({ index: c.index, sid: c.sid, type: c.type })))  
+  console.log("[parser] final order:", dedupedCandidates.map(c => ({ index: c.index, sid: c.sid, type: c.type })))
 
   const result: ComponentData[] = []
 
   for (const { sid, type, parsedProps } of dedupedCandidates) {
     const existing = byId.get(sid)
-    const defs     = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
+    const defs = DEFAULT_COMPONENT_DEFS[type] ?? { props: {}, style: {} }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // STYLE FIX: Always prefer the existing component's style when re-parsing
+    // a known component. Using `existing?.style ?? defs.style` (nullish coalescing)
+    // instead of the old ternary `existing?.style ? X : Y` ensures we never
+    // fall back to defaults when the style object exists but is "falsy-ish"
+    // (e.g. empty {}). This prevents the navbar/hero/footer shrinking back to
+    // tiny default dimensions after editing link text and re-syncing.
+    // ─────────────────────────────────────────────────────────────────────
+    const resolvedStyle = (() => {
+      if (existing?.style && Object.keys(existing.style).length > 0) {
+        // Component already has a style — preserve it unconditionally.
+        return normalizeStyleValues(existing.style)
+      }
+      // Brand-new component (no existing match) or style was explicitly cleared
+      // — fall back to type defaults so it still renders at a reasonable size.
+      return normalizeStyleValues({ ...defs.style })
+    })()
 
     result.push({
-      id:       existing?.id ?? sid,
+      id: existing?.id ?? sid,
       type,
-      props:    { ...defs.props, ...(existing?.props ?? {}), ...parsedProps },
-      style:    existing?.style
-        ? normalizeStyleValues(existing.style)
-        : normalizeStyleValues({ ...defs.style }),
+      props: { ...defs.props, ...(existing?.props ?? {}), ...parsedProps },
+      style: resolvedStyle,
       position: existing?.position ?? autoPosition(result.length),
-      page_id:  pageId,
+      page_id: existing?.page_id === "all" ? "all" : pageId,
       children: existing?.children,
     })
   }
@@ -899,61 +902,57 @@ function syncPHPToCanvas(
   allComponents: ComponentData[],
   pageId: string,
 ): { components: ComponentData[]; added: number; deleted: number; updated: number } {
-const isThisPage = (c: ComponentData) =>
-  c.page_id !== "all" &&
-  (c.page_id === pageId || !c.page_id || c.page_id === undefined)
 
-  const thisPage  = allComponents.filter(isThisPage)
-  const globals   = allComponents.filter(c => c.page_id === "all")
-  const otherPage = allComponents.filter(c => !isThisPage(c) && c.page_id !== "all")
+  const parsedList = parsePHPToFullComponentList(phpCode, pageId, allComponents)
+  const parsedSids = new Set(parsedList.map(c => sanitizeId(c.id)))
 
-  const existingSids = new Set(thisPage.map(c => sanitizeId(c.id)))
-  const parsedList   = parsePHPToFullComponentList(phpCode, pageId, thisPage)
-  const parsedSids   = new Set(parsedList.map(c => sanitizeId(c.id)))
-  const unrecognised = thisPage.filter(c => !parsedSids.has(sanitizeId(c.id)))
+  console.log("[sync] pageId:", pageId)
+  console.log("[sync] parsedSids:", [...parsedSids])
+  console.log("[sync] allComponents:", allComponents.map(c => ({ id: c.id, sid: sanitizeId(c.id), page_id: c.page_id })))
+
+  // Components strictly from OTHER pages — untouched
+  const otherPages = allComponents.filter(c =>
+    c.page_id !== pageId &&
+    c.page_id !== undefined &&
+    c.page_id !== null &&
+    c.page_id !== ""
+  )
+
+  // THIS page's components that the parser did NOT find (genuinely removed from PHP)
+  const thisPageOrphans = allComponents.filter(c =>
+    (c.page_id === pageId || !c.page_id) &&
+    !parsedSids.has(sanitizeId(c.id))
+  )
+
+  console.log("[sync] thisPageOrphans:", thisPageOrphans.map(c => ({ id: c.id, sid: sanitizeId(c.id) })))
 
   if (cssCode) {
     const cssUpdates = parseCSSToStyleUpdates(cssCode)
     for (const comp of parsedList) {
       const sid = sanitizeId(comp.id)
-      if (!existingSids.has(sid)) {
-        const cu = cssUpdates.get(sid)
-        if (cu) comp.style = normalizeStyleValues({ ...(comp.style ?? {}), ...cu })
-      }
+      const cu = cssUpdates.get(sid)
+      if (cu) comp.style = normalizeStyleValues({ ...(comp.style ?? {}), ...cu })
     }
   }
 
-  const added   = [...parsedSids].filter(s => !existingSids.has(s)).length
-  const deleted = [...existingSids].filter(s => !parsedSids.has(s) && !unrecognised.find(c => sanitizeId(c.id) === s)).length
+  const finalComponents = [
+    ...otherPages,
+    ...parsedList,
+  ]
+
+  const seen = new Set<string>()
+  const uniqueComponents = finalComponents.filter(c => {
+    const sid = sanitizeId(c.id)
+    if (seen.has(sid)) return false
+    seen.add(sid)
+    return true
+  })
+
+  const existingIds = new Set(allComponents.map(c => sanitizeId(c.id)))
+  const added = parsedList.filter(c => !existingIds.has(sanitizeId(c.id))).length
   const updated = parsedList.length - added
 
-  // Build a lookup for fast access to parsed and orphaned components
-  const parsedById      = new Map(parsedList.map(c => [sanitizeId(c.id), c]))
-  const unrecognisedById = new Map(unrecognised.map(c => [sanitizeId(c.id), c]))
-
-  // Preserve existing canvas order for components already on this page,
-  // slotting in their updated parsed version (or keeping orphans in place).
-  const existingOrder = thisPage.map(c => sanitizeId(c.id))
-  const mergedInOrder = existingOrder
-    .map(sid => parsedById.get(sid) ?? unrecognisedById.get(sid) ?? null)
-    .filter((c): c is ComponentData => c !== null)
-
-  // Append genuinely new components (present in PHP but not on canvas yet)
-  const mergedIds = new Set(mergedInOrder.map(c => sanitizeId(c.id)))
-const newlyAdded = parsedList.filter(c => !mergedIds.has(sanitizeId(c.id)))
-
-  const globalsSet = new Set(globals.map(c => c.id))
-  return {
-    components: [
-      ...globals,
-      ...otherPage.filter(c => !globalsSet.has(c.id)),
-      ...mergedInOrder,
-      ...newlyAdded,
-    ],
-    added,
-    deleted,
-    updated,
-  }
+  return { components: uniqueComponents, added, deleted: thisPageOrphans.length, updated }
 }
 
 // ─────────────────────────────────────────────
@@ -1072,7 +1071,7 @@ export function CodeViewEditor({
   const isJSONFile = selectedFile.endsWith(".json")
 
   const syntaxLang = isCSSFile ? "css" : isJSFile ? "javascript" : isMDFile ? "markdown" : isJSONFile ? "json" : "php"
-  const isSyncableFile   = selectedFile.endsWith(".php") || selectedFile.endsWith(".css")
+  const isSyncableFile = selectedFile.endsWith(".php") || selectedFile.endsWith(".css")
 
   const handleSelectFile = (path: string) => {
     if (path === selectedFile) return
@@ -1151,63 +1150,53 @@ export function CodeViewEditor({
     setMissingJS(missJs)
   }, [effectiveFiles])
 
-const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: ComponentData[]; changed: number } => {
-  const usedNew = new Set(comps.map(c => c.id))
-  let changed = 0
-  const migrated = comps.map(c => {
-    // Only migrate pure numeric IDs (legacy timestamp IDs like "1234567890")
-    // Everything else — "text-content", "text-content-2", "container-wrapper",
-    // "text-content--2" (our dedup format) — keep as-is
-    const isPureNumeric = /^\d+$/.test(c.id)
-    if (!isPureNumeric) return c
-    usedNew.delete(c.id)
-    const newId = generateReadableId(c.type, [...usedNew])
-    usedNew.add(newId)
-    changed++
-    return { ...c, id: newId }
-  })
-  return { migrated, changed }
-}, [])
+  const migrateComponentIds = useCallback((comps: ComponentData[]): { migrated: ComponentData[]; changed: number } => {
+    const usedNew = new Set(comps.map(c => c.id))
+    let changed = 0
+    const migrated = comps.map(c => {
+      const isPureNumeric = /^\d+$/.test(c.id)
+      if (!isPureNumeric) return c
+      usedNew.delete(c.id)
+      const newId = generateReadableId(c.type, [...usedNew])
+      usedNew.add(newId)
+      changed++
+      return { ...c, id: newId }
+    })
+    return { migrated, changed }
+  }, [])
 
-const handleManualSync = useCallback(() => {
-  if (!selectedFile || !isViewPHP || !onCodeChange) return
-  const content = isEditing ? draftContent : readOnlyContent
-  const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
-  const jsFile  = selectedFile.replace("app/views/", "public/assets/js/").replace(".php", ".js")
-  const cssCode = effectiveFiles[cssFile] ?? null
-  try {
-const { components: synced, added, deleted, updated } = syncPHPToCanvas(
-  content, cssCode, componentsRef.current, activePHPPageId
-)
-    const { migrated, changed: idsMigrated } = migrateComponentIds(synced)
-    onCodeChange(migrated)
+  const handleManualSync = useCallback(() => {
+    if (!selectedFile || !isViewPHP || !onCodeChange) return
+    const content = isEditing ? draftContent : readOnlyContent
+    const cssFile = selectedFile.replace("app/views/", "public/assets/css/").replace(".php", ".css")
+    const cssCode = effectiveFiles[cssFile] ?? null
 
-    if (isEditing) {
-      if (isCustomFile) setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
-      else setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
-      setIsEditing(false); setDraftContent(""); setPendingDiff(null)
+    try {
+      const { components: synced, added, deleted, updated } = syncPHPToCanvas(
+        content,
+        cssCode,
+        componentsRef.current,
+        activePHPPageId
+      )
+
+      onCodeChange(synced)
+
+      if (isEditing) {
+        if (isCustomFile) setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
+        else setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
+        setIsEditing(false)
+        setDraftContent("")
+        setPendingDiff(null)
+      }
+
+      toast.success(`Canvas synced! +${added} added, ~${updated} updated.`)
+      setSavedIndicator(true)
+      setTimeout(() => setSavedIndicator(false), 2500)
+    } catch (err: any) {
+      toast.error("Sync failed: " + err.message)
     }
-    detectWarningsInContent(content)
-    detectMissingStyles(migrated, cssFile, jsFile)
-    const parts = [
-      added       > 0 ? `+${added} added`            : "",
-      deleted     > 0 ? `-${deleted} deleted`         : "",
-      updated     > 0 ? `${updated} updated`          : "",
-      idsMigrated > 0 ? `${idsMigrated} IDs renamed`  : "",
-    ].filter(Boolean)
-    const unknowns = migrated.filter(c => c.type === "__unknown__")
-    if (unknowns.length > 0) {
-      toast.warning(`Synced with ${unknowns.length} unknown component${unknowns.length > 1 ? "s" : ""}.`)
-    } else {
-      toast.success(`Canvas synced! ${parts.join("  ") || "No structural changes."}`)
-    }
-    setSavedIndicator(true); setTimeout(() => setSavedIndicator(false), 2500)
-  } catch (err: any) {
-    toast.error("Sync failed: " + err.message)
-  }
-}, [selectedFile, isViewPHP, onCodeChange, isEditing, draftContent, readOnlyContent,
-    effectiveFiles, activePHPPageId, isCustomFile, detectWarningsInContent,
-    detectMissingStyles, migrateComponentIds])
+  }, [selectedFile, isViewPHP, onCodeChange, isEditing, draftContent, readOnlyContent,
+      effectiveFiles, activePHPPageId, isCustomFile])
 
   const handleGenerateCSS = useCallback(() => {
     if (!selectedFile || !isViewPHP) return
@@ -1240,7 +1229,7 @@ const { components: synced, added, deleted, updated } = syncPHPToCanvas(
 
     const existingIds = [
       ...componentsRef.current.map(c => c.id),
-      ...[...current.matchAll(/class="([^"\s]+)/g)].map(m => m[1]),
+      ...[...current.matchAll(/class=["']([^"'\s]+)/g)].map(m => m[1])
     ]
 
     const matchingComp = componentsRef.current.find(c => c.type === type)
@@ -1249,8 +1238,8 @@ const { components: synced, added, deleted, updated } = syncPHPToCanvas(
     const classMatch = snippet.match(/class="([^"\s]+)/)
     const snippetClass = classMatch?.[1]
 
-    if (snippetClass && new RegExp(`class="[^"]*\\b${snippetClass}\\b`).test(current)) {
-      toast.error(`A "${snippetClass}" component already exists in this file.`)
+    if (snippetClass && new RegExp(`class=["'][^"']*\\b${snippetClass}\\b`).test(current)) {
+      toast.error("ID collision detected. Try adding again.")
       return
     }
 
@@ -1261,48 +1250,52 @@ const { components: synced, added, deleted, updated } = syncPHPToCanvas(
       ? current.slice(0, insertAt) + `  ${snippet}\n` + current.slice(insertAt)
       : current + "\n" + snippet
 
-    if (isCustomFile) {
-      setCustomFiles(prev => ({ ...prev, [selectedFile]: newContent }))
-    } else {
-      setFileOverrides(prev => ({ ...prev, [selectedFile]: newContent }))
+    setDraftContent(newContent)
+
+    if (!isEditing) {
+      if (isCustomFile) {
+        setCustomFiles(prev => ({ ...prev, [selectedFile]: newContent }))
+      } else {
+        setFileOverrides(prev => ({ ...prev, [selectedFile]: newContent }))
+      }
+      setIsEditing(true)
+      setTimeout(() => textareaRef.current?.focus(), 0)
     }
 
-    setDraftContent(newContent)
-    if (!isEditing) { setIsEditing(true); setTimeout(() => textareaRef.current?.focus(), 0) }
     setShowAddPanel(false)
-    toast.success(`${type} snippet added — Sync to canvas to apply.`)
+    toast.success(`${type} snippet added. Sync to confirm.`)
   }
 
-const handleDeleteComponent = useCallback((compId: string) => {
-  if (!onCodeChange) return
-  const sid = sanitizeId(compId)
+  const handleDeleteComponent = useCallback((compId: string) => {
+    if (!onCodeChange) return
+    const sid = sanitizeId(compId)
 
-  console.log("[delete] compId:", compId)
-  console.log("[delete] sid:", sid)
-  console.log("[delete] all component ids:", componentsRef.current.map(c => ({ id: c.id, sanitized: sanitizeId(c.id) })))
-  console.log("[delete] filtered result:", componentsRef.current.filter(c => sanitizeId(c.id) !== sid).map(c => c.id))
+    console.log("[delete] compId:", compId)
+    console.log("[delete] sid:", sid)
+    console.log("[delete] all component ids:", componentsRef.current.map(c => ({ id: c.id, sanitized: sanitizeId(c.id) })))
+    console.log("[delete] filtered result:", componentsRef.current.filter(c => sanitizeId(c.id) !== sid).map(c => c.id))
 
-  onCodeChange(componentsRef.current.filter(c => sanitizeId(c.id) !== sid))
-  setFileOverrides(prev => {
-    const next = { ...prev }
-    for (const [path, content] of Object.entries(next)) {
-      if (path.endsWith(".php")) {
-        const before = content
-        next[path] = content
-          .replace(new RegExp(`[ \\t]*<[^>]+class="${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
-          .replace(new RegExp(`[ \\t]*<[^>]+class="comp-${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
-        console.log("[delete] php changed:", before !== next[path], "file:", path)
+    onCodeChange(componentsRef.current.filter(c => sanitizeId(c.id) !== sid))
+    setFileOverrides(prev => {
+      const next = { ...prev }
+      for (const [path, content] of Object.entries(next)) {
+        if (path.endsWith(".php")) {
+          const before = content
+          next[path] = content
+            .replace(new RegExp(`[ \\t]*<[^>]+class="${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
+            .replace(new RegExp(`[ \\t]*<[^>]+class="comp-${sid}[^"]*"[\\s\\S]*?(?:<\\/[a-zA-Z]+>|\\/>)\\n?`, "gi"), "")
+          console.log("[delete] php changed:", before !== next[path], "file:", path)
+        }
+        if (path.endsWith(".css")) {
+          next[path] = content
+            .replace(new RegExp(`\\.${sid}[^{]*\\{[^}]*\\}\\n?`, "gi"), "")
+            .replace(new RegExp(`\\.comp-${sid}[a-zA-Z0-9_-]*\\s*\\{[^}]*\\}\\n?`, "gi"), "")
+        }
       }
-      if (path.endsWith(".css")) {
-        next[path] = content
-          .replace(new RegExp(`\\.${sid}[^{]*\\{[^}]*\\}\\n?`, "gi"), "")
-          .replace(new RegExp(`\\.comp-${sid}[a-zA-Z0-9_-]*\\s*\\{[^}]*\\}\\n?`, "gi"), "")
-      }
-    }
-    return next
-  })
-  toast.success("Component deleted from canvas.")
-}, [onCodeChange])
+      return next
+    })
+    toast.success("Component deleted from canvas.")
+  }, [onCodeChange])
 
   const handleSave = useCallback(() => {
     if (!selectedFile) return
