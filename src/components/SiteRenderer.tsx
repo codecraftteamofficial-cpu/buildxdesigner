@@ -317,7 +317,11 @@ function NavbarRenderer({
                 { key: index },
                 React.createElement(
                     "a",
-                    { href: url, onClick: handleClick },
+                    { 
+                        href: url, 
+                        onClick: handleClick,
+                        style: { fontSize: props.linkFontSize ? `${props.linkFontSize}px` : undefined }
+                    },
                     link
                 )
             );
@@ -358,7 +362,22 @@ function NavbarRenderer({
                 zIndex: style.zIndex as any,
             }}
         >
-            <div className="nav-brand">{brand}</div>
+            <div className="flex items-center gap-3">
+                {props.logoUrl && (
+                    <img 
+                        src={props.logoUrl} 
+                        alt="Logo" 
+                        style={{ 
+                            height: '2rem', 
+                            width: props.logoShape === 'circle' || props.logoShape === 'square' ? '2rem' : 'auto',
+                            aspectRatio: props.logoShape === 'circle' || props.logoShape === 'square' ? '1/1' : 'auto',
+                            objectFit: props.logoShape === 'original' ? 'contain' : 'cover',
+                            borderRadius: props.logoShape === 'circle' ? '50%' : props.logoShape === 'rounded' ? '8px' : '0',
+                        }} 
+                    />
+                )}
+                <div className="nav-brand">{brand}</div>
+            </div>
             <button
                 className="nav-toggle"
                 aria-label="Toggle navigation"

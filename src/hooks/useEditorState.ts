@@ -172,6 +172,8 @@ export function useEditorState() {
     replaceProjectName,
     setLocalCursor,
     clearLocalCursor,
+    undo,
+    redo,
   } = useCollaboration({
     projectId: state.currentProjectId || "",
     setState,
@@ -1250,6 +1252,25 @@ export function useEditorState() {
       if ((event.ctrlKey || event.metaKey) && event.key === "p") {
         event.preventDefault();
         togglePreview();
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        if (!state.projectCanEdit) return;
+        event.preventDefault();
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        (event.key === "y" || (event.shiftKey && event.key === "Z"))
+      ) {
+        if (!state.projectCanEdit) return;
+        event.preventDefault();
+        redo();
       }
 
       if ((event.ctrlKey || event.metaKey) && event.key === "n") {

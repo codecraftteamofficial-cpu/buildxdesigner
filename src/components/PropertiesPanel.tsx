@@ -3135,6 +3135,31 @@ export function PropertiesPanel({
                 </Select>
               </div>
             </div>
+            <div>
+              <Label htmlFor="imageShape" className="text-xs">
+                Image Shape
+              </Label>
+              <Select
+                value={props.imageShape || "original"}
+                onValueChange={(value) => updateProps("imageShape", value)}
+              >
+                <SelectTrigger id="imageShape" className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="original">Original (Default)</SelectItem>
+                  <SelectItem value="circle">Circle</SelectItem>
+                  <SelectItem value="rounded">Rounded Corners</SelectItem>
+                  <SelectItem value="pill">Pill Shape</SelectItem>
+                  <SelectItem value="squircle">Squircle</SelectItem>
+                  <SelectItem value="hexagon">Hexagon</SelectItem>
+                  <SelectItem value="diamond">Diamond</SelectItem>
+                  <SelectItem value="triangle">Triangle</SelectItem>
+                  <SelectItem value="parallelogram">Parallelogram</SelectItem>
+                  <SelectItem value="star">Star</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )
 
@@ -3283,6 +3308,47 @@ export function PropertiesPanel({
                   placeholder="Your Brand"
                   className="h-8 text-xs mt-1"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="linkFontSize" className="text-xs">
+                  Link Font Size
+                </Label>
+                <Select
+                  value={String(props.linkFontSize || "14")}
+                  onValueChange={(value) => updateProps("linkFontSize", value)}
+                >
+                  <SelectTrigger id="linkFontSize" className="h-8 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FONT_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}px
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="logoShape" className="text-xs">
+                  Logo Shape
+                </Label>
+                <Select
+                  value={props.logoShape || "original"}
+                  onValueChange={(value) => updateProps("logoShape", value)}
+                >
+                  <SelectTrigger id="logoShape" className="h-8 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="original">Original</SelectItem>
+                    <SelectItem value="circle">Circle</SelectItem>
+                    <SelectItem value="rounded">Rounded</SelectItem>
+                    <SelectItem value="square">Square</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
