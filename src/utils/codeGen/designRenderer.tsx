@@ -3,7 +3,7 @@
  * Ensures index.html renders exactly what the user sees in the design panel
  */
 
-import type { ComponentData } from "@/App"
+import type { ComponentData } from "../../App"
 
 export class DesignRenderer {
   /**
@@ -58,7 +58,7 @@ ${componentHTML}
     switch (comp.type) {
       case "container":
         return `    <div id="${id}" class="${className}" style="${style}">
-      ${comp.children?.map((c) => this.renderComponent(c)).join("\n") || ""}
+      ${comp.children?.map((c: ComponentData) => this.renderComponent(c)).join("\n") || ""}
     </div>`
 
       case "text":
@@ -80,17 +80,17 @@ ${componentHTML}
 
       case "header":
         return `    <header id="${id}" class="${className}" style="${style}">
-      ${comp.children?.map((c) => this.renderComponent(c)).join("\n") || ""}
+      ${comp.children?.map((c: ComponentData) => this.renderComponent(c)).join("\n") || ""}
     </header>`
 
       case "footer":
         return `    <footer id="${id}" class="${className}" style="${style}">
-      ${comp.children?.map((c) => this.renderComponent(c)).join("\n") || ""}
+      ${comp.children?.map((c: ComponentData) => this.renderComponent(c)).join("\n") || ""}
     </footer>`
 
       case "section":
         return `    <section id="${id}" class="${className}" style="${style}">
-      ${comp.children?.map((c) => this.renderComponent(c)).join("\n") || ""}
+      ${comp.children?.map((c: ComponentData) => this.renderComponent(c)).join("\n") || ""}
     </section>`
 
       default:
@@ -103,6 +103,7 @@ ${componentHTML}
    */
   private generateInlineStyles(comp: ComponentData): string {
     const styles: string[] = []
+    const compStyle = comp.style || {}
 
     // Positioning
     if (comp.position?.x) styles.push(`left: ${comp.position.x}px`)
@@ -116,18 +117,30 @@ ${componentHTML}
     if (comp.props?.padding) styles.push(`padding: ${comp.props.padding}`)
     if (comp.props?.margin) styles.push(`margin: ${comp.props.margin}`)
 
-    // Colors
-    if (comp.props?.backgroundColor) styles.push(`background-color: ${comp.props.backgroundColor}`)
-    if (comp.props?.borderColor) styles.push(`border-color: ${comp.props.borderColor}`)
+    // Background handling logic
+    const hasValidBackground = compStyle.background && compStyle.background !== "none"
+    if (hasValidBackground) {
+      styles.push(`background: ${compStyle.background}`)
+    } else {
+      const bgColor = compStyle.backgroundColor || compStyle["background-color"] || comp.props?.backgroundColor
+      if (bgColor) styles.push(`background-color: ${bgColor}`)
+    }
 
-    // Border
+    // Colors & Border
+    if (comp.props?.borderColor) styles.push(`border-color: ${comp.props.borderColor}`)
     if (comp.props?.border) styles.push(`border: ${comp.props.border}`)
     if (comp.props?.borderRadius) styles.push(`border-radius: ${comp.props.borderRadius}`)
 
-    // Additional custom styles
+    // Additional custom styles (ignoring already handled background properties)
     if (comp.style) {
       Object.entries(comp.style).forEach(([key, value]) => {
-        styles.push(`${key}: ${value}`)
+        // Skip already handled or empty values
+        if (["background", "backgroundColor", "background-color"].includes(key)) return
+        if (value === undefined || value === null || value === "") return
+
+        // Convert camelCase to kebab-case for CSS
+        const kebabKey = key.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase()
+        styles.push(`${kebabKey}: ${value}`)
       })
     }
 

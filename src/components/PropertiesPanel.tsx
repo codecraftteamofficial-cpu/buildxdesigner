@@ -4351,7 +4351,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                             style: {
                               ...selectedComponent.style,
                               backgroundColor: isGrad ? undefined : val,
-                              background: isGrad ? val : undefined,
+                              background: isGrad ? val : "",
                             },
                           });
                         }}
@@ -4789,7 +4789,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                             style: {
                               ...selectedComponent.style,
                               backgroundColor: isGrad ? undefined : val,
-                              background: isGrad ? val : undefined,
+                              background: isGrad ? val : "",
                             },
                           });
                         }}

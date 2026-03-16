@@ -337,7 +337,10 @@ function NavbarRenderer({
         <nav
             className="sr-navbar"
             style={{
-                backgroundColor: style.backgroundColor as string,
+                // Background handling: prioritize backgroundColor if background is falsy or 'none'
+                ...(style.background && style.background !== 'none' 
+                    ? { background: style.background as string } 
+                    : (style.backgroundColor ? { backgroundColor: style.backgroundColor as string } : {})),
                 color: style.color as string,
                 padding: style.padding as string || "0.75rem 1.5rem",
                 fontSize: style.fontSize as string,

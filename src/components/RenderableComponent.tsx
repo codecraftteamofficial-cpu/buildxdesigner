@@ -220,10 +220,17 @@ export function RenderableComponent({
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
   
-  // Background gradient support
+  // Background gradient support & background clearing
   if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
     combinedStyle.background = combinedStyle.backgroundColor;
     delete combinedStyle.backgroundColor;
+  } else if (combinedStyle.background === '' || combinedStyle.background === 'none') {
+    // If background is explicitly empty or 'none', we should rely on backgroundColor if it exists
+    if (combinedStyle.backgroundColor) {
+      delete combinedStyle.background;
+    } else {
+      combinedStyle.background = 'none';
+    }
   }
 
   // Prevent components from escaping the editor drag container bounds when positioned fixed/absolute
@@ -1111,12 +1118,8 @@ export function RenderableComponent({
   };
 
   const renderComponent = () => {
-    const { type, props, style } = component;
-    const combinedStyle = { ...style } as React.CSSProperties;
-    if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
-      combinedStyle.background = combinedStyle.backgroundColor;
-      delete combinedStyle.backgroundColor;
-    }
+    const { type, props } = component;
+    // combinedStyle is already calculated at the top level
 
     if (!isPreview) {
       delete combinedStyle.position;
