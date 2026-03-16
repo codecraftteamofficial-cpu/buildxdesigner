@@ -18,6 +18,7 @@ export interface ComponentData {
   position?: { x: number; y: number };
   project_layout?: any[];
   page_id?: string;
+  page_ids?: string[];
 }
 
 export interface EditorState {

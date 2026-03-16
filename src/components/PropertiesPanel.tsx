@@ -13,6 +13,7 @@ import { Switch } from "./ui/switch"
 import { Checkbox } from "./ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { RangeSlider } from "./ui/range-slider"
 import {
   X,
@@ -30,7 +31,9 @@ import {
   HelpCircle,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  Check
 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@supabase/supabase-js"
@@ -3093,48 +3096,6 @@ export function PropertiesPanel({
                 className="h-8 text-xs mt-1"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="width" className="text-xs">
-                  Width
-                </Label>
-                <Select
-                  value={String(props.width || "300")}
-                  onValueChange={(value: string) => updateProps("width", Number.parseInt(value))}
-                >
-                  <SelectTrigger id="width" className="h-8 text-xs mt-1">
-                    <SelectValue placeholder="Width" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DIMENSION_VALUES.map((dim) => (
-                      <SelectItem key={dim} value={String(dim)}>
-                        {dim}px
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="height" className="text-xs">
-                  Height
-                </Label>
-                <Select
-                  value={String(props.height || "200")}
-                  onValueChange={(value: string) => updateProps("height", Number.parseInt(value))}
-                >
-                  <SelectTrigger id="height" className="h-8 text-xs mt-1">
-                    <SelectValue placeholder="Height" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DIMENSION_VALUES.map((dim) => (
-                      <SelectItem key={dim} value={String(dim)}>
-                        {dim}px
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             <div>
               <Label htmlFor="imageShape" className="text-xs">
                 Image Shape
@@ -4090,20 +4051,123 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                 {pages && (
                   <div className="space-y-1">
                     <Label className="text-xs font-medium">Page Assignment</Label>
-                    <Select
-                      value={selectedComponent.page_id || activePageId || "home"}
-                      onValueChange={(val: string) => onUpdateComponent(selectedComponent.id, { page_id: val })}
-                    >
-                      <SelectTrigger className="h-7 text-xs w-full bg-accent/20 border-accent/40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Global (All Pages)</SelectItem>
-                        {pages.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-xs w-full justify-between bg-accent/20 border-accent/40 font-normal"
+                        >
+                          <span className="truncate">
+                            {selectedComponent.page_ids?.includes("all") 
+                              ? "Global (All Pages)" 
+                              : selectedComponent.page_ids && selectedComponent.page_ids.length > 0
+                                ? `${selectedComponent.page_ids.length} Page${selectedComponent.page_ids.length > 1 ? 's' : ''} Selected`
+                                : "Select Pages..."}
+                          </span>
+                          <ChevronDown className="h-3 w-3 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-2" align="start">
+                        <div className="space-y-2">
+                          <div 
+                            className="flex items-center space-x-2 p-1 hover:bg-accent rounded cursor-pointer"
+                            onClick={() => {
+                              const originId = selectedComponent.page_id || activePageId || "home";
+                              const currentIds = selectedComponent.page_ids || [];
+                              const newIds = currentIds.includes("all") 
+                                ? [originId] 
+                                : ["all"];
+                              onUpdateComponent(selectedComponent.id, { 
+                                page_ids: newIds,
+                                page_id: selectedComponent.page_id || originId
+                              });
+                            }}
+                          >
+                            <Checkbox 
+                              id="page-all" 
+                              checked={selectedComponent.page_ids?.includes("all")}
+                              onCheckedChange={(checked: boolean) => {
+                                const originId = selectedComponent.page_id || activePageId || "home";
+                                const newIds = checked 
+                                  ? ["all"] 
+                                  : [originId];
+                                onUpdateComponent(selectedComponent.id, { 
+                                  page_ids: newIds,
+                                  page_id: selectedComponent.page_id || originId
+                                });
+                              }}
+                            />
+                            <Label htmlFor="page-all" className="text-xs cursor-pointer flex-1">Global (All Pages)</Label>
+                          </div>
+                          
+                          <Separator className="my-1" />
+                          
+                          <div className="max-h-[200px] overflow-y-auto space-y-1 pt-1">
+                            {pages.map(p => {
+                              const isSelected = selectedComponent.page_ids?.includes(p.id) || selectedComponent.page_ids?.includes("all");
+                              const isDisabled = selectedComponent.page_ids?.includes("all");
+                              
+                              return (
+                                <div 
+                                  key={p.id} 
+                                  className={`flex items-center space-x-2 p-1 hover:bg-accent rounded cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  onClick={() => {
+                                    if (isDisabled) return;
+                                    const originId = selectedComponent.page_id || activePageId || "home";
+                                    const currentIds = selectedComponent.page_ids || [];
+                                    let newIds = currentIds.includes(p.id)
+                                      ? currentIds.filter(id => id !== p.id)
+                                      : [...currentIds, p.id];
+                                    
+                                    if (newIds.length === 0) {
+                                      newIds = [originId];
+                                    }
+                                    
+                                    onUpdateComponent(selectedComponent.id, { 
+                                      page_ids: newIds,
+                                      page_id: selectedComponent.page_id || originId
+                                    });
+                                  }}
+                                >
+                                  <Checkbox 
+                                    id={`page-${p.id}`} 
+                                    checked={isSelected}
+                                    disabled={isDisabled}
+                                    onCheckedChange={(checked: boolean) => {
+                                      if (isDisabled) return;
+                                      const originId = selectedComponent.page_id || activePageId || "home";
+                                      const currentIds = selectedComponent.page_ids || [];
+                                      let newIds = checked
+                                        ? [...currentIds, p.id]
+                                        : currentIds.filter(id => id !== p.id);
+                                      
+                                      if (newIds.length === 0) {
+                                        newIds = [originId];
+                                      }
+                                      
+                                      onUpdateComponent(selectedComponent.id, { 
+                                        page_ids: newIds,
+                                        page_id: selectedComponent.page_id || originId
+                                      });
+                                    }}
+                                  />
+                                  <div className="flex-1 flex items-center justify-between">
+                                    <Label htmlFor={`page-${p.id}`} className="text-xs cursor-pointer">{p.name}</Label>
+                                    {(selectedComponent.page_id === p.id || (!selectedComponent.page_id && (p.id === activePageId || p.id === 'home'))) && (
+                                      <Badge variant="outline" className="text-xs py-0 ml-2 h-6 bg-primary/5 text-primary border-primary/20">
+                                        Origin
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                      <p className="text-[10px] text-muted-foreground">Make your component visible on multiple pages.</p>
+                    </Popover>
                   </div>
                 )}
               </div>
@@ -4782,316 +4846,329 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                   </div>
                 </div>
 
-                {/* Border Section */}
-                <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs font-semibold">Border</Label>
-                      <div className="flex items-center gap-1.5 ml-2">
-                        <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
-                        <Switch
-                          id="individual-border-toggle"
-                          checked={showIndividualBorders}
-                          onCheckedChange={(val) => {
-                            setShowIndividualBorders(val)
-                            
-                            const individualKeys = [
-                              "borderTopWidth", "borderTopStyle", "borderTopColor",
-                              "borderRightWidth", "borderRightStyle", "borderRightColor",
-                              "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
-                              "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                {!(selectedComponent.type === 'image' && selectedComponent.props.imageShape && selectedComponent.props.imageShape !== 'original') && (
+                  <>
+                    {/* Border Section */}
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs font-semibold">Border</Label>
+                          <div className="flex items-center gap-1.5 ml-2">
+                            <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
+                            <Switch
+                              id="individual-border-toggle"
+                              checked={showIndividualBorders}
+                              onCheckedChange={(val) => {
+                                setShowIndividualBorders(val)
+                                
+                                const individualKeys = [
+                                  "borderTopWidth", "borderTopStyle", "borderTopColor",
+                                  "borderRightWidth", "borderRightStyle", "borderRightColor",
+                                  "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                                  "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                                ];
+                                const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
+                                
+                                const newStyle = { ...selectedComponent.style };
+                                if (val) {
+                                  // If switching to individual, clear global
+                                  globalKeys.forEach(k => delete newStyle[k]);
+                                } else {
+                                  // If switching back to global, clear individual
+                                  individualKeys.forEach(k => delete newStyle[k]);
+                                }
+                                
+                                onUpdateComponent(selectedComponent.id, {
+                                  ...selectedComponent,
+                                  style: newStyle
+                                });
+                              }}
+                              className="scale-75 origin-left"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={() => {
+                            const styleKeys = [
+                              "border", "borderWidth", "borderStyle", "borderColor",
+                              "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
+                              "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
+                              "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                              "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
                             ];
-                            const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
-                            
                             const newStyle = { ...selectedComponent.style };
-                            if (val) {
-                              // If switching to individual, clear global
-                              globalKeys.forEach(k => delete newStyle[k]);
-                            } else {
-                              // If switching back to global, clear individual
-                              individualKeys.forEach(k => delete newStyle[k]);
-                            }
-                            
+                            styleKeys.forEach(key => delete newStyle[key]);
                             onUpdateComponent(selectedComponent.id, {
                               ...selectedComponent,
                               style: newStyle
                             });
                           }}
-                          className="scale-75 origin-left"
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => {
-                        const styleKeys = [
-                          "border", "borderWidth", "borderStyle", "borderColor",
-                          "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
-                          "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
-                          "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
-                          "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
-                        ];
-                        const newStyle = { ...selectedComponent.style };
-                        styleKeys.forEach(key => delete newStyle[key]);
-                        onUpdateComponent(selectedComponent.id, {
-                          ...selectedComponent,
-                          style: newStyle
-                        });
-                      }}
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                    </Button>
-                  </div>
-
-                  {!showIndividualBorders ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Width</Label>
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
-                            onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
-                          >
-                            <SelectTrigger className="h-8 text-xs mt-1">
-                              <SelectValue placeholder="0px" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_WIDTHS.map((w) => (
-                                <SelectItem key={w} value={String(w)}>
-                                  {w}px
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Style</Label>
-                          <Select
-                            value={selectedComponent.style?.borderStyle || "none"}
-                            onValueChange={(value: string) => updateStyle("borderStyle", value)}
-                          >
-                            <SelectTrigger className="h-8 text-xs mt-1">
-                              <SelectValue placeholder="none" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_STYLES.map((s) => (
-                                <SelectItem key={s} value={s} className="capitalize">
-                                  {s}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                        </Button>
                       </div>
 
-                      <ColorPicker
-                        label="Border Color"
-                        value={selectedComponent.style?.borderColor || "#000000"}
-                        onChange={(val) => updateStyle("borderColor", val)}
-                        hideGradient={true}
-                      />
-                    </>
-                  ) : (
-                    <div className="space-y-4">
-                      {["Top", "Right", "Bottom", "Left"].map((side) => {
-                        const sideKey = side === "All" ? "" : side;
-                        const widthKey = `border${sideKey}Width`;
-                        const styleKey = `border${sideKey}Style`;
-                        const colorKey = `border${sideKey}Color`;
-
-                        return (
-                          <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
-                            <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Select
-                                  value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
-                                  onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
-                                >
-                                  <SelectTrigger className="h-7 text-[11px]">
-                                    <SelectValue placeholder="Width" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {BORDER_WIDTHS.map((w) => (
-                                      <SelectItem key={w} value={String(w)} className="text-[11px]">
-                                        {w}px
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div>
-                                <Select
-                                  value={selectedComponent.style?.[styleKey] || "none"}
-                                  onValueChange={(value: string) => updateStyle(styleKey, value)}
-                                >
-                                  <SelectTrigger className="h-7 text-[11px]">
-                                    <SelectValue placeholder="Style" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {BORDER_STYLES.map((s) => (
-                                      <SelectItem key={s} value={s} className="capitalize text-[11px]">
-                                        {s}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                      {!showIndividualBorders ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Width</Label>
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
+                                onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
+                              >
+                                <SelectTrigger className="h-8 text-xs mt-1">
+                                  <SelectValue placeholder="0px" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_WIDTHS.map((w) => (
+                                    <SelectItem key={w} value={String(w)}>
+                                      {w}px
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
-                            <ColorPicker
-                              label={`${side} Color`}
-                              value={selectedComponent.style?.[colorKey] || "#000000"}
-                              onChange={(val) => updateStyle(colorKey, val)}
-                              hideGradient={true}
-                            />
+
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Style</Label>
+                              <Select
+                                value={selectedComponent.style?.borderStyle || "none"}
+                                onValueChange={(value: string) => updateStyle("borderStyle", value)}
+                              >
+                                <SelectTrigger className="h-8 text-xs mt-1">
+                                  <SelectValue placeholder="none" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_STYLES.map((s) => (
+                                    <SelectItem key={s} value={s} className="capitalize">
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-medium">Border Radius</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {selectedComponent.style?.borderRadius || "0"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5"
-                        onClick={() => {
-                          updateStyle("borderRadius", "0")
-                          updateStyle("borderTopLeftRadius", "0")
-                          updateStyle("borderTopRightRadius", "0")
-                          updateStyle("borderBottomLeftRadius", "0")
-                          updateStyle("borderBottomRightRadius", "0")
-                        }}
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
+                          <ColorPicker
+                            label="Border Color"
+                            value={selectedComponent.style?.borderColor || "#000000"}
+                            onChange={(val) => updateStyle("borderColor", val)}
+                            hideGradient={true}
+                          />
+                        </>
+                      ) : (
+                        <div className="space-y-4">
+                          {["Top", "Right", "Bottom", "Left"].map((side) => {
+                            const sideKey = side === "All" ? "" : side;
+                            const widthKey = `border${sideKey}Width`;
+                            const styleKey = `border${sideKey}Style`;
+                            const colorKey = `border${sideKey}Color`;
 
-                  <div className="space-y-3 p-2 bg-muted/20 rounded-md">
-                    {/* All Corners */}
-                      <div className="flex justify-between items-center px-1">
-                        <Label htmlFor="borderRadius-all" className="text-xs text-muted-foreground">
-                          All Corners
-                        </Label>
+                            return (
+                              <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
+                                <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Select
+                                      value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
+                                      onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
+                                    >
+                                      <SelectTrigger className="h-7 text-[11px]">
+                                        <SelectValue placeholder="Width" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {BORDER_WIDTHS.map((w) => (
+                                          <SelectItem key={w} value={String(w)} className="text-[11px]">
+                                            {w}px
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+
+                                  <div>
+                                    <Select
+                                      value={selectedComponent.style?.[styleKey] || "none"}
+                                      onValueChange={(value: string) => updateStyle(styleKey, value)}
+                                    >
+                                      <SelectTrigger className="h-7 text-[11px]">
+                                        <SelectValue placeholder="Style" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {BORDER_STYLES.map((s) => (
+                                          <SelectItem key={s} value={s} className="capitalize text-[11px]">
+                                            {s}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <ColorPicker
+                                  label={`${side} Color`}
+                                  value={selectedComponent.style?.[colorKey] || "#000000"}
+                                  onChange={(val) => updateStyle(colorKey, val)}
+                                  hideGradient={true}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-medium">Border Radius</Label>
                         <div className="flex items-center gap-2">
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0"}
-                            onValueChange={(value: string) => updateStyle("borderRadius", `${value}px`)}
+                          <span className="text-xs text-muted-foreground">
+                            {selectedComponent.style?.borderRadius || "0"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            onClick={() => {
+                              updateStyle("borderRadius", "0")
+                              updateStyle("borderTopLeftRadius", "0")
+                              updateStyle("borderTopRightRadius", "0")
+                              updateStyle("borderBottomLeftRadius", "0")
+                              updateStyle("borderBottomRightRadius", "0")
+                            }}
                           >
-                            <SelectTrigger id="borderRadius-all" className="h-6 w-20 text-xs px-1">
-                              <SelectValue placeholder="Radius" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_RADIUS_VALUES.map((val) => (
-                                <SelectItem key={val} value={String(val)}>
-                                  {val === 9999 ? 'Pill' : `${val}px`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
 
-                    <Separator className="my-2" />
+                      <div className="space-y-3 p-2 bg-muted/20 rounded-md">
+                        {/* All Corners */}
+                          <div className="flex justify-between items-center px-1">
+                            <Label htmlFor="borderRadius-all" className="text-xs text-muted-foreground">
+                              All Corners
+                            </Label>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0"}
+                                 onValueChange={(value: string) => {
+                                const newRadius = `${value}px`;
+                                onUpdateStyle(selectedComponent.id, { 
+                                  borderRadius: newRadius,
+                                  borderTopLeftRadius: undefined,
+                                  borderTopRightRadius: undefined,
+                                  borderBottomLeftRadius: undefined,
+                                  borderBottomRightRadius: undefined
+                                });
+                              }}
+                              >
+                                <SelectTrigger id="borderRadius-all" className="h-6 w-20 text-xs px-1">
+                                  <SelectValue placeholder="Radius" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_RADIUS_VALUES.map((val) => (
+                                    <SelectItem key={val} value={String(val)}>
+                                      {val === 9999 ? 'Pill' : `${val}px`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
 
-                    {/* Individual Corners */}
-                    <div className="space-y-3">
-                      {/* Top Row */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
-                            onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
-                          >
-                            <SelectTrigger className="h-7 text-xs px-2">
-                              <SelectValue placeholder="0px" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_RADIUS_VALUES.map((val) => (
-                                <SelectItem key={val} value={String(val)}>
-                                  {val === 9999 ? 'Pill' : `${val}px`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <Separator className="my-2" />
 
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
-                            onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
-                          >
-                            <SelectTrigger className="h-7 text-xs px-2">
-                              <SelectValue placeholder="0px" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_RADIUS_VALUES.map((val) => (
-                                <SelectItem key={val} value={String(val)}>
-                                  {val === 9999 ? 'Pill' : `${val}px`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                        {/* Individual Corners */}
+                        <div className="space-y-3">
+                          {/* Top Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
+                                onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
+                              >
+                                <SelectTrigger className="h-7 text-xs px-2">
+                                  <SelectValue placeholder="0px" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_RADIUS_VALUES.map((val) => (
+                                    <SelectItem key={val} value={String(val)}>
+                                      {val === 9999 ? 'Pill' : `${val}px`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                      {/* Bottom Row */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
-                            onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
-                          >
-                            <SelectTrigger className="h-7 text-xs px-2">
-                              <SelectValue placeholder="0px" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_RADIUS_VALUES.map((val) => (
-                                <SelectItem key={val} value={String(val)}>
-                                  {val === 9999 ? 'Pill' : `${val}px`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
+                                onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
+                              >
+                                <SelectTrigger className="h-7 text-xs px-2">
+                                  <SelectValue placeholder="0px" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_RADIUS_VALUES.map((val) => (
+                                    <SelectItem key={val} value={String(val)}>
+                                      {val === 9999 ? 'Pill' : `${val}px`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
 
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
-                          <Select
-                            value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
-                            onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
-                          >
-                            <SelectTrigger className="h-7 text-xs px-2">
-                              <SelectValue placeholder="0px" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BORDER_RADIUS_VALUES.map((val) => (
-                                <SelectItem key={val} value={String(val)}>
-                                  {val === 9999 ? 'Pill' : `${val}px`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {/* Bottom Row */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
+                                onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
+                              >
+                                <SelectTrigger className="h-7 text-xs px-2">
+                                  <SelectValue placeholder="0px" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_RADIUS_VALUES.map((val) => (
+                                    <SelectItem key={val} value={String(val)}>
+                                      {val === 9999 ? 'Pill' : `${val}px`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
+                              <Select
+                                value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
+                                onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
+                              >
+                                <SelectTrigger className="h-7 text-xs px-2">
+                                  <SelectValue placeholder="0px" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BORDER_RADIUS_VALUES.map((val) => (
+                                    <SelectItem key={val} value={String(val)}>
+                                      {val === 9999 ? 'Pill' : `${val}px`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
                 <div>
                   <Label htmlFor="opacity" className="text-xs">

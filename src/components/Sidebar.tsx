@@ -85,11 +85,18 @@ export function Sidebar({
   const [searchTerm, setSearchTerm] = useState("")
 
   // Filter layers to only show components belonging to the active page
-  const filteredLayers = components.filter(c => 
-    c.page_id === activePageId || 
-    c.page_id === 'all' || 
-    (!c.page_id && activePageId === 'home')
-  );
+  const filteredLayers = components.filter(c => {
+    if (c.page_ids && c.page_ids.length > 0) {
+      if (c.page_ids.includes("all")) return true;
+      return c.page_ids.includes(activePageId || "home");
+    }
+
+    return (
+      c.page_id === activePageId || 
+      c.page_id === 'all' || 
+      (!c.page_id && activePageId === 'home')
+    );
+  });
 
   const basicComponents = [
     { type: "text", icon: <Type className="w-3.5 h-3.5" />, label: "Text", props: { content: "Sample Text" } },

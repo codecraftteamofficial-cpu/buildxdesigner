@@ -18,8 +18,10 @@ export function PublishedSite() {
     const getActivePageFromPath = (path: string, pages: any[]) => {
         if (!pages || pages.length === 0) return 'home';
 
-        // Normalize path for comparison (ignore search parameters)
-        const pathname = path.split('?')[0];
+        let pathname = path.split('?')[0];
+        if (pathname.length > 1 && pathname.endsWith('/')) {
+            pathname = pathname.slice(0, -1);
+        }
         const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
 
         // Handle root path or /home alias
@@ -29,8 +31,11 @@ export function PublishedSite() {
 
         // Find page by path
         const page = pages.find(p => {
-            const pagePathNormalized = p.path.startsWith('/') ? p.path : `/${p.path}`;
-            return pagePathNormalized === normalizedPath;
+            let pagePath = p.path.startsWith('/') ? p.path : `/${p.path}`;
+            if (pagePath.length > 1 && pagePath.endsWith('/')) {
+                pagePath = pagePath.slice(0, -1);
+            }
+            return pagePath === normalizedPath;
         });
 
         return page ? page.id : 'home';

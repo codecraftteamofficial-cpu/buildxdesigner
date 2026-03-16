@@ -421,6 +421,7 @@ export function Canvas({
           y: (clipboard.position?.y || 0) + 20,
         },
         page_id: activePageId,
+        page_ids: [activePageId || "home"],
       };
 
       newComponent.position = clampPositionToCanvasWidth(
@@ -502,6 +503,7 @@ export function Canvas({
         },
       })),
       page_id: activePageId,
+      page_ids: [activePageId || "home"],
     };
 
     // Create a command for grouping
@@ -565,6 +567,7 @@ export function Canvas({
           y: (child.position?.y || 0) + groupPos.y,
         },
         page_id: activePageId,
+        page_ids: [activePageId || "home"],
       };
       // Use addComponent event
       const event = new CustomEvent("addComponent", { detail: newChild });
@@ -803,6 +806,7 @@ export function Canvas({
               { style: item.style },
             ),
             page_id: activePageId,
+            page_ids: [activePageId || "home"],
           };
 
           const event = new CustomEvent("addComponent", {
@@ -1504,6 +1508,10 @@ export function Canvas({
         {(() => {
           const activeColor = "#a855f7"; // Reusing the purple primary color
           const filteredComponents = components.filter((c) => {
+            if (c.page_ids && c.page_ids.length > 0) {
+              if (c.page_ids.includes("all")) return true;
+              return c.page_ids.includes(activePageId || "home");
+            }
             if (c.page_id === "all") return true;
             const compId = c.page_id || "home";
             const activeId = activePageId || "home";

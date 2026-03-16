@@ -263,7 +263,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             id: '',
             type: 'navbar',
             props: { brand: 'Your Brand', links: ['Home', 'About', 'Services', 'Contact'] },
-            style: {}
+            style: {},
+            page_id: '',
+            page_ids: []
           }
         },
         {
@@ -287,7 +289,9 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             id: '',
             type: 'footer',
             props: { copyright: '© 2024 Your Company. All rights reserved.' },
-            style: {}
+            style: {},
+            page_id: '',
+            page_ids: []
           }
         }
       ]

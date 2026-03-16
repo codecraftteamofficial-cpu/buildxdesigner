@@ -2121,7 +2121,17 @@ export function RenderableComponent({
                   width="100%"
                   height="100%"
                   style={{ 
-                    ...combinedStyle, 
+                    ...(() => {
+                      const baseStyle = { ...combinedStyle };
+                      if (props.imageShape && props.imageShape !== 'original') {
+                        delete (baseStyle as any).border;
+                        delete (baseStyle as any).borderWidth;
+                        delete (baseStyle as any).borderColor;
+                        delete (baseStyle as any).borderStyle;
+                        delete (baseStyle as any).borderRadius;
+                      }
+                      return baseStyle;
+                    })(),
                     width: '100%', 
                     height: '100%', 
                     objectFit: props.imageShape && props.imageShape !== 'original' ? 'cover' : 'fill',

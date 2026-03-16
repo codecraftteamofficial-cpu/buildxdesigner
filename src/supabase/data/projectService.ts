@@ -326,6 +326,7 @@ export async function fetchProjectComponents(
         style: c.style || {},
         position: c.position || { x: 0, y: 0 },
         page_id: c.page_id || "home",
+        page_ids: c.page_ids || [c.page_id || "home"],
         children: [],
       };
       map.set(c.id, component);
@@ -366,6 +367,7 @@ export async function syncProjectComponents(
           style: c.style,
           position: c.position,
           page_id: c.page_id || "home",
+          page_ids: c.page_ids || [c.page_id || "home"],
           parent_id: parentId,
           sort_order: index,
         });

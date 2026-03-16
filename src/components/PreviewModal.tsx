@@ -838,7 +838,11 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
   // This means ResizeHandle / internal px sizes all scale uniformly with zero
   // data mutation — identical to how browser DevTools responsive mode works.
   const filteredComponents = localComponents.filter(c => {
-    // Mirrors Canvas.tsx filter exactly — falsy page_id treated as 'home'
+    if (c.page_ids && c.page_ids.length > 0) {
+      if (c.page_ids.includes("all")) return true;
+      return c.page_ids.includes(localActivePageId || "home");
+    }
+
     if (c.page_id === 'all') return true;
     const compPageId = c.page_id || 'home';
     const activeId   = localActivePageId || 'home';

@@ -171,6 +171,11 @@ export function SiteRenderer({
     }, []);
 
     const filteredComponents = components.filter((c) => {
+        if (c.page_ids && c.page_ids.length > 0) {
+            if (c.page_ids.includes("all")) return true;
+            return c.page_ids.includes(activePageId || "home");
+        }
+        
         if (c.page_id === "all") return true;
         return (c.page_id || "home") === (activePageId || "home");
     });
