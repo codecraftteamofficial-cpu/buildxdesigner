@@ -13,6 +13,9 @@ export function useCollaborationDoc(
   const awarenessRef = useRef<Awareness | null>(null);
   const localChangeRef = useRef(false);
   const yMetaRef = useRef<Y.Map<any> | null>(null);
+  const undoManagerRef = useRef<Y.UndoManager | null>(null);
+
+  const activePageIdRef = useRef<string>("home");
 
   const getOrInitDoc = useCallback(() => {
     if (!ydocRef.current) {
@@ -22,6 +25,33 @@ export function useCollaborationDoc(
       yPagesRef.current = ydocRef.current.getArray<any>("pages");
       awarenessRef.current = new Awareness(ydocRef.current);
       yMetaRef.current = ydocRef.current.getMap<any>("meta");
+      undoManagerRef.current = new Y.UndoManager(
+        [yComponentsRef.current!, yPagesRef.current!],
+        {
+          trackedOrigins: new Set([null, undefined]), // Track local changes (including default transact origin)
+        },
+      );
+
+      // Attach activePageId to the undo stack item metadata
+      undoManagerRef.current.on("stack-item-added", (event: any) => {
+        event.stackItem.meta.set("pageId", activePageIdRef.current);
+      });
+
+      // Switch page when undoing/redoing if the change happened on a different page
+      undoManagerRef.current.on("stack-item-popped", (event: any) => {
+        const pageId = event.stackItem.meta.get("pageId");
+        if (pageId && pageId !== activePageIdRef.current) {
+          setState((prev) => {
+            // Defensive: ensure the pageId actually exists in the current pages list
+            if (!prev.pages.some(p => p.id === pageId)) return prev;
+            return {
+              ...prev,
+              activePageId: pageId,
+              selectedComponent: null,
+            };
+          });
+        }
+      });
     }
     return {
       ydoc: ydocRef.current,
@@ -29,73 +59,76 @@ export function useCollaborationDoc(
       yPages: yPagesRef.current!,
       yMeta: yMetaRef.current!,
       awareness: awarenessRef.current!,
+      undoManager: undoManagerRef.current!,
     };
+  }, [setState]);
+
+  const setActivePageId = useCallback((pageId: string) => {
+    activePageIdRef.current = pageId;
   }, []);
 
   const replaceProjectName = useCallback(
-    (name: string, markLocal = true) => {
-      const { yMeta } = getOrInitDoc();
+    (name: string, markLocal = true, origin?: string) => {
+      const { ydoc, yMeta } = getOrInitDoc();
       if (markLocal) localChangeRef.current = true;
-      yMeta.set("projectName", name);
+      ydoc.transact(() => {
+        yMeta.set("projectName", name);
+      }, origin);
     },
     [getOrInitDoc],
   );
 
   const replaceComponents = useCallback(
-    (components: ComponentData[], markLocal = true) => {
+    (components: ComponentData[], markLocal = true, origin?: string) => {
       const { ydoc, yComponents } = getOrInitDoc();
       if (markLocal) {
         localChangeRef.current = true;
       }
-      // FIX: Wrap delete+push in a single transaction so the Yjs observer
-      // fires ONCE with the final state instead of twice (first empty, then
-      // full). Without this, the delete fires the observer first, consuming
-      // localChangeRef with count:0, then the push looks like a remote update
-      // and gets overwritten by the server's stale copy.
       ydoc.transact(() => {
         yComponents.delete(0, yComponents.length);
         if (components.length > 0) {
           yComponents.push(components);
         }
-      });
+      }, origin);
     },
     [getOrInitDoc],
   );
 
   const replacePages = useCallback(
-    (pages: any[], markLocal = true) => {
+    (pages: any[], markLocal = true, origin?: string) => {
       const { ydoc, yPages } = getOrInitDoc();
       if (markLocal) {
         localChangeRef.current = true;
       }
-      // Same fix applied here for consistency
       ydoc.transact(() => {
         yPages.delete(0, yPages.length);
         if (pages.length > 0) {
           yPages.push(pages);
         }
-      });
+      }, origin);
     },
     [getOrInitDoc],
   );
 
   const addComponent = useCallback(
     (component: ComponentData) => {
-      const { yComponents } = getOrInitDoc();
+      const { ydoc, yComponents } = getOrInitDoc();
       localChangeRef.current = true;
       const newComponent = {
         ...component,
         id: component.id || Date.now().toString(),
         position: component.position || { x: 150, y: 150 },
       };
-      yComponents.push([newComponent]);
+      ydoc.transact(() => {
+        yComponents.push([newComponent]);
+      });
     },
     [getOrInitDoc],
   );
 
   const updateComponent = useCallback(
     (id: string, updates: Partial<ComponentData>) => {
-      const { yComponents } = getOrInitDoc();
+      const { ydoc, yComponents } = getOrInitDoc();
       const index = yComponents.toArray().findIndex((comp) => comp.id === id);
       if (index === -1) return;
       localChangeRef.current = true;
@@ -113,19 +146,23 @@ export function useCollaborationDoc(
           ? { ...existing.position, ...updates.position }
           : existing.position,
       };
-      yComponents.delete(index, 1);
-      yComponents.insert(index, [updated]);
+      ydoc.transact(() => {
+        yComponents.delete(index, 1);
+        yComponents.insert(index, [updated]);
+      });
     },
     [getOrInitDoc],
   );
 
   const deleteComponent = useCallback(
     (id: string) => {
-      const { yComponents } = getOrInitDoc();
+      const { ydoc, yComponents } = getOrInitDoc();
       const index = yComponents.toArray().findIndex((comp) => comp.id === id);
       if (index === -1) return;
       localChangeRef.current = true;
-      yComponents.delete(index, 1);
+      ydoc.transact(() => {
+        yComponents.delete(index, 1);
+      });
       setState((prev) => ({
         ...prev,
         selectedComponent:
@@ -181,6 +218,22 @@ export function useCollaborationDoc(
     return localChange;
   }, []);
 
+  const undo = useCallback(() => {
+    const { undoManager } = getOrInitDoc();
+    const item = undoManager.undo();
+    if (item) {
+      localChangeRef.current = true;
+    }
+  }, [getOrInitDoc]);
+
+  const redo = useCallback(() => {
+    const { undoManager } = getOrInitDoc();
+    const item = undoManager.redo();
+    if (item) {
+      localChangeRef.current = true;
+    }
+  }, [getOrInitDoc]);
+
   return useMemo(
     () => ({
       getOrInitDoc,
@@ -194,6 +247,9 @@ export function useCollaborationDoc(
       clearCanvas,
       consumeLocalChangeFlag,
       replaceProjectName,
+      setActivePageId,
+      undo,
+      redo,
     }),
     [
       getOrInitDoc,
@@ -207,6 +263,9 @@ export function useCollaborationDoc(
       clearCanvas,
       consumeLocalChangeFlag,
       replaceProjectName,
+      setActivePageId,
+      undo,
+      redo,
     ],
   );
 }

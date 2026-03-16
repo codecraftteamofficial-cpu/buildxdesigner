@@ -2120,8 +2120,22 @@ export function RenderableComponent({
                   alt={props.alt || 'Image'}
                   width="100%"
                   height="100%"
-                  style={{ ...combinedStyle, width: '100%', height: '100%', objectFit: 'fill' }}
-                  className={`rounded-lg ${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
+                  style={{ 
+                    ...combinedStyle, 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: props.imageShape && props.imageShape !== 'original' ? 'cover' : 'fill',
+                    borderRadius: props.imageShape === 'circle' ? '50%' : 
+                                  props.imageShape === 'rounded' ? '12px' : 
+                                  props.imageShape === 'pill' ? '9999px' : 
+                                  props.imageShape === 'squircle' ? '25% 10%' : '0',
+                    clipPath: props.imageShape === 'hexagon' ? 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' :
+                              props.imageShape === 'diamond' ? 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' :
+                              props.imageShape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
+                              props.imageShape === 'parallelogram' ? 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)' :
+                              props.imageShape === 'star' ? 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' : 'none'
+                  }}
+                  className={`${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
                 />
               </div>
             ) : (
@@ -2295,8 +2309,10 @@ export function RenderableComponent({
                     style={{ 
                       height: '80%', 
                       maxHeight: '100%',
-                      width: 'auto',
-                      objectFit: 'contain'
+                      width: props.logoShape === 'circle' || props.logoShape === 'square' ? 'auto' : 'auto',
+                      aspectRatio: props.logoShape === 'circle' || props.logoShape === 'square' ? '1/1' : 'auto',
+                      objectFit: props.logoShape === 'original' ? 'contain' : 'cover',
+                      borderRadius: props.logoShape === 'circle' ? '50%' : props.logoShape === 'rounded' ? '8px' : '0',
                     }} 
                   />
                 )}
@@ -2321,6 +2337,7 @@ export function RenderableComponent({
                       key={index} 
                       href={url} 
                       className="hover:text-gray-300"
+                      style={{ fontSize: props.linkFontSize ? `${props.linkFontSize}px` : undefined }}
                       onClick={(e) => {
                         if (isPreview) {
                           e.preventDefault();
