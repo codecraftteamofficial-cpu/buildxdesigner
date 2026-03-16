@@ -219,6 +219,8 @@ export function RenderableComponent({
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
+  
+  // Background gradient support
   if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
     combinedStyle.background = combinedStyle.backgroundColor;
     delete combinedStyle.backgroundColor;

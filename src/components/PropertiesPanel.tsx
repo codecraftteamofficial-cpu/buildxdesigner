@@ -45,6 +45,8 @@ const AUTOPLAY_SPEEDS = [500, 1000, 1500, 2000, 3000, 4000, 5000, 7500, 10000];
 const LETTER_SPACING_VALUES = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10];
 const LINE_HEIGHT_VALUES = [0.8, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 2, 2.2, 2.5, 3];
 const BORDER_RADIUS_VALUES = [0, 2, 4, 6, 8, 12, 16, 24, 32, 48, 9999];
+const BORDER_WIDTHS = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16];
+const BORDER_STYLES = ["none", "solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset"];
 const DIVIDER_THICKNESS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
 const DIMENSION_VALUES = ["auto", "10%", "20%", "25%", "30%", "40%", "50%", "60%", "70%", "75%", "80%", "90%", "100%", "50px", "100px", "150px", "200px", "250px", "300px", "400px", "500px"];
 
@@ -118,9 +120,9 @@ function buildGradient(type: 'linear' | 'radial', angle: number, c1: string, p1:
     : `radial-gradient(circle, ${c1} ${p1}%, ${c2} ${p2}%)`
 }
 
-function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (val: string) => void }) {
+function ColorPicker({ label, value, onChange, hideGradient }: { label: string; value: string; onChange: (val: string) => void; hideGradient?: boolean }) {
   const isGradient = value?.startsWith('linear-gradient') || value?.startsWith('radial-gradient')
-  const [mode, setMode] = React.useState<'solid' | 'gradient'>(isGradient ? 'gradient' : 'solid')
+  const [mode, setMode] = React.useState<'solid' | 'gradient'>(hideGradient ? 'solid' : (isGradient ? 'gradient' : 'solid'))
   const [gradientType, setGradientType] = React.useState<'linear' | 'radial'>('linear')
   const [gradientAngle, setGradientAngle] = React.useState(135)
   const [stop1Color, setStop1Color] = React.useState('#6366f1')
@@ -129,6 +131,10 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
   const [stop2Pos, setStop2Pos] = React.useState(100)
 
   React.useEffect(() => {
+    if (hideGradient) {
+      setMode('solid');
+      return;
+    }
     if (value?.startsWith('linear-gradient')) {
       setMode('gradient'); setGradientType('linear')
       const m = value.match(/(\d+)deg/)
@@ -153,10 +159,12 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
       <Label className="text-[11px] text-muted-foreground">{label}</Label>
 
       {/* Mode toggle */}
-      <div className="flex rounded-md overflow-hidden border border-input h-7 text-[11px]">
-        <button className={`flex-1 font-medium transition-colors ${mode === 'solid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('solid')}>Solid</button>
-        <button className={`flex-1 font-medium transition-colors ${mode === 'gradient' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('gradient')}>Gradient</button>
-      </div>
+      {!hideGradient && (
+        <div className="flex rounded-md overflow-hidden border border-input h-7 text-[11px]">
+          <button className={`flex-1 font-medium transition-colors ${mode === 'solid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('solid')}>Solid</button>
+          <button className={`flex-1 font-medium transition-colors ${mode === 'gradient' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`} onClick={() => setMode('gradient')}>Gradient</button>
+        </div>
+      )}
 
       {mode === 'solid' ? (
         <div className="flex flex-col gap-2">
@@ -266,6 +274,7 @@ export function PropertiesPanel({
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState("content")
   const [showResendApiKey, setShowResendApiKey] = useState(false)
+  const [showIndividualBorders, setShowIndividualBorders] = useState(false)
   const [isPickingElement, setIsPickingElement] = useState<string | null>(null) // actionId or null
   const [pickingMode, setPickingMode] = useState<{ type: "selector" | "column"; column?: string } | null>(null)
   const [boxShadowValues, setBoxShadowValues] = useState({
@@ -4707,6 +4716,179 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                   </div>
                 </div>
 
+                {/* Border Section */}
+                <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs font-semibold">Border</Label>
+                      <div className="flex items-center gap-1.5 ml-2">
+                        <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
+                        <Switch
+                          id="individual-border-toggle"
+                          checked={showIndividualBorders}
+                          onCheckedChange={(val) => {
+                            setShowIndividualBorders(val)
+                            
+                            const individualKeys = [
+                              "borderTopWidth", "borderTopStyle", "borderTopColor",
+                              "borderRightWidth", "borderRightStyle", "borderRightColor",
+                              "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                              "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                            ];
+                            const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
+                            
+                            const newStyle = { ...selectedComponent.style };
+                            if (val) {
+                              // If switching to individual, clear global
+                              globalKeys.forEach(k => delete newStyle[k]);
+                            } else {
+                              // If switching back to global, clear individual
+                              individualKeys.forEach(k => delete newStyle[k]);
+                            }
+                            
+                            onUpdateComponent(selectedComponent.id, {
+                              ...selectedComponent,
+                              style: newStyle
+                            });
+                          }}
+                          className="scale-75 origin-left"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => {
+                        const styleKeys = [
+                          "border", "borderWidth", "borderStyle", "borderColor",
+                          "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
+                          "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
+                          "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                          "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                        ];
+                        const newStyle = { ...selectedComponent.style };
+                        styleKeys.forEach(key => delete newStyle[key]);
+                        onUpdateComponent(selectedComponent.id, {
+                          ...selectedComponent,
+                          style: newStyle
+                        });
+                      }}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  </div>
+
+                  {!showIndividualBorders ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Width</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
+                            onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-1">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_WIDTHS.map((w) => (
+                                <SelectItem key={w} value={String(w)}>
+                                  {w}px
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Style</Label>
+                          <Select
+                            value={selectedComponent.style?.borderStyle || "none"}
+                            onValueChange={(value: string) => updateStyle("borderStyle", value)}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-1">
+                              <SelectValue placeholder="none" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_STYLES.map((s) => (
+                                <SelectItem key={s} value={s} className="capitalize">
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <ColorPicker
+                        label="Border Color"
+                        value={selectedComponent.style?.borderColor || "#000000"}
+                        onChange={(val) => updateStyle("borderColor", val)}
+                        hideGradient={true}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-4">
+                      {["Top", "Right", "Bottom", "Left"].map((side) => {
+                        const sideKey = side === "All" ? "" : side;
+                        const widthKey = `border${sideKey}Width`;
+                        const styleKey = `border${sideKey}Style`;
+                        const colorKey = `border${sideKey}Color`;
+
+                        return (
+                          <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
+                            <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
+                                  onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-[11px]">
+                                    <SelectValue placeholder="Width" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_WIDTHS.map((w) => (
+                                      <SelectItem key={w} value={String(w)} className="text-[11px]">
+                                        {w}px
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <Select
+                                  value={selectedComponent.style?.[styleKey] || "none"}
+                                  onValueChange={(value: string) => updateStyle(styleKey, value)}
+                                >
+                                  <SelectTrigger className="h-7 text-[11px]">
+                                    <SelectValue placeholder="Style" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_STYLES.map((s) => (
+                                      <SelectItem key={s} value={s} className="capitalize text-[11px]">
+                                        {s}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <ColorPicker
+                              label={`${side} Color`}
+                              value={selectedComponent.style?.[colorKey] || "#000000"}
+                              onChange={(val) => updateStyle(colorKey, val)}
+                              hideGradient={true}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <Label className="text-xs font-medium">Border Radius</Label>
@@ -4763,142 +4945,82 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                       {/* Top Row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Top Left</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                  styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderTopLeftRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                              styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderTopLeftRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Top Right</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                   styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderTopRightRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                               styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderTopRightRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       {/* Bottom Row */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Bottom Left</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                   styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderBottomLeftRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                               styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderBottomLeftRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center px-1">
-                            <Label className="text-xs text-muted-foreground">Bottom Right</Label>
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="text"
-                                value={
-                                  styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"
-                                }
-                                onChange={(e) => {
-                                  const value = e.target.value + "px"
-                                  updateStyle("borderBottomRightRadius", value)
-                                }}
-                                className="h-6 w-10 text-xs text-right px-1"
-                              />
-                              <span className="text-xs">px</span>
-                            </div>
-                          </div>
-                          <Input
-                            type="range"
-                            min="0"
-                            max="200"
-                            step="1"
-                            value={Number.parseInt(
-                              styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0",
-                            )}
-                            onChange={(e) => {
-                              const value = e.target.value + "px"
-                              updateStyle("borderBottomRightRadius", value)
-                            }}
-                            className="h-1.5 w-full"
-                          />
+                          <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
+                          <Select
+                            value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
+                            onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
+                          >
+                            <SelectTrigger className="h-7 text-xs px-2">
+                              <SelectValue placeholder="0px" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BORDER_RADIUS_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val === 9999 ? 'Pill' : `${val}px`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
