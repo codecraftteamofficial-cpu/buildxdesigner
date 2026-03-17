@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
+    "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "1.2.3",
     "@radix-ui/react-alert-dialog": "1.1.6",
     "@radix-ui/react-aspect-ratio": "1.1.2",
@@ -95,6 +96,7 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^3.10.2",
+    "daisyui": "^5.5.19",
     "postcss": "^8.5",
     "tailwindcss": "4.1.17",
     "typescript": "^5",
