@@ -880,7 +880,7 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
         )
       : 1000,
     measuredHeight
-  );
+  ) + 50; 
 
   useEffect(() => {
     const updateHeight = () => {
@@ -1085,7 +1085,7 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
               <div style={{
                 width:    `${Math.round(DESIGN_WIDTH * scale)}px`,
                 height:   `${Math.round(fullCanvasHeight * scale)}px`,
-                overflow: 'hidden',
+                overflow: 'visible',  // Changed from hidden to prevent visual glitches
                 position: 'relative',
               }}>
               {/* Canvas at full 1920px, shrunk by transform:scale — uniform scaling */}

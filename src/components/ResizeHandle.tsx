@@ -299,7 +299,7 @@ export function ResizeHandle({
       )}
 
       {/* Resize handles - visible on hover and when selected */}
-      {!disabled && (
+      {!disabled && !autoSize && (
         <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto z-10">
           {/* Top handle */}
           <div

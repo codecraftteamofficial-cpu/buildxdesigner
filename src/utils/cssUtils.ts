@@ -72,6 +72,10 @@ export function scopeCss(css: string, prefix: string): string {
       if (atRuleStack.length > 0 && depth < atRuleStack.length) {
         atRuleStack.pop();
       }
+    } else if (char === ';' && depth === 0) {
+      // Handle rules that end in semicolons like @import
+      result += buffer + ';';
+      buffer = '';
     } else {
       buffer += char;
     }

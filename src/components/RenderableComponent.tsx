@@ -3730,6 +3730,12 @@ export function RenderableComponent({
           </div>
         </>
       )}
+      {isPreview && isHidden && type === 'custom-component' && (
+        <div className="absolute -top-5 left-0 bg-orange-600 text-white text-[9px] px-1.5 py-0.5 rounded-t-sm font-medium z-[999999] flex items-center gap-1 border border-b-0 border-orange-500 shadow-sm pointer-events-none">
+          <EyeOff className="w-2.5 h-2.5" />
+          Initially Hidden
+        </div>
+      )}
       {renderComponent()}
 
       {isSelected && (

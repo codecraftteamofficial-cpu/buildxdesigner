@@ -1229,10 +1229,16 @@ export function useEditorState() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement
-      ) {
+      const target = event.target as HTMLElement;
+      
+      const isInput = 
+        target instanceof HTMLInputElement || 
+        target instanceof HTMLTextAreaElement || 
+        target.isContentEditable ||
+        target.closest('.monaco-editor') ||
+        target.closest('.monaco-list');
+
+      if (isInput) {
         return;
       }
 

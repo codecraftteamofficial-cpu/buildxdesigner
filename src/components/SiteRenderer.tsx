@@ -188,11 +188,11 @@ export function SiteRenderer({
     const canvasHeight = filteredComponents.reduce((maxY, comp) => {
         const y = comp.position?.y ?? 0;
         const componentHeight = parseInt(String(comp.style?.height || 0)) || 
-                               (comp.type === 'custom-component' ? 800 : 200);
+                               (comp.type === 'custom-component' ? 1200 : 200);
         return Math.max(maxY, y + componentHeight);
     }, 0);
     
-    const containerHeight = Math.max(canvasHeight + 100, measuredHeight + 100, window.innerHeight);
+    const containerHeight = Math.max(canvasHeight + 500, measuredHeight + 500, window.innerHeight);
 
     useEffect(() => {
         const updateHeight = () => {
@@ -290,8 +290,8 @@ export function SiteRenderer({
                             position: "absolute",
                             left: `${scaledLeft}px`,
                             top: `${scaledTop}px`,
-                            width: "fit-content",
-                            height: "fit-content",
+                            width: component.type === 'custom-component' ? "fit-content" : (component.style?.width || "fit-content"),
+                            height: component.type === 'custom-component' ? "fit-content" : (component.style?.height || "fit-content"),
                         }}
                     >
                         {component.props?.enableCustomCss && component.props?.customCss && (

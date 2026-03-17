@@ -98,7 +98,7 @@ type DashboardSection =
   | "team"
   | "all"
   | "trash"
-  | "marketplace";
+  | "marketplace" | "custom";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
 
@@ -3091,9 +3091,6 @@ export function Dashboard({
                                           {comp.name}
                                         </h5>
                                         <div className="flex items-center gap-1.5 shrink-0">
-                                          <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors group/heart">
-                                            <Heart className="w-4 h-4 text-muted-foreground group-hover/heart:text-red-500 transition-colors" />
-                                          </button>
                                           {isComponentImported(comp.id) ? (
                                             <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-full">
                                               <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
@@ -4431,8 +4428,8 @@ export function Dashboard({
           <DialogHeader>
             <DialogTitle>My Components</DialogTitle>
             <DialogDescription>
-              Manage your personal component library - both created and imported
-              components
+              Manage your personal component library 
+              
             </DialogDescription>
           </DialogHeader>
 
@@ -4525,96 +4522,6 @@ export function Dashboard({
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-[10px] text-muted-foreground/60">
                                 Imported{" "}
-                                {new Date(comp.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* User Created Components Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Code2 className="w-5 h-5" />
-                    Your Created Components ({userCustomComponents.length})
-                  </h3>
-                  {userCustomComponents.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
-                      <Code2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p className="font-semibold">No created components yet</p>
-                      <p className="text-sm mt-1">
-                        Start creating your own custom components in your
-                        projects
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {userCustomComponents.map((comp) => (
-                        <div
-                          key={comp.id}
-                          className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
-                        >
-                          {/* Preview */}
-                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
-                            <style>
-                              {`
-                                .preview-container-${comp.id} {
-                                  ${comp.component_json?.props?.css || ""}
-                                  width: 100%;
-                                  display: flex;
-                                  justify-content: center;
-                                  align-items: center;
-                                }
-                                
-                                .inner-scaler-${comp.id} {
-                                  zoom: 0.5; 
-                                  -moz-transform: scale(0.5);
-                                  -moz-transform-origin: center center;
-                                  width: max-content;
-                                  height: max-content;
-                                }
-                              `}
-                            </style>
-                            <div
-                              className={`preview-container-${comp.id} w-full h-full`}
-                            >
-                              <div
-                                className={`inner-scaler-${comp.id}`}
-                                dangerouslySetInnerHTML={{
-                                  __html:
-                                    comp.component_json?.props?.html || "",
-                                }}
-                              />
-                            </div>
-                            <div className="absolute top-2 right-2">
-                              <Badge variant="default" className="text-xs">
-                                Created
-                              </Badge>
-                            </div>
-                          </div>
-
-                          {/* Component Info */}
-                          <div className="px-4 py-3 border-t border-border/40 bg-card">
-                            <div className="flex items-center justify-between gap-3">
-                              <h5 className="text-[13px] font-semibold text-foreground/90 truncate flex-1">
-                                {comp.name}
-                              </h5>
-                              <button
-                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openDeleteComponentDialog(comp);
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-500" />
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-[10px] text-muted-foreground/60">
-                                Created{" "}
                                 {new Date(comp.created_at).toLocaleDateString()}
                               </span>
                             </div>

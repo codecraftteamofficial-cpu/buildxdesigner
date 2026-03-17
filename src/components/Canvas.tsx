@@ -616,11 +616,15 @@ export function Canvas({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
+      
+      const isInput = 
+        target.tagName === "INPUT" || 
+        target.tagName === "TEXTAREA" || 
+        target.isContentEditable ||
+        target.closest('.monaco-editor') ||
+        target.closest('.monaco-list');
+
+      if (isInput) {
         return;
       }
 
@@ -669,25 +673,27 @@ export function Canvas({
 
       if (!isCtrl) return;
 
-      e.preventDefault();
-
       switch (e.key.toLowerCase()) {
         case "x": // Cut
           if (selectedComponent) {
+            e.preventDefault();
             copyToClipboard(true);
           }
           break;
         case "c": // Copy
           if (selectedComponent) {
+            e.preventDefault();
             copyToClipboard(false);
           }
           break;
         case "v": // Paste
           if (clipboard) {
+            e.preventDefault();
             pasteFromClipboard();
           }
           break;
         case "z": // Undo/Redo
+          e.preventDefault();
           if (e.shiftKey) {
             redo(); // Shift+Z for redo
           } else {
@@ -695,15 +701,18 @@ export function Canvas({
           }
           break;
         case "y": // Alternative redo (Ctrl+Y)
+          e.preventDefault();
           redo();
           break;
         case "g": // Group selected components (Ctrl+G)
           if (!e.shiftKey) {
+            e.preventDefault();
             groupSelectedComponents();
           }
           break;
         case "G": // Ungroup selected group (Ctrl+Shift+G)
           if (e.shiftKey) {
+            e.preventDefault();
             ungroupSelected();
           }
           break;
