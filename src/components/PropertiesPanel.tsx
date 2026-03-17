@@ -2793,6 +2793,105 @@ export function PropertiesPanel({
           </div>
         )
 
+      case "shape":
+        return (
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Shape</Label>
+              <Select
+                value={props.shape || "rectangle"}
+                onValueChange={(value: string) => {
+                  updateProps("shape", value)
+
+                  const defaults: Record<
+                    string,
+                    { width: number; height: number; cornerRadius?: number }
+                  > = {
+                    rectangle: { width: 200, height: 120, cornerRadius: 0 },
+                    "rounded-rectangle": { width: 200, height: 120, cornerRadius: 12 },
+                    circle: { width: 160, height: 160 },
+                    ellipse: { width: 220, height: 140 },
+                    triangle: { width: 180, height: 160 },
+                  }
+
+                  const d = defaults[value] || defaults.rectangle
+                  updateStyle("width", `${d.width}px`)
+                  updateStyle("height", `${d.height}px`)
+
+                  if (value === "rounded-rectangle") {
+                    const current = Number(props.cornerRadius)
+                    if (!Number.isFinite(current) || current <= 0) {
+                      updateProps("cornerRadius", d.cornerRadius ?? 12)
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rectangle">Rectangle</SelectItem>
+                  <SelectItem value="rounded-rectangle">Rounded Rectangle</SelectItem>
+                  <SelectItem value="circle">Circle</SelectItem>
+                  <SelectItem value="ellipse">Ellipse</SelectItem>
+                  <SelectItem value="triangle">Triangle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <ColorPicker
+              label="Fill"
+              value={props.fill || "#3b82f6"}
+              onChange={(val) => updateProps("fill", val)}
+              hideGradient
+            />
+
+            <ColorPicker
+              label="Stroke"
+              value={props.stroke || "#1f2937"}
+              onChange={(val) => updateProps("stroke", val)}
+              hideGradient
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Stroke Width</Label>
+                <Input
+                  type="number"
+                  value={
+                    Number.isFinite(Number(props.strokeWidth))
+                      ? Number(props.strokeWidth)
+                      : 2
+                  }
+                  onChange={(e) => updateProps("strokeWidth", Number(e.target.value))}
+                  className="h-8 text-xs mt-1"
+                  min={0}
+                  step={1}
+                />
+              </div>
+
+              {(props.shape || "rectangle") === "rounded-rectangle" && (
+                <div>
+                  <Label className="text-xs">Corner Radius</Label>
+                  <Input
+                    type="number"
+                    value={
+                      Number.isFinite(Number(props.cornerRadius))
+                        ? Number(props.cornerRadius)
+                        : 12
+                    }
+                    onChange={(e) => updateProps("cornerRadius", Number(e.target.value))}
+                    className="h-8 text-xs mt-1"
+                    min={0}
+                    max={50}
+                    step={1}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )
+
       case "divider":
         return (
           <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/20 rounded-lg border border-dashed border-muted">

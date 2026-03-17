@@ -126,6 +126,34 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
       ]
     },
     {
+      name: 'Shapes',
+      icon: <Square className="w-4 h-4" />,
+      id: 'shapes',
+      blocks: [
+        {
+          id: 'shapes',
+          name: 'Shapes',
+          description: 'A flexible shape block (pick the shape in Properties)',
+          icon: <Square className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'shape',
+            props: {
+              shape: 'rectangle',
+              fill: '#3b82f6',
+              stroke: '#1f2937',
+              strokeWidth: 2,
+              cornerRadius: 0
+            },
+            style: {
+              width: '200px',
+              height: '120px'
+            }
+          }
+        }
+      ]
+    },
+    {
       name: 'Layout',
       icon: <Layout className="w-4 h-4" />,
       blocks: [

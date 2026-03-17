@@ -1282,6 +1282,85 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
+      case 'shape': {
+        const shapeWidth = parseSize(style?.width, 200);
+        const shapeHeight = parseSize(style?.height, 200);
+        const shapeKind = props.shape || 'rectangle';
+        const fill = props.fill || '#3b82f6';
+        const stroke = props.stroke || '#1f2937';
+        const strokeWidth = Number.isFinite(Number(props.strokeWidth))
+          ? Number(props.strokeWidth)
+          : 2;
+        const cornerRadius = Number.isFinite(Number(props.cornerRadius))
+          ? Number(props.cornerRadius)
+          : 0;
+
+        const commonSvgProps = {
+          fill,
+          stroke,
+          strokeWidth: Math.max(0, strokeWidth),
+          vectorEffect: 'non-scaling-stroke' as const,
+        };
+
+        const shapeNode = (() => {
+          switch (shapeKind) {
+            case 'circle':
+              return <circle cx="50" cy="50" r="50" {...commonSvgProps} />;
+            case 'ellipse':
+              return <ellipse cx="50" cy="50" rx="50" ry="35" {...commonSvgProps} />;
+            case 'triangle':
+              return <polygon points="50,0 100,100 0,100" {...commonSvgProps} />;
+            case 'rounded-rectangle':
+              return (
+                <rect
+                  x="0"
+                  y="0"
+                  width="100"
+                  height="100"
+                  rx={Math.max(0, Math.min(50, cornerRadius || 12))}
+                  ry={Math.max(0, Math.min(50, cornerRadius || 12))}
+                  {...commonSvgProps}
+                />
+              );
+            case 'rectangle':
+            default:
+              return <rect x="0" y="0" width="100" height="100" {...commonSvgProps} />;
+          }
+        })();
+
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={shapeWidth}
+            initialHeight={shapeHeight}
+            className="group inline-block"
+            minWidth={30}
+            minHeight={30}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <svg
+              width="100%"
+              height="100%"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              style={{
+                ...combinedStyle,
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                pointerEvents: 'auto',
+              }}
+            >
+              {shapeNode}
+            </svg>
+          </ResizeHandle>
+        );
+      }
+
       case 'paymongo-button':
         const pmWidth = parseSize(style?.width, 160);
         const pmHeight = parseSize(style?.height, 40);

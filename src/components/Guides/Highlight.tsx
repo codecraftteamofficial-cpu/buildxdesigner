@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
 
 interface TourGuideProps {
     targetElement: string;
