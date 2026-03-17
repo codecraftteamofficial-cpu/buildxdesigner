@@ -1,4 +1,5 @@
 "use client";
+import { getBackendUrl } from '../utils/backendConfig';
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
@@ -91,6 +92,8 @@ import { deleteCustomComponent } from "../supabase/data/customComponentService";
 type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash" | "marketplace";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
+
+const backendUrl = getBackendUrl();
 
 
 interface DashboardProps {
@@ -425,7 +428,7 @@ export function Dashboard({
       (async () => {
         for (const base of apiBases) {
           try {
-            const res = await fetch(`${base}/api/marketplace/components`);
+            const res = await fetch(`${backendUrl}/api/marketplace/components`);
             if (res.ok) {
               const data = await res.json();
               setMarketplaceComponents(data);
