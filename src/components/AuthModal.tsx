@@ -54,6 +54,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   ]);
   const [showPasswordValidation, setShowPasswordValidation] = useState(false);
   const [passwordsMatch, setPasswordsMatch] = useState(true);
+  const [authStatus, setAuthStatus] = useState<string | null>(null);
 
   // Update current type when prop changes
   React.useEffect(() => {
@@ -76,6 +77,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     setAuthError(null);
     setAuthMessage(null);
+     setAuthStatus(currentType === 'login' ? 'Confirming your login...' : 'Creating your account...');
 
     const { email, password, confirmPassword, name } = formData;
     let result;
@@ -83,6 +85,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                if (currentType === 'signup') {
       if (password !== confirmPassword) {
         setAuthError('Passwords do not match.');
+        setAuthStatus(null);
         setLoading(false);
         return;
       }
@@ -93,15 +96,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
      if (result.error) {
       setAuthError(result.error.message);
+       setAuthStatus('Authentication failed. Please try again.');
     } else if (result.success) {
       const needsConfirmation = result.message && result.message.includes('Check your email');
 
       if (needsConfirmation) {
+         setAuthStatus('Confirmation email sent.');
         setAuthMessage(`Confirmation email sent to ${email}. Please check your inbox and spam folder.`);
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
         setShowPasswordValidation(false);
         setPasswordsMatch(true);
       } else {
+         setAuthStatus(currentType === 'login' ? 'Login successful! Redirecting...' : 'Sign-up successful! Redirecting...');
         setAuthMessage(result.message || (currentType === 'login' ? 'Login successful!' : 'Sign-up successful!'));
 
         setTimeout(() => {
@@ -146,6 +152,10 @@ setLoading(false);
   };
 
   const handleGoogleAuth = async () => {
+     setAuthError(null);
+    setAuthMessage(null);
+    setAuthStatus('Connecting to Google...');
+
     try {
       await googleSignIn();
       // For Google, we can't easily know if it's a signup or login here
@@ -165,6 +175,7 @@ setLoading(false);
       
     } catch (error) {
       console.error('Google authentication failed:', error);
+      setAuthStatus('Google login failed. Please try again.');
     }
   };
 
@@ -271,6 +282,21 @@ setLoading(false);
                     </Button>
                   </div>
 
+                   {authStatus && (
+                    <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                      <div className="flex items-center gap-2">
+                        {(loading || googleLoading) && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                            className="h-3 w-3 rounded-full border-2 border-blue-600 border-t-transparent"
+                          />
+                        )}
+                        <span>{authStatus}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Divider */}
                   <div className="relative flex items-center my-2">
                     <div className="flex-grow border-t border-gray-200"></div>
@@ -316,7 +342,14 @@ setLoading(false);
                     </div>
 
                        <div className="space-y-1">
-                      <Label htmlFor="password" className="text-xs font-medium">Password</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="text-xs font-medium">Password</Label>
+                        {currentType === 'login' && (
+                          <a href="/forgot-password" className="text-[10px] text-blue-600 hover:underline">
+                            Forgot password?
+                          </a>
+                        )}
+                      </div>
                       <div className="relative">
                         <Lock className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                         <Input

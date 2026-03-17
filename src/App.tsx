@@ -35,6 +35,7 @@ import AdminDashboard from "./components/AdminDashboard";
 import { EditorLayout } from "./components/EditorLayout";
 import { OnboardingPage } from "./components/OnboardingPage";
 import { GetOut } from "./components/UnexpectedEntry/UnexpectedEntry";
+import { ForgotPasswordPage } from "./components/ForgotPasswordPage";
 import LoginAuthSessionChecker from "./services/useAuthenticator";
 import { CollaborationServiceProvider } from "./services/useCollaboration";
 import { WebsiteCreation } from "./components/Guides/WebsiteCreation";
@@ -533,6 +534,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
           </>
         }
       />
+       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
         path="/dashboard"
         element={
