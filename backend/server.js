@@ -10,6 +10,7 @@ const allowedOrigins = [
   process.env.LOCAL_FRONTEND_URL,
   process.env.PROD_FRONTEND_URL,
   process.env.FRONTEND_URL,
+  "https://buildxdesigner-fork.vercel.app",
   "http://localhost:3000",
   "http://localhost:3001",
 ].filter(Boolean);
@@ -772,8 +773,10 @@ app.get("/api/marketplace/components", async (req, res) => {
     const components = Array.isArray(response.data) ? response.data : [];
 
     const normalized = components.map((comp) => {
-      const profile = Array.isArray(comp.profiles) ? comp.profiles[0] : comp.profiles;
-      
+      const profile = Array.isArray(comp.profiles)
+        ? comp.profiles[0]
+        : comp.profiles;
+
       return {
         id: comp.id,
         name: comp.name,
@@ -801,7 +804,8 @@ app.get("/api/marketplace/components", async (req, res) => {
 
 // Resend Email Proxy Endpoint
 app.post("/api/send-email", async (req, res) => {
-  const { resendApiKey, to, subject, html, from, projectId, replyTo } = req.body;
+  const { resendApiKey, to, subject, html, from, projectId, replyTo } =
+    req.body;
 
   let finalApiKey = resendApiKey;
 
@@ -838,7 +842,9 @@ app.post("/api/send-email", async (req, res) => {
 
           finalApiKey = ownerResponse.data.user_metadata?.resend_api_key;
           if (finalApiKey) {
-            console.log("Successfully retrieved Resend API key from owner metadata.");
+            console.log(
+              "Successfully retrieved Resend API key from owner metadata.",
+            );
           }
         }
       }
@@ -848,7 +854,12 @@ app.post("/api/send-email", async (req, res) => {
   }
 
   if (!finalApiKey) {
-    return res.status(400).json({ error: "Resend API key is required (Directly or via project owner settings)." });
+    return res
+      .status(400)
+      .json({
+        error:
+          "Resend API key is required (Directly or via project owner settings).",
+      });
   }
   if (!to) {
     return res.status(400).json({ error: "Recipient email (to) is required." });

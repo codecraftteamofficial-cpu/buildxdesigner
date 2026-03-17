@@ -11,7 +11,8 @@ export const getApiBaseUrl = (): string => {
   // Explicitly handle production backend URL (including subdomains)
   if (
     hostname === "buildxdesigner.site" ||
-    hostname.endsWith(".buildxdesigner.site")
+    hostname.endsWith(".buildxdesigner.site") ||
+    hostname === "buildxdesigner-fork.vercel.app"
   ) {
     return "https://build-x-designer-api.vercel.app";
   }

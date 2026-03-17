@@ -10,7 +10,8 @@ export const getBackendUrl = (): string => {
 
   if (
     hostname === "buildxdesigner.site" ||
-    hostname.endsWith(".buildxdesigner.site")
+    hostname.endsWith(".buildxdesigner.site") ||
+    hostname === "buildxdesigner-fork.vercel.app"
   ) {
     return "https://buildxdesigner.duckdns.org";
   }
