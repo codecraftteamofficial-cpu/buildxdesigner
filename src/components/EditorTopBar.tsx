@@ -341,6 +341,9 @@ export function EditorTopBar({
   const [anyoneCanPermission, setAnyoneCanPermission] = useState<
     "view" | "edit"
   >(currentProject?.anyone_can === "edit" ? "edit" : "view");
+  const currentUserIsOwner = collaborators.some(
+    (c) => c.isCurrentUser && c.role.trim().toLowerCase() === "owner",
+  );
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
@@ -714,11 +717,22 @@ export function EditorTopBar({
           payload?.permissions?.anyone_can ??
           payload?.permissions?.anyoneCan;
 
-        if (
-          !didCancel &&
-          (rawAnyoneCan === "view" || rawAnyoneCan === "edit")
-        ) {
-          setAnyoneCanPermission(rawAnyoneCan);
+        const rawIsPublic =
+          payload?.is_public ??
+          payload?.isPublic ??
+          payload?.project?.is_public ??
+          payload?.project?.isPublic ??
+          payload?.permissions?.project?.is_public ??
+          payload?.permissions?.project?.isPublic;
+
+        if (!didCancel) {
+          if (rawAnyoneCan === "view" || rawAnyoneCan === "edit") {
+            setAnyoneCanPermission(rawAnyoneCan);
+          }
+
+          if (typeof rawIsPublic === "boolean") {
+            setShareVisibility(rawIsPublic ? "anyone" : "private");
+          }
         }
 
         rows.forEach((row: any) => {
@@ -885,6 +899,11 @@ export function EditorTopBar({
   const applyShareVisibilityChange = async (
     nextVisibility: "private" | "anyone",
   ) => {
+    if (!currentUserIsOwner) {
+      toast.error("Only the owner can change project visibility.");
+      return;
+    }
+
     if (typeof window === "undefined" || isUpdatingVisibility) return;
     if (nextVisibility === shareVisibility) {
       setShowVisibilityDropdown(false);
@@ -977,6 +996,11 @@ export function EditorTopBar({
   };
 
   const updateAnyoneCanPermission = async (nextPermission: "view" | "edit") => {
+    if (!currentUserIsOwner) {
+      toast.error("Only the owner can change link permissions.");
+      return;
+    }
+
     const projectId = resolveProjectId();
 
     if (!projectId) {
@@ -1008,6 +1032,7 @@ export function EditorTopBar({
         );
       }
 
+      setCollaboratorsRefreshKey((prev) => prev + 1);
       toast.success(`Anyone with the link can now ${nextPermission}.`);
     } catch (error) {
       setAnyoneCanPermission(previousPermission);
@@ -1021,6 +1046,11 @@ export function EditorTopBar({
     userId: string,
     newRole: "editor" | "viewer",
   ) => {
+    if (!currentUserIsOwner) {
+      toast.error("Only the owner can change collaborator permissions.");
+      return;
+    }
+
     const projectId = resolveProjectId();
     if (!projectId) {
       toast.error("Unable to update permission: missing project id.");
@@ -1107,6 +1137,11 @@ export function EditorTopBar({
   };
 
   const handleAddCollaborator = async () => {
+    if (!currentUserIsOwner) {
+      toast.error("Only the owner can add collaborators.");
+      return;
+    }
+
     if (isAddingCollaborator) return;
 
     const projectId = resolveProjectId();
@@ -1215,6 +1250,11 @@ export function EditorTopBar({
   };
 
   const removeCollaborator = async (userId: string) => {
+    if (!currentUserIsOwner) {
+      toast.error("Only the owner can remove collaborators.");
+      return;
+    }
+
     if (removingCollaboratorFor) return;
 
     const projectId = resolveProjectId();
@@ -1287,12 +1327,6 @@ export function EditorTopBar({
       setRemovingCollaboratorFor(null);
     }
   };
-
-  useEffect(() => {
-    if (!showShareDropdown || typeof window === "undefined") return;
-    const isPrivatePath = /\/private\/?$/.test(window.location.pathname);
-    setShareVisibility(isPrivatePath ? "private" : "anyone");
-  }, [showShareDropdown]);
 
   const handleBackClick = () => {
     if (hasUnsavedChanges) {
@@ -1899,9 +1933,7 @@ export function EditorTopBar({
                   People with access
                 </h4>
 
-                {collaborators.some(
-                  (c) => c.isCurrentUser && c.role === "Owner",
-                ) && (
+                {currentUserIsOwner && (
                   <div className="grid grid-cols-1 gap-2 items-end">
                     <div className="space-y-1">
                       <Label
@@ -1988,11 +2020,6 @@ export function EditorTopBar({
                     </div>
 
                     {(() => {
-                      const currentUserIsOwner = collaborators.some(
-                        (c) =>
-                          c.isCurrentUser &&
-                          c.role.trim().toLowerCase() === "owner",
-                      );
                       const canChangeRole =
                         currentUserIsOwner && !collaborator.isCurrentUser;
 
@@ -2060,10 +2087,15 @@ export function EditorTopBar({
                 </h4>
                 <div className="relative">
                   <div
-                    className="flex items-center justify-between p-3 border-2 border-blue-500 rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                    onClick={() =>
-                      setShowVisibilityDropdown(!showVisibilityDropdown)
-                    }
+                    className={`flex items-center justify-between p-3 border-2 border-blue-500 rounded-lg transition-colors ${
+                      currentUserIsOwner
+                        ? "cursor-pointer hover:bg-accent"
+                        : "cursor-not-allowed opacity-60"
+                    }`}
+                    onClick={() => {
+                      if (!currentUserIsOwner) return;
+                      setShowVisibilityDropdown(!showVisibilityDropdown);
+                    }}
                   >
                     <div className="flex items-center gap-2">
                       <Lock className="w-4 h-4 text-foreground/70" />
@@ -2076,7 +2108,7 @@ export function EditorTopBar({
                     <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   </div>
 
-                  {showVisibilityDropdown && (
+                  {currentUserIsOwner && showVisibilityDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-card border-border rounded-lg shadow-lg z-10">
                       <div
                         className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
@@ -2121,9 +2153,10 @@ export function EditorTopBar({
                     <Select
                       value={anyoneCanPermission}
                       onValueChange={(value: "view" | "edit") => {
+                        if (!currentUserIsOwner) return;
                         void updateAnyoneCanPermission(value);
                       }}
-                      disabled={isUpdatingVisibility}
+                      disabled={isUpdatingVisibility || !currentUserIsOwner}
                     >
                       <SelectTrigger className="w-full h-11">
                         <SelectValue placeholder="Select permission" />
