@@ -12,6 +12,7 @@ interface EditableTextProps {
   id?: string;
   isEditing?: boolean;
   onToggleEditing?: (isEditing: boolean) => void;
+  [key: string]: any;
 }
 
 export function EditableText({
@@ -25,7 +26,8 @@ export function EditableText({
   disabled = false,
   id,
   isEditing: externalIsEditing,
-  onToggleEditing
+  onToggleEditing,
+  ...props
 }: EditableTextProps) {
   const [internalIsEditing, setInternalIsEditing] = useState(false);
   const isEditing = externalIsEditing !== undefined ? externalIsEditing : internalIsEditing;
@@ -41,26 +43,21 @@ export function EditableText({
   const textRef = useRef<HTMLElement>(null);
   const displayText = text || placeholder;
 
-  // Update content when editing starts or text changes
   useEffect(() => {
     if (textRef.current) {
       if (isEditing) {
-        // When editing starts, ensure the text content matches the current text value
         if (textRef.current.textContent !== text) {
           textRef.current.textContent = text;
         }
       } else {
-        // When not editing, show text or placeholder
         textRef.current.textContent = displayText;
       }
     }
   }, [text, placeholder, isEditing, displayText]);
 
-  // Focus when editing starts
   useEffect(() => {
     if (isEditing && textRef.current) {
       textRef.current.focus();
-      // Select all text
       const range = document.createRange();
       range.selectNodeContents(textRef.current);
       const selection = window.getSelection();
@@ -147,6 +144,7 @@ export function EditableText({
   return (
     <Element
       id={id}
+      {...props}
       ref={textRef as any}
       className={`${className} ${isEditing ? 'outline-none ring-2 ring-blue-500 ring-offset-1 bg-blue-50/50 dark:bg-blue-950/30' : ''} ${!isEditing && !disabled ? 'cursor-text hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors' : ''
         }`}
@@ -168,7 +166,6 @@ export function EditableText({
       onInput={handleInput}
       title={!isEditing && !disabled ? '✏️ Double-click to edit text' : undefined}
     >
-      {/* Content is managed by useEffect when not editing, and by contentEditable when editing */}
     </Element>
   );
 }

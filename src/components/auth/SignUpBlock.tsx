@@ -177,6 +177,7 @@ export function SignUpBlock({
                         <Input
                             id={`${id}-password`}
                             type="password"
+                            placeholder='your password'
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}

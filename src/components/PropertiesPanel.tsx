@@ -37,7 +37,9 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@supabase/supabase-js"
+import { styleToCss } from "../utils/styleManager"
 import { supabase } from "../supabase/config/supabaseClient"
+import { CustomCssModal } from "./CustomCssModal"
 type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
 type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition" | "showAlert"
 const styleStr = (value: any): string => String(value ?? "")
@@ -280,6 +282,7 @@ export function PropertiesPanel({
   const [showIndividualBorders, setShowIndividualBorders] = useState(false)
   const [isPickingElement, setIsPickingElement] = useState<string | null>(null) // actionId or null
   const [pickingMode, setPickingMode] = useState<{ type: "selector" | "column"; column?: string } | null>(null)
+  const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState(false)
   const [boxShadowValues, setBoxShadowValues] = useState({
     hOffset: 0,
     vOffset: 2,
@@ -4201,7 +4204,8 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           </TabsTrigger>
           <TabsTrigger
             value="styling"
-            className="text-xs h-7 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            disabled={selectedComponent.props?.enableCustomCss}
+            className="text-xs h-7 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Styling
           </TabsTrigger>
@@ -4232,18 +4236,45 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                     Do not use dots (.) or hashes (#); the system handles those automatically.
                   </p>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="element-class" className="text-xs font-medium">
-                    CSS Classes
-                  </Label>
-                  <Input
-                    id="element-class"
-                    value={selectedComponent.props?.className || ""}
-                    onChange={(e) => updateProps("className", e.target.value)}
-                    placeholder="bg-gradient text-lg"
-                    className="h-7 text-xs bg-accent/20 border-accent/40 focus:bg-accent/30 focus:ring-2 focus:ring-primary"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Separate multiple classes with spaces.</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">Custom CSS</Label>
+                    {selectedComponent.props?.enableCustomCss && (
+                      <Badge variant="outline" className="text-[10px] h-5 px-1 bg-primary/10 text-primary border-primary/20">Enabled</Badge>
+                    )}
+                  </div>
+                  
+                  {['text', 'heading', 'button'].includes(selectedComponent.type) ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs h-8 bg-accent/20 border-accent/40 hover:bg-accent/40 transition-colors"
+                        onClick={() => setIsCustomCssModalOpen(true)}
+                      >
+                        <Sparkles className="w-3 h-3 mr-2 text-primary" />
+                        Write Custom CSS
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Add custom CSS rules targeting this specific component. This overrides default styling if enabled and disables Styling tab.
+                      </p>
+                    </>
+                  ) : (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-2 space-y-1.5">
+                      <div className="flex items-center gap-2 text-amber-500">
+                        <Sparkles className="w-3 h-3" />
+                        <span className="text-[10px] font-medium uppercase tracking-wider">Note</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-normal">
+                        This component cannot be edited with custom CSS because it contains complex nested structures. 
+                        To maintain stability and ensure cross-browser compatibility, direct CSS overrides are disabled for advanced components.
+                        <b> But you can use the styling tab to style this component</b>
+                      </p>
+                      <p className="text-[10px] text-amber-600/80 font-medium italic leading-tight">
+                        Full CSS customization is available for basic elements like Text, Heading, and Buttons.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between bg-accent/10 p-2 rounded-md border border-accent/20">
                   <div className="space-y-0.5">
@@ -5573,6 +5604,25 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           </TabsContent>
         </div>
       </Tabs>
+      {isCustomCssModalOpen && (
+        <CustomCssModal
+          isOpen={isCustomCssModalOpen}
+          initialCss={selectedComponent.props?.customCss || styleToCss(selectedComponent.style || {}, selectedComponent.props?.elementId ? `#${selectedComponent.props.elementId}` : `[data-component-id="${selectedComponent.id}"]`, selectedComponent.type)}
+          isInitiallyEnabled={selectedComponent.props?.enableCustomCss || false}
+          componentId={selectedComponent.id}
+          elementId={selectedComponent.props?.elementId}
+          onClose={() => setIsCustomCssModalOpen(false)}
+          onSave={(css, isEnabled) => {
+            onUpdateComponent(selectedComponent.id, {
+              props: {
+                ...selectedComponent.props,
+                customCss: css,
+                enableCustomCss: isEnabled
+              }
+            });
+          }}
+        />
+      )}
     </div>
   )
 }

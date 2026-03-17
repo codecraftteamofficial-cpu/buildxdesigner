@@ -215,7 +215,11 @@ export function SiteRenderer({
                             {isNavbar ? (
                                 <NavbarRenderer component={component} navigate={navigate} />
                             ) : (
-                                <RenderableComponent
+                                <>
+                                    {component.props?.enableCustomCss && component.props?.customCss && (
+                                        <style>{component.props.customCss}</style>
+                                    )}
+                                    <RenderableComponent
                                     component={component}
                                     projectId={projectId}
                                     isSelected={false}
@@ -227,6 +231,7 @@ export function SiteRenderer({
                                     onEditComponent={() => {}}
                                     navigate={navigate}
                                 />
+                                </>
                             )}
                         </div>
                     );
@@ -248,6 +253,9 @@ export function SiteRenderer({
                             height: "fit-content",
                         }}
                     >
+                        {component.props?.enableCustomCss && component.props?.customCss && (
+                            <style>{component.props.customCss}</style>
+                        )}
                         <RenderableComponent
                             component={component}
                             projectId={projectId}
@@ -283,10 +291,22 @@ function NavbarRenderer({
             : ["Home", "About", "Contact"];
 
 
-    const style = component.style ?? {};
-    
-    // Handle gradient borders
-    
+    const style = { ...component.style } as any;
+ 
+    if (component.props?.enableCustomCss) {
+        const visualStylesToStrip = [
+            'color', 'backgroundColor', 'background', 'borderColor', 'borderStyle', 
+            'borderWidth', 'borderRadius', 'boxShadow', 'fontFamily', 'fontSize', 
+            'fontWeight', 'textAlign', 'lineHeight', 'letterSpacing', 'textDecoration',
+            'textTransform', 'opacity', 'width', 'height', 'padding', 'margin', 
+            'display', 'flexDirection', 'justifyContent', 'alignItems', 'gap', 
+            'overflow', 'position', 'top', 'left', 'right', 'bottom', 'zIndex'
+        ];
+        
+        visualStylesToStrip.forEach(styleKey => {
+            delete style[styleKey];
+        });
+    }
 
     const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
         if (navigate) {
@@ -335,6 +355,8 @@ function NavbarRenderer({
 
     return (
         <nav
+            id={component.props?.elementId}
+            data-component-id={component.id}
             className="sr-navbar"
             style={{
                 // Background handling: prioritize backgroundColor if background is falsy or 'none'
@@ -370,6 +392,9 @@ function NavbarRenderer({
                 zIndex: style.zIndex as any,
             }}
         >
+            {component.props?.enableCustomCss && component.props?.customCss && (
+                <style>{component.props.customCss}</style>
+            )}
             <div className="flex items-center gap-3">
                 {props.logoUrl && (
                     <img 

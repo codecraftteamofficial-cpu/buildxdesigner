@@ -15,6 +15,8 @@ interface ResizeHandleProps {
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
   gridSize?: number;
+  autoSize?: boolean;
+  [key: string]: any;
 }
 
 export function ResizeHandle({
@@ -30,7 +32,9 @@ export function ResizeHandle({
   disabled = false,
   onResizeStart,
   onResizeEnd,
-  gridSize = 20
+  gridSize = 20,
+  autoSize = false,
+  ...props
 }: ResizeHandleProps) {
   const [dimensions, setDimensions] = useState({
     x: initialX,
@@ -264,9 +268,10 @@ export function ResizeHandle({
     <div
       ref={containerRef}
       className={`relative block ${className}`}
+      {...props}
       style={{
-        width: dimensions.width,
-        height: dimensions.height,
+        width: (autoSize && !isResizing) ? 'fit-content' : dimensions.width,
+        height: (autoSize && !isResizing) ? 'fit-content' : dimensions.height,
         minWidth: `${minWidth}px`,
         minHeight: `${minHeight}px`
       }}

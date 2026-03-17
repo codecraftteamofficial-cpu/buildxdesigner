@@ -246,6 +246,7 @@ export function RenderableComponent({
     delete combinedStyle.transform;
   }
 
+
   // Handle Visibility Indicator for Editor
   const isHidden = props?.isVisible === false;
   // We no longer apply opacity/border directly to combinedStyle to avoid breaking children visibility
@@ -262,6 +263,59 @@ export function RenderableComponent({
   const [checkboxChecked, setCheckboxChecked] = React.useState(props.checked || false);
   const [formState, setFormState] = React.useState<Record<string, string>>({});
   const [isSubmittingForm, setIsSubmittingForm] = React.useState(false);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  const isBasicElement = ['text', 'heading', 'button'].includes(type);
+  const shouldApplyCustomCss = props?.enableCustomCss && isBasicElement;
+
+  if (shouldApplyCustomCss) {
+    const visualStylesToStrip = [
+      'color', 'backgroundColor', 'background', 'borderColor', 'borderStyle', 
+      'borderWidth', 'borderRadius', 'boxShadow', 'fontSize', 'fontWeight', 
+      'fontFamily', 'textAlign', 'padding', 'margin'
+    ];
+    visualStylesToStrip.forEach(prop => {
+      delete combinedStyle[prop as keyof React.CSSProperties];
+    });
+  }
+
+  // Effect to sync element's real-time dimensions back to component state
+  // This is used for "Custom CSS" when user sets width/height in code
+  React.useEffect(() => {
+    if (!shouldApplyCustomCss || isPreview || !contentRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        
+        // Only update if dimensions meaningfully changed (prevent infinite loops)
+        const parseSize = (value: any, defaultValue: number) => {
+          if (typeof value === 'number') return value;
+          if (typeof value === 'string') {
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? defaultValue : parsed;
+          }
+          return defaultValue;
+        };
+
+        const currentWidth = parseSize(style?.width, 0);
+        const currentHeight = parseSize(style?.height, 0);
+
+        if (Math.abs(width - currentWidth) > 1 || Math.abs(height - currentHeight) > 1) {
+          onUpdate({
+            style: {
+              ...style,
+              width: Math.round(width),
+              height: Math.round(height)
+            }
+          });
+        }
+      }
+    });
+
+    observer.observe(contentRef.current);
+    return () => observer.disconnect();
+  }, [shouldApplyCustomCss, isPreview, style, onUpdate]);
 
   React.useEffect(() => {
     if (type === 'checkbox') {
@@ -1096,6 +1150,9 @@ export function RenderableComponent({
 
   const renderComponent = () => {
     const { type, props } = component;
+    const customCssContent = shouldApplyCustomCss && props?.customCss ? (
+      <style>{props.customCss}</style>
+    ) : null;
     // combinedStyle is already calculated at the top level
 
     if (!isPreview) {
@@ -1115,7 +1172,7 @@ export function RenderableComponent({
         const textHeight = parseSize(style?.height, 50);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1127,17 +1184,18 @@ export function RenderableComponent({
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
+            autoSize={props.enableCustomCss}
           >
-
+            {customCssContent}
             <EditableText
-              id={props.elementId}
+                id={props.elementId}
               text={props.content}
               onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
               element="p"
               style={{ 
                 ...combinedStyle, 
-                width: '100%', 
-                height: '100%', 
+                width: props.enableCustomCss ? undefined : '100%', 
+                height: props.enableCustomCss ? undefined : '100%', 
                 display: 'flex', 
                 alignItems: 'center',
                 justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
@@ -1160,7 +1218,7 @@ export function RenderableComponent({
         const headingHeight = parseSize(style?.height, 60);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1172,7 +1230,9 @@ export function RenderableComponent({
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
+            autoSize={props.enableCustomCss}
           >
+            {customCssContent}
 
             <EditableText
               id={props.elementId}
@@ -1181,8 +1241,8 @@ export function RenderableComponent({
               element={HeadingElement}
               style={{ 
                 ...combinedStyle, 
-                width: '100%', 
-                height: '100%', 
+                width: props.enableCustomCss ? undefined : '100%', 
+                height: props.enableCustomCss ? undefined : '100%', 
                 display: 'flex', 
                 alignItems: 'center',
                 justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
@@ -1202,7 +1262,7 @@ export function RenderableComponent({
         const buttonHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1214,7 +1274,9 @@ export function RenderableComponent({
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
+            autoSize={props.enableCustomCss}
           >
+            {customCssContent}
             <Button
               id={props.elementId}
               variant={props.variant || 'default'}
@@ -1222,8 +1284,8 @@ export function RenderableComponent({
               disabled={disabled}
               style={{
                 ...combinedStyle,
-                width: '100%',
-                height: '100%',
+                width: props.enableCustomCss ? undefined : '100%',
+                height: props.enableCustomCss ? undefined : '100%',
                 // In editor, if selected, we disable pointer events so the user can drag/resize
                 pointerEvents: 'auto',
                 zIndex: isPreview ? 20 : 'auto'
@@ -1268,7 +1330,7 @@ export function RenderableComponent({
                 executeActions(hoverActions, e);
               }}
             >
-              <EditableText
+            <EditableText
                 text={props.text}
                 onTextChange={(newText) => onUpdate({ props: { ...props, text: newText } })}
                 element="span"
@@ -1287,7 +1349,7 @@ export function RenderableComponent({
         const pmHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1300,6 +1362,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <PayMongoButton
               projectId={projectId}
               label={props.label ?? "Buy Now"}
@@ -1324,7 +1387,7 @@ export function RenderableComponent({
 
       case 'sign-in':
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1337,6 +1400,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignInBlock
                 id={props.elementId || `signin-${component.id}`}
@@ -1358,7 +1422,7 @@ export function RenderableComponent({
 
       case 'sign-up':
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1371,6 +1435,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <SignUpBlock
                 id={props.elementId || `signup-${component.id}`}
@@ -1393,7 +1458,7 @@ export function RenderableComponent({
 
       case 'auth-block':
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1406,6 +1471,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
               <AuthBlock
                 id={props.elementId || `auth-${component.id}`}
@@ -1430,7 +1496,7 @@ export function RenderableComponent({
 
       case 'profile':
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1443,6 +1509,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div style={{ pointerEvents: 'auto', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ProfileBlock
                 id={props.elementId || `profile-${component.id}`}
@@ -1462,7 +1529,7 @@ export function RenderableComponent({
         const tableHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1475,6 +1542,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <Card
               className="w-full h-full overflow-hidden flex flex-col"
               style={{ ...combinedStyle }}
@@ -1647,7 +1715,7 @@ export function RenderableComponent({
         const styleType = props.styleType || 'solid';
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1660,6 +1728,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               className={`flex items-center w-full h-full ${props.className || ''}`}
@@ -1702,7 +1771,7 @@ export function RenderableComponent({
         const items = props.items || [];
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1715,6 +1784,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               className={props.className || ''}
@@ -1781,7 +1851,7 @@ export function RenderableComponent({
         const tabs = props.tabs || [];
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1794,6 +1864,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               className={props.className || ''}
@@ -1803,7 +1874,6 @@ export function RenderableComponent({
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                overflow: 'hidden',
                 pointerEvents: 'auto'
               }}
             >
@@ -1855,7 +1925,7 @@ export function RenderableComponent({
         const [isModalOpen, setIsModalOpen] = React.useState(false);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1868,6 +1938,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div id={props.elementId} style={{ width: '100%', height: '100%' }}>
               <button
                 onClick={(e) => { 
@@ -1910,12 +1981,14 @@ export function RenderableComponent({
                   <div
                     onClick={(e) => e.stopPropagation()}
                     style={{
+                      ...combinedStyle,
+                      padding: '24px',
                       backgroundColor: '#ffffff',
                       borderRadius: '12px',
-                      padding: '24px',
                       minWidth: '320px',
                       maxWidth: '500px',
-                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                      pointerEvents: 'auto'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -2002,7 +2075,7 @@ export function RenderableComponent({
         if (isDismissed && isPreview) return null;
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2015,6 +2088,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               className={props.className || ''}
@@ -2126,7 +2200,7 @@ export function RenderableComponent({
         };
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}  // ← use the shared handleResize, same as every other component
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2137,6 +2211,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
 
             {props.src ? (
               <div
@@ -2202,7 +2277,7 @@ export function RenderableComponent({
         const groupHeight = parseSize(style?.height, 200);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2213,6 +2288,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
 
             <div
               style={{
@@ -2268,7 +2344,7 @@ export function RenderableComponent({
         const containerHeight = parseSize(style?.height, 150);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2279,6 +2355,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
 
             <div
               id={props.elementId}
@@ -2316,7 +2393,7 @@ export function RenderableComponent({
         const navHeight = parseSize(style?.height, 64);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2329,6 +2406,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
 
             <nav
               id={props.elementId}
@@ -2428,7 +2506,7 @@ export function RenderableComponent({
         const heroHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2441,6 +2519,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
 
             <div
               id={props.elementId}
@@ -2499,7 +2578,7 @@ export function RenderableComponent({
         const footerHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2512,7 +2591,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-
+            {customCssContent}
             <footer
               id={props.elementId}
               style={{
@@ -2548,7 +2627,7 @@ export function RenderableComponent({
         const inputHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2561,6 +2640,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div className="relative w-full h-full">
               <Input
                 id={props.elementId}
@@ -2602,7 +2682,7 @@ export function RenderableComponent({
         const options = props.options || [];
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2615,6 +2695,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div className="relative w-full h-full flex flex-col gap-1">
               {props.label && (
                 <Label className="text-xs font-medium mb-1">{props.label}</Label>
@@ -2627,7 +2708,7 @@ export function RenderableComponent({
                 }}
               >
                 <Select disabled={disabled}>
-                  <SelectTrigger 
+                  <SelectTrigger
                     id={props.elementId}
                     style={{ ...combinedStyle, width: '100%', height: '100%' }}
                     className={props.className || ''}
@@ -2671,7 +2752,7 @@ export function RenderableComponent({
         const checkboxSize = 25; // Standard size for checkbox
         
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2684,6 +2765,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div 
               className="relative w-full h-full flex items-center gap-2"
               style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
@@ -2691,7 +2773,7 @@ export function RenderableComponent({
                 if (isSelected) e.stopPropagation();
               }}
             >
-              <Checkbox 
+              <Checkbox
                 id={props.elementId}
                 checked={checkboxChecked}
                 disabled={disabled}
@@ -2734,7 +2816,7 @@ export function RenderableComponent({
         const options = props.options || [];
         
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2747,6 +2829,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div 
               className="relative w-full h-full flex flex-col gap-3"
               style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
@@ -2805,7 +2888,7 @@ export function RenderableComponent({
         const textareaHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2818,6 +2901,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div className="relative w-full h-full">
               <Textarea
                 id={props.elementId}
@@ -2854,7 +2938,7 @@ export function RenderableComponent({
         const formHeight = parseSize(style?.height, 300);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2865,6 +2949,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <Card
               id={props.elementId}
               style={{ ...combinedStyle, width: '100%', height: '100%' }}
@@ -2939,7 +3024,7 @@ export function RenderableComponent({
                     </div>
                   </>
                 )}
-                <Button 
+                <Button
                   disabled={isSubmittingForm}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -2977,7 +3062,7 @@ export function RenderableComponent({
         const isVertical = props.orientation === 'vertical';
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2990,7 +3075,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-
+            {customCssContent}
             <div
               ref={drop as unknown as React.RefObject<HTMLDivElement>}
               id={props.elementId}
@@ -3066,7 +3151,7 @@ export function RenderableComponent({
         const cardHeight = parseSize(style?.height, 350);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3079,14 +3164,15 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
-            <Card
+            {customCssContent}
+            <Card data-component-id={component.id}
               id={props.elementId}
               style={{ ...combinedStyle, width: '100%', height: '100%' }}
               className={`flex flex-col ${cardProps.className || ''}`}
             >
               {cardProps.image && (
                 <div className="h-40 overflow-hidden">
-                  <ImageWithFallback
+                  <ImageWithFallback data-component-id={component.id}
                     id={props.elementId}
                     src={cardProps.image}
                     alt={cardProps.title || 'Card image'}
@@ -3099,7 +3185,7 @@ export function RenderableComponent({
               <CardHeader>
                 {cardProps.title && (
                   <CardTitle>
-                    <EditableText
+                    <EditableText data-component-id={component.id}
                       id={props.elementId}
                       text={cardProps.title}
                       onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
@@ -3115,7 +3201,7 @@ export function RenderableComponent({
               <CardContent className="flex-1">
                 {cardProps.description && (
                   <p className="text-sm text-muted-foreground mb-4">
-                    <EditableText
+                    <EditableText data-component-id={component.id}
                       id={props.elementId}
                       text={cardProps.description}
                       onTextChange={(newText) => onUpdate({ props: { ...props, description: newText } })}
@@ -3127,7 +3213,7 @@ export function RenderableComponent({
                   </p>
                 )}
                 {cardProps.buttonText && (
-                  <Button
+                  <Button data-component-id={component.id}
                     id={props.elementId}
                     variant="outline"
                     size="sm"
@@ -3139,7 +3225,7 @@ export function RenderableComponent({
                       }
                     }}
                   >
-                    <EditableText
+                    <EditableText data-component-id={component.id}
                       id={props.elementId}
                       text={cardProps.buttonText}
                       onTextChange={(newText) => onUpdate({ props: { ...props, buttonText: newText } })}
@@ -3160,7 +3246,7 @@ export function RenderableComponent({
         const sectionHeadingHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3173,6 +3259,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               style={{
@@ -3188,7 +3275,7 @@ export function RenderableComponent({
               }}
               className={props.className || ''}
             >
-              <EditableText
+              <EditableText data-component-id={component.id}
                 id={props.elementId}
                 text={props.title || 'Section Title'}
                 onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
@@ -3198,7 +3285,7 @@ export function RenderableComponent({
                 disabled={disabled || isPreview}
               />
               {props.subtitle && (
-                <EditableText
+                <EditableText data-component-id={component.id}
                   id={props.elementId}
                   text={props.subtitle}
                   onTextChange={(newText) => onUpdate({ props: { ...props, subtitle: newText } })}
@@ -3218,7 +3305,7 @@ export function RenderableComponent({
         const paragraphHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3231,6 +3318,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               style={{
@@ -3241,7 +3329,7 @@ export function RenderableComponent({
               }}
               className={props.className || ''}
             >
-              <EditableText
+              <EditableText data-component-id={component.id}
                 id={props.elementId}
                 text={props.content || 'This is a paragraph. Double-click to edit the text.'}
                 onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
@@ -3261,7 +3349,7 @@ export function RenderableComponent({
         const galleryHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3274,6 +3362,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               id={props.elementId}
               style={{
@@ -3290,7 +3379,7 @@ export function RenderableComponent({
             >
               {props.images?.length > 0 ? (
                 props.images.map((img: string, index: number) => (
-                  <ImageWithFallback
+                  <ImageWithFallback data-component-id={component.id}
                     key={index}
                     src={img}
                     alt={`Gallery image ${index + 1}`}
@@ -3337,7 +3426,7 @@ export function RenderableComponent({
         }, [props.autoplay, props.autoplaySpeed, currentSlide, isPreview]);
 
         return (
-          <ResizeHandle
+          <ResizeHandle data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3350,6 +3439,7 @@ export function RenderableComponent({
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
           >
+            {customCssContent}
             <div
               className="relative w-full h-full"
               style={{
@@ -3452,10 +3542,11 @@ export function RenderableComponent({
 
       case '__unknown__':
         return (
-          <ResizeHandle onResize={handleResize} initialX={component.position?.x || 0}
+          <ResizeHandle data-component-id={component.id} onResize={handleResize} initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 400)} initialHeight={parseSize(style?.height, 80)}
             className="group" disabled={isPreview} onResizeStart={onResizeStart} onResizeEnd={onResizeEnd}>
+            {customCssContent}
             <div style={{ ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center',
               justifyContent: 'center', gap: '8px', border: '2px dashed #f97316', borderRadius: '8px',
               backgroundColor: 'rgba(249,115,22,0.08)', padding: '16px' }}>
@@ -3485,6 +3576,7 @@ export function RenderableComponent({
 
   return (
     <div 
+      ref={contentRef}
       className={`relative group ${previewHidden ? 'initially-hidden' : ''}`} 
       onContextMenu={onContextMenu} 
       style={previewHidden ? { display: 'none' } : undefined}
@@ -3510,22 +3602,20 @@ export function RenderableComponent({
 
       {isSelected && (
         <>
-          {/* Delete Button */}
-          <div className="absolute -top-2 -right-2 flex gap-1 z-10">
-            <Button
-              size="sm"
-              variant="destructive"
-              onPointerDown={(e: React.PointerEvent<HTMLButtonElement>) => e.stopPropagation()}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          <div className="absolute -top-2 -right-2 flex gap-1 z-20">
+            <div
+              role="button"
+              onPointerDown={(e: React.PointerEvent<HTMLDivElement>) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                 e.stopPropagation();
                 e.preventDefault();
                 onDelete();
               }}
-              className="w-6 h-6 p-0"
+              className="w-6 h-6 p-0 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md cursor-pointer shadow-sm transition-colors"
               title="Delete component"
             >
               <Trash2 className="w-3 h-3" />
-            </Button>
+            </div>
           </div>
 
           {/* Edit Indicator for text components */}
@@ -3569,7 +3659,7 @@ export function RenderableComponent({
                   <Label htmlFor={`edit-${actualDataKey}`} className="text-left text-xs font-medium uppercase text-muted-foreground">
                     {label}
                   </Label>
-                  <Input
+                  <Input data-component-id={component.id}
                     id={`edit-${actualDataKey}`}
                     value={editingRow[actualDataKey] || ''}
                     onChange={(e) => setEditingRow({ ...editingRow, [actualDataKey]: e.target.value })}
@@ -3581,8 +3671,8 @@ export function RenderableComponent({
             })}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingRow(null)}>Cancel</Button>
-            <Button onClick={async () => {
+            <Button data-component-id={component.id} variant="outline" onClick={() => setEditingRow(null)}>Cancel</Button>
+            <Button data-component-id={component.id} onClick={async () => {
               if (!editingRow || !component.props.supabaseTable) return;
 
               if (!editingRow.id) {

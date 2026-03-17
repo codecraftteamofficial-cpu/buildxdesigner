@@ -63,8 +63,24 @@ export const componentToCSSRule = (component: ComponentData): CSSRule | null => 
 
   const className = component.props?.className || `component-${component.type}-${component.id}`
   const properties: Record<string, string> = {}
+  
+  let styleToUse = component.style;
 
-  Object.entries(component.style).forEach(([key, value]) => {
+  if (component.props?.enableCustomCss) {
+    const visualStylesToStrip = [
+      'color', 'backgroundColor', 'background', 'borderColor', 'borderStyle', 
+      'borderWidth', 'borderRadius', 'boxShadow', 'fontFamily', 'fontSize', 
+      'fontWeight', 'textAlign', 'lineHeight', 'letterSpacing', 'textDecoration',
+      'textTransform', 'opacity'
+    ];
+    
+    styleToUse = { ...styleToUse };
+    visualStylesToStrip.forEach(styleKey => {
+      delete (styleToUse as any)[styleKey];
+    });
+  }
+
+  Object.entries(styleToUse).forEach(([key, value]) => {
     const cssKey = toKebabCase(key)
     const cssValue = sanitizeValue(value)
 
@@ -85,6 +101,10 @@ export const componentToCSSRule = (component: ComponentData): CSSRule | null => 
 
 // Format CSS rule to string
 const formatCSSRule = (rule: CSSRule): string => {
+  if (rule.properties._raw) {
+    return `${rule.selector}\n${rule.properties._raw}`;
+  }
+
   const props = Object.entries(rule.properties)
     .map(([key, value]) => `  ${key}: ${value};`)
     .join("\n")
@@ -100,6 +120,13 @@ export const generateComponentSpecificCSS = (components: ComponentData[]): strin
     const rule = componentToCSSRule(component)
     if (rule) {
       rules.push(rule)
+    }
+
+    if (component.props?.enableCustomCss && component.props?.customCss) {
+      rules.push({
+        selector: `/* Custom CSS for ${component.props.elementId || component.id} */\n`,
+        properties: { _raw: component.props.customCss }
+      })
     }
   })
 

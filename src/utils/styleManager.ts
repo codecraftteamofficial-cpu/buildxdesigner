@@ -11,27 +11,269 @@ export interface StyleConfig {
   styles: Record<string, any>
 }
 
+// Default styles per component type to pre-fill the Custom CSS editor
+// This provides a starting point that matches the component's visual look
+export const COMPONENT_DEFAULTS: Record<string, Record<string, any>> = {
+  text: {
+    fontSize: '16px',
+    color: '#1e293b',
+    textAlign: 'left',
+    lineHeight: '1.5',
+    marginBottom: '16px'
+  },
+  heading: {
+    fontSize: '32px',
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: '24px',
+    lineHeight: '1.2'
+  },
+  button: {
+    backgroundColor: '#3b82f6',
+    color: '#ffffff',
+    padding: '10px 20px',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s ease'
+  },
+  divider: {
+    width: '100%',
+    height: '1px',
+    backgroundColor: '#e2e8f0',
+    margin: '32px 0'
+  },
+  container: {
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    minHeight: '100px'
+  },
+  navbar: {
+    padding: '16px 24px',
+    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  hero: {
+    padding: '80px 40px',
+    backgroundColor: '#f8fafc',
+    textAlign: 'center',
+    borderRadius: '16px'
+  },
+  footer: {
+    padding: '40px 24px',
+    backgroundColor: '#ffffff',
+    borderTop: '1px solid #e2e8f0',
+    textAlign: 'center'
+  },
+  input: {
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    fontSize: '14px',
+    width: '100%'
+  },
+  textarea: {
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    fontSize: '14px',
+    width: '100%',
+    minHeight: '100px'
+  },
+  accordion: {
+    width: '100%',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    overflow: 'hidden'
+  },
+  tabs: {
+    width: '100%',
+    borderBottom: '1px solid #e2e8f0'
+  },
+  modal: {
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    maxWidth: '500px'
+  },
+  alert: {
+    padding: '16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    width: '100%',
+    backgroundColor: '#eff6ff',
+    border: '1px solid #bfdbfe'
+  },
+  form: {
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    width: '100%'
+  },
+  select: {
+    padding: '10px 12px',
+    border: '1px solid #e2e8f0',
+    borderRadius: '6px',
+    fontSize: '14px',
+    width: '100%',
+    backgroundColor: '#ffffff'
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '4px',
+    border: '1px solid #cbd5e1'
+  },
+  'radio-group': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  'image': {
+    width: '300px',
+    height: '200px',
+    borderRadius: '8px',
+    objectFit: 'cover'
+  },
+  'carousel': {
+    width: '100%',
+    height: '300px',
+    borderRadius: '8px',
+    overflow: 'hidden'
+  },
+  'table': {
+    width: '100%',
+    borderCollapse: 'collapse',
+    border: '1px solid #e2e8f0'
+  },
+  'sign-in': {
+    width: '400px',
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+  },
+  'sign-up': {
+    width: '400px',
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+  },
+  'auth-block': {
+    width: '400px',
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+  },
+  'profile': {
+    width: '50px',
+    height: '50px',
+    borderRadius: '50%'
+  },
+  'paymongo-button': {
+    padding: '10px 20px',
+    backgroundColor: '#00c3b2',
+    color: '#ffffff',
+    borderRadius: '6px',
+    fontWeight: '600'
+  },
+  'grid': {
+    display: 'grid',
+    gap: '16px',
+    padding: '16px'
+  },
+  'card': {
+    padding: '24px',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+  },
+  'section-heading': {
+    padding: '40px 0',
+    textAlign: 'center'
+  },
+  'paragraph': {
+    fontSize: '16px',
+    lineHeight: '1.6',
+    color: '#334155',
+    marginBottom: '16px'
+  },
+  'gallery': {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '16px',
+    padding: '16px'
+  },
+  'group': {
+    display: 'flex',
+    gap: '16px',
+    padding: '16px'
+  }
+};
+
 // Convert camelCase to kebab-case
 export const toKebab = (str: string): string => {
   return str.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
 }
 
-// Convert style object to CSS string
-export const styleToCss = (style: Record<string, any>): string => {
+// Convert style object to CSS string for pre-filling the Custom CSS editor
+export const styleToCss = (style: Record<string, any>, selector?: string, componentType?: string): string => {
   if (!style || typeof style !== "object") return ""
 
-  return Object.entries(style)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+  // Merge with defaults if provided
+  const baseStyle = componentType && COMPONENT_DEFAULTS[componentType] 
+    ? { ...COMPONENT_DEFAULTS[componentType], ...style }
+    : style;
+
+  const props = Object.entries(baseStyle)
+    .filter(([key, value]) => {
+      // Filter out internal properties or undefined/null
+      if (value === undefined || value === null || value === "") return false
+      if (key.startsWith('_')) return false
+      return true
+    })
     .map(([key, value]) => {
       const cssKey = toKebab(key)
-      // Handle special cases like boxShadow, border, etc.
-      if (typeof value === "object") {
-        return ""
+      let cssValue = String(value)
+
+      // Add px to numeric values that typically need them
+      const needsPx = /^(width|height|margin|padding|top|left|right|bottom|fontSize|borderRadius|borderWidth)/i.test(key);
+      if (needsPx && !isNaN(Number(value)) && String(value).trim() !== "" && value !== 0 && !String(value).includes('px') && !String(value).includes('%') && !String(value).includes('rem') && !String(value).includes('em')) {
+        cssValue = `${value}px`;
       }
-      return `${cssKey}: ${value};`
+
+      // Handle simple conversion for alignment names if they aren't standard
+      if (key === 'textAlign') {
+        if (value === 'center') cssValue = 'center';
+        if (value === 'left') cssValue = 'left';
+        if (value === 'right') cssValue = 'right';
+      }
+
+      return selector ? `  ${cssKey}: ${cssValue};` : `${cssKey}: ${cssValue};`
     })
     .filter((s) => s.length > 0)
-    .join(" ")
+    .join(selector ? "\n" : " ")
+
+  if (!props) return ""
+
+  const header = `/* 
+ * Custom CSS for this ${componentType || 'component'}.
+ * You can edit these default styles below.
+ * Tip: Most properties are pre-filled for your convenience.
+ */\n\n`;
+
+  return selector ? `${header}${selector} {\n${props}\n}` : props
 }
 
 // Generate CSS for all components

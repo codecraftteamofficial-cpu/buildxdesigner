@@ -19,6 +19,8 @@ export interface ComponentData {
   project_layout?: any[];
   page_id?: string;
   page_ids?: string[];
+  customCss?: string;
+  enableCustomCss?: boolean;
 }
 
 export interface EditorState {

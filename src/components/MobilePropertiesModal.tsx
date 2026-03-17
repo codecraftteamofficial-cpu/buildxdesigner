@@ -334,16 +334,18 @@ export function MobilePropertiesModal({
                   />
                   <p className="text-[11px] text-muted-foreground">Unique identifier for links and scripts.</p>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="mobile-element-class" className="text-xs font-medium">CSS Classes</Label>
-                  <Input
-                    id="mobile-element-class"
-                    value={selectedComponent.props?.className || ''}
-                    onChange={(e) => updateProps('className', e.target.value)}
-                    placeholder="bg-gradient text-lg"
-                  />
-                  <p className="text-[11px] text-muted-foreground">Separate class names with spaces.</p>
-                </div>
+                {!selectedComponent.props?.enableCustomCss && (
+                  <div className="space-y-1">
+                    <Label htmlFor="mobile-element-class" className="text-xs font-medium">CSS Classes</Label>
+                    <Input
+                      id="mobile-element-class"
+                      value={selectedComponent.props?.className || ''}
+                      onChange={(e) => updateProps('className', e.target.value)}
+                      placeholder="bg-gradient text-lg"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Separate class names with spaces.</p>
+                  </div>
+                )}
               </div>
               {renderPropertyInputs()}
             </TabsContent>
