@@ -511,6 +511,34 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
           }
         },
         {
+          id: 'auth-block',
+          name: 'Unified Auth Block',
+          description: 'Combined Sign In & Sign Up with easy switching',
+          icon: <Users className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'auth-block',
+            props: {
+              initialMode: 'signin',
+              signInTitle: 'Sign In',
+              signInDescription: 'Enter your email and password to access your account.',
+              signInButtonText: 'Sign In',
+              signUpTitle: 'Sign Up',
+              signUpDescription: 'Create a new account by filling out the form below.',
+              signUpButtonText: 'Sign Up',
+              redirectUrl: '/',
+              extraFields: []
+            },
+            style: {
+              width: '400px',
+              padding: '24px',
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+            }
+          }
+        },
+        {
           id: 'sign-up',
           name: 'Sign Up Form',
           description: 'Supabase Sign Up with custom metadata fields',

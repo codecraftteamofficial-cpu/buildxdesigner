@@ -303,6 +303,17 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
     resetControlsTimeout();
   }, [resetControlsTimeout]);
 
+  useEffect(() => {
+    return () => {
+      const container = document.querySelector('.preview-container');
+      if (container) {
+        container.querySelectorAll('[style]').forEach(el => {
+          (el as HTMLElement).style.removeProperty('display');
+        });
+      }
+    };
+  }, []);
+
   // Handle element picking in the preview
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -412,27 +423,33 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
 
               const selector = action.selector;
               const cleanId = selector.startsWith('#') ? selector.substring(1) : selector;
-              const cleanSelector = selector.replace(/'/g, "\\'");
 
-              let elements = document.querySelectorAll(selector);
+              // IMPORTANT: Scope queries to the preview container to avoid modifying editor DOM
+              const previewContainer = contentRef.current || document.querySelector('.preview-container') || document;
+
+              let elements = previewContainer.querySelectorAll(selector);
 
               if (elements.length === 0) {
                 // Try by ID and data-component-id
-                elements = document.querySelectorAll(`[id="${cleanId}"], [data-component-id="${cleanId}"]`);
+                elements = previewContainer.querySelectorAll(`[id="${cleanId}"], [data-component-id="${cleanId}"]`);
                 if (elements.length === 0 && !selector.startsWith('#') && !selector.startsWith('.')) {
-                  elements = document.querySelectorAll(`#${cleanSelector}`);
+                  elements = previewContainer.querySelectorAll(`#${cleanId}`);
                 }
               }
 
               if (elements.length > 0) {
                 elements.forEach(element => {
+                  // If the element is inside a wrapper that was initially hidden, toggle the wrapper
+                  const wrapper = element.closest('.initially-hidden');
+                  const targetEl = (wrapper || element) as HTMLElement;
+
                   if (typeof action.toggleState === 'boolean') {
                     // Use the toggleState if provided
-                    (element as HTMLElement).style.display = action.toggleState ? 'block' : 'none';
+                    targetEl.style.display = action.toggleState ? 'block' : 'none';
                   } else {
                     // Toggle based on current state
-                    const currentDisplay = window.getComputedStyle(element as Element).display;
-                    (element as HTMLElement).style.display = currentDisplay === 'none' ? 'block' : 'none';
+                    const currentDisplay = window.getComputedStyle(targetEl).display;
+                    targetEl.style.display = currentDisplay === 'none' ? 'block' : 'none';
                   }
                 });
                 console.log(`Toggled ${elements.length} element(s) with selector:`, action.selector);

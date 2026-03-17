@@ -93,6 +93,27 @@ ${componentHTML}
       ${comp.children?.map((c: ComponentData) => this.renderComponent(c)).join("\n") || ""}
     </section>`
 
+      case "auth-block":
+        const authTitle = comp.props?.initialMode === 'signup' ? (comp.props?.signUpTitle || "Sign Up") : (comp.props?.signInTitle || "Sign In");
+        const authDesc = comp.props?.initialMode === 'signup' ? (comp.props?.signUpDescription || "") : (comp.props?.signInDescription || "");
+        const authBtnText = comp.props?.initialMode === 'signup' ? (comp.props?.signUpButtonText || "Sign Up") : (comp.props?.signInButtonText || "Sign In");
+        
+        return `    <div id="${id}" class="${className}" style="${style}; display: flex; flex-direction: column; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: bold;">${authTitle}</h2>
+      <p style="margin: 0 0 24px 0; color: #666; font-size: 14px;">${authDesc}</p>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 500;">Email</label>
+          <input type="email" placeholder="email@example.com" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;" disabled />
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 14px; font-weight: 500;">Password</label>
+          <input type="password" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;" disabled />
+        </div>
+        <button style="background: #000; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 500; cursor: pointer;">${authBtnText}</button>
+      </div>
+    </div>`
+
       default:
         return `    <div id="${id}" class="${className}" style="${style}"></div>`
     }
@@ -130,6 +151,10 @@ ${componentHTML}
     if (comp.props?.borderColor) styles.push(`border-color: ${comp.props.borderColor}`)
     if (comp.props?.border) styles.push(`border: ${comp.props.border}`)
     if (comp.props?.borderRadius) styles.push(`border-radius: ${comp.props.borderRadius}`)
+    // Visibility
+    if (comp.props?.isVisible === false) {
+      styles.push("display: none")
+    }
 
     // Additional custom styles (ignoring already handled background properties)
     if (comp.style) {

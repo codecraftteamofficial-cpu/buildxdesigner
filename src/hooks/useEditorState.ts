@@ -1391,13 +1391,34 @@ export function useEditorState() {
 
     const newPages = [...state.pages, newPage];
 
-    const pageComponents = state.components.filter((c) => c.page_id === pageId);
-    const duplicatedComponents = pageComponents.map((c) => ({
-      ...c,
-      id: `${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`,
-      page_id: newPageId,
-    }));
+    const duplicateComponent = (comp: ComponentData, targetPageId: string): ComponentData => {
+      const cloned = JSON.parse(JSON.stringify(comp));
+      const newId = `${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`;
+      
+      return {
+        ...cloned,
+        id: newId,
+        page_id: targetPageId,
+        page_ids: [targetPageId],
+        children: cloned.children?.map((child: ComponentData) => duplicateComponent(child, targetPageId))
+      };
+    };
 
+    const sourcePageId = pageId || "home";
+    const pageComponents = state.components.filter((c) => {
+      const isGlobal = c.page_id === "all" || (c.page_ids && c.page_ids.includes("all"));
+      
+      if (isGlobal) return true;
+      
+      if (c.page_ids && c.page_ids.length > 0) {
+        return c.page_ids.includes(sourcePageId);
+      }
+      
+      const compId = c.page_id || "home";
+      return compId === sourcePageId;
+    });
+
+    const duplicatedComponents = pageComponents.map((c) => duplicateComponent(c, newPageId));
     const newComponents = [...state.components, ...duplicatedComponents];
 
     setState((prev) => ({

@@ -6,12 +6,13 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Trash2, Edit, Upload } from 'lucide-react';
+import { Trash2, Edit, Upload, EyeOff } from 'lucide-react';
 import { ResizeHandle } from './ResizeHandle';
 import { EditableText } from './EditableText';
 import { PayMongoButton } from './PayMongoButton';
 import { SignInBlock } from './auth/SignInBlock';
 import { SignUpBlock } from './auth/SignUpBlock';
+import { AuthBlock } from './auth/AuthBlock';
 import { ProfileBlock } from './auth/ProfileBlock';
 import { supabase } from '../supabase/config/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
@@ -244,6 +245,10 @@ export function RenderableComponent({
     delete combinedStyle.zIndex;
     delete combinedStyle.transform;
   }
+
+  // Handle Visibility Indicator for Editor
+  const isHidden = props?.isVisible === false;
+  // We no longer apply opacity/border directly to combinedStyle to avoid breaking children visibility
 
   const [editingRow, setEditingRow] = React.useState<Record<string, any> | null>(null);
   const [deletingRow, setDeletingRow] = React.useState<Record<string, any> | null>(null);
@@ -618,24 +623,22 @@ export function RenderableComponent({
                 }
               `;
 
-              // Execute the script in the context of the iframe
+              // Execute the script
               try {
-                // Get the iframe element
                 const iframe = document.querySelector('iframe');
                 if (iframe && iframe.contentWindow) {
-                  // Execute the script in the iframe's context
+                  // Execute in iframe context
                   iframe.contentWindow.postMessage({
                     type: 'EXECUTE_SCRIPT',
-                    script: `(${scrollScript})()`
+                    script: `(function() { ${scrollScript} })()`
                   }, '*');
-                  return true;
-                } else {
-                  // Fallback to direct execution if iframe not found
-                  const script = document.createElement('script');
-                  script.text = `(${scrollScript})();`;
-                  document.body.appendChild(script).remove();
-                  return true;
                 }
+                
+                // Also execute locally for non-iframe previews or cases where selector might be in parent
+                const localScript = document.createElement('script');
+                localScript.text = `(function() { ${scrollScript} })();`;
+                document.body.appendChild(localScript).remove();
+                return true;
               } catch (error) {
                 console.error('Error executing scroll script:', error);
                 return false;
@@ -646,63 +649,37 @@ export function RenderableComponent({
             if (action.handlerType === 'toggle' && action.selector) {
               console.log('Executing toggle action on:', action.selector);
 
-              // Create a simple toggle function that we'll execute in the context of the iframe
-              const toggleScript = `
-                try {
-                  const selector = '${action.selector.replace(/'/g, "\\'")}';
-                  // Try to find by ID (with or without #), class, or data attributes
-                  let elements = document.querySelectorAll(selector);
-                  if (elements.length === 0 && !selector.startsWith('#') && !selector.startsWith('.')) {
-                    elements = document.querySelectorAll('#' + selector);
-                  }
-                  if (elements.length === 0) {
-                     // Try data-component-id
-                     elements = document.querySelectorAll('[data-component-id="' + selector + '"]');
-                  }
-                  
-                  if (elements.length > 0) {
-                    elements.forEach(element => {
-                      if (${typeof action.toggleState === 'boolean' ? 'true' : 'false'}) {
-                        // Use the toggleState if provided
-                        element.style.display = ${action.toggleState ? '"block"' : '"none"'};
-                      } else {
-                        // Toggle based on current state
-                        const currentDisplay = window.getComputedStyle(element).display;
-                        element.style.display = currentDisplay === 'none' ? 'block' : 'none';
-                      }
-                    });
-                    console.log('Toggled ' + elements.length + ' element(s) with selector:', selector);
-                    return true;
-                  } else {
-                    console.error('No elements found with selector:', selector);
-                    return false;
-                  }
-                } catch (error) {
-                  console.error('Error in toggle handler:', error);
-                  return false;
-                }
-              `;
+              const selector = action.selector;
+              const cleanId = selector.startsWith('#') ? selector.substring(1) : selector;
 
-              // Execute the script in the context of the iframe
-              try {
-                // Get the iframe element
-                const iframe = document.querySelector('iframe');
-                if (iframe && iframe.contentWindow) {
-                  // Execute the script in the iframe's context
-                  iframe.contentWindow.postMessage({
-                    type: 'EXECUTE_SCRIPT',
-                    script: `(${toggleScript})()`
-                  }, '*');
-                  return true;
-                } else {
-                  // Fallback to direct execution if iframe not found
-                  const script = document.createElement('script');
-                  script.text = `(${toggleScript})();`;
-                  document.body.appendChild(script).remove();
-                  return true;
-                }
-              } catch (error) {
-                console.error('Error executing toggle script:', error);
+              const previewContainer = (event?.currentTarget as HTMLElement)?.closest('.preview-container') 
+                || document.querySelector('.preview-container') 
+                || document;
+
+              let elements = previewContainer.querySelectorAll(selector);
+              if (elements.length === 0 && !selector.startsWith('#') && !selector.startsWith('.')) {
+                elements = previewContainer.querySelectorAll('#' + cleanId);
+              }
+              if (elements.length === 0) {
+                elements = previewContainer.querySelectorAll(`[data-component-id="${cleanId}"], [id="${cleanId}"]`);
+              }
+              
+              if (elements.length > 0) {
+                elements.forEach(element => {
+                  const wrapper = element.closest('.initially-hidden');
+                  const targetEl = (wrapper || element) as HTMLElement;
+                  
+                  if (typeof action.toggleState === 'boolean') {
+                    targetEl.style.display = action.toggleState ? 'block' : 'none';
+                  } else {
+                    const currentDisplay = window.getComputedStyle(targetEl).display;
+                    targetEl.style.display = currentDisplay === 'none' ? 'block' : 'none';
+                  }
+                });
+                console.log('Toggled ' + elements.length + ' element(s) with selector:', selector);
+                return true;
+              } else {
+                console.error('No elements found with selector:', selector);
                 return false;
               }
             }
@@ -1414,6 +1391,43 @@ export function RenderableComponent({
           </ResizeHandle>
         );
 
+      case 'auth-block':
+        return (
+          <ResizeHandle
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={parseSize(style?.width, 400)}
+            initialHeight={parseSize(style?.height, 400)}
+            className="group inline-block"
+            minWidth={300}
+            minHeight={300}
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            <div style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}>
+              <AuthBlock
+                id={props.elementId || `auth-${component.id}`}
+                initialMode={props.initialMode}
+                signInTitle={props.signInTitle}
+                signInDescription={props.signInDescription}
+                signInButtonText={props.signInButtonText}
+                signUpTitle={props.signUpTitle}
+                signUpDescription={props.signUpDescription}
+                signUpButtonText={props.signUpButtonText}
+                redirectUrl={props.redirectUrl}
+                extraFields={props.extraFields}
+                isPreview={isPreview}
+                userProjectConfig={userProjectConfig}
+                className={props.className}
+                navigate={navigate}
+                style={{ ...combinedStyle, width: '100%', height: '100%', margin: 0 }}
+              />
+            </div>
+          </ResizeHandle>
+        );
+
       case 'profile':
         return (
           <ResizeHandle
@@ -1955,9 +1969,6 @@ export function RenderableComponent({
               console.log(`[Alert:${targetId}] received show event, becoming visible`);
               setIsTriggeredVisible(true);
               setIsDismissed(false); // Reset dismissal if re-triggered
-            } else if (receivedId) {
-              // Useful for debugging why an alert didn't show
-              console.log(`[Alert:${targetId}] ignoring event for ${receivedId}`);
             }
           };
 
@@ -1969,6 +1980,24 @@ export function RenderableComponent({
             window.removeEventListener('message', handleShowAlert);
           };
         }, [isPreview, isTriggered, props.elementId]);
+
+        // Auto-dismiss logic
+        React.useEffect(() => {
+          if (!isPreview) return;
+          
+          const isCurrentlyVisible = !isDismissed && (!isTriggered || isTriggeredVisible);
+          const duration = Number(props.showDuration) || 0;
+          
+          if (isCurrentlyVisible && duration > 0) {
+            console.log(`[Alert] Starting auto-dismiss timer for ${duration}s. TriggeredVisible: ${isTriggeredVisible}`);
+            const timer = setTimeout(() => {
+              console.log(`[Alert] Duration reached, dismissing component`);
+              setIsDismissed(true);
+            }, duration * 1000);
+            
+            return () => clearTimeout(timer);
+          }
+        }, [isPreview, isDismissed, isTriggered, isTriggeredVisible, props.showDuration]);
 
         if (isDismissed && isPreview) return null;
 
@@ -2001,7 +2030,7 @@ export function RenderableComponent({
                 boxSizing: 'border-box',
                 ...combinedStyle,
                 pointerEvents: 'auto',
-                display: (isTriggered && isPreview && !isTriggeredVisible) ? 'none' : 'flex'
+                display: (isPreview && (isHidden || isDismissed || (isTriggered && !isTriggeredVisible))) ? 'none' : 'flex'
               }}
             >
               <span style={{ fontSize: '16px', flexShrink: 0 }}>{v.icon}</span>
@@ -3452,8 +3481,31 @@ export function RenderableComponent({
 
   const hasEditableText = ['text', 'heading', 'button', 'navbar', 'hero', 'footer', 'form', 'container', 'grid', 'carousel'].includes(component.type);
 
+  const previewHidden = isPreview && isHidden && type !== 'alert';
+
   return (
-    <div className="relative group" onContextMenu={onContextMenu}>
+    <div 
+      className={`relative group ${previewHidden ? 'initially-hidden' : ''}`} 
+      onContextMenu={onContextMenu} 
+      style={previewHidden ? { display: 'none' } : undefined}
+    >
+      {!isPreview && isHidden && (
+        <>
+          {/* Universal Visibility Overlay for Editor */}
+          <div 
+            className="absolute inset-0 z-[40] pointer-events-none"
+            style={{
+              background: 'rgba(59, 130, 246, 0.05)',
+              border: '2px dashed rgba(59, 130, 246, 0.4)',
+              borderRadius: style?.borderRadius || '4px'
+            }}
+          />
+          <div className="absolute -top-5 left-0 bg-blue-600 text-white text-[9px] px-1.5 py-0.5 rounded-t-sm font-medium z-[50] flex items-center gap-1 border border-b-0 border-blue-500 shadow-sm pointer-events-none">
+            <EyeOff className="w-2.5 h-2.5" />
+            Initially Hidden
+          </div>
+        </>
+      )}
       {renderComponent()}
 
       {isSelected && (

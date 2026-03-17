@@ -2181,9 +2181,9 @@ export function PropertiesPanel({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeExtraField(idx)}
-                      className="absolute right-1 top-1 h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                      className="absolute right-2 top-2 h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="h-3 w-3" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                     <div className="pr-6 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
@@ -2199,47 +2199,229 @@ export function PropertiesPanel({
                           <Label className="text-[10px]">Metadata Key</Label>
                           <Input
                             value={field.name}
-                            onChange={(e) => updateExtraField(idx, { name: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
+                            onChange={(e) => updateExtraField(idx, { name: e.target.value })}
                             className="h-7 text-xs mt-0.5"
-                            placeholder="e.g. first_name"
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
-                        <Select
-                          value={field.type}
-                          onValueChange={(val: string) => updateExtraField(idx, { type: val })}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="text">Text</SelectItem>
-                            <SelectItem value="number">Number</SelectItem>
-                            <SelectItem value="date">Date</SelectItem>
-                            <SelectItem value="tel">Phone</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <div className="flex items-center space-x-1.5">
-                          <Checkbox
-                            id={`req-${idx}`}
-                            checked={field.required}
-                            onCheckedChange={(checked: boolean) => updateExtraField(idx, { required: !!checked })}
-                          />
-                          <Label htmlFor={`req-${idx}`} className="text-[10px] cursor-pointer">Req</Label>
-                        </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`req-${idx}`}
+                          checked={field.required}
+                          onCheckedChange={(checked: boolean) => updateExtraField(idx, { required: !!checked })}
+                        />
+                        <Label htmlFor={`req-${idx}`} className="text-[10px]">Required field</Label>
                       </div>
                     </div>
                   </div>
                 ))}
-                {extraFields.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">No extra fields defined</p>
-                )}
               </div>
             </div>
-            <div className="mt-2 p-3 bg-blue-50/50 rounded-md border border-blue-100">
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100">
               <p className="text-[10px] text-blue-800">
-                💡 Extra fields will be sent to Supabase auth in the <code>options.data</code> payload as `user_metadata`.
+                💡 This block automatically connects to your Project's Supabase credentials to handle authentication.
+              </p>
+            </div>
+          </div>
+        )
+
+      case "auth-block":
+        return (
+          <div className="space-y-6">
+            <div className="space-y-4 border-b pb-4">
+              <h4 className="text-xs font-bold uppercase text-muted-foreground">General Settings</h4>
+              <div>
+                <Label htmlFor="initialMode" className="text-xs">Initial Mode</Label>
+                <Select
+                  value={props.initialMode || "signin"}
+                  onValueChange={(value: string) => updateProps("initialMode", value)}
+                >
+                  <SelectTrigger id="initialMode" className="h-8 text-xs mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="signin">Sign In</SelectItem>
+                    <SelectItem value="signup">Sign Up</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="redirectUrl" className="text-xs">On Success Redirect To</Label>
+                <Select
+                  value={props.redirectUrl ?? "/"}
+                  onValueChange={(value: string) => updateProps("redirectUrl", value)}
+                >
+                  <SelectTrigger id="redirectUrl" className="h-8 text-xs mt-1">
+                    <SelectValue placeholder="Select a page" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pages && pages.map(p => (
+                      <SelectItem key={p.id} value={p.path || p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Tabs 
+              value={props.initialMode === 'signup' ? 'signup-config' : 'signin-config'} 
+              onValueChange={(val) => updateProps("initialMode", val === 'signup-config' ? 'signup' : 'signin')}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="signin-config" className="text-[10px]">Sign In UI</TabsTrigger>
+                <TabsTrigger value="signup-config" className="text-[10px]">Sign Up UI</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="signin-config" className="space-y-4">
+                <div>
+                  <Label className="text-xs">Sign In Title</Label>
+                  <Input
+                    value={props.signInTitle ?? ""}
+                    onChange={(e) => updateProps("signInTitle", e.target.value)}
+                    placeholder="Sign In"
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Sign In Description</Label>
+                  <Input
+                    value={props.signInDescription ?? ""}
+                    onChange={(e) => updateProps("signInDescription", e.target.value)}
+                    placeholder="Enter your email and password to access your account."
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Sign In Button Text</Label>
+                  <Input
+                    value={props.signInButtonText ?? ""}
+                    onChange={(e) => updateProps("signInButtonText", e.target.value)}
+                    placeholder="Sign In"
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="signup-config" className="space-y-4">
+                <div>
+                  <Label className="text-xs">Sign Up Title</Label>
+                  <Input
+                    value={props.signUpTitle ?? ""}
+                    onChange={(e) => updateProps("signUpTitle", e.target.value)}
+                    placeholder="Sign Up"
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Sign Up Description</Label>
+                  <Input
+                    value={props.signUpDescription ?? ""}
+                    onChange={(e) => updateProps("signUpDescription", e.target.value)}
+                    placeholder="Create a new account by filling out the form below."
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Sign Up Button Text</Label>
+                  <Input
+                    value={props.signUpButtonText ?? ""}
+                    onChange={(e) => updateProps("signUpButtonText", e.target.value)}
+                    placeholder="Sign Up"
+                    className="h-8 text-xs mt-1"
+                  />
+                </div>
+                
+                <div className="pt-2 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-medium">Extra Registration Fields</Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        const existingFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+                        const newField = {
+                          name: `field_${existingFields.length + 1}`,
+                          label: `New Field`,
+                          type: "text",
+                          required: false,
+                        };
+                        updateProps("extraFields", [...existingFields, newField]);
+                      }} 
+                      className="h-6 w-6 p-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {(Array.isArray(props.extraFields) ? props.extraFields : []).map((field: any, idx: number) => (
+                      <div key={idx} className="flex flex-col gap-2 p-2 border rounded bg-slate-50 relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const currentFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+                            const newFields = [...currentFields];
+                            newFields.splice(idx, 1);
+                            updateProps("extraFields", newFields);
+                          }}
+                          className="absolute right-2 top-2 h-7 w-7 p-0 text-red-500 hover:bg-red-50 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <div className="pr-6 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-[10px]">Label</Label>
+                              <Input
+                                value={field.label}
+                                onChange={(e) => {
+                                  const currentFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+                                  const newFields = [...currentFields];
+                                  newFields[idx] = { ...newFields[idx], label: e.target.value };
+                                  updateProps("extraFields", newFields);
+                                }}
+                                className="h-7 text-xs mt-0.5"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">Metadata Key</Label>
+                              <Input
+                                value={field.name}
+                                onChange={(e) => {
+                                  const currentFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+                                  const newFields = [...currentFields];
+                                  newFields[idx] = { ...newFields[idx], name: e.target.value };
+                                  updateProps("extraFields", newFields);
+                                }}
+                                className="h-7 text-xs mt-0.5"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`auth-req-${idx}`}
+                              checked={field.required}
+                              onCheckedChange={(checked: boolean) => {
+                                const currentFields = Array.isArray(props.extraFields) ? props.extraFields : [];
+                                const newFields = [...currentFields];
+                                newFields[idx] = { ...newFields[idx], required: !!checked };
+                                updateProps("extraFields", newFields);
+                              }}
+                            />
+                            <Label htmlFor={`auth-req-${idx}`} className="text-[10px]">Required</Label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100">
+              <p className="text-[10px] text-blue-800">
+                💡 This component allows users to switch between Sign In and Sign Up modes automatically.
               </p>
             </div>
           </div>
@@ -2917,9 +3099,24 @@ export function PropertiesPanel({
               </Select>
               {props.triggerMode === 'action' && (
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Set an Element ID above, then use a Button's "Show Alert" action with the same ID to trigger this alert.
+                  Use "Show Alert" action on a button to trigger this.
                 </p>
               )}
+            </div>
+            <div>
+              <Label className="text-xs">Show Duration (seconds)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={props.showDuration || 0}
+                onChange={(e) => updateProps("showDuration", parseInt(e.target.value) || 0)}
+                className="h-8 text-xs mt-1"
+                placeholder="0 = persistent"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Enter 0 to keep the alert visible until dismissed manually.
+              </p>
             </div>
           </div>
         )
@@ -4047,6 +4244,19 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                     className="h-7 text-xs bg-accent/20 border-accent/40 focus:bg-accent/30 focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-[10px] text-muted-foreground">Separate multiple classes with spaces.</p>
+                </div>
+                <div className="flex items-center justify-between bg-accent/10 p-2 rounded-md border border-accent/20">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="element-visibility" className="text-xs font-medium">
+                      Initial Visibility
+                    </Label>
+                    <p className="text-[10px] text-muted-foreground">Is the component visible on load?</p>
+                  </div>
+                  <Switch
+                    id="element-visibility"
+                    checked={selectedComponent.props?.isVisible !== false}
+                    onCheckedChange={(checked: boolean) => updateProps("isVisible", checked)}
+                  />
                 </div>
                 {pages && (
                   <div className="space-y-1">
