@@ -22,6 +22,7 @@ const normalizeCollaboratorRows = (raw: any): any[] => {
 
   const candidates = [
     raw?.collaborators,
+    raw?.permissions?.collaborators,
     raw?.permissions,
     raw?.members,
     raw?.users,
@@ -577,7 +578,7 @@ export function useEditorState() {
           .toLowerCase();
 
         const isPublic = !!projectRecord.is_public;
-        const anyoneCan: "view" | "edit" = "view";
+        let anyoneCan: "view" | "edit" = "view";
         const ownerId = projectRecord.user_id || null;
         const isOwner =
           !!currentSessionUserId &&
@@ -621,6 +622,18 @@ export function useEditorState() {
               }));
 
             if (response.ok) {
+              const rawAnyoneCan =
+                payload?.anyone_can ??
+                payload?.anyoneCan ??
+                payload?.project?.anyone_can ??
+                payload?.project?.anyoneCan ??
+                payload?.permissions?.anyone_can ??
+                payload?.permissions?.anyoneCan;
+
+              if (rawAnyoneCan === "view" || rawAnyoneCan === "edit") {
+                anyoneCan = rawAnyoneCan;
+              }
+
               const rows = normalizeCollaboratorRows(payload);
               const row = rows.find((entry: any) => {
                 const rowUserId = String(
@@ -1391,34 +1404,42 @@ export function useEditorState() {
 
     const newPages = [...state.pages, newPage];
 
-    const duplicateComponent = (comp: ComponentData, targetPageId: string): ComponentData => {
+    const duplicateComponent = (
+      comp: ComponentData,
+      targetPageId: string,
+    ): ComponentData => {
       const cloned = JSON.parse(JSON.stringify(comp));
       const newId = `${Date.now().toString()}-${Math.random().toString(36).slice(2, 9)}`;
-      
+
       return {
         ...cloned,
         id: newId,
         page_id: targetPageId,
         page_ids: [targetPageId],
-        children: cloned.children?.map((child: ComponentData) => duplicateComponent(child, targetPageId))
+        children: cloned.children?.map((child: ComponentData) =>
+          duplicateComponent(child, targetPageId),
+        ),
       };
     };
 
     const sourcePageId = pageId || "home";
     const pageComponents = state.components.filter((c) => {
-      const isGlobal = c.page_id === "all" || (c.page_ids && c.page_ids.includes("all"));
-      
+      const isGlobal =
+        c.page_id === "all" || (c.page_ids && c.page_ids.includes("all"));
+
       if (isGlobal) return true;
-      
+
       if (c.page_ids && c.page_ids.length > 0) {
         return c.page_ids.includes(sourcePageId);
       }
-      
+
       const compId = c.page_id || "home";
       return compId === sourcePageId;
     });
 
-    const duplicatedComponents = pageComponents.map((c) => duplicateComponent(c, newPageId));
+    const duplicatedComponents = pageComponents.map((c) =>
+      duplicateComponent(c, newPageId),
+    );
     const newComponents = [...state.components, ...duplicatedComponents];
 
     setState((prev) => ({
