@@ -61,3 +61,62 @@ export async function fetchTrendingTemplatesFromApi(limit = 20) {
   const data = await response.json();
   return data.templates || [];
 }
+
+export async function fetchTrashedProjectsFromApi(
+  userId: string,
+): Promise<Project[]> {
+  const apiBaseUrl = getApiBaseUrl();
+  const response = await fetch(
+    `${apiBaseUrl}/api/trashed-templates?userId=${encodeURIComponent(userId)}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+
+    if (response.status === 404) {
+      return [];
+    }
+
+    throw new Error(
+      errorBody?.details ||
+        `Failed to fetch trashed projects: ${response.status}`,
+    );
+  }
+
+  const data = await response.json();
+
+  const rawProjects = Array.isArray(data?.templates)
+    ? data.templates
+    : Array.isArray(data?.trashedTemplates)
+      ? data.trashedTemplates
+      : Array.isArray(data?.trashedProjects)
+        ? data.trashedProjects
+        : Array.isArray(data?.projects)
+          ? data.projects
+          : Array.isArray(data)
+            ? data
+            : [];
+
+  return rawProjects.map((project: any) => ({
+    id: project.projects_id ?? project.id,
+    name: project.project_name ?? project.name ?? "Untitled Project",
+    description: project.description || "",
+    thumbnail: project.thumbnail || "/placeholder.svg",
+    lastModified: project.updated_at ?? project.lastModified ?? null,
+    isPublished:
+      project.is_published ??
+      project.isPublished ??
+      project.published_template ??
+      false,
+    status: "trash",
+    category: project.category || "Starter",
+    project_layout: project.project_layout || [],
+    type: project.type || "design",
+  }));
+}

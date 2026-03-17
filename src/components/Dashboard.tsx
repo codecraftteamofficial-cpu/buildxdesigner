@@ -73,6 +73,7 @@ import { PublishingBasics } from "./Guides/PublishingBasics";
 import {
   fetchDraftProjectsFromApi,
   fetchTrendingTemplatesFromApi,
+  fetchTrashedProjectsFromApi,
 } from "../utils/apiHelper";
 
 type DashboardSection = "new-chat" | "drafts" | "team" | "all" | "trash";
@@ -307,6 +308,7 @@ export function Dashboard({
   const [projects, setProjects] = useState<Project[]>([]); // State for real projects
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
 
   // --- EXISTING DASHBOARD STATES ---
   const [searchQuery, setSearchQuery] = useState("");
@@ -1313,6 +1315,39 @@ export function Dashboard({
     };
   }, [projectsFilter, activeSection, profileData.userId]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadTrashedProjects = async () => {
+      if (activeSection !== "trash" || !profileData.userId) return;
+
+      setProjectsLoading(true);
+      setProjectsError(null);
+
+      try {
+        const trashed = await fetchTrashedProjectsFromApi(profileData.userId);
+        console.log("trashed projects from api", trashed);
+        if (!mounted) return;
+        setTrashedProjects(trashed);
+      } catch (error) {
+        if (!mounted) return;
+        console.error("Failed to load trashed projects:", error);
+        setProjectsError("Failed to load trashed projects. Please try again.");
+        setTrashedProjects([]);
+      } finally {
+        if (mounted) {
+          setProjectsLoading(false);
+        }
+      }
+    };
+
+    loadTrashedProjects();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeSection, profileData.userId]);
+
   // --- AUTH LOGOUT HANDLER ---
   const handleLogout = async () => {
     setAuthLoading(true);
@@ -1336,7 +1371,7 @@ export function Dashboard({
         filtered = projects.filter((p) => p.status === "team" || p.teamName);
         break;
       case "trash":
-        filtered = projects.filter((p) => p.status === "trash");
+        filtered = trashedProjects;
         break;
       case "all":
         filtered = projects.filter((p) => p.status !== "trash");
@@ -1642,15 +1677,24 @@ export function Dashboard({
 
     setProjectsLoading(true);
     try {
-      const refreshedProjects = await fetchDraftProjectsFromApi(
-        profileData.userId,
-      );
+      const [refreshedProjects, refreshedTrashedProjects] = await Promise.all([
+        fetchDraftProjectsFromApi(profileData.userId),
+        fetchTrashedProjectsFromApi(profileData.userId),
+      ]);
+
       setProjects(refreshedProjects);
+      setTrashedProjects(refreshedTrashedProjects);
     } catch (error) {
-      console.error("Error refreshing projects after delete:", error);
+      console.error("Error refreshing projects after update:", error);
     }
     setProjectsLoading(false);
   };
+
+  useEffect(() => {
+    if (!profileData.userId) {
+      setTrashedProjects([]);
+    }
+  }, [profileData.userId]);
 
   const handleDeleteProject = async (projectId: string) => {
     try {
@@ -1668,8 +1712,7 @@ export function Dashboard({
       setShowDeleteConfirmDialog(false);
       setPendingDeleteProject(null);
 
-      // Force a full refresh to avoid stale dialog overlays blocking clicks.
-      window.location.reload();
+      await reloadProjects();
     } catch (err) {
       console.error("Failed to delete project:", err);
       setProjectsLoading(false);
