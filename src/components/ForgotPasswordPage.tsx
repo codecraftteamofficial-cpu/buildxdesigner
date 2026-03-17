@@ -23,12 +23,19 @@ export function ForgotPasswordPage() {
   const [resetMode, setResetMode] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     const recoveryFlag = "supabase_password_recovery_active";
+    let timeoutId: number | undefined;
 
     if (window.sessionStorage.getItem(recoveryFlag) === "true") {
       setResetMode(true);
+      setIsInitializing(false);
+    } else {
+      timeoutId = window.setTimeout(() => {
+        setIsInitializing(false);
+      }, 1200);
     }
 
     const { data: authSubscription } = supabase.auth.onAuthStateChange(
@@ -40,11 +47,13 @@ export function ForgotPasswordPage() {
             "Recovery link verified. You can now set a new password.",
           );
           setErrorMessage(null);
+          setIsInitializing(false);
         }
       },
     );
 
     return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
       authSubscription.subscription.unsubscribe();
     };
   }, []);
@@ -88,15 +97,33 @@ export function ForgotPasswordPage() {
       setStatusMessage(null);
     } else {
       window.sessionStorage.removeItem("supabase_password_recovery_active");
+      await supabase.auth.signOut();
+
       setStatusMessage(
-        "Password updated successfully. You can now sign in with your new password.",
+        "Password updated successfully. Please sign in with your new password.",
       );
       setPassword("");
       setConfirmPassword("");
+      setResetMode(false);
     }
 
     setLoading(false);
   };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-10 flex flex-col items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin mb-3" />
+            <p className="text-sm text-muted-foreground">
+              Verifying reset link...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
