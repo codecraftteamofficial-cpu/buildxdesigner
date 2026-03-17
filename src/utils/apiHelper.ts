@@ -123,7 +123,7 @@ export async function fetchTrashedProjectsFromApi(
 }
 
 export async function sendPasswordResetEmail(email: string) {
-  const redirectTo = `${window.location.origin}/forgot-password`;
+  const redirectTo = `${window.location.origin}/reset-password`;
 
   return await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 }

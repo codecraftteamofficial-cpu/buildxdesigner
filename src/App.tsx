@@ -41,6 +41,7 @@ import { CollaborationServiceProvider } from "./services/useCollaboration";
 import { WebsiteCreation } from "./components/Guides/WebsiteCreation";
 import { PublishingBasics } from "./components/Guides/PublishingBasics";
 import { GettingStartedModal } from "./components/GettingStartedModal";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -281,6 +282,8 @@ function AppRoutes({ editor }: { editor: EditorController }) {
 
   useEffect(() => {
     if (authLoading) return;
+    if (location.pathname === "/reset-password") return;
+
     const userId = currentUser?.id;
     if (!userId) return;
     if (onboardingCheckUserIdRef.current === userId) {
@@ -290,7 +293,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     onboardingCheckUserIdRef.current = userId;
 
     void handleAuthenticatedSession({ user: { id: userId } });
-  }, [authLoading, currentUser?.id]);
+  }, [authLoading, currentUser?.id, location.pathname]);
 
   const routeMatch =
     matchPath("/editor/:projectId/*", location.pathname) ||
@@ -336,6 +339,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     }
 
     if (
+      location.pathname === "/reset-password" ||
       location.pathname.startsWith("/editor/") ||
       location.pathname.startsWith("/project-private")
     ) {
@@ -534,7 +538,10 @@ function AppRoutes({ editor }: { editor: EditorController }) {
           </>
         }
       />
+
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
       <Route
         path="/dashboard"
         element={
@@ -737,8 +744,6 @@ function AppRoutes({ editor }: { editor: EditorController }) {
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
-
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     </Routes>
   );
 }

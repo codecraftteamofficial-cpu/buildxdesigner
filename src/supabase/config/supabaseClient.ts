@@ -29,7 +29,12 @@ const finalKey =
   SUPABASE_ANON_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kc3dmcnFtcWJ5YmZraHBlbXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2Nzc3ODYsImV4cCI6MjA3NDI1Mzc4Nn0.2iHmgFmD7LxXaXcPO2iOHsimgVt2uCVBFHkKCUTVA-E";
 
-export const supabase = createClient(finalUrl, finalKey);
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    detectSessionInUrl: true,
+    persistSession: true,
+  },
+});
 
 export type SupabaseAuthResponse = AuthResponse;
 export type SupabaseProvider = Provider;
