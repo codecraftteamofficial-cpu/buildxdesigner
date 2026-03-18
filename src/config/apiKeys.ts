@@ -11,7 +11,18 @@ export function getGeminiKey(): string {
                  import.meta.env.GEMINI_25_FLASH ||
                  import.meta.env.GEMINI_API_KEY
   const storedKey = localStorage.getItem("gemini_api_key")
-  return storedKey || envKey || ""
+  const finalKey = (storedKey || envKey || "").trim()
+  
+  // Diagnostic log for debugging - remove in production
+  if (!finalKey) {
+    console.group('🔍 AI Key Diagnostic');
+    console.log('VITE_GEMINI_2_5_FLASH exists:', !!import.meta.env.VITE_GEMINI_2_5_FLASH);
+    console.log('VITE_GEMINI_API_KEY exists:', !!import.meta.env.VITE_GEMINI_API_KEY);
+    console.log('localStorage gemini_api_key exists:', !!storedKey);
+    console.groupEnd();
+  }
+  
+  return finalKey
 }
 
 export function getOpenAIKey(): string {
@@ -26,7 +37,7 @@ export function getOpenRouterKey(): string {
   const envKey = import.meta.env.VITE_OPENROUTER_API_KEY || 
                  import.meta.env.VITE_OPENROUTER_KEY
   const storedKey = localStorage.getItem("openrouter_api_key")
-  return storedKey || envKey || ""
+  return (storedKey || envKey || "").trim()
 }
 
 export function setGeminiKey(key: string): void {
