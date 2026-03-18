@@ -1214,9 +1214,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
         </div>
       </footer>
 
-      <div className="fixed bottom-5 right-5 z-50 w-[calc(100%-2.5rem)] max-w-sm">
+        <div className="fixed bottom-4 right-4 z-[60] w-[calc(100vw-2rem)] max-w-sm sm:bottom-6 sm:right-6 sm:w-full lg:right-8">
         {showReviewPrompt ? (
-          <Card className="border-2 border-blue-200 bg-white/95 shadow-2xl backdrop-blur-md">
+           <Card className="w-full border-2 border-blue-200 bg-white/95 shadow-2xl backdrop-blur-md">
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1293,7 +1293,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
             </CardContent>
           </Card>
         ) : (
-          <div className="flex justify-end">
+        <div className="pointer-events-auto flex justify-end">
             <Button
               type="button"
               onClick={() => setShowReviewPrompt(true)}
