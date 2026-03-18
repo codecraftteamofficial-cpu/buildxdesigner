@@ -680,6 +680,7 @@ export function CodeViewEditor({
                 {/* Export button — opens the full CodeExportModal */}
                 <Button
                   size="sm" variant="outline"
+                  data-tour="export-project"
                   onClick={() => setShowExportModal(true)}
                   className="h-7 text-xs border-[#333] text-muted-foreground hover:text-white gap-1.5"
                 >
@@ -687,6 +688,7 @@ export function CodeViewEditor({
                 </Button>
                 <Button
                   size="sm" variant="outline"
+                  data-tour="download-project"
                   onClick={handleDownloadZip}
                   className="h-7 text-xs border-[#333] text-muted-foreground hover:text-white"
                 >

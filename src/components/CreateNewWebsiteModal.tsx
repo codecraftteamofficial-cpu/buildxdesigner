@@ -620,6 +620,7 @@ export function CreateNewWebsiteModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
+        data-tour="template-details-dialog"
         className="max-h-[95vh] p-0 overflow-auto"
         style={{ width: "min(1000px, 98vw)", maxWidth: "98vw" }}
       >

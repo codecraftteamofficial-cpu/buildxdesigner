@@ -91,6 +91,24 @@ export function PublishingBasics({
           "Connect Supabase so you can read and write data (like users, content, or orders) from your site.",
         side: "top" as const,
         align: "end" as const,
+        onHighlightStarted: () => {
+          // The Integration Settings panel can be scrollable; ensure the Supabase section is visible.
+          const scrollToSupabase = () => {
+            const el = document.querySelector(
+              '[data-tour="supabase-connection"]',
+            ) as HTMLElement | null;
+            if (!el) return false;
+
+            el.scrollIntoView({ block: "center", inline: "nearest" });
+            return true;
+          };
+
+          // Try immediately, then retry shortly to account for modal/tab animations.
+          if (!scrollToSupabase()) {
+            setTimeout(() => scrollToSupabase(), 150);
+            setTimeout(() => scrollToSupabase(), 400);
+          }
+        },
       },
       {
         title: "You're Ready to Publish",

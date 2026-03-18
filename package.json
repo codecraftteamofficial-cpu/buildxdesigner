@@ -60,6 +60,7 @@
     "less": "latest",
     "lightningcss": "latest",
     "lucide-react": "^0.454.0",
+    "monaco-editor": "^0.55.1",
     "motion": "latest",
     "npm": "^11.6.2",
     "react": "^18.3.1",

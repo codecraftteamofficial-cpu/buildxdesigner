@@ -74,10 +74,18 @@ export function WebsiteCreation({
         },
       },
       {
-        element: '[data-tour="edit-code"]',
-        title: "Edit Code",
+        element:'[data-tour="export-project"]',
+        title: "Export Project",
         description:
-          "In the Code Viewer, click Edit to make changes and sync them back to the canvas.",
+          "Export or download your project so you can keep a local copy or deploy elsewhere.",
+        side: "bottom" as const,
+        align: "end" as const,
+      },
+      {
+        element: '[data-tour="download-project"]',
+        title: "Download Project",
+        description:
+          "Download your project so you can keep a local copy or deploy elsewhere.",
         side: "bottom" as const,
         align: "end" as const,
       },
@@ -102,14 +110,6 @@ export function WebsiteCreation({
         title: "Preview",
         description:
           "Preview your website to see how it looks and behaves.",
-        side: "bottom" as const,
-        align: "end" as const,
-      },
-      {
-        element: '[data-tour="download-project"]',
-        title: "Download Project",
-        description:
-          "Export or download your project so you can keep a local copy or deploy elsewhere.",
         side: "bottom" as const,
         align: "end" as const,
       },
