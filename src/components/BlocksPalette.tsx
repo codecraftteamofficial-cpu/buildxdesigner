@@ -30,7 +30,8 @@ import {
   Columns,
   AlertTriangle,
   Maximize2,
-  CreditCard
+  CreditCard,
+  FormInput
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
@@ -372,6 +373,54 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             ]
           },
             style: {}
+          }
+        },
+        {
+          id: 'dynamic-form',
+          name: 'Dynamic Form',
+          description: 'Form with dynamic fields and Supabase CRUD support',
+          icon: <FormInput className="w-4 h-4" />,
+          component: {
+            id: '',
+            type: 'dynamic-form',
+            props: {
+              title: 'Dynamic Form',
+              submitButtonText: 'Submit',
+              supabaseTable: '',
+              supabaseOperation: 'insert',
+              fields: [
+                { 
+                  id: 'field-1', 
+                  label: 'Full Name', 
+                  placeholder: 'Enter your full name', 
+                  type: 'text', 
+                  required: true,
+                  fieldName: 'full_name'
+                },
+                { 
+                  id: 'field-2', 
+                  label: 'Email Address', 
+                  placeholder: 'Enter your email', 
+                  type: 'email', 
+                  required: true,
+                  fieldName: 'email_address'
+                }
+              ],
+              submitButtonActions: [
+                {
+                  id: 'submit-action-1',
+                  type: 'onClick',
+                  handlerType: 'supabase',
+                  handler: '',
+                  supabaseOperation: 'insert',
+                  supabaseTable: '',
+                  supabaseData: {}
+                }
+              ]
+            },
+            style: {
+              width: '400px'
+            }
           }
         },
         {

@@ -10,7 +10,7 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { RangeSlider } from "./ui/range-slider"
-import { ChevronDown, Bot, X, Trash2 } from "lucide-react"
+import { ChevronDown, Bot, X, Trash2, Plus } from "lucide-react"
 import { AIAssistant } from "./AIAssistant"
 import { CanvasPropertiesPanel } from "./CanvasPropertiesPanel"
 
@@ -40,6 +40,10 @@ export function RightSidebar({
   userProjectConfig,
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState("content")
+
+  if (!propertiesPanelVisible && !aiAssistantVisible) {
+    return null
+  }
 
   const updateProps = (key: string, value: any) => {
     if (selectedComponent) {
@@ -87,14 +91,14 @@ export function RightSidebar({
                 id="content"
                 value={props.content || ""}
                 onChange={(e) => updateProps("content", e.target.value)}
-                placeholder="Heading text"
+                placeholder="Enter heading text"
               />
             </div>
             <div>
               <Label htmlFor="level">Level</Label>
               <Select
-                value={props.level?.toString() || "1"}
-                onValueChange={(value: string) => updateProps("level", Number.parseInt(value))}
+                value={String(props.level || 1)}
+                onValueChange={(value) => updateProps("level", parseInt(value))}
               >
                 <SelectTrigger id="level">
                   <SelectValue />
@@ -121,21 +125,8 @@ export function RightSidebar({
                 id="text"
                 value={props.text || ""}
                 onChange={(e) => updateProps("text", e.target.value)}
-                placeholder="Click me"
+                placeholder="Click Me"
               />
-            </div>
-            <div>
-              <Label htmlFor="variant">Variant</Label>
-              <Select value={props.variant || "primary"} onValueChange={(value: string) => updateProps("variant", value)}>
-                <SelectTrigger id="variant">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="secondary">Secondary</SelectItem>
-                  <SelectItem value="outline">Outline</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         )
@@ -161,294 +152,38 @@ export function RightSidebar({
                 placeholder="Image description"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="image-width">Width (px)</Label>
-                <Input
-                  id="image-width"
-                  type="number"
-                  value={selectedComponent.style?.width?.replace("px", "") || "300"}
-                  onChange={(e) => updateStyle("width", `${e.target.value}px`)}
-                  placeholder="300"
-                  min="50"
-                />
-              </div>
-              <div>
-                <Label htmlFor="image-height">Height (px)</Label>
-                <Input
-                  id="image-height"
-                  type="number"
-                  value={selectedComponent.style?.height?.replace("px", "") || "200"}
-                  onChange={(e) => updateStyle("height", `${e.target.value}px`)}
-                  placeholder="200"
-                  min="50"
-                />
-              </div>
-            </div>
           </div>
         )
 
-      case "navbar":
-        const navLinks: string[] = Array.isArray(props.links) ? props.links : []
-        const navLinkUrls: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : []
-
-        const addNavLink = () => {
-          onUpdateComponent(selectedComponent.id, {
-            props: {
-              ...selectedComponent.props,
-              links: [...navLinks, "New Link"],
-              linkUrls: [...navLinkUrls, "#"],
-            },
-          })
-        }
-
-        const updateNavLink = (index: number, value: string) => {
-          const updated = [...navLinks]
-          updated[index] = value
-          updateProps("links", updated)
-        }
-
-        const updateNavLinkUrl = (index: number, url: string) => {
-          const updatedUrls = [...navLinkUrls]
-          while (updatedUrls.length <= index) {
-            updatedUrls.push("#")
-          }
-          updatedUrls[index] = url
-          updateProps("linkUrls", updatedUrls)
-        }
-
-        const removeNavLink = (index: number) => {
-          onUpdateComponent(selectedComponent.id, {
-            props: {
-              ...selectedComponent.props,
-              links: navLinks.filter((_, i) => i !== index),
-              linkUrls: navLinkUrls.filter((_, i) => i !== index),
-            },
-          })
-        }
-
-        const moveNavLink = (index: number, direction: "up" | "down") => {
-          const updatedLinks = [...navLinks]
-          const updatedUrls = [...navLinkUrls]
-          const target = direction === "up" ? index - 1 : index + 1
-          if (target < 0 || target >= updatedLinks.length) return
-          
-          while (updatedUrls.length <= Math.max(index, target)) {
-             updatedUrls.push("#")
-          }
-
-          ;[updatedLinks[index], updatedLinks[target]] = [updatedLinks[target], updatedLinks[index]]
-          ;[updatedUrls[index], updatedUrls[target]] = [updatedUrls[target], updatedUrls[index]]
-          
-          onUpdateComponent(selectedComponent.id, {
-             props: {
-               ...selectedComponent.props,
-               links: updatedLinks,
-               linkUrls: updatedUrls,
-             }
-          })
-        }
-
+      case "input":
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="brand" className="text-xs">Brand Name</Label>
+              <Label htmlFor="placeholder">Placeholder</Label>
               <Input
-                id="brand"
-                value={props.brand || ""}
-                onChange={(e) => updateProps("brand", e.target.value)}
-                placeholder="Brand"
-                className="h-8 text-xs mt-1"
-              />
-            </div>
-            
-            <div className="pt-2 border-t border-border">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-medium">Navigation Links</Label>
-                <Button variant="ghost" size="sm" onClick={addNavLink} className="h-6 text-xs px-2">
-                  <span className="text-lg leading-none mr-1">+</span> Add Link
-                </Button>
-              </div>
-
-              {navLinks.length === 0 ? (
-                <div className="text-center py-3 border border-dashed rounded-md">
-                  <p className="text-xs text-muted-foreground">No links yet</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {navLinks.map((link, idx) => {
-                    const currentUrl = navLinkUrls[idx] || "#"
-                    return (
-                      <div key={idx} className="flex gap-2 group p-2 border border-border rounded bg-muted/20">
-                        {/* Reorder buttons */}
-                        <div className="flex flex-col gap-1 items-center justify-center -ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => moveNavLink(idx, "up")}
-                            disabled={idx === 0}
-                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
-                          >
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-                              <path d="M4 1L7 6H1L4 1Z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => moveNavLink(idx, "down")}
-                            disabled={idx === navLinks.length - 1}
-                            className="h-4 w-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 bg-background border"
-                          >
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-                              <path d="M4 7L1 2H7L4 7Z" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div className="flex-1 space-y-2">
-                          {/* Link label input */}
-                          <div className="flex items-center gap-2">
-                            <Label className="text-[10px] w-10 shrink-0">Label</Label>
-                            <Input
-                              value={link}
-                              onChange={(e) => updateNavLink(idx, e.target.value)}
-                              placeholder={`Link ${idx + 1}`}
-                              className="h-7 text-xs flex-1"
-                            />
-                            {/* Remove button */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => removeNavLink(idx)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          
-                          {/* Link target selection */}
-                          <div className="flex items-center gap-2">
-                            <Label className="text-[10px] w-10 shrink-0">Link To</Label>
-                            <div className="flex-1 flex flex-col gap-1">
-                              <Select
-                                value={currentUrl === "#" ? "none" : currentUrl}
-                                onValueChange={(val: string) => {
-                                  if (val === "none") {
-                                    updateNavLinkUrl(idx, "#")
-                                  } else {
-                                    updateNavLinkUrl(idx, val)
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="h-7 text-xs w-full">
-                                  <SelectValue placeholder="Select target..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">None (#)</SelectItem>
-                                  {pages && pages.length > 0 && (
-                                    <>
-                                      <SelectItem value="separator" disabled>--- Pages ---</SelectItem>
-                                      {pages.map((p: any) => (
-                                        <SelectItem key={p.id} value={p.path || "/"}>
-                                          {p.name}
-                                        </SelectItem>
-                                      ))}
-                                    </>
-                                  )}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-
-      case "hero":
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="hero-title">Title</Label>
-              <Input
-                id="hero-title"
-                value={props.title || ""}
-                onChange={(e) => updateProps("title", e.target.value)}
-                placeholder="Welcome"
+                id="placeholder"
+                value={props.placeholder || ""}
+                onChange={(e) => updateProps("placeholder", e.target.value)}
+                placeholder="Enter placeholder text"
               />
             </div>
             <div>
-              <Label htmlFor="hero-subtitle">Subtitle</Label>
-              <Textarea
-                id="hero-subtitle"
-                value={props.subtitle || ""}
-                onChange={(e) => updateProps("subtitle", e.target.value)}
-                placeholder="Build amazing websites"
-              />
-            </div>
-          </div>
-        )
-
-      case "footer":
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="copyright">Copyright Text</Label>
-              <Input
-                id="copyright"
-                value={props.copyright || ""}
-                onChange={(e) => updateProps("copyright", e.target.value)}
-                placeholder="© 2024 Your Company"
-              />
-            </div>
-          </div>
-        )
-
-      case "card":
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="card-title">Title</Label>
-              <Input
-                id="card-title"
-                value={props.title || ""}
-                onChange={(e) => updateProps("title", e.target.value)}
-                placeholder="Card Title"
-              />
-            </div>
-            <div>
-              <Label htmlFor="card-content">Content</Label>
-              <Textarea
-                id="card-content"
-                value={props.content || ""}
-                onChange={(e) => updateProps("content", e.target.value)}
-                placeholder="Card content"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="card-width">Width (px)</Label>
-                <Input
-                  id="card-width"
-                  type="number"
-                  value={selectedComponent.style?.width?.replace("px", "") || "300"}
-                  onChange={(e) => updateStyle("width", `${e.target.value}px`)}
-                  placeholder="300"
-                  min="200"
-                />
-              </div>
-              <div>
-                <Label htmlFor="card-height">Height (px)</Label>
-                <Input
-                  id="card-height"
-                  type="number"
-                  value={selectedComponent.style?.height?.replace("px", "") || "200"}
-                  onChange={(e) => updateStyle("height", `${e.target.value}px`)}
-                  placeholder="200"
-                  min="100"
-                />
-              </div>
+              <Label htmlFor="input-type">Input Type</Label>
+              <Select
+                value={props.type || "text"}
+                onValueChange={(value) => updateProps("type", value)}
+              >
+                <SelectTrigger id="input-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="password">Password</SelectItem>
+                  <SelectItem value="number">Number</SelectItem>
+                  <SelectItem value="tel">Telephone</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )
@@ -483,44 +218,261 @@ export function RightSidebar({
           </div>
         )
 
-      case "form":
+      case "dynamic-form": {
+        const fields = props.fields || []
+        const submitActions = props.submitButtonActions || []
+        const supabaseAction = submitActions.find((a: any) => a.handlerType === 'supabase') || {}
+
+        const addField = () => {
+          const newField = {
+            id: `field-${Date.now()}`,
+            label: 'New Field',
+            placeholder: 'Enter value...',
+            type: 'text',
+            required: false,
+            fieldName: `field_${fields.length + 1}`,
+            mappedColumn: ''
+          }
+          updateProps('fields', [...fields, newField])
+        }
+
+        const removeField = (index: number) => {
+          const newFields = fields.filter((_: any, i: number) => i !== index)
+          updateProps('fields', newFields)
+        }
+
+        const updateField = (index: number, key: string, value: any) => {
+          const newFields = fields.map((f: any, i: number) =>
+            i === index ? { ...f, [key]: value } : f
+          )
+          updateProps('fields', newFields)
+        }
+
+        const updateSupabaseAction = (key: string, value: any) => {
+          const actionIndex = submitActions.findIndex((a: any) => a.handlerType === 'supabase')
+          let newActions = [...submitActions]
+          
+          if (actionIndex === -1) {
+            newActions.push({
+              id: `action-${Date.now()}`,
+              type: 'onClick',
+              handlerType: 'supabase',
+              handler: '',
+              supabaseOperation: 'insert',
+              supabaseTable: '',
+              supabaseData: {}
+            })
+          }
+          
+          const actionIdx = actionIndex === -1 ? newActions.length - 1 : actionIndex
+          newActions[actionIdx] = { ...newActions[actionIdx], [key]: value }
+          updateProps('submitButtonActions', newActions)
+        }
+
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="form-title">Form Title</Label>
+              <Label htmlFor="dynamic-form-title">Form Title</Label>
               <Input
-                id="form-title"
+                id="dynamic-form-title"
                 value={props.title || ""}
                 onChange={(e) => updateProps("title", e.target.value)}
-                placeholder="Contact Form"
+                placeholder="Dynamic Form"
               />
             </div>
+
+            <div>
+              <Label htmlFor="submit-button-text">Submit Button Text</Label>
+              <Input
+                id="submit-button-text"
+                value={props.submitButtonText || "Submit"}
+                onChange={(e) => updateProps("submitButtonText", e.target.value)}
+                placeholder="Submit"
+              />
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                Supabase Configuration
+              </h4>
+              
+              <div>
+                <Label htmlFor="supabase-table">Table Name</Label>
+                <Input
+                  id="supabase-table"
+                  value={props.supabaseTable || supabaseAction.supabaseTable || ""}
+                  onChange={(e) => {
+                    updateProps("supabaseTable", e.target.value)
+                    updateSupabaseAction("supabaseTable", e.target.value)
+                  }}
+                  placeholder="users, orders, etc."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="supabase-operation">CRUD Operation</Label>
+                <Select
+                  value={props.supabaseOperation || supabaseAction.supabaseOperation || "insert"}
+                  onValueChange={(value) => {
+                    updateProps("supabaseOperation", value)
+                    updateSupabaseAction("supabaseOperation", value)
+                  }}
+                >
+                  <SelectTrigger id="supabase-operation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="insert">Insert (Create)</SelectItem>
+                    <SelectItem value="select">Select (Read)</SelectItem>
+                    <SelectItem value="update">Update</SelectItem>
+                    <SelectItem value="delete">Delete</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm">Form Fields ({fields.length})</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addField}
+                  className="h-7 px-2"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Field
+                </Button>
+              </div>
+
+              {fields.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No fields yet. Click "Add Field" to start.
+                </p>
+              )}
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {fields.map((field: any, index: number) => (
+                  <div key={field.id} className="border rounded p-2 space-y-2 bg-background">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">Field {index + 1}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeField(index)}
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Label</Label>
+                        <Input
+                          value={field.label || ""}
+                          onChange={(e) => updateField(index, "label", e.target.value)}
+                          placeholder="Field Label"
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Type</Label>
+                        <Select
+                          value={field.type || "text"}
+                          onValueChange={(value) => updateField(index, "type", value)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="password">Password</SelectItem>
+                            <SelectItem value="number">Number</SelectItem>
+                            <SelectItem value="textarea">Textarea</SelectItem>
+                            <SelectItem value="select">Select</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px]">Placeholder</Label>
+                      <Input
+                        value={field.placeholder || ""}
+                        onChange={(e) => updateField(index, "placeholder", e.target.value)}
+                        placeholder="Enter placeholder..."
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Field Name (ID)</Label>
+                        <Input
+                          value={field.fieldName || ""}
+                          onChange={(e) => updateField(index, "fieldName", e.target.value)}
+                          placeholder="field_name"
+                          className="h-7 text-xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">DB Column</Label>
+                        <Input
+                          value={field.mappedColumn || ""}
+                          onChange={(e) => updateField(index, "mappedColumn", e.target.value)}
+                          placeholder="column_name"
+                          className="h-7 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id={`required-${index}`}
+                        checked={field.required || false}
+                        onChange={(e) => updateField(index, "required", e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      <Label htmlFor={`required-${index}`} className="text-[10px] cursor-pointer">
+                        Required field
+                      </Label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label htmlFor="form-width">Width (px)</Label>
+                <Label htmlFor="dynamic-form-width">Width (px)</Label>
                 <Input
-                  id="form-width"
+                  id="dynamic-form-width"
                   type="number"
-                  value={selectedComponent.style?.width?.replace("px", "") || "400"}
+                  value={selectedComponent?.style?.width?.replace("px", "") || "400"}
                   onChange={(e) => updateStyle("width", `${e.target.value}px`)}
                   placeholder="400"
                   min="200"
                 />
               </div>
               <div>
-                <Label htmlFor="form-height">Height (px)</Label>
+                <Label htmlFor="dynamic-form-height">Height (px)</Label>
                 <Input
-                  id="form-height"
+                  id="dynamic-form-height"
                   type="number"
-                  value={selectedComponent.style?.height?.replace("px", "") || "300"}
+                  value={selectedComponent?.style?.height?.replace("px", "") || "350"}
                   onChange={(e) => updateStyle("height", `${e.target.value}px`)}
-                  placeholder="300"
+                  placeholder="350"
                   min="200"
                 />
               </div>
             </div>
           </div>
         )
+      }
 
       default:
         return (
@@ -529,10 +481,6 @@ export function RightSidebar({
           </div>
         )
     }
-  }
-
-  if (!propertiesPanelVisible && !aiAssistantVisible) {
-    return null
   }
 
   return (
@@ -711,7 +659,7 @@ export function RightSidebar({
       )}
 
       {!aiAssistantVisible && onToggleAIAssistant && (
-        <div className="border-b flex-shrink-0 p-2 bg-muted/30">
+        <div className="border-b shrink-0 p-2 bg-muted/30">
           <Button
             variant="ghost"
             size="sm"

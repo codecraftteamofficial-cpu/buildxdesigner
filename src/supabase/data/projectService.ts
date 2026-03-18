@@ -39,7 +39,7 @@ export function setLocalProjectCache(
   try {
     const key = `project_cache:${projectId}`;
     localStorage.setItem(key, JSON.stringify(data));
-  } catch {}
+  } catch { }
 }
 
 export async function fetchProjectById(
@@ -165,6 +165,7 @@ export async function saveProject(
         site_logo_url: project.siteLogoUrl,
         file_overrides: project.file_overrides ?? null,
         custom_files: project.custom_files ?? null,
+        is_override: (project.file_overrides && Object.keys(project.file_overrides).length > 0) ? true : false,
         last_modified: new Date().toISOString(),
       };
 
@@ -185,10 +186,10 @@ export async function saveProject(
       // CREATE: user_id is required only here
       const insertPayload: any = {
         project_name: project.name,
+        user_id: project.user_id,
         description: project.description,
         category: project.category,
         thumbnail: project.thumbnail,
-        user_id: project.user_id,
         type: project.type,
         status: project.status ?? "draft",
         project_layout: project.project_layout,
@@ -197,6 +198,7 @@ export async function saveProject(
         site_logo_url: project.siteLogoUrl,
         file_overrides: project.file_overrides ?? null,
         custom_files: project.custom_files ?? null,
+        is_override: (project.file_overrides && Object.keys(project.file_overrides).length > 0) ? true : false,
         last_modified: new Date().toISOString(),
       };
 

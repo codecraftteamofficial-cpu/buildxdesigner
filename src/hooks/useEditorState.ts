@@ -108,6 +108,7 @@ export function useEditorState() {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string>("/index.html");
+  const [editorMode, setEditorMode] = useState<"canvas" | "code">("canvas"); // Track which editor mode is active
   const [showOnboarding, setShowOnboarding] = useState(false);
   const exportSnapshotRef = useRef<ComponentData[]>([]);
 
@@ -151,6 +152,7 @@ export function useEditorState() {
     isSaving: false,
     hasUnsavedChanges: false,
     isFullscreen: false,
+    activeEditorMode: "canvas", // "canvas" or "code" - tracks which editor is active
     rightSidebarTab: "properties",
     projectName: getInitialProjectName(),
     canvasBackgroundColor: "#ffffff",
@@ -171,8 +173,8 @@ export function useEditorState() {
     projectTemplatePublished: undefined as boolean | undefined,
     exportSnapshot: [],
     customComponents: [],
-    fileOverrides: {},
-    customFiles: {},
+    fileOverrides: {} as Record<string, string>,
+    customFiles: {} as Record<string, string>,
   });
 
   const {
@@ -814,6 +816,62 @@ useEffect(() => {
     };
   }, [state.currentProjectId, state.currentView, setState]);
 
+  // ==================== PROJECT DATA LOADING ====================
+
+  useEffect(() => {
+    if (!state.currentProjectId) return;
+    if (state.currentView !== "editor") return;
+
+    const loadProjectData = async () => {
+      try {
+        const { data: project, error } = await fetchProjectById(state.currentProjectId!);
+        
+        if (error) {
+          console.error("Failed to load project data:", error);
+          return;
+        }
+
+        if (!project) {
+          console.error("Project not found:", state.currentProjectId);
+          return;
+        }
+
+        // Update state with loaded project data
+        setState((prev) => {
+          // Don't overwrite fileOverrides and customFiles if there are unsaved changes
+          const shouldPreserveFileData = prev.hasUnsavedChanges || 
+            Object.keys(prev.fileOverrides || {}).length > 0 || 
+            Object.keys(prev.customFiles || {}).length > 0;
+
+          console.log("Project data loading:", {
+            hasUnsavedChanges: prev.hasUnsavedChanges,
+            currentFileOverridesCount: Object.keys(prev.fileOverrides || {}).length,
+            currentCustomFilesCount: Object.keys(prev.customFiles || {}).length,
+            willPreserveFileData: shouldPreserveFileData
+          });
+
+          return {
+            ...prev,
+            projectName: project.name || "Untitled Project",
+            projectDescription: project.description || "",
+            projectCategory: project.category || "Starter",
+            projectThumbnail: project.thumbnail || "",
+            pages: project.pages || [{ id: "home", name: "Home", path: "/" }],
+            siteTitle: project.siteTitle || "",
+            siteLogoUrl: project.siteLogoUrl || "",
+            // Only overwrite file data if there are no unsaved changes
+            fileOverrides: shouldPreserveFileData ? prev.fileOverrides || {} : project.file_overrides || {},
+            customFiles: shouldPreserveFileData ? prev.customFiles || {} : project.custom_files || {},
+          };
+        });
+      } catch (error) {
+        console.error("Error loading project data:", error);
+      }
+    };
+
+    loadProjectData();
+  }, [state.currentProjectId, state.currentView]);
+
   // ==================== THEME ====================
 
   useEffect(() => {
@@ -999,11 +1057,11 @@ useEffect(() => {
   };
 
 const updateUserProjectConfig = (
-  url: string,
-  key: string,
-  resendKey?: string,
-  paymongoKey?: string,
-) => {
+    url: string,
+    key: string,
+    resendKey?: string,
+    paymongoKey?: string,
+  ) => {
   const config = {
     supabaseUrl: url,
     supabaseKey: key,
@@ -1117,7 +1175,14 @@ const updateUserProjectConfig = (
   };
 
   const handleViewModeChange = (viewMode: "design" | "code") => {
-    setState((prev) => ({ ...prev, viewMode }));
+    console.log("View mode changing to:", viewMode);
+    // Set active editor mode based on view mode
+    const activeMode = viewMode === "code" ? "code" : "canvas";
+    setState((prev) => ({ 
+      ...prev, 
+      viewMode,
+      activeEditorMode: activeMode
+    }));
   };
 
   const setCanvasZoom = (zoom: number) => {
@@ -1137,6 +1202,13 @@ const updateUserProjectConfig = (
     setState((prev) => ({ ...prev, showCanvasGrid: show }));
   };
 
+  // ==================== EDITOR MODE CONTROL ====================
+
+  const setActiveEditorMode = (mode: "canvas" | "code") => {
+    console.log("Switching editor mode to:", mode);
+    setState((prev) => ({ ...prev, activeEditorMode: mode }));
+  };
+
   // ==================== SAVE ====================
 
   const handleManualSave = async () => {
@@ -1150,11 +1222,27 @@ const updateUserProjectConfig = (
       } = await getSupabaseSession();
       const user_id = session?.user?.id;
 
+      console.log("Manual save - active editor mode:", state.activeEditorMode);
+      console.log("Saving file overrides:", Object.keys(state.fileOverrides || {}));
+      console.log("File override content:", state.fileOverrides);
+
       if (user_id) {
         // Get current components from Yjs
         const { yComponents } = getOrInitDoc();
         const currentComponents = yComponents.toArray();
 
+        // Only save file overrides if we're in code mode
+        const shouldSaveFileOverrides = state.activeEditorMode === "code";
+        const hasFileOverrides = state.fileOverrides && Object.keys(state.fileOverrides).length > 0;
+        
+        console.log("Save details:", {
+          activeEditorMode: state.activeEditorMode,
+          shouldSaveFileOverrides,
+          hasFileOverrides,
+          fileOverridesCount: state.fileOverrides ? Object.keys(state.fileOverrides).length : 0,
+          is_override: shouldSaveFileOverrides && hasFileOverrides ? true : false
+        });
+        
         const { error: saveError } = await saveProject({
           id: state.currentProjectId,
           name: state.projectName || "Untitled Project",
@@ -1162,9 +1250,11 @@ const updateUserProjectConfig = (
           pages: state.pages,
           siteTitle: state.siteTitle,
           siteLogoUrl: state.siteLogoUrl,
-          file_overrides: state.fileOverrides,
-          custom_files: state.customFiles,
+          file_overrides: shouldSaveFileOverrides ? state.fileOverrides : {},
+          custom_files: shouldSaveFileOverrides ? state.customFiles : {},
         });
+
+        console.log("Save result - saved file overrides:", shouldSaveFileOverrides, saveError);
 
         if (!saveError) {
           await syncProjectComponents(
@@ -1179,6 +1269,8 @@ const updateUserProjectConfig = (
           hasUnsavedChanges: false,
           lastSaved: new Date(),
         }));
+
+        console.log("Project saved successfully - resetting unsaved changes flag");
       } else {
         setState((prev) => ({ ...prev, isSaving: false }));
       }
@@ -1894,6 +1986,7 @@ const updateUserProjectConfig = (
     toggleAIAssistant,
     toggleFullscreen,
     toggleCanvasGrid,
+    setActiveEditorMode,
 
     // Navigation
     enterDashboard,

@@ -368,6 +368,7 @@ export function EditorLayout({
                         }
                         fileOverrides={state.fileOverrides || {}}
                         onFileOverrideUpdate={(path, content) => {
+                          console.log("File override update:", path, content.substring(0, 100));
                           setState((prev) => ({
                             ...prev,
                             fileOverrides: { ...(prev.fileOverrides || {}), [path]: content },

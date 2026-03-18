@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Eye, Code, Save, Copy, Loader2, Sparkles } from 'lucide-react';
+import { Eye, Code, Save, Copy, Loader2, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { MonacoGenAi } from './MonacoGenAi';
 import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
@@ -221,6 +221,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
+  const [zoomLevel, setZoomLevel] = useState(100);
   
   // Debounced preview state
   const [debouncedPreviewContent, setDebouncedPreviewContent] = useState('');
@@ -248,6 +249,73 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       setChatHistory([]);
     }
   }, [isOpen, initialData]);
+
+  // Trigger preview update function
+  const triggerPreviewUpdate = () => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    setIsPreviewUpdating(true);
+    debounceTimeoutRef.current = setTimeout(() => {
+      const content = `
+        <html>
+          <head>
+            <style>
+              body { 
+                margin: 0; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                min-height: 100vh;
+                background: transparent;
+              }
+              ${cssCode}
+            </style>
+          </head>
+          <body>
+            <div id="component-root" style="width: 100%; display: flex; justify-content: center;">
+              ${htmlCode}
+            </div>
+            <script>
+              (function(element) {
+                try {
+                  // Enhanced DOM querying functions for Monaco sandbox
+                  const $ = (selector) => {
+                    // First try within component root
+                    let found = element.querySelector(selector);
+                    // If not found, try globally within iframe
+                    if (!found) found = document.querySelector(selector);
+                    return found;
+                  };
+                  
+                  const $$ = (selector) => {
+                    // First try within component root
+                    let found = element.querySelectorAll(selector);
+                    // If none found, try globally within iframe
+                    if (found.length === 0) found = document.querySelectorAll(selector);
+                    return found;
+                  };
+                  
+                  // Make these functions available to user's JS
+                  const querySelector = $;
+                  const querySelectorAll = $$;
+                  
+                  console.log('Monaco sandbox: Enhanced DOM functions loaded');
+                  
+                  ${jsCode}
+                } catch (err) {
+                  console.error('Error in custom component preview:', err);
+                }
+              })(document.getElementById('component-root'));
+            </script>
+          </body>
+        </html>
+      `;
+      setDebouncedPreviewContent(content);
+      setIsPreviewUpdating(false);
+    }, 500);
+  };
 
   // Debounced preview effect
   useEffect(() => {
@@ -433,40 +501,39 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[90vw] w-[90vw] h-[85vh] sm:max-w-[90vw] flex flex-col p-0 overflow-hidden bg-background border border-border shadow-2xl rounded-xl">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[85vh] sm:max-w-[95vw] flex flex-col p-0 overflow-hidden bg-background border border-border shadow-2xl rounded-xl">
         <DialogHeader className="p-4 border-b shrink-0 bg-muted/30">
-          <div className="flex flex-col gap-1">
+          <div className="space-y-3">
             <DialogTitle className="text-xl font-bold">{initialData ? 'Edit Custom Component' : 'Create Custom Component'}</DialogTitle>
-            <DialogDescription className="text-xs">Design your own component.</DialogDescription>
+            <DialogDescription className="text-xs">Design your own component with AI assistance.</DialogDescription>
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="name" className="text-[10px] font-bold uppercase text-muted-foreground ml-1 font-mono">Component Name</Label>
+                <Input 
+                  id="name" 
+                  placeholder="e.g. Hero Section" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-8 text-sm bg-background border-muted-foreground/20 focus:border-primary transition-all"
+                />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="description" className="text-[10px] font-bold uppercase text-muted-foreground ml-1 font-mono">Description (Optional)</Label>
+                <Input 
+                  id="description" 
+                  placeholder="What does this component do?" 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-8 text-sm bg-background border-muted-foreground/20 focus:border-primary transition-all"
+                />
+              </div>
+            </div>
           </div>
         </DialogHeader>
 
         <div className="flex-1 grid grid-cols-2 overflow-hidden">
           {/* Left Side: Editor */}
           <div className="flex flex-col border-r bg-background overflow-hidden">
-              <div className="p-4 border-b bg-muted/10 flex gap-4 shrink-0">
-                <div className="flex-1 space-y-1.5">
-                  <Label htmlFor="name" className="text-[10px] font-bold uppercase text-muted-foreground ml-1 font-mono">Component Name</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="e.g. Hero Section" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-8 text-sm bg-background border-muted-foreground/20 focus:border-primary transition-all"
-                  />
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  <Label htmlFor="description" className="text-[10px] font-bold uppercase text-muted-foreground ml-1 font-mono">Description (Optional)</Label>
-                  <Input 
-                    id="description" 
-                    placeholder="What does this component do?" 
-                    value={description} 
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="h-8 text-sm bg-background border-muted-foreground/20 focus:border-primary transition-all"
-                  />
-                </div>
-              </div>
-
               <div className="flex-1 flex flex-col min-h-0">
                 <Tabs defaultValue="html" className="flex-1 flex flex-col min-h-0">
                   <div className="px-4 border-b shrink-0 bg-muted/5">
@@ -505,7 +572,10 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         defaultLanguage="html"
                         theme="vs-dark"
                         value={htmlCode}
-                        onChange={(value) => setHtmlCode(value || '')}
+                        onChange={(value) => {
+                        setHtmlCode(value || '');
+                        triggerPreviewUpdate();
+                      }}
                         options={{
                           minimap: { enabled: false },
                           fontSize: 14,
@@ -526,7 +596,10 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         defaultLanguage="css"
                         theme="vs-dark"
                         value={cssCode}
-                        onChange={(value) => setCssCode(value || '')}
+                        onChange={(value) => {
+                        setCssCode(value || '');
+                        triggerPreviewUpdate();
+                      }}
                         options={{
                           minimap: { enabled: false },
                           fontSize: 14,
@@ -547,7 +620,10 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         defaultLanguage="javascript"
                         theme="vs-dark"
                         value={jsCode}
-                        onChange={(value) => setJsCode(value || '')}
+                        onChange={(value) => {
+                        setJsCode(value || '');
+                        triggerPreviewUpdate();
+                      }}
                         options={{
                           minimap: { enabled: false },
                           fontSize: 14,
@@ -568,7 +644,10 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         defaultLanguage="php"
                         theme="vs-dark"
                         value={phpCode}
-                        onChange={(value) => setPhpCode(value || '')}
+                        onChange={(value) => {
+                        setPhpCode(value || '');
+                        triggerPreviewUpdate();
+                      }}
                         options={{
                           minimap: { enabled: false },
                           fontSize: 14,
@@ -659,12 +738,34 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                   </div>
                 )}
               </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setZoomLevel(prev => Math.max(25, prev - 25))}
+                  className="text-xs h-6 px-2"
+                  disabled={zoomLevel <= 25}
+                >
+                  <ZoomOut className="w-3 h-3" />
+                </Button>
+                <span className="text-xs text-muted-foreground min-w-12 text-center">{zoomLevel}%</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setZoomLevel(prev => Math.min(200, prev + 25))}
+                  className="text-xs h-6 px-2"
+                  disabled={zoomLevel >= 200}
+                >
+                  <ZoomIn className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
             <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden relative">
               <iframe
                 title="component-preview"
                 srcDoc={debouncedPreviewContent}
                 className={`w-full h-full border-none flex-1 ${isGenerating ? 'pointer-events-none opacity-50' : ''}`}
+                style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'center' }}
                 sandbox="allow-scripts allow-modals allow-popups allow-forms allow-downloads allow-same-origin"
               />
               

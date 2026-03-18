@@ -68,6 +68,7 @@ export interface EditorState {
   isSaving: boolean;
   hasUnsavedChanges: boolean;
   isFullscreen: boolean;
+  activeEditorMode: "canvas" | "code";
   rightSidebarTab: "properties" | "ai-assistant";
   projectName: string;
   canvasBackgroundColor: string;

@@ -558,6 +558,8 @@ function useCollaborationLogic({
             pages: state.pages,
             siteTitle: state.siteTitle,
             siteLogoUrl: state.siteLogoUrl,
+            file_overrides: state.fileOverrides,
+            custom_files: state.customFiles,
           });
 
           if (saveError) {

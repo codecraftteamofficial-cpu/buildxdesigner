@@ -4,7 +4,7 @@ import { ComponentData } from '../App';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Trash2, Edit, Upload, EyeOff } from 'lucide-react';
 import { ResizeHandle } from './ResizeHandle';
@@ -264,6 +264,8 @@ export function RenderableComponent({
   const [checkboxChecked, setCheckboxChecked] = React.useState(props.checked || false);
   const [formState, setFormState] = React.useState<Record<string, string>>({});
   const [isSubmittingForm, setIsSubmittingForm] = React.useState(false);
+  const [dynamicFormState, setDynamicFormState] = React.useState<Record<string, string>>({});
+  const [isDynamicFormSubmitting, setIsDynamicFormSubmitting] = React.useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   const isBasicElement = ['text', 'heading', 'button'].includes(type);
@@ -3241,61 +3243,66 @@ export function RenderableComponent({
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {props.fields && props.fields.length > 0 ? (
-                  props.fields.map((field: any) => (
-                    <div key={field.id} className="space-y-1.5 relative">
-                      {field.label && <Label className="text-xs">{field.label}</Label>}
-                      {field.type === 'textarea' ? (
-                        <Textarea
-                          placeholder={field.placeholder}
-                          value={formState[field.label || field.id] || ''}
-                          onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          required={field.required}
-                        />
-                      ) : (
+              <CardContent className="flex-1 overflow-y-auto min-h-0 py-4">
+                <div className="space-y-4">
+                  {props.fields && props.fields.length > 0 ? (
+                    props.fields.map((field: any) => (
+                      <div key={field.id} className="space-y-1.5 relative">
+                        {field.label && <Label className="text-xs">{field.label}</Label>}
+                        {field.type === 'textarea' ? (
+                          <Textarea
+                            placeholder={field.placeholder}
+                            value={formState[field.label || field.id] || ''}
+                            onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            required={field.required}
+                          />
+                        ) : (
+                          <Input
+                            type={field.type || 'text'}
+                            placeholder={field.placeholder}
+                            value={formState[field.label || field.id] || ''}
+                            onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            required={field.required}
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="relative">
                         <Input
-                          type={field.type || 'text'}
-                          placeholder={field.placeholder}
-                          value={formState[field.label || field.id] || ''}
-                          onChange={(e) => setFormState({ ...formState, [field.label || field.id]: e.target.value })}
+                          placeholder={props.namePlaceholder || "Name"}
+                          value={formState['Name'] || ''}
+                          onChange={(e) => setFormState({ ...formState, 'Name': e.target.value })}
                           onClick={(e) => e.stopPropagation()}
-                          required={field.required}
                         />
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="relative">
-                      <Input
-                        placeholder={props.namePlaceholder || "Name"}
-                        value={formState['Name'] || ''}
-                        onChange={(e) => setFormState({ ...formState, 'Name': e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className="relative">
-                      <Input
-                        type="email"
-                        placeholder={props.emailPlaceholder || "Email"}
-                        value={formState['Email'] || ''}
-                        onChange={(e) => setFormState({ ...formState, 'Email': e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                    <div className="relative">
-                      <Textarea
-                        placeholder={props.messagePlaceholder || "Message"}
-                        value={formState['Message'] || ''}
-                        onChange={(e) => setFormState({ ...formState, 'Message': e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </>
-                )}
+                      </div>
+                      <div className="relative">
+                        <Input
+                          type="email"
+                          placeholder={props.emailPlaceholder || "Email"}
+                          value={formState['Email'] || ''}
+                          onChange={(e) => setFormState({ ...formState, 'Email': e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="relative">
+                        <Textarea
+                          placeholder={props.messagePlaceholder || "Message"}
+                          value={formState['Message'] || ''}
+                          onChange={(e) => setFormState({ ...formState, 'Message': e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="pt-3 border-t shrink-0">
                 <Button
+                  className="w-full"
                   disabled={isSubmittingForm}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -3322,7 +3329,203 @@ export function RenderableComponent({
                     />
                   )}
                 </Button>
+              </CardFooter>
+            </Card>
+          </ResizeHandle>
+        );
+
+      case 'dynamic-form':
+        const dynamicFormWidth = parseSize(style?.width, 400);
+        const dynamicFormHeight = parseSize(style?.height, 350);
+        const dynamicFields = props.fields || [];
+        const submitActions = props.submitButtonActions || [];
+
+        // Build supabaseData mapping from fieldName to element ID
+        const buildSupabaseDataMapping = () => {
+          const mapping: Record<string, string> = {};
+          dynamicFields.forEach((field: any) => {
+            if (field.mappedColumn && field.fieldName) {
+              mapping[field.mappedColumn] = field.fieldName;
+            }
+          });
+          return mapping;
+        };
+
+        // Update submit actions with field mappings
+        const enhancedSubmitActions = submitActions.map((action: any) => {
+          if (action.handlerType === 'supabase') {
+            return {
+              ...action,
+              supabaseTable: action.supabaseTable || props.supabaseTable,
+              supabaseOperation: action.supabaseOperation || props.supabaseOperation || 'insert',
+              supabaseData: action.supabaseData && Object.keys(action.supabaseData).length > 0 
+                ? action.supabaseData 
+                : buildSupabaseDataMapping()
+            };
+          }
+          return action;
+        });
+
+        return (
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
+            onResize={handleResize}
+            initialX={component.position?.x || 0}
+            initialY={component.position?.y || 0}
+            initialWidth={dynamicFormWidth}
+            initialHeight={dynamicFormHeight}
+            className="group"
+            disabled={isPreview}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+          >
+            {customCssContent}
+            <Card
+              id={props.elementId}
+              style={{ ...combinedStyle, width: '100%', height: '100%' }}
+              className={props.className || ''}
+            >
+              <CardHeader>
+                <CardTitle>
+                  {isPreview ? (
+                    <span>{props.title || 'Dynamic Form'}</span>
+                  ) : (
+                    <EditableText
+                      text={props.title}
+                      onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
+                      element="span"
+                      placeholder="Dynamic Form"
+                      isSelected={isSelected}
+                    />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto min-h-0 py-4">
+                <div className="space-y-4">
+                  {dynamicFields.length > 0 ? (
+                    dynamicFields.map((field: any) => (
+                      <div key={field.id} className="space-y-1.5 relative">
+                        {field.label && (
+                          <Label className="text-xs">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                        )}
+                        {field.type === 'textarea' ? (
+                          <Textarea
+                            id={field.fieldName}
+                            placeholder={field.placeholder}
+                            value={dynamicFormState[field.fieldName] || ''}
+                            onChange={(e) => setDynamicFormState({ ...dynamicFormState, [field.fieldName]: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            required={field.required}
+                            style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+                          />
+                        ) : field.type === 'select' ? (
+                          <Select
+                            value={dynamicFormState[field.fieldName] || ''}
+                            onValueChange={(value) => setDynamicFormState({ ...dynamicFormState, [field.fieldName]: value })}
+                            disabled={!isPreview}
+                          >
+                            <SelectTrigger
+                              id={field.fieldName}
+                              className="h-8 text-xs"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+                            >
+                              <SelectValue placeholder={field.placeholder} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Select an option</SelectItem>
+                              <SelectItem value="option1">Option 1</SelectItem>
+                              <SelectItem value="option2">Option 2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            id={field.fieldName}
+                            type={field.type || 'text'}
+                            placeholder={field.placeholder}
+                            value={dynamicFormState[field.fieldName] || ''}
+                            onChange={(e) => setDynamicFormState({ ...dynamicFormState, [field.fieldName]: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            required={field.required}
+                            style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
+                          />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      No fields configured. Add fields via Properties Panel.
+                    </div>
+                  )}
+                </div>
               </CardContent>
+
+              {/* CardFooter ensures the button stays at the bottom of the Card */}
+              <CardFooter className={`flex w-full pt-3 border-t shrink-0 ${
+                props.submitButtonAlignment === "left" ? "justify-start" :
+                props.submitButtonAlignment === "right" ? "justify-end" :
+                props.submitButtonAlignment === "full" ? "justify-stretch" :
+                "justify-center"
+              }`}>
+                <Button
+                  id={`${props.elementId || 'dynamic-form'}-submit`}
+                  disabled={isDynamicFormSubmitting}
+                  className={props.submitButtonAlignment === "full" ? "w-full" : ""}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    if (!isPreview) return;
+                    
+                    if (enhancedSubmitActions.length > 0) {
+                      console.log('Executing dynamic form submit actions:', enhancedSubmitActions);
+                      executeActions(enhancedSubmitActions, e);
+                    } else {
+                      console.log('Dynamic Form Submitted:', dynamicFormState);
+                      toast.success('Form submitted successfully!');
+                    }
+                  }}
+                  style={{ 
+                    pointerEvents: 'auto',
+                    backgroundColor: props.submitButtonColor || undefined
+                  }}
+                >
+                  {isDynamicFormSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : isPreview ? (
+                    <span>{props.submitButtonText || 'Submit'}</span>
+                  ) : (
+                    <EditableText
+                      text={props.submitButtonText}
+                      onTextChange={(newText) => onUpdate({ props: { ...props, submitButtonText: newText } })}
+                      element="span"
+                      placeholder="Submit"
+                      isSelected={isSelected}
+                    />
+                  )}
+                </Button>
+              </CardFooter>
+
+              {/* Show Supabase config info in editor mode */}
+              {!isPreview && props.supabaseTable && (
+                <div className="text-xs text-muted-foreground p-4 mt-auto border-t">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">Supabase Table:</span>
+                    <span className="font-mono bg-muted px-1 rounded">{props.supabaseTable}</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="font-medium">Operation:</span>
+                    <span className="capitalize">{props.supabaseOperation || 'insert'}</span>
+                  </div>
+                </div>
+              )}
             </Card>
           </ResizeHandle>
         );

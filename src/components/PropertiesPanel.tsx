@@ -33,14 +33,17 @@ import {
   EyeOff,
   Sparkles,
   ChevronDown,
+  ChevronUp,
   Check,
-  Info
+  Info,
+  Code2
 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@supabase/supabase-js"
 import { styleToCss } from "../utils/styleManager"
 import { supabase } from "../supabase/config/supabaseClient"
 import { CustomCssModal } from "./CustomCssModal"
+import { AICustomComponentStylingModal } from "./AICustomComponentStylingModal"
 type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
 type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition" | "showAlert"
 const styleStr = (value: any): string => String(value ?? "")
@@ -284,6 +287,7 @@ export function PropertiesPanel({
   const [isPickingElement, setIsPickingElement] = useState<string | null>(null) // actionId or null
   const [pickingMode, setPickingMode] = useState<{ type: "selector" | "column"; column?: string } | null>(null)
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState(false)
+  const [isAIStylingModalOpen, setIsAIStylingModalOpen] = useState(false)
   const [boxShadowValues, setBoxShadowValues] = useState({
     hOffset: 0,
     vOffset: 2,
@@ -4057,6 +4061,17 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           )
         }
 
+        const moveFormField = (index: number, direction: "up" | "down") => {
+          if (direction === "up" && index === 0) return
+          if (direction === "down" && index === formFields.length - 1) return
+
+          const newFields = [...formFields]
+          const targetIndex = direction === "up" ? index - 1 : index + 1
+          ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
+
+          updateProps("fields", newFields)
+        }
+
         return (
           <div className="space-y-4">
             <div>
@@ -4116,16 +4131,38 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {formFields.map((field: any) => (
+                  {formFields.map((field: any, index: number) => (
                     <div key={field.id} className="p-3 border rounded-md space-y-2 relative group">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors"
-                        onClick={() => removeFormField(field.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                        <div className="flex flex-col">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 text-muted-foreground hover:text-primary disabled:opacity-30"
+                            onClick={() => moveFormField(index, "up")}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 text-muted-foreground hover:text-primary disabled:opacity-30"
+                            onClick={() => moveFormField(index, "down")}
+                            disabled={index === formFields.length - 1}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive transition-colors"
+                          onClick={() => removeFormField(field.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
                       <div className="space-y-1">
                         <Label className="text-[10px]">Label</Label>
@@ -4218,6 +4255,505 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           </div>
         )
 
+      case "dynamic-form": {
+        const fields = props.fields || []
+        const submitActions = props.submitButtonActions || []
+        const supabaseAction = submitActions.find((a: any) => a.handlerType === 'supabase') || {}
+
+        const addField = () => {
+          const newField = {
+            id: `field-${Date.now()}`,
+            label: 'New Field',
+            placeholder: 'Enter value...',
+            type: 'text',
+            required: false,
+            fieldName: `field_${fields.length + 1}`,
+            mappedColumn: ''
+          }
+          updateProps('fields', [...fields, newField])
+        }
+
+        const removeField = (index: number) => {
+          const newFields = fields.filter((_: any, i: number) => i !== index)
+          updateProps('fields', newFields)
+        }
+
+        const updateField = (index: number, key: string, value: any) => {
+          const newFields = fields.map((f: any, i: number) =>
+            i === index ? { ...f, [key]: value } : f
+          )
+          updateProps('fields', newFields)
+        }
+
+        const moveField = (index: number, direction: 'up' | 'down') => {
+          if (direction === 'up' && index === 0) return
+          if (direction === 'down' && index === fields.length - 1) return
+
+          const newFields = [...fields]
+          const targetIndex = direction === 'up' ? index - 1 : index + 1
+          ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
+          
+          updateProps('fields', newFields)
+        }
+
+        const updateSupabaseAction = (key: string, value: any) => {
+          const actionIndex = submitActions.findIndex((a: any) => a.handlerType === 'supabase')
+          let newActions = [...submitActions]
+          
+          if (actionIndex === -1) {
+            newActions.push({
+              id: `action-${Date.now()}`,
+              type: 'onClick',
+              handlerType: 'supabase',
+              handler: '',
+              supabaseOperation: 'insert',
+              supabaseTable: '',
+              supabaseData: {}
+            })
+          }
+          
+          const actionIdx = actionIndex === -1 ? newActions.length - 1 : actionIndex
+          newActions[actionIdx] = { ...newActions[actionIdx], [key]: value }
+          
+          // Sync top-level props for backward compatibility and UI binding
+          const updates: any = { submitButtonActions: newActions }
+          if (key === 'supabaseOperation') updates.supabaseOperation = value
+          if (key === 'supabaseTable') updates.supabaseTable = value
+
+          onUpdateComponent(selectedComponent.id, {
+            props: {
+              ...selectedComponent.props,
+              ...updates
+            }
+          })
+        }
+
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="dynamic-form-title">Form Title</Label>
+              <Input
+                id="dynamic-form-title"
+                value={props.title || ""}
+                onChange={(e) => updateProps("title", e.target.value)}
+                placeholder="Dynamic Form"
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="submit-button-text">Submit Button Text</Label>
+              <Input
+                id="submit-button-text"
+                value={props.submitButtonText || "Submit"}
+                onChange={(e) => updateProps("submitButtonText", e.target.value)}
+                placeholder="Submit"
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+
+            <div className="space-y-3 p-3 border rounded-lg bg-muted/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Button Alignment</Label>
+                <div className="flex items-center gap-1 border rounded-md p-0.5 bg-background">
+                  <Button
+                    variant={props.submitButtonAlignment === "left" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => updateProps("submitButtonAlignment", "left")}
+                  >
+                    <AlignLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={props.submitButtonAlignment === "center" || !props.submitButtonAlignment ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => updateProps("submitButtonAlignment", "center")}
+                  >
+                    <AlignCenter className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={props.submitButtonAlignment === "right" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => updateProps("submitButtonAlignment", "right")}
+                  >
+                    <AlignRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={props.submitButtonAlignment === "full" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => updateProps("submitButtonAlignment", "full")}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <div className="w-4 h-0.5 bg-current opacity-50" />
+                      <div className="w-4 h-0.5 bg-current" />
+                      <div className="w-4 h-0.5 bg-current opacity-50" />
+                    </div>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Button Color</Label>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-6 h-6 rounded border cursor-pointer shadow-sm"
+                    style={{ backgroundColor: props.submitButtonColor || "#3b82f6" }}
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'color';
+                      input.value = props.submitButtonColor || "#3b82f6";
+                      input.onchange = (e) => updateProps("submitButtonColor", (e.target as HTMLInputElement).value);
+                      input.click();
+                    }}
+                  />
+                  <Input
+                    value={props.submitButtonColor || "#3b82f6"}
+                    onChange={(e) => updateProps("submitButtonColor", e.target.value)}
+                    className="h-7 w-24 text-[10px] font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                Supabase Configuration
+              </h4>
+              
+              <div>
+                <Label htmlFor="supabase-table">Table Name</Label>
+                <Input
+                  id="supabase-table"
+                  value={props.supabaseTable || supabaseAction.supabaseTable || ""}
+                  onChange={(e) => {
+                    updateSupabaseAction("supabaseTable", e.target.value)
+                  }}
+                  placeholder="users, orders, etc."
+                  className="h-8 text-xs mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="supabase-operation">CRUD Operation</Label>
+                <select
+                  id="supabase-operation"
+                  value={props.supabaseOperation || supabaseAction.supabaseOperation || "insert"}
+                  onChange={(e) => {
+                    updateSupabaseAction("supabaseOperation", e.target.value)
+                  }}
+                  className="w-full h-8 text-xs px-2 border rounded bg-background"
+                >
+                  <option value="insert">Insert (Create)</option>
+                  <option value="select">Select (Read)</option>
+                  <option value="update">Update</option>
+                  <option value="delete">Delete</option>
+                </select>
+              </div>
+
+              {/* Filters for non-insert operations */}
+              {(props.supabaseOperation || supabaseAction.supabaseOperation || "insert") !== "insert" && (
+                <div className="space-y-3 border-t pt-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium">WHERE Conditions</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                        newFilters.push({
+                          column: '',
+                          operator: 'eq',
+                          value: '',
+                          logicalOperator: newFilters.length > 0 ? 'and' : null
+                        })
+                        updateSupabaseAction('supabaseFilters', newFilters)
+                      }}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Filter
+                    </Button>
+                  </div>
+
+                  {(supabaseAction.supabaseFilters || []).length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground text-center py-2">
+                      No filters added. Click "Add Filter" to add WHERE conditions.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(supabaseAction.supabaseFilters || []).map((filter: any, index: number) => (
+                        <div key={index} className="border rounded p-2 space-y-2 bg-background">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium">Filter {index + 1}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                                newFilters.splice(index, 1)
+                                updateSupabaseAction('supabaseFilters', newFilters)
+                              }}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          {index > 0 && (
+                            <div>
+                              <Label className="text-[10px]">Logical Operator</Label>
+                              <Select
+                                value={filter.logicalOperator || 'and'}
+                                onValueChange={(value) => {
+                                  const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                                  newFilters[index] = { ...filter, logicalOperator: value }
+                                  updateSupabaseAction('supabaseFilters', newFilters)
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="and">AND</SelectItem>
+                                  <SelectItem value="or">OR</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-[10px]">Column</Label>
+                              <Input
+                                value={filter.column || ""}
+                                onChange={(e) => {
+                                  const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                                  newFilters[index] = { ...filter, column: e.target.value }
+                                  updateSupabaseAction('supabaseFilters', newFilters)
+                                }}
+                                placeholder="column_name"
+                                className="h-7 text-xs font-mono"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">Operator</Label>
+                              <Select
+                                value={filter.operator || 'eq'}
+                                onValueChange={(value) => {
+                                  const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                                  newFilters[index] = { ...filter, operator: value }
+                                  updateSupabaseAction('supabaseFilters', newFilters)
+                                }}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="eq">Equal (=)</SelectItem>
+                                  <SelectItem value="neq">Not Equal (!=)</SelectItem>
+                                  <SelectItem value="gt">Greater Than (&gt;)</SelectItem>
+                                  <SelectItem value="gte">Greater or Equal (&gt;=)</SelectItem>
+                                  <SelectItem value="lt">Less Than (&lt;)</SelectItem>
+                                  <SelectItem value="lte">Less or Equal (&lt;=)</SelectItem>
+                                  <SelectItem value="like">Like (ILIKE)</SelectItem>
+                                  <SelectItem value="in">In (IN)</SelectItem>
+                                  <SelectItem value="is">Is (IS NULL/NOT NULL)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px]">Value</Label>
+                            <Input
+                              value={filter.value || ""}
+                              onChange={(e) => {
+                                const newFilters = [...(supabaseAction.supabaseFilters || [])]
+                                newFilters[index] = { ...filter, value: e.target.value }
+                                updateSupabaseAction('supabaseFilters', newFilters)
+                              }}
+                              placeholder="filter value"
+                              className="h-7 text-xs"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="border rounded-lg p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm">Form Fields ({fields.length})</h4>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addField}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Field
+                </Button>
+              </div>
+
+              {fields.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No fields yet. Click "Add Field" to start.
+                </p>
+              )}
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {fields.map((field: any, index: number) => (
+                  <div key={field.id} className="border rounded p-2 space-y-2 bg-background">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium">Field {index + 1}</span>
+                        <div className="flex items-center ml-2 border rounded overflow-hidden">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 rounded-none border-r"
+                            onClick={() => moveField(index, 'up')}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 rounded-none"
+                            onClick={() => moveField(index, 'down')}
+                            disabled={index === fields.length - 1}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeField(index)}
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Field Name (ID)</Label>
+                        <Input
+                          value={field.fieldName || ""}
+                          onChange={(e) => updateField(index, "fieldName", e.target.value)}
+                          placeholder="field_name"
+                          className="h-7 text-xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">DB Column</Label>
+                        <Input
+                          value={field.mappedColumn || ""}
+                          onChange={(e) => updateField(index, "mappedColumn", e.target.value)}
+                          placeholder="column_name"
+                          className="h-7 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Label</Label>
+                        <Input
+                          value={field.label || ""}
+                          onChange={(e) => updateField(index, "label", e.target.value)}
+                          placeholder="Field Label"
+                          className="h-7 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Type</Label>
+                        <Select
+                          value={field.type || "text"}
+                          onValueChange={(value) => updateField(index, "type", value)}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Text</SelectItem>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="password">Password</SelectItem>
+                            <SelectItem value="number">Number</SelectItem>
+                            <SelectItem value="textarea">Textarea</SelectItem>
+                            <SelectItem value="select">Select</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px]">Placeholder</Label>
+                      <Input
+                        value={field.placeholder || ""}
+                        onChange={(e) => updateField(index, "placeholder", e.target.value)}
+                        placeholder="Enter placeholder..."
+                        className="h-7 text-xs"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id={`required-${index}`}
+                        checked={field.required || false}
+                        onChange={(e) => updateField(index, "required", e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      <Label htmlFor={`required-${index}`} className="text-[10px] cursor-pointer">
+                        Required field
+                      </Label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="dynamic-form-width">Width (px)</Label>
+                <Input
+                  id="dynamic-form-width"
+                  type="number"
+                  value={selectedComponent.style?.width?.replace("px", "") || "400"}
+                  onChange={(e) => updateStyle("width", `${e.target.value}px`)}
+                  placeholder="400"
+                  min="200"
+                  className="h-8 text-xs mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="dynamic-form-height">Height (px)</Label>
+                <Input
+                  id="dynamic-form-height"
+                  type="number"
+                  value={selectedComponent.style?.height?.replace("px", "") || "350"}
+                  onChange={(e) => updateStyle("height", `${e.target.value}px`)}
+                  placeholder="350"
+                  min="200"
+                  className="h-8 text-xs mt-1"
+                />
+              </div>
+            </div>
+          </div>
+        )
+      }
+
       default:
         return (
           <div className="space-y-4">
@@ -4304,7 +4840,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           </TabsTrigger>
           <TabsTrigger
             value="styling"
-            disabled={selectedComponent.props?.enableCustomCss || selectedComponent.type === 'custom-component'}
+            disabled={selectedComponent.props?.enableCustomCss && selectedComponent.type !== 'custom-component'}
             className="text-xs h-7 rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Styling
@@ -4367,10 +4903,10 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                           <span className="text-[10px] font-medium uppercase tracking-wider">Custom Component</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground leading-normal">
-                          This is a custom component you created. Styling is managed within its own HTML &amp; CSS code.
+                          This is a custom component you created. You can manage its appearance directly in the <b>Styling</b> tab.
                         </p>
                         <p className="text-[10px] text-primary/80 font-medium italic leading-tight">
-                          Click the Edit (pencil) icon in the sidebar to modify its appearance.
+                          Switch to the Styling tab to edit CSS or use the sidebar pencil icon for core logic.
                         </p>
                       </div>
                     </div>
@@ -4533,13 +5069,27 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
 
           <TabsContent value="styling" className="p-3 space-y-3 mt-0 h-full">
             {selectedComponent.type === 'custom-component' ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center p-6 bg-muted/20 rounded-xl border border-dashed border-border/60">
-                <Info className="w-8 h-8 text-primary/60 mb-3" />
-                <h3 className="text-sm font-semibold mb-1">Custom Component</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Styling is managed within the component code.
-                  Edit it in the sidebar to change its look.
-                </p>
+              <div className="space-y-4">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-3">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider">AI Styling Assistant</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Use AI to modify the styling of this component with natural language prompts and live preview.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs h-8 bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary transition-colors"
+                    onClick={() => setIsAIStylingModalOpen(true)}
+                  >
+                    <Sparkles className="w-3 h-3 mr-2" />
+                    AI Styling Assistant
+                  </Button>
+                </div>
+                <Separator className="opacity-50" />
+                
               </div>
             ) : (
               <div className="pb-4">
@@ -5733,20 +6283,41 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
       {isCustomCssModalOpen && (
         <CustomCssModal
           isOpen={isCustomCssModalOpen}
-          initialCss={selectedComponent.props?.customCss || styleToCss(selectedComponent.style || {}, selectedComponent.props?.elementId ? `#${selectedComponent.props.elementId}` : `[data-component-id="${selectedComponent.id}"]`, selectedComponent.type)}
-          isInitiallyEnabled={selectedComponent.props?.enableCustomCss || false}
+          initialCss={
+            selectedComponent.type === 'custom-component' 
+              ? selectedComponent.props?.css || ''
+              : selectedComponent.props?.customCss || styleToCss(selectedComponent.style || {}, selectedComponent.props?.elementId ? `#${selectedComponent.props.elementId}` : `[data-component-id="${selectedComponent.id}"]`, selectedComponent.type)
+          }
+          isInitiallyEnabled={selectedComponent.type === 'custom-component' ? true : (selectedComponent.props?.enableCustomCss || false)}
           componentId={selectedComponent.id}
           elementId={selectedComponent.props?.elementId}
           onClose={() => setIsCustomCssModalOpen(false)}
           onSave={(css, isEnabled) => {
-            onUpdateComponent(selectedComponent.id, {
-              props: {
-                ...selectedComponent.props,
-                customCss: css,
-                enableCustomCss: isEnabled
-              }
-            });
+            if (selectedComponent.type === 'custom-component') {
+              onUpdateComponent(selectedComponent.id, {
+                props: {
+                  ...selectedComponent.props,
+                  css: css
+                }
+              });
+            } else {
+              onUpdateComponent(selectedComponent.id, {
+                props: {
+                  ...selectedComponent.props,
+                  customCss: css,
+                  enableCustomCss: isEnabled
+                }
+              });
+            }
           }}
+        />
+      )}
+      {isAIStylingModalOpen && (
+        <AICustomComponentStylingModal
+          isOpen={isAIStylingModalOpen}
+          onClose={() => setIsAIStylingModalOpen(false)}
+          component={selectedComponent}
+          onUpdateComponent={onUpdateComponent}
         />
       )}
     </div>

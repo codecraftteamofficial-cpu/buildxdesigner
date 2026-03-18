@@ -717,6 +717,7 @@ export function CodeViewEditor({
     () => generateProjectFiles(components, pages, projectName, userConfig),
     [components, pages, projectName, userConfig],
   );
+
   const effectiveFiles = useMemo<Record<string, string>>(
     () => ({ ...generatedFiles, ...fileOverrides, ...customFiles }),
     [generatedFiles, fileOverrides, customFiles],
@@ -770,7 +771,7 @@ export function CodeViewEditor({
     setDraftContent("");
     setSavedIndicator(true);
     setTimeout(() => setSavedIndicator(false), 2000);
-    toast.success("Logic saved successfully.");
+    toast.success("File saved successfully.");
   }, [
     selectedFile,
     draftContent,

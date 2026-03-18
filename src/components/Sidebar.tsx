@@ -272,12 +272,8 @@ export function Sidebar({
                           icon={<Code2 className="w-3.5 h-3.5" />}
                           label={cc.name}
                           props={{
-                            
-                             ...cc.component_json.props,
-                            
-                             enableCustomCss: true,
-                          
-                           }}
+                            ...cc.component_json.props,
+                          }}
                           componentId={cc.id}
                            style={cc.component_json.style || {
                              width: "100%",
