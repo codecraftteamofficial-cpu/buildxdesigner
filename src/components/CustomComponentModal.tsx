@@ -20,7 +20,18 @@ const generateCodeWithGemini = async (
   history: { role: 'user' | 'assistant', content: string }[] = []
 ): Promise<string> => {
   try {
-    const apiKey = getOpenRouterKey() || import.meta.env.GEMINI_2_5_FLASH || import.meta.env.GEMINI_25_FLASH || ""
+    const openRouterKey = getOpenRouterKey();
+    const geminiKey = import.meta.env.GEMINI_2_5_FLASH || import.meta.env.GEMINI_25_FLASH || "";
+    const apiKey = openRouterKey || geminiKey;
+    
+    // Debug logging - remove after fixing
+    console.log('🔑 Custom Component API Key Debug:', {
+      'openRouterKey': !!openRouterKey,
+      'geminiKey': !!geminiKey,
+      'finalApiKey': !!apiKey,
+      'GEMINI_2_5_FLASH': !!import.meta.env.GEMINI_2_5_FLASH,
+      'GEMINI_25_FLASH': !!import.meta.env.GEMINI_25_FLASH
+    });
     
     if (!apiKey) {
       toast.error("API key not configured. Please set your OpenRouter or Gemini API key.")
