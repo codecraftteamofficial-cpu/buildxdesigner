@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Eye, Code, Save, Copy, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { MonacoGenAi } from './MonacoGenAi';
-import { getOpenRouterKey } from "../config/apiKeys"
+import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
 
 // Gemini API function
 const generateCodeWithGemini = async (
@@ -21,16 +21,14 @@ const generateCodeWithGemini = async (
 ): Promise<string> => {
   try {
     const openRouterKey = getOpenRouterKey();
-    const geminiKey = import.meta.env.GEMINI_2_5_FLASH || import.meta.env.GEMINI_25_FLASH || "";
+    const geminiKey = getGeminiKey();
     const apiKey = openRouterKey || geminiKey;
     
     // Debug logging - remove after fixing
     console.log('🔑 Custom Component API Key Debug:', {
-      'openRouterKey': !!openRouterKey,
-      'geminiKey': !!geminiKey,
-      'finalApiKey': !!apiKey,
-      'GEMINI_2_5_FLASH': !!import.meta.env.GEMINI_2_5_FLASH,
-      'GEMINI_25_FLASH': !!import.meta.env.GEMINI_25_FLASH
+      'hasOpenRouterKey': !!openRouterKey,
+      'hasGeminiKey': !!geminiKey,
+      'hasFinalApiKey': !!apiKey
     });
     
     if (!apiKey) {

@@ -3,8 +3,10 @@
 
 export function getGeminiKey(): string {
   // Read from environment variable first
-  // Handle both local (GEMINI_2.5_FLASH) and Vercel (GEMINI_25_FLASH) naming
+  // Handle various naming conventions used in the project
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || 
+                 import.meta.env.VITE_GEMINI_2_5_FLASH || 
+                 import.meta.env.VITE_GEMINI_25_FLASH ||
                  import.meta.env.GEMINI_2_5_FLASH || 
                  import.meta.env.GEMINI_25_FLASH ||
                  import.meta.env.GEMINI_API_KEY
@@ -21,7 +23,8 @@ export function getOpenAIKey(): string {
 
 export function getOpenRouterKey(): string {
   // Read from environment variable first
-  const envKey = import.meta.env.VITE_OPENROUTER_API_KEY
+  const envKey = import.meta.env.VITE_OPENROUTER_API_KEY || 
+                 import.meta.env.VITE_OPENROUTER_KEY
   const storedKey = localStorage.getItem("openrouter_api_key")
   return storedKey || envKey || ""
 }
