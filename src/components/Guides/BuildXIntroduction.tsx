@@ -1,4 +1,4 @@
- "use client";
+"use client";
  
 import React, { useMemo } from "react";
 import { MultiStepTour } from "./MultiStepTour";
@@ -24,7 +24,7 @@ import { MultiStepTour } from "./MultiStepTour";
        },
        {
         element:
-          '[data-tour="recommended-template-card"]:nth-of-type(2) [data-tour="template-like-button"]',
+          '[data-tour="recommended-template-card"]:nth-child(2) [data-tour="template-like-button"]',
          title: "Like templates",
          description:
            "See something you like? Tap the heart to save it and help it trend.",
@@ -38,10 +38,18 @@ import { MultiStepTour } from "./MultiStepTour";
          onHighlightStarted: () => {
            // Ensure the template detail modal is open so the comment box exists.
            const card = document.querySelector(
-            '[data-tour="recommended-template-card"]:nth-of-type(2)'
+            '[data-tour="recommended-template-card"]:nth-child(2)'
            ) as HTMLElement | null;
            card?.click();
          },
+       },
+       {
+        element:'[data-tour="template-details-dialog"]',
+        title: "Template Details",
+        description:
+          "This is a template details dialog. You can see the template details here.",
+        side: "top" as const,
+        align: "center" as const,
        },
       {
         element: '[data-tour="template-comment-textarea"]',

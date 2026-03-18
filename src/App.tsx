@@ -128,12 +128,20 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   useEffect(() => {
     if (!location.pathname.startsWith("/editor")) return;
 
-    const shouldStartTour =
+    const shouldStartWebsiteCreationTour =
       localStorage.getItem("buildx-pending-editor-tour") === "1";
-    if (!shouldStartTour) return;
+    const shouldStartPublishingBasicsTour =
+      localStorage.getItem("buildx-pending-publishing-basics-tour") === "1";
 
-    localStorage.removeItem("buildx-pending-editor-tour");
-    setShowEditorTour(true);
+    if (shouldStartWebsiteCreationTour) {
+      localStorage.removeItem("buildx-pending-editor-tour");
+      setShowEditorTour(true);
+    }
+
+    if (shouldStartPublishingBasicsTour) {
+      localStorage.removeItem("buildx-pending-publishing-basics-tour");
+      setShowPublishingBasicsTour(true);
+    }
   }, [location.pathname]);
 
   const {

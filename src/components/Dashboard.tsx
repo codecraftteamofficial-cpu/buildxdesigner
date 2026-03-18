@@ -2827,6 +2827,7 @@ export function Dashboard({
                             filteredRecommendedTemplates.map((template) => (
                               <div
                                 key={template.id}
+                                data-tour="recommended-template-card"
                                 className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
                                 onClick={() =>
                                   handleQuickTemplateClick(template)
@@ -2874,6 +2875,7 @@ export function Dashboard({
                                     <div className="flex items-center gap-3">
                                       <button
                                         type="button"
+                                        data-tour="template-like-button"
                                         onClick={(event) =>
                                           handleLikeTemplate(event, template)
                                         }
@@ -4439,9 +4441,11 @@ export function Dashboard({
           setShowCreateTemplateModal(true);
         }}
         onStartPublishingBasics={() => {
-          setShowPublishingBasicsTour(false);
-          setActiveSection("all");
-          setTimeout(() => setShowPublishingBasicsTour(true), 50);
+          // Publishing Basics tour targets editor-only UI. Ensure we create/open a project first,
+          // then start the tour once the editor route is mounted.
+          localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+          setSelectedTemplateId("blank");
+          setShowCreateTemplateModal(true);
         }}
       />
 
