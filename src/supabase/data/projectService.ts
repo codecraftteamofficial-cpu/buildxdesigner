@@ -53,7 +53,7 @@ export async function fetchProjectById(
     const { data, error } = await supabase
       .from("projects")
       .select(
-        "projects_id, project_name, description, category, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title",
+        "projects_id, project_name, description, category, thumbnail, last_modified, type, status, project_layout, subdomain, is_published, last_published_at, pages, published_pages, site_logo_url, site_title, file_overrides, custom_files",
       )
       .eq("projects_id", id)
       .maybeSingle();
@@ -80,6 +80,8 @@ export async function fetchProjectById(
       ],
       siteLogoUrl: data.site_logo_url,
       siteTitle: data.site_title,
+      file_overrides: data.file_overrides || {},
+      custom_files: data.custom_files || {},
     };
     return { data: project, error: null };
   } catch (err) {
@@ -161,6 +163,8 @@ export async function saveProject(
         pages: project.pages,
         site_title: project.siteTitle,
         site_logo_url: project.siteLogoUrl,
+        file_overrides: project.file_overrides ?? null,
+        custom_files: project.custom_files ?? null,
         last_modified: new Date().toISOString(),
       };
 
@@ -191,6 +195,8 @@ export async function saveProject(
         pages: project.pages,
         site_title: project.siteTitle,
         site_logo_url: project.siteLogoUrl,
+        file_overrides: project.file_overrides ?? null,
+        custom_files: project.custom_files ?? null,
         last_modified: new Date().toISOString(),
       };
 
@@ -326,7 +332,8 @@ export async function fetchProjectComponents(
         style: c.style || {},
         position: c.position || { x: 0, y: 0 },
         page_id: c.page_id || "home",
-        page_ids: (c.props && c.props.page_ids) || c.page_ids || [c.page_id || "home"],
+        page_ids: (c.props && c.props.page_ids) ||
+          c.page_ids || [c.page_id || "home"],
         children: [],
       };
       map.set(c.id, component);
@@ -359,9 +366,9 @@ export async function syncProjectComponents(
     const flatten = (comps: any[], parentId: string | null = null) => {
       comps.forEach((c, index) => {
         currentIds.add(c.id);
-        const props = { 
+        const props = {
           ...c.props,
-          page_ids: c.page_ids || [c.page_id || "home"]
+          page_ids: c.page_ids || [c.page_id || "home"],
         };
 
         flatList.push({

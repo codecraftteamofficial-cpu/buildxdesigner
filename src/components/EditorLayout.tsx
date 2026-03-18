@@ -371,6 +371,7 @@ export function EditorLayout({
                           setState((prev) => ({
                             ...prev,
                             fileOverrides: { ...(prev.fileOverrides || {}), [path]: content },
+                            hasUnsavedChanges: true,
                           }));
                         }}
                         customFiles={state.customFiles || {}}
@@ -378,6 +379,7 @@ export function EditorLayout({
                           setState((prev) => ({
                             ...prev,
                             customFiles: { ...(prev.customFiles || {}), [path]: content },
+                            hasUnsavedChanges: true,
                           }));
                         }}
                       />

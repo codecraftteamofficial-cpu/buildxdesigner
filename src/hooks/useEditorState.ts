@@ -171,6 +171,8 @@ export function useEditorState() {
     projectTemplatePublished: undefined as boolean | undefined,
     exportSnapshot: [],
     customComponents: [],
+    fileOverrides: {},
+    customFiles: {},
   });
 
   const {
@@ -1160,6 +1162,8 @@ const updateUserProjectConfig = (
           pages: state.pages,
           siteTitle: state.siteTitle,
           siteLogoUrl: state.siteLogoUrl,
+          file_overrides: state.fileOverrides,
+          custom_files: state.customFiles,
         });
 
         if (!saveError) {

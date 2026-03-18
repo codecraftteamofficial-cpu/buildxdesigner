@@ -21,4 +21,6 @@ export interface Project {
   published_pages?: any[];
   siteLogoUrl?: string;
   siteTitle?: string;
+  file_overrides?: Record<string, string>;
+  custom_files?: Record<string, string>;
 }
