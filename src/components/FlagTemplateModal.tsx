@@ -88,9 +88,9 @@ export function ReportTemplateModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       {/* Increased max-w and ensured consistent horizontal and vertical padding throughout */}
-      <DialogContent className="w-[calc(100%-12rem)] max-w-[640px] gap-0 overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-xl mx-auto">
+      <DialogContent className="w-[calc(100%-9rem)] max-w-[900px] gap-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-xl mx-auto">
         {/* Header — px-10 py-8 for generous inset */}
-        <div className="border-b border-border px-20 py-10">
+        <div className="border-b border-border px-8 py-10">
           <DialogHeader className="space-y-0 text-left">
             <div className="flex items-start gap-4 pr-10">
               <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
@@ -101,7 +101,7 @@ export function ReportTemplateModal({
                 <DialogTitle className="text-[1.75rem] leading-none font-semibold text-foreground">
                   Report Template
                 </DialogTitle>
-
+{/*POTANGINA AYOKO NAAAAAAA*/ }
                 <DialogDescription className="text-[15px] leading-7 text-muted-foreground">
                   Thanks for helping keep BuildX Designer safe and useful. Tell
                   us what seems wrong with{" "}
