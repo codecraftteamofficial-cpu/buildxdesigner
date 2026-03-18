@@ -11,7 +11,12 @@ import {
   fetchProjectComponents,
   syncProjectComponents,
 } from "../supabase/data/projectService";
-import { saveCustomComponent, fetchCustomComponents, deleteCustomComponent, updateCustomComponent } from "../supabase/data/customComponentService";
+import {
+  saveCustomComponent,
+  fetchCustomComponents,
+  deleteCustomComponent,
+  updateCustomComponent,
+} from "../supabase/data/customComponentService";
 import { publishComponent } from "../supabase/data/publishedComponentService";
 import useCollaboration from "../services/useCollaboration";
 import { getApiBaseUrl } from "../utils/apiConfig";
@@ -1091,7 +1096,10 @@ export function useEditorState() {
         });
 
         if (!saveError) {
-          await syncProjectComponents(currentComponents, state.currentProjectId);
+          await syncProjectComponents(
+            currentComponents,
+            state.currentProjectId,
+          );
         }
 
         setState((prev) => ({
@@ -1230,13 +1238,13 @@ export function useEditorState() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      
-      const isInput = 
-        target instanceof HTMLInputElement || 
-        target instanceof HTMLTextAreaElement || 
+
+      const isInput =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
         target.isContentEditable ||
-        target.closest('.monaco-editor') ||
-        target.closest('.monaco-list');
+        target.closest(".monaco-editor") ||
+        target.closest(".monaco-list");
 
       if (isInput) {
         return;
@@ -1607,12 +1615,14 @@ export function useEditorState() {
 
   const refreshCustomComponents = async () => {
     if (!state.currentProjectId) return;
-    
+
     try {
       // Get current user session
-      const { data: { session } } = await getSupabaseSession();
+      const {
+        data: { session },
+      } = await getSupabaseSession();
       const userId = session?.user?.id;
-      
+
       if (!userId) {
         setState((prev) => ({ ...prev, customComponents: [] }));
         return;
@@ -1638,12 +1648,14 @@ export function useEditorState() {
       // Get all custom components from all projects
       const { data: allComponents, error: componentsError } = await supabase
         .from("custom_components")
-        .select(`
+        .select(
+          `
           *,
           projects!inner(
             user_id
           )
-        `)
+        `,
+        )
         .in("project_id", projectIds)
         .order("created_at", { ascending: false });
 
@@ -1726,11 +1738,7 @@ export function useEditorState() {
       },
     };
 
-    const { error } = await updateCustomComponent(
-      id,
-      name,
-      componentData,
-    );
+    const { error } = await updateCustomComponent(id, name, componentData);
     if (!error) {
       await refreshCustomComponents();
     } else {
@@ -1740,14 +1748,16 @@ export function useEditorState() {
 
   const handleExportComponent = async (component: any) => {
     try {
-      const { data: { session } } = await getSupabaseSession();
+      const {
+        data: { session },
+      } = await getSupabaseSession();
       const userId = session?.user?.id;
-      if (!userId) throw new Error('Not authenticated');
+      if (!userId) throw new Error("Not authenticated");
 
       const { error } = await publishComponent(
         userId,
         component.name,
-        component.component_json?.props?.description || '',
+        component.component_json?.props?.description || "",
         component.component_json,
       );
       if (error) throw error;

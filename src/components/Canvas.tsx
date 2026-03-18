@@ -92,6 +92,8 @@ export function Canvas({
     null,
   );
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragPositionRef = useRef<{ x: number; y: number } | null>(null);
   const [clipboard, setClipboard] = useState<ComponentData | null>(null);
   const [commandHistory, setCommandHistory] = useState<Command[]>([]);
   const [selectedComponents, setSelectedComponents] = useState<Set<string>>(
@@ -111,7 +113,9 @@ export function Canvas({
     x: number;
     y: number;
   } | null>(null);
-  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
+  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(
+    null,
+  );
   const [canvasProperties, setCanvasProperties] = useState<CanvasProperties>({
     backgroundColor: backgroundColor,
     showGrid: false,
@@ -616,13 +620,13 @@ export function Canvas({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      
-      const isInput = 
-        target.tagName === "INPUT" || 
-        target.tagName === "TEXTAREA" || 
+
+      const isInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
         target.isContentEditable ||
-        target.closest('.monaco-editor') ||
-        target.closest('.monaco-list');
+        target.closest(".monaco-editor") ||
+        target.closest(".monaco-list");
 
       if (isInput) {
         return;
@@ -783,19 +787,17 @@ export function Canvas({
           type: string;
           props: Record<string, any>;
           style?: Record<string, any>;
+          id?: string; // ← add this to the type
         },
         monitor,
       ) => {
         const offset = monitor.getClientOffset();
         if (offset && canvasRef.current && contentRef.current) {
           const canvasRect = canvasRef.current.getBoundingClientRect();
-
-          // Calculate position relative to the content area, accounting for zoom and scroll
           const scale = getEffectiveScale();
           const scrollLeft = canvasRef.current.scrollLeft;
           const scrollTop = canvasRef.current.scrollTop;
 
-          // Calculate the actual position in the canvas coordinate system
           let x = (offset.x - canvasRect.left + scrollLeft) / scale;
           let y = (offset.y - canvasRect.top + scrollTop) / scale;
 
@@ -806,7 +808,7 @@ export function Canvas({
           }
 
           const newComponent: ComponentData = {
-            id: generateId(),
+            id: item.id ?? generateId(), // ← use drag item's id if present
             type: item.type,
             props: item.props,
             style: item.style || {},
@@ -961,6 +963,9 @@ export function Canvas({
       const x = mouseCanvasX - (component.position?.x || 0);
       const y = mouseCanvasY - (component.position?.y || 0);
       setDragOffset({ x, y });
+      const currentPos = component.position || { x: 0, y: 0 };
+      setDragPosition(currentPos);
+      dragPositionRef.current = currentPos;
       dragSnapConfigRef.current = getSnapConfig();
     }
   };
@@ -997,6 +1002,9 @@ export function Canvas({
       const x = touchCanvasX - (component.position?.x || 0);
       const y = touchCanvasY - (component.position?.y || 0);
       setDragOffset({ x, y });
+      const currentPos = component.position || { x: 0, y: 0 };
+      setDragPosition(currentPos);
+      dragPositionRef.current = currentPos;
       dragSnapConfigRef.current = getSnapConfig();
     }
   };
@@ -1052,14 +1060,20 @@ export function Canvas({
         y = Math.round(y / size) * size;
       }
 
-      updateComponentWithHistory(draggingComponent, {
-        position: { x, y },
-      });
+      setDragPosition({ x, y });
+      dragPositionRef.current = { x, y };
     }
   };
 
   const handleTouchEnd = () => {
+    if (draggingComponent && dragPositionRef.current) {
+      updateComponentWithHistory(draggingComponent, {
+        position: dragPositionRef.current,
+      });
+    }
     setDraggingComponent(null);
+    setDragPosition(null);
+    dragPositionRef.current = null;
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -1078,14 +1092,20 @@ export function Canvas({
         y = Math.round(y / size) * size;
       }
 
-      updateComponentWithHistory(draggingComponent, {
-        position: { x, y },
-      });
+      setDragPosition({ x, y });
+      dragPositionRef.current = { x, y };
     }
   };
 
   const handleMouseUp = () => {
+    if (draggingComponent && dragPositionRef.current) {
+      updateComponentWithHistory(draggingComponent, {
+        position: dragPositionRef.current,
+      });
+    }
     setDraggingComponent(null);
+    setDragPosition(null);
+    dragPositionRef.current = null;
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1641,9 +1661,9 @@ export function Canvas({
               ))}
 
               {filteredComponents.map((component) => {
-                const position = component.position || { x: 100, y: 100 };
-                const isSelected = selectedComponents.has(component.id);
                 const isDragging = draggingComponent === component.id;
+                const position = isDragging && dragPosition ? dragPosition : (component.position || { x: 100, y: 100 });
+                const isSelected = selectedComponents.has(component.id);
 
                 return (
                   <div
@@ -1654,7 +1674,7 @@ export function Canvas({
                         ? "z-50 ring-2 ring-primary shadow-2xl"
                         : isDragging
                           ? "z-40"
-                            : "z-auto"
+                          : "z-auto"
                     } ${isDragging ? "cursor-grabbing" : readOnly ? "cursor-default" : "cursor-grab"}`}
                     style={{
                       left: `${position.x}px`,

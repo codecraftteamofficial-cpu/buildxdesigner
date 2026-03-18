@@ -152,9 +152,15 @@ function useCollaborationLogic({
 
       if (duplicateIndices.length > 0) {
         console.warn(
-          `Detected ${duplicateIndices.length} duplicate components in Yjs.`,
-          allComponents.map((c) => c.id),
+          `Detected ${duplicateIndices.length} duplicate components in Yjs. Cleaning up...`,
         );
+        const { ydoc } = getOrInitDoc();
+        ydoc.transact(() => {
+          for (let i = duplicateIndices.length - 1; i >= 0; i--) {
+            yComponents.delete(duplicateIndices[i], 1);
+          }
+        }, "system");
+        return;
       }
 
       const isLocalChanges = consumeLocalChangeFlag();
@@ -513,9 +519,22 @@ function useCollaborationLogic({
     });
 
     const autoSaveTimer = setTimeout(async () => {
-      console.log("[autosave] timer fired", { activeProjectId });
       if (!activeProjectId) {
         console.warn("[autosave] skipped: no activeProjectId");
+        return;
+      }
+
+      const { yComponents } = getOrInitDoc();
+      const snapshotBeforeWait = yComponents.toArray().length;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const snapshotAfterWait = yComponents.toArray().length;
+
+      if (snapshotBeforeWait !== snapshotAfterWait) {
+        setState((prev) => ({
+          ...prev,
+          hasUnsavedChanges: true,
+          isSaving: false,
+        }));
         return;
       }
 
@@ -528,13 +547,7 @@ function useCollaborationLogic({
         const user_id = session?.user?.id;
         let persisted = false;
 
-        const { yComponents } = getOrInitDoc();
         const currentComponents = yComponents.toArray();
-
-        console.log(
-          "[autosave] components to save:",
-          currentComponents.map((c) => ({ id: c.id, type: c.type })),
-        );
 
         if (user_id) {
           const { error: saveError } = await saveProject({
@@ -546,13 +559,6 @@ function useCollaborationLogic({
             siteTitle: state.siteTitle,
             siteLogoUrl: state.siteLogoUrl,
           });
-
-          if (saveError) {
-            console.error("[autosave] project save error:", saveError);
-          } else {
-            console.log("[autosave] project save success");
-          }
-
           persisted = !saveError;
         }
 
@@ -560,13 +566,6 @@ function useCollaborationLogic({
           currentComponents,
           activeProjectId,
         );
-
-        if (syncError) {
-          console.error("[autosave] component sync error:", syncError);
-        } else {
-          console.log("[autosave] component sync success");
-        }
-
         persisted = persisted || !syncError;
 
         if (persisted) {
@@ -580,10 +579,9 @@ function useCollaborationLogic({
           setState((prev) => ({ ...prev, isSaving: false }));
         }
       } catch (error) {
-        console.error("[autosave] critical error:", error);
         setState((prev) => ({ ...prev, isSaving: false }));
       }
-    }, 1000);
+    }, 5000);
 
     return () => {
       console.log("[autosave timer cleared]", { activeProjectId });
@@ -591,9 +589,6 @@ function useCollaborationLogic({
     };
   }, [
     activeProjectId,
-    state.components, // FIX 5: Restore state.components in deps (removed in v2).
-    // Without it, the autosave effect won't re-arm when components change,
-    // meaning saves can be skipped entirely for component edits.
     state.currentView,
     state.projectName,
     state.pages,

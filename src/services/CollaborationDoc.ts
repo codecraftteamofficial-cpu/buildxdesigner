@@ -43,7 +43,7 @@ export function useCollaborationDoc(
         if (pageId && pageId !== activePageIdRef.current) {
           setState((prev) => {
             // Defensive: ensure the pageId actually exists in the current pages list
-            if (!prev.pages.some(p => p.id === pageId)) return prev;
+            if (!prev.pages.some((p) => p.id === pageId)) return prev;
             return {
               ...prev,
               activePageId: pageId,
@@ -117,7 +117,7 @@ export function useCollaborationDoc(
       const newComponent = {
         ...component,
         id: component.id || Date.now().toString(),
-        position: component.position || { x: 150, y: 150 },
+        position: component.position ?? { x: 150, y: 150 },
       };
       ydoc.transact(() => {
         yComponents.push([newComponent]);

@@ -6,8 +6,16 @@ import {
 } from "y-protocols/awareness";
 import Ably from "ably";
 
-const encodeUpdate = (update: Uint8Array) =>
-  btoa(String.fromCharCode(...Array.from(update)));
+const encodeUpdate = (update: Uint8Array): string => {
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < update.length; i += chunkSize) {
+    binary += String.fromCharCode(
+      ...Array.from(update.subarray(i, i + chunkSize)),
+    );
+  }
+  return btoa(binary);
+};
 
 const decodeUpdate = (data: string) =>
   Uint8Array.from(atob(data), (char) => char.charCodeAt(0));

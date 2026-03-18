@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import React, { useState, useRef } from "react"
-import { useDrag } from "react-dnd"
-import { Separator } from "./ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { BlocksPalette } from "./BlocksPalette"
-import { LayerPanel } from "./LayerPanel"
+import React, { useState, useRef } from "react";
+import { useDrag } from "react-dnd";
+import { Separator } from "./ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { BlocksPalette } from "./BlocksPalette";
+import { LayerPanel } from "./LayerPanel";
 import {
   Type,
   Square,
@@ -27,13 +27,13 @@ import {
   Trash2,
   Pencil,
   Upload,
-  Download
-} from "lucide-react"
-import type { ComponentData } from "../App"
-import { CustomComponentModal } from "./CustomComponentModal"
-import { ImportComponentModal } from "./ImportComponentModal"
-import { Button } from "./ui/button"
-import { toast } from "sonner"
+  Download,
+} from "lucide-react";
+import type { ComponentData } from "../App";
+import { CustomComponentModal } from "./CustomComponentModal";
+import { ImportComponentModal } from "./ImportComponentModal";
+import { Button } from "./ui/button";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -41,20 +41,32 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "./ui/dialog"
+} from "./ui/dialog";
 
 interface DraggableComponentProps {
-  type: string
-  icon: React.ReactNode
-  label: string
-  props?: Record<string, any>
+  type: string;
+  icon: React.ReactNode;
+  label: string;
+  props?: Record<string, any>;
+  componentId?: string;
 }
 
-function DraggableComponent({ type, icon, label, props = {} }: DraggableComponentProps) {
+function DraggableComponent({
+  type,
+  icon,
+  label,
+  props = {},
+  componentId,
+}: DraggableComponentProps) {
   const dragRef = useRef<HTMLDivElement>(null);
+
   const [{ isDragging }, drag] = useDrag({
     type: "component",
-    item: { type, props },
+    item: () => ({
+      type,
+      props,
+      id: `${componentId ?? "cc"}-drop-${Math.random().toString(36).slice(2, 8)}`,
+    }),
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -77,26 +89,37 @@ function DraggableComponent({ type, icon, label, props = {} }: DraggableComponen
 }
 
 interface SidebarProps {
-  onAddComponent: (component: ComponentData) => void
-  onToggle?: () => void
-  components: ComponentData[]
-  selectedId: string | null
-  onSelect: (component: ComponentData | null) => void 
-  onDelete: (id: string) => void
-  onReorder: (id: string, direction: 'front' | 'back') => void
-  onMoveLayer: (id: string, action: 'forward' | 'backward') => void
-  activePageId: string // New prop to track the current page
-  customComponents?: any[]
-  onSaveCustomComponent?: (name: string, description: string, html: string, css: string) => Promise<void>
-  onUpdateCustomComponent?: (id: string, name: string, description: string, html: string, css: string) => Promise<void>
-  onDeleteCustomComponent?: (id: string) => void
-  onExportComponent?: (component: any) => Promise<void>
-  onImportedComponent?: () => void
-  projectId?: string
+  onAddComponent: (component: ComponentData) => void;
+  onToggle?: () => void;
+  components: ComponentData[];
+  selectedId: string | null;
+  onSelect: (component: ComponentData | null) => void;
+  onDelete: (id: string) => void;
+  onReorder: (id: string, direction: "front" | "back") => void;
+  onMoveLayer: (id: string, action: "forward" | "backward") => void;
+  activePageId: string; // New prop to track the current page
+  customComponents?: any[];
+  onSaveCustomComponent?: (
+    name: string,
+    description: string,
+    html: string,
+    css: string,
+  ) => Promise<void>;
+  onUpdateCustomComponent?: (
+    id: string,
+    name: string,
+    description: string,
+    html: string,
+    css: string,
+  ) => Promise<void>;
+  onDeleteCustomComponent?: (id: string) => void;
+  onExportComponent?: (component: any) => Promise<void>;
+  onImportedComponent?: () => void;
+  projectId?: string;
 }
 
-export function Sidebar({ 
-  onAddComponent, 
+export function Sidebar({
+  onAddComponent,
   onToggle,
   components,
   selectedId,
@@ -111,45 +134,48 @@ export function Sidebar({
   onDeleteCustomComponent,
   onExportComponent,
   onImportedComponent,
-  projectId = '',
+  projectId = "",
 }: SidebarProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [editingComponent, setEditingComponent] = useState<any | null>(null)
-  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<any | null>(null);
+
   // Component deletion confirmation state
-  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false)
-  const [pendingDeleteComponent, setPendingDeleteComponent] = useState<any>(null)
+  const [showDeleteComponentDialog, setShowDeleteComponentDialog] =
+    useState(false);
+  const [pendingDeleteComponent, setPendingDeleteComponent] =
+    useState<any>(null);
 
   const openDeleteComponentDialog = (component: any) => {
-    setPendingDeleteComponent(component)
-    setShowDeleteComponentDialog(true)
-  }
+    setPendingDeleteComponent(component);
+    setShowDeleteComponentDialog(true);
+  };
 
   const handleDeleteComponent = () => {
     if (pendingDeleteComponent) {
-      onDeleteCustomComponent?.(pendingDeleteComponent.cc_id || pendingDeleteComponent.id)
-      toast.success(`"${pendingDeleteComponent.name}" has been deleted.`)
-      setShowDeleteComponentDialog(false)
-      setPendingDeleteComponent(null)
+      onDeleteCustomComponent?.(
+        pendingDeleteComponent.cc_id || pendingDeleteComponent.id,
+      );
+      toast.success(`"${pendingDeleteComponent.name}" has been deleted.`);
+      setShowDeleteComponentDialog(false);
+      setPendingDeleteComponent(null);
     }
-  }
+  };
 
   // Filter layers to only show components belonging to the active page
-  const filteredLayers = components.filter(c => {
+  const filteredLayers = components.filter((c) => {
     if (c.page_ids && c.page_ids.length > 0) {
       if (c.page_ids.includes("all")) return true;
       return c.page_ids.includes(activePageId || "home");
     }
 
     return (
-      c.page_id === activePageId || 
-      c.page_id === 'all' || 
-      (!c.page_id && activePageId === 'home')
+      c.page_id === activePageId ||
+      c.page_id === "all" ||
+      (!c.page_id && activePageId === "home")
     );
   });
-
 
   return (
     <div
@@ -157,33 +183,55 @@ export function Sidebar({
       data-tour="sidebar-palette"
       className="w-full bg-card flex flex-col h-full overflow-hidden sidebar-compact"
     >
-      <Tabs defaultValue="blocks" className="flex flex-col h-full overflow-hidden">
+      <Tabs
+        defaultValue="blocks"
+        className="flex flex-col h-full overflow-hidden"
+      >
         <div className="border-b p-3 shrink-0">
           <TabsList className="grid w-full grid-cols-3 h-8">
-            <TabsTrigger value="blocks" className="flex items-center gap-1.5 text-xs h-7">
+            <TabsTrigger
+              value="blocks"
+              className="flex items-center gap-1.5 text-xs h-7"
+            >
               <Blocks className="w-3.5 h-3.5" />
               Blocks
             </TabsTrigger>
-            <TabsTrigger value="components" className="flex items-center gap-1.5 text-xs h-7 shrink-0">
+            <TabsTrigger
+              value="components"
+              className="flex items-center gap-1.5 text-xs h-7 shrink-0"
+            >
               <Code2 className="w-3.5 h-3.5" />
               Custom
             </TabsTrigger>
-            <TabsTrigger value="layers" className="flex items-center gap-1.5 text-xs h-7">
+            <TabsTrigger
+              value="layers"
+              className="flex items-center gap-1.5 text-xs h-7"
+            >
               <Layers className="w-3.5 h-3.5" />
               Layers
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="blocks" className="flex-1 mt-0 border-0 p-0 overflow-hidden">
-          <BlocksPalette onSelectBlock={onAddComponent} searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+        <TabsContent
+          value="blocks"
+          className="flex-1 mt-0 border-0 p-0 overflow-hidden"
+        >
+          <BlocksPalette
+            onSelectBlock={onAddComponent}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
         </TabsContent>
 
-        <TabsContent value="components" className="flex-1 mt-0 border-0 p-3 overflow-y-auto">
+        <TabsContent
+          value="components"
+          className="flex-1 mt-0 border-0 p-3 overflow-y-auto"
+        >
           <div className="space-y-4">
             <div className="flex gap-2">
-              <Button 
-                className="flex-1 justify-start gap-2" 
+              <Button
+                className="flex-1 justify-start gap-2"
                 variant="outline"
                 onClick={() => {
                   setEditingComponent(null);
@@ -205,7 +253,9 @@ export function Sidebar({
 
             <div className="space-y-3">
               <div>
-                <h4 className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">Custom Components</h4>
+                <h4 className="mb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Custom Components
+                </h4>
                 <div className="space-y-2">
                   {customComponents.length === 0 ? (
                     <div className="text-[10px] text-muted-foreground text-center py-4 border border-dashed rounded-md">
@@ -214,11 +264,15 @@ export function Sidebar({
                   ) : (
                     customComponents.map((cc) => (
                       <div key={cc.id} className="group relative">
-                        <DraggableComponent 
-                           type="custom-component" 
-                           icon={<Code2 className="w-3.5 h-3.5" />} 
-                           label={cc.name} 
-                           props={{ ...cc.component_json.props, enableCustomCss: true }} 
+                        <DraggableComponent
+                          type="custom-component"
+                          icon={<Code2 className="w-3.5 h-3.5" />}
+                          label={cc.name}
+                          props={{
+                            ...cc.component_json.props,
+                            enableCustomCss: true,
+                          }}
+                          componentId={cc.id}
                         />
                         <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <button
@@ -227,9 +281,10 @@ export function Sidebar({
                               setEditingComponent({
                                 id: cc.id,
                                 name: cc.name,
-                                description: cc.component_json.props.description || '',
-                                html: cc.component_json.props.html || '',
-                                css: cc.component_json.props.css || '',
+                                description:
+                                  cc.component_json.props.description || "",
+                                html: cc.component_json.props.html || "",
+                                css: cc.component_json.props.css || "",
                               });
                               setIsModalOpen(true);
                             }}
@@ -266,7 +321,7 @@ export function Sidebar({
           </div>
         </TabsContent>
 
-        <CustomComponentModal 
+        <CustomComponentModal
           isOpen={isModalOpen}
           initialData={editingComponent}
           onClose={() => {
@@ -288,12 +343,15 @@ export function Sidebar({
           }}
         />
 
-        <TabsContent value="layers" className="flex-1 mt-0 border-0 overflow-hidden">
-          <LayerPanel 
+        <TabsContent
+          value="layers"
+          className="flex-1 mt-0 border-0 overflow-hidden"
+        >
+          <LayerPanel
             components={filteredLayers} // Only pass components for the active page
             selectedId={selectedId}
             onSelect={(id) => {
-              const component = components.find(c => c.id === id) || null;
+              const component = components.find((c) => c.id === id) || null;
               onSelect(component);
             }}
             onDelete={onDelete}
@@ -302,41 +360,40 @@ export function Sidebar({
           />
         </TabsContent>
       </Tabs>
-      
+
       {/* Delete Component Confirmation Dialog */}
       <Dialog
         open={showDeleteComponentDialog}
         onOpenChange={(open) => {
-          setShowDeleteComponentDialog(open)
-          if (!open) setPendingDeleteComponent(null)
+          setShowDeleteComponentDialog(open);
+          if (!open) setPendingDeleteComponent(null);
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete component?</DialogTitle>
             <DialogDescription>
-              This will delete "{pendingDeleteComponent?.name || 'this component'}". This action cannot be undone.
+              This will delete "
+              {pendingDeleteComponent?.name || "this component"}". This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-end">
             <Button
               variant="outline"
               onClick={() => {
-                setShowDeleteComponentDialog(false)
-                setPendingDeleteComponent(null)
+                setShowDeleteComponentDialog(false);
+                setPendingDeleteComponent(null);
               }}
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteComponent}
-            >
+            <Button variant="destructive" onClick={handleDeleteComponent}>
               Delete
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
