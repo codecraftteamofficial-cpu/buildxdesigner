@@ -68,6 +68,7 @@ export function SiteRenderer({
                     flex-wrap: wrap;
                     gap: 1rem;
                     width: 100%;
+                    max-width: 1920px;
                     box-sizing: border-box;
                 }
                 .sr-navbar .nav-brand { font-weight: 700; white-space: nowrap; }
@@ -260,6 +261,9 @@ export function SiteRenderer({
                                     {component.props?.enableCustomCss && component.props?.customCss && (
                                         <style>{component.props.customCss}</style>
                                     )}
+                                    {component.props?.enableCustomJs && component.props?.customJs && (
+                                        <script dangerouslySetInnerHTML={{ __html: component.props.customJs }} />
+                                    )}
                                     <RenderableComponent
                                     component={component}
                                     projectId={projectId}
@@ -296,6 +300,9 @@ export function SiteRenderer({
                     >
                         {component.props?.enableCustomCss && component.props?.customCss && (
                             <style>{component.props.customCss}</style>
+                        )}
+                        {component.props?.enableCustomJs && component.props?.customJs && (
+                            <script dangerouslySetInnerHTML={{ __html: component.props.customJs }} />
                         )}
                         <RenderableComponent
                             component={component}
@@ -373,7 +380,20 @@ function NavbarRenderer({
                     setOpen(false);
                 } else if (navigate) {
                     e.preventDefault();
-                    navigate(url);
+                    
+                    // Handle subdomain-based navigation
+                    const currentUrl = new URL(window.location.href);
+                    const isSubdomainMode = currentUrl.searchParams.has('subdomain');
+                    
+                    if (isSubdomainMode && url.startsWith('/')) {
+                        // For subdomain mode, update the page parameter instead of changing the path
+                        const newUrl = new URL(window.location.href);
+                        newUrl.searchParams.set('page', url.replace('/', ''));
+                        navigate(newUrl.search + (window.location.hash || ''));
+                    } else {
+                        // Normal navigation
+                        navigate(url);
+                    }
                     setOpen(false);
                 }
             };

@@ -49,13 +49,14 @@ interface DraggableComponentProps {
   label: string;
   props?: Record<string, any>;
   componentId?: string;
+  style?: Record<string, any>
 }
 
 function DraggableComponent({
   type,
   icon,
   label,
-  props = {},
+  props = {}, style = {},
   componentId,
 }: DraggableComponentProps) {
   const dragRef = useRef<HTMLDivElement>(null);
@@ -64,7 +65,7 @@ function DraggableComponent({
     type: "component",
     item: () => ({
       type,
-      props,
+      props, style,
       id: `${componentId ?? "cc"}-drop-${Math.random().toString(36).slice(2, 8)}`,
     }),
     collect: (monitor) => ({
@@ -104,13 +105,15 @@ interface SidebarProps {
     description: string,
     html: string,
     css: string,
-  ) => Promise<void>;
+    js: string, php: string) => Promise<void>;
   onUpdateCustomComponent?: (
     id: string,
     name: string,
     description: string,
     html: string,
     css: string,
+    js: string,
+    php: string
   ) => Promise<void>;
   onDeleteCustomComponent?: (id: string) => void;
   onExportComponent?: (component: any) => Promise<void>;
@@ -269,10 +272,17 @@ export function Sidebar({
                           icon={<Code2 className="w-3.5 h-3.5" />}
                           label={cc.name}
                           props={{
-                            ...cc.component_json.props,
-                            enableCustomCss: true,
-                          }}
+                            
+                             ...cc.component_json.props,
+                            
+                             enableCustomCss: true,
+                          
+                           }}
                           componentId={cc.id}
+                           style={cc.component_json.style || {
+                             width: "100%",
+                             minHeight: "200px"
+                           }}
                         />
                         <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <button
@@ -285,6 +295,8 @@ export function Sidebar({
                                   cc.component_json.props.description || "",
                                 html: cc.component_json.props.html || "",
                                 css: cc.component_json.props.css || "",
+                                js: cc.component_json.props.js || '',
+                                php: cc.component_json.props.php || '',
                               });
                               setIsModalOpen(true);
                             }}
@@ -328,7 +340,7 @@ export function Sidebar({
             setIsModalOpen(false);
             setEditingComponent(null);
           }}
-          onSave={onSaveCustomComponent || (async () => {})}
+          onSave={onSaveCustomComponent || (async (_n, _d, _h, _c, _j, _p) => {})}
           onUpdate={onUpdateCustomComponent}
           projectId={projectId}
         />

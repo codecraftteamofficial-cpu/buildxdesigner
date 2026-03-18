@@ -5,7 +5,8 @@ export async function publishComponent(
   userId: string,
   name: string,
   description: string,
-  componentJson: any
+  componentJson: any,
+  componentId: string
 ) {
   try {
     const { data, error } = await supabase
@@ -15,6 +16,7 @@ export async function publishComponent(
         name,
         description,
         component_json: componentJson,
+        component_id: componentId, // Add component_id from custom_components
       })
       .select()
       .single();

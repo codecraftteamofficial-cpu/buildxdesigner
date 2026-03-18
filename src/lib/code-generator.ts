@@ -169,7 +169,7 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
   const indent = "  ".repeat(depth);
   const props  = component.props ?? {};
   const cls    = compClass(component);
-  const idAttr = props.elementId ? ` id="${esc(props.elementId)}"` : "";
+  const idAttr = ` id="${esc(props.elementId || compIdClass(component))}"`;
   // Button JS ID uses the same class name (readable or legacy)
   const btnId  = component.type === "button" ? ` id="btn-${compIdClass(component)}"` : "";
   const childOutput = (component.children ?? [])
@@ -290,6 +290,21 @@ const linkItems = links
         `${indent}</div>`,
       ].filter(Boolean).join("\n");
 
+    case "custom-component": {
+      const html = props.html || "";
+      const php = props.php || "";
+      
+      // If there's PHP, we wrap the output in PHP tags or include it directly
+      let innerOutput = "";
+      if (php) {
+        innerOutput = `<?php\n${indent}${php}\n${indent}?>\n${indent}${html}`;
+      } else {
+        innerOutput = html;
+      }
+
+      return `${indent}<div${idAttr} class="${cls}" data-component-type="custom-component">\n${indent}  ${innerOutput}\n${indent}</div>`;
+    }
+
     default:
       return `${indent}<div${idAttr} class="${cls}">\n${childOutput || ""}\n${indent}</div>`;
   }
@@ -325,10 +340,75 @@ const generatePageJS = (components: ComponentData[], pageName: string): string =
     });
   });` : "";
 
+  // Collect custom JS from custom components (including nested)
+  const allComponents = collectAllComponents(components);
+  const customScripts = allComponents
+    .filter(c => c.type === "custom-component" && c.props?.js)
+    .map(c => {
+      const id = compIdClass(c);
+      return `// Custom JS for ${c.id}
+(function() {
+  const element = document.getElementById("${id}");
+  if (!element) {
+    console.error('Custom component element not found: ${id}');
+    return;
+  }
+  
+  try {
+    (function(element) {
+      // Enhanced element finding functions
+      const $ = (selector) => {
+        // First try within the component scope
+        let found = element.querySelector(selector);
+        // If not found, try globally
+        if (!found) found = document.querySelector(selector);
+        return found;
+      };
+      
+      const $$ = (selector) => {
+        // First try within the component scope
+        let found = element.querySelectorAll(selector);
+        // If none found, try globally
+        if (found.length === 0) found = document.querySelectorAll(selector);
+        return found;
+      };
+      
+      // Make these functions available to the user's JS
+      const querySelector = $;
+      const querySelectorAll = $$;
+      
+      console.log('Executing JS for custom component: ${id}');
+      
+${c.props.js}
+      
+      console.log('Custom component JS execution completed: ${id}');
+    })(element);
+  } catch (err) {
+    console.error('Error in custom component [${c.id}] JS:', err);
+    // Try to show error in the component if there's an output element
+    const outputEl = element.querySelector('#output, .output, .error-display');
+    if (outputEl) {
+      outputEl.textContent = 'JavaScript Error: ' + err.message;
+      outputEl.style.color = 'red';
+    }
+  }
+})();`;
+    })
+    .join("\n\n");
+
   return `document.addEventListener("DOMContentLoaded", () => {
   console.log("${pageName} page loaded");
 ${navScript}
   ${listeners || "// No interactive components."}
+
+  // Execute custom component scripts with delay to ensure DOM is ready
+  setTimeout(() => {
+    try {
+${customScripts ? `// Custom Component Scripts\n${customScripts}` : "// No custom component scripts."}
+    } catch (error) {
+      console.error('Error executing custom component scripts:', error);
+    }
+  }, 100);
 });`;
 };
 

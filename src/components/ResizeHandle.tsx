@@ -19,7 +19,7 @@ interface ResizeHandleProps {
   [key: string]: any;
 }
 
-export function ResizeHandle({
+export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(({
   onResize,
   initialX = 0,
   initialY = 0,
@@ -35,7 +35,7 @@ export function ResizeHandle({
   gridSize = 20,
   autoSize = false,
   ...props
-}: ResizeHandleProps) {
+}, ref) => {
   const [dimensions, setDimensions] = useState({
     x: initialX,
     y: initialY,
@@ -44,7 +44,8 @@ export function ResizeHandle({
   });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = (ref as React.RefObject<HTMLDivElement>) || internalRef;
   const startPos = useRef({ x: 0, y: 0 });
   const startDimensions = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -393,4 +394,4 @@ export function ResizeHandle({
       )}
     </div>
   );
-}
+});

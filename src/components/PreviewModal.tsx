@@ -1067,7 +1067,8 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
             style={{
               width:    '100%',
               height:   '100%',
-              overflow: 'auto',
+              overflowX: 'hidden',  // Hide horizontal scrollbar
+              overflowY: 'auto',     // Keep vertical scrollbar for long content
               position: 'relative',
               background: canvasBackgroundColor || '#ffffff',
             }}
@@ -1085,7 +1086,7 @@ export function PreviewModal({ components, onClose, activePageId = 'home', pages
               <div style={{
                 width:    `${Math.round(DESIGN_WIDTH * scale)}px`,
                 height:   `${Math.round(fullCanvasHeight * scale)}px`,
-                overflow: 'visible',  // Changed from hidden to prevent visual glitches
+                overflow: 'hidden',  // Changed back to hidden to prevent scrollbar
                 position: 'relative',
               }}>
               {/* Canvas at full 1920px, shrunk by transform:scale — uniform scaling */}

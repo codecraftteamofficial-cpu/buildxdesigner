@@ -18,7 +18,20 @@ export function PublishedSite() {
     const getActivePageFromPath = (path: string, pages: any[]) => {
         if (!pages || pages.length === 0) return 'home';
 
-        let pathname = path.split('?')[0];
+        let pathname = path;
+        
+        // Handle subdomain mode with page parameter
+        if (path.includes('?page=')) {
+            const urlParams = new URLSearchParams(path.split('?')[1]);
+            pathname = '/' + (urlParams.get('page') || 'home');
+        } else if (path.startsWith('?')) {
+            // Handle cases where path is just the search params
+            const urlParams = new URLSearchParams(path.substring(1));
+            pathname = '/' + (urlParams.get('page') || 'home');
+        } else {
+            pathname = path.split('?')[0];
+        }
+        
         if (pathname.length > 1 && pathname.endsWith('/')) {
             pathname = pathname.slice(0, -1);
         }
@@ -42,7 +55,23 @@ export function PublishedSite() {
     };
 
     const navigate = (path: string) => {
-        window.history.pushState({}, '', path);
+        // Handle subdomain-based navigation
+        const currentUrl = new URL(window.location.href);
+        const isSubdomainMode = currentUrl.searchParams.has('subdomain');
+        
+        if (isSubdomainMode && path.startsWith('/')) {
+            // For subdomain mode, update the page parameter instead of changing the path
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('page', path.replace('/', ''));
+            window.history.pushState({}, '', newUrl.toString());
+        } else if (isSubdomainMode && path.includes('?page=')) {
+            // Handle direct page parameter navigation
+            window.history.pushState({}, '', path);
+        } else {
+            // Normal navigation
+            window.history.pushState({}, '', path);
+        }
+        
         const newPageId = getActivePageFromPath(path, project?.pages || []);
         setActivePageId(newPageId);
     };
@@ -104,11 +133,34 @@ export function PublishedSite() {
         if (!project) return;
 
         const handlePopState = () => {
-            setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
+            // Check for page parameter in subdomain mode
+            const currentUrl = new URL(window.location.href);
+            const isSubdomainMode = currentUrl.searchParams.has('subdomain');
+            
+            let pathToUse;
+            if (isSubdomainMode) {
+                const pageParam = currentUrl.searchParams.get('page');
+                pathToUse = pageParam ? `?page=${pageParam}` : window.location.search + window.location.hash;
+            } else {
+                pathToUse = window.location.pathname;
+            }
+            
+            setActivePageId(getActivePageFromPath(pathToUse, project.pages || []));
         };
 
         // Initial detection
-        setActivePageId(getActivePageFromPath(window.location.pathname, project.pages || []));
+        const currentUrl = new URL(window.location.href);
+        const isSubdomainMode = currentUrl.searchParams.has('subdomain');
+        
+        let initialPath;
+        if (isSubdomainMode) {
+            const pageParam = currentUrl.searchParams.get('page');
+            initialPath = pageParam ? `?page=${pageParam}` : window.location.search + window.location.hash;
+        } else {
+            initialPath = window.location.pathname;
+        }
+        
+        setActivePageId(getActivePageFromPath(initialPath, project.pages || []));
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);

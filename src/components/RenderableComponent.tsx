@@ -317,6 +317,91 @@ export function RenderableComponent({
     observer.observe(contentRef.current);
     return () => observer.disconnect();
   }, [shouldApplyCustomCss, isPreview, style, onUpdate]);
+  // Custom Component JS Execution in Preview
+  React.useEffect(() => {
+    if (type === 'custom-component' && isPreview && props.js && contentRef.current) {
+      const executeJs = () => {
+        try {
+          // Verify the element exists and has content
+          const element = contentRef.current;
+          if (!element) {
+            console.error('Custom component element not found:', component.id);
+            return;
+          }
+          
+          // Check if the element has any child nodes (HTML content)
+          if (!element.hasChildNodes() && !props.html) {
+            console.warn('Custom component has no HTML content:', component.id);
+          }
+          
+          // Create a safe execution context with enhanced DOM querying
+          const enhancedJs = `
+            const run = () => {
+              try {
+                console.log('Executing JS for custom component:', element.id || element.className);
+                
+                // Enhanced element finding functions
+                const $ = (selector) => {
+                  // First try within the component scope
+                  let found = element.querySelector(selector);
+                  // If not found, try globally
+                  if (!found) found = document.querySelector(selector);
+                  return found;
+                };
+                
+                const $$ = (selector) => {
+                  // First try within the component scope
+                  let found = element.querySelectorAll(selector);
+                  // If none found, try globally
+                  if (found.length === 0) found = document.querySelectorAll(selector);
+                  return found;
+                };
+                
+                // Make these functions available to the user's JS
+                const querySelector = $;
+                const querySelectorAll = $$;
+                
+                // Make Supabase available globally for custom components
+                if (typeof window.supabaseClient !== 'undefined') {
+                  window.supabase = window.supabaseClient;
+                }
+                
+                ${props.js}
+                
+                console.log('Custom component JS execution completed');
+              } catch (err) {
+                console.error('Error in custom component logic:', err);
+                // Try to show error in the component if there's an output element
+                const outputEl = element.querySelector('#output, .output, .error-display');
+                if (outputEl) {
+                  outputEl.textContent = 'JavaScript Error: ' + err.message;
+                  outputEl.style.color = 'red';
+                }
+              }
+            };
+            
+            // Ensure DOM is ready
+            if (document.readyState !== 'loading') {
+              run();
+            } else {
+              document.addEventListener('DOMContentLoaded', run);
+            }
+          `;
+          
+          // Execute the enhanced JavaScript
+          const func = new Function('element', enhancedJs);
+          func(element);
+          console.log('Custom component JS executed successfully:', component.id);
+        } catch (error) {
+          console.error('Failed to execute JS for custom component:', error);
+        }
+      };
+
+      // Slight delay to ensure child DOM elements are rendered
+      const timer = setTimeout(executeJs, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [type, isPreview, props.js, component.id, props.html]);
 
   React.useEffect(() => {
     if (type === 'checkbox') {
@@ -1191,7 +1276,9 @@ export function RenderableComponent({
         const textHeight = parseSize(style?.height, 50);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1237,7 +1324,9 @@ export function RenderableComponent({
         const headingHeight = parseSize(style?.height, 60);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1281,7 +1370,9 @@ export function RenderableComponent({
         const buttonHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1444,7 +1535,8 @@ export function RenderableComponent({
 
       case 'custom-component':
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1460,6 +1552,7 @@ export function RenderableComponent({
           >
             {customCssContent}
             <div 
+              ref={contentRef}
               style={{ 
                 ...combinedStyle, 
                 width: 'auto',
@@ -1481,7 +1574,9 @@ export function RenderableComponent({
         const pmHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1519,7 +1614,9 @@ export function RenderableComponent({
 
       case 'sign-in':
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1554,7 +1651,9 @@ export function RenderableComponent({
 
       case 'sign-up':
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1590,7 +1689,9 @@ export function RenderableComponent({
 
       case 'auth-block':
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1628,7 +1729,9 @@ export function RenderableComponent({
 
       case 'profile':
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1661,7 +1764,9 @@ export function RenderableComponent({
         const tableHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1847,7 +1952,9 @@ export function RenderableComponent({
         const styleType = props.styleType || 'solid';
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1903,7 +2010,9 @@ export function RenderableComponent({
         const items = props.items || [];
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1983,7 +2092,9 @@ export function RenderableComponent({
         const tabs = props.tabs || [];
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2057,7 +2168,9 @@ export function RenderableComponent({
         const [isModalOpen, setIsModalOpen] = React.useState(false);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2207,7 +2320,9 @@ export function RenderableComponent({
         if (isDismissed && isPreview) return null;
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2332,7 +2447,9 @@ export function RenderableComponent({
         };
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}  // ← use the shared handleResize, same as every other component
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2409,7 +2526,9 @@ export function RenderableComponent({
         const groupHeight = parseSize(style?.height, 200);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2476,7 +2595,9 @@ export function RenderableComponent({
         const containerHeight = parseSize(style?.height, 150);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2525,7 +2646,9 @@ export function RenderableComponent({
         const navHeight = parseSize(style?.height, 64);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2638,7 +2761,9 @@ export function RenderableComponent({
         const heroHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2710,7 +2835,9 @@ export function RenderableComponent({
         const footerHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2759,7 +2886,9 @@ export function RenderableComponent({
         const inputHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2814,7 +2943,9 @@ export function RenderableComponent({
         const options = props.options || [];
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2884,7 +3015,9 @@ export function RenderableComponent({
         const checkboxSize = 25; // Standard size for checkbox
         
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -2948,7 +3081,9 @@ export function RenderableComponent({
         const options = props.options || [];
         
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3020,7 +3155,9 @@ export function RenderableComponent({
         const textareaHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3070,7 +3207,9 @@ export function RenderableComponent({
         const formHeight = parseSize(style?.height, 300);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3194,7 +3333,9 @@ export function RenderableComponent({
         const isVertical = props.orientation === 'vertical';
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3283,7 +3424,9 @@ export function RenderableComponent({
         const cardHeight = parseSize(style?.height, 350);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3378,7 +3521,9 @@ export function RenderableComponent({
         const sectionHeadingHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3437,7 +3582,9 @@ export function RenderableComponent({
         const paragraphHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3481,7 +3628,9 @@ export function RenderableComponent({
         const galleryHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -3558,7 +3707,9 @@ export function RenderableComponent({
         }, [props.autoplay, props.autoplaySpeed, currentSlide, isPreview]);
 
         return (
-          <ResizeHandle data-component-id={component.id}
+          <ResizeHandle 
+            ref={contentRef}
+            data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}

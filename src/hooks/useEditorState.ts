@@ -15,7 +15,7 @@ import {
   saveCustomComponent,
   fetchCustomComponents,
   deleteCustomComponent,
-  updateCustomComponent,
+  updateCustomComponent, updateCustomComponentPublicStatus,
 } from "../supabase/data/customComponentService";
 import { publishComponent } from "../supabase/data/publishedComponentService";
 import useCollaboration from "../services/useCollaboration";
@@ -1679,6 +1679,8 @@ export function useEditorState() {
     description: string,
     html: string,
     css: string,
+    js: string,
+    php: string,
   ) => {
     if (!state.currentProjectId) return;
     const componentData = {
@@ -1686,6 +1688,8 @@ export function useEditorState() {
       props: {
         html,
         css,
+        js,
+        php,
         name,
         description,
       },
@@ -1723,12 +1727,16 @@ export function useEditorState() {
     description: string,
     html: string,
     css: string,
+    js: string,
+    php: string,
   ) => {
     const componentData = {
       type: "custom-component",
       props: {
         html,
         css,
+        js,
+        php,
         name,
         description,
       },
@@ -1759,8 +1767,16 @@ export function useEditorState() {
         component.name,
         component.component_json?.props?.description || "",
         component.component_json,
+        component.id // Pass the custom component ID
       );
       if (error) throw error;
+
+      // Update the custom component to set isPublic = 1
+      const { error: updateError } = await updateCustomComponentPublicStatus(
+        component.id,
+        true
+      );
+      if (updateError) throw updateError;
     } catch (error) {
       throw error;
     }

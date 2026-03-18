@@ -40,7 +40,8 @@ const generateComponentHTML = (component: ComponentData): string => {
 
   // Build inline styles from design panel properties
   const inlineStyles = buildInlineStyles(style)
-  const dataAttrs = `data-component-id="${id}" data-component-type="${type}"`
+  const idAttr = `id="${id.replace(/[^a-zA-Z0-9_-]/g, "-")}"`
+  const dataAttrs = `${idAttr} data-component-id="${id}" data-component-type="${type}"`
   const className = props?.className ? `class="${props.className}"` : ""
 
   let html = ""
@@ -109,7 +110,11 @@ const generateComponentHTML = (component: ComponentData): string => {
       const navLinksHTML = (props?.links || [])
         .map((link: any) => `<li><a href="${escapeHTML(link.href || "#")}">${escapeHTML(link.label)}</a></li>`)
         .join("")
-      html = `<nav ${dataAttrs} class="navbar ${className}" style="${inlineStyles}">
+      
+      // Ensure navbar respects 1920px canvas width
+      const navbarStyles = inlineStyles || "width: 100%; max-width: 1920px; margin: 0 auto;"
+      
+      html = `<nav ${dataAttrs} class="navbar ${className}" style="${navbarStyles}">
   <div class="navbar-brand">${navBrand}</div>
   <ul class="navbar-links">
     ${navLinksHTML}
@@ -122,6 +127,13 @@ const generateComponentHTML = (component: ComponentData): string => {
         children && children.length > 0 ? children.map((child) => generateComponentHTML(child)).join("\n") : ""
       html = `<div ${dataAttrs} class="grid ${className}" style="${inlineStyles}">
   ${gridChildrenHTML}
+</div>`
+      break
+
+    case "custom-component":
+      const customHtml = props?.html || ""
+      html = `<div ${dataAttrs} ${className} style="${inlineStyles}">
+  ${customHtml}
 </div>`
       break
 
@@ -228,17 +240,39 @@ export const generateEnhancedJSCode = (components: ComponentData[]): string => {
 
   // Wait for DOM to load
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('Page loaded and ready');
-    
-    // Initialize all components
-    initializeComponents();
-    
     // Set up event listeners
     setupEventListeners();
     
     // Initialize smooth scrolling
     initializeSmoothScroll();
+
+    // Run custom component scripts
+    runCustomScripts();
   });
+
+  /**
+   * Run scripts for custom components
+   */
+  function runCustomScripts() {
+    // Helper for safe execution
+    const runSafe = (fn) => {
+      if (document.readyState !== 'loading') fn();
+      else document.addEventListener('DOMContentLoaded', fn);
+    };
+
+    ${(() => {
+      const collectAll = (comps: ComponentData[]): ComponentData[] => 
+        comps.flatMap(c => [c, ...collectAll(c.children ?? [])]);
+      const allComps = collectAll(components);
+      return allComps
+        .filter(c => c.type === "custom-component" && c.props?.js)
+        .map(c => {
+          const id = c.id.replace(/[^a-zA-Z0-9_-]/g, "-");
+          return `runSafe(() => (function(element) {\n      try {\n${c.props?.js}\n      } catch (err) {\n        console.error('Error in custom component [${c.id}] JS:', err);\n      }\n    })(document.getElementById("${id}")));`;
+        })
+        .join("\n\n    ");
+    })()}
+  }
 
   /**
    * Initialize components with their event handlers
@@ -262,6 +296,9 @@ export const generateEnhancedJSCode = (components: ComponentData[]): string => {
           break;
         case 'navbar':
           setupNavbarHandlers(component);
+          break;
+        case 'modal':
+          setupModalHandlers(component);
           break;
       }
     });
@@ -318,6 +355,59 @@ export const generateEnhancedJSCode = (components: ComponentData[]): string => {
   }
 
   /**
+   * Setup modal event handlers
+   */
+  function setupModalHandlers(modal) {
+    // Find the modal trigger button and close button within the component
+    const modalId = modal.getAttribute('id');
+    const openButtons = document.querySelectorAll('[data-target="' + modalId + '"], [onclick*="' + modalId + '"]');
+    const closeButtons = modal.querySelectorAll('.close-button, [data-action="close"], .modal-close');
+    
+    console.log('Setting up modal handlers for:', modalId, {
+      openButtons: openButtons.length,
+      closeButtons: closeButtons.length
+    });
+    
+    // Setup open buttons
+    openButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Opening modal:', modalId);
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+      });
+    });
+    
+    // Setup close buttons
+    closeButtons.forEach(button => {
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Closing modal:', modalId);
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      });
+    });
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        console.log('Clicked outside modal, closing:', modalId);
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal.style.display === 'flex') {
+        console.log('Escape key pressed, closing modal:', modalId);
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+  }
+
+  /**
    * Setup general event listeners
    */
   function setupEventListeners() {
@@ -358,6 +448,7 @@ export const generateEnhancedJSCode = (components: ComponentData[]): string => {
     setupEventListeners,
   };
 })();
+`
 }
 
 /**
@@ -408,6 +499,7 @@ export const generateInteractionsJS = (): string => {
       })
     },
   )()
+`
 }
 
 /**

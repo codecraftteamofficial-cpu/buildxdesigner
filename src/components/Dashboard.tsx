@@ -89,7 +89,7 @@ import {
 // MarketplaceComponentModal removed — import happens inline on card click
 import { toast } from "sonner";
 import { importPublishedComponent } from "../supabase/data/publishedComponentService";
-import { deleteCustomComponent } from "../supabase/data/customComponentService";
+import { deleteCustomComponent, updateCustomComponentPublicStatus, deletePublishedComponent } from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
 
 type DashboardSection =
@@ -429,6 +429,7 @@ export function Dashboard({
   const [userImportedComponents, setUserImportedComponents] = useState<any[]>(
     [],
   );
+  const [userPublicComponents, setUserPublicComponents] = useState<any[]>([]);
   const [myComponentsLoading, setMyComponentsLoading] = useState(false);
 
   const [showDeleteComponentDialog, setShowDeleteComponentDialog] =
@@ -462,6 +463,7 @@ export function Dashboard({
   useEffect(() => {
     if (currentUserId && activeSection === "marketplace") {
       fetchUserCustomComponents();
+      fetchUserPublicComponents();
     }
   }, [currentUserId, activeSection]);
   const [showReportTemplateModal, setShowReportTemplateModal] = useState(false);
@@ -615,6 +617,31 @@ export function Dashboard({
           0,
       ),
     };
+  };
+
+  const fetchMarketplaceComponents = async () => {
+    try {
+      setMarketplaceLoading(true);
+      const apiBases = getApiBaseCandidates();
+      
+      for (const base of apiBases) {
+        try {
+          const res = await fetch(`${backendUrl}/api/marketplace/components`);
+          if (res.ok) {
+            const data = await res.json();
+            setMarketplaceComponents(data);
+            setMarketplaceApiBase(base);
+            break;
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch from ${base}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh marketplace components:", error);
+    } finally {
+      setMarketplaceLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -1996,6 +2023,7 @@ export function Dashboard({
       );
 
       await fetchUserCustomComponents();
+      await fetchUserPublicComponents();
 
       setShowImportConfirmDialog(false);
       setSelectedComponentForImport(null);
@@ -2011,6 +2039,7 @@ export function Dashboard({
     if (!currentUserId) {
       setUserCustomComponents([]);
       setUserImportedComponents([]);
+      setUserPublicComponents([]);
       return;
     }
 
@@ -2029,6 +2058,7 @@ export function Dashboard({
       if (!userProjects || userProjects.length === 0) {
         setUserCustomComponents([]);
         setUserImportedComponents([]);
+        setUserPublicComponents([]);
         return;
       }
 
@@ -2072,6 +2102,7 @@ export function Dashboard({
             created.push({
               ...component,
               imported: false,
+              isPublic: false,
             });
           }
         }
@@ -2089,6 +2120,57 @@ export function Dashboard({
     }
   };
 
+  const fetchUserPublicComponents = async () => {
+    if (!currentUserId) {
+      setUserPublicComponents([]);
+      return;
+    }
+
+    try {
+      setMyComponentsLoading(true);
+
+      const { data: publishedComponents, error: publishedError } = await supabase
+        .from("published_components")
+        .select(`
+          *,
+          custom_components!inner(
+            id,
+            name,
+            component_json,
+            created_at,
+            isPublic,
+            projects!inner(
+              user_id
+            )
+          )
+        `)
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false });
+
+      if (publishedError) {
+        throw publishedError;
+      }
+
+      const publicComponents = publishedComponents?.map((pubComp) => ({
+        ...pubComp.custom_components,
+        id: pubComp.custom_components?.id || pubComp.id,
+        name: pubComp.name,
+        component_json: pubComp.component_json,
+        created_at: pubComp.custom_components?.created_at || pubComp.created_at,
+        isPublic: true,
+        published_id: pubComp.id,
+      })) || [];
+
+      setUserPublicComponents(publicComponents);
+    } catch (error) {
+      console.error("Failed to fetch public components:", error);
+      toast.error("Failed to load your public components.");
+      setUserPublicComponents([]);
+    } finally {
+      setMyComponentsLoading(false);
+    }
+  };
+
   const openDeleteComponentDialog = (component: any) => {
     setPendingDeleteComponent(component);
     setShowDeleteComponentDialog(true);
@@ -2098,18 +2180,30 @@ export function Dashboard({
     if (!pendingDeleteComponent) return;
 
     try {
-      const { error } = await deleteCustomComponent(pendingDeleteComponent.id);
+      // Check if it's a public component
+      if (pendingDeleteComponent.isPublic && pendingDeleteComponent.published_id) {
+        // Delete from published_components and update isPublic to 0
+        const { error: deleteError } = await deletePublishedComponent(pendingDeleteComponent.published_id);
+        if (deleteError) throw deleteError;
 
-      if (error) {
-        throw error;
+        const { error: updateError } = await updateCustomComponentPublicStatus(pendingDeleteComponent.id, false);
+        if (updateError) throw updateError;
+
+        toast.success(`"${pendingDeleteComponent.name}" has been removed from public components.`);
+      } else {
+        // Regular delete for imported/created components
+        const { error } = await deleteCustomComponent(pendingDeleteComponent.id);
+        if (error) throw error;
+
+        toast.success(`"${pendingDeleteComponent.name}" has been deleted.`);
       }
-
-      toast.success(`"${pendingDeleteComponent.name}" has been deleted.`);
 
       setShowDeleteComponentDialog(false);
       setPendingDeleteComponent(null);
 
       await fetchUserCustomComponents();
+      await fetchUserPublicComponents();
+      await fetchMarketplaceComponents(); // Refresh marketplace when public component is deleted
     } catch (error) {
       console.error("Failed to delete component:", error);
       toast.error("Failed to delete component. Please try again.");
@@ -2979,6 +3073,7 @@ export function Dashboard({
                               onClick={() => {
                                 setShowMyComponentsModal(true);
                                 fetchUserCustomComponents();
+                                fetchUserPublicComponents();
                               }}
                             >
                               <Library className="w-4 h-4" />
@@ -4440,6 +4535,97 @@ export function Dashboard({
               </div>
             ) : (
               <div className="space-y-8">
+                {/* My Public Components Section */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Store className="w-5 h-5" />
+                    My Public Components ({userPublicComponents.length})
+                  </h3>
+                  {userPublicComponents.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
+                      <Store className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                      <p className="font-semibold">
+                        No public components yet
+                      </p>
+                      <p className="text-sm mt-1">
+                        Export your components to make them public and available to others
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {userPublicComponents.map((comp) => (
+                        <div
+                          key={comp.id}
+                          className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
+                        >
+                          {/* Preview */}
+                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                            <style>
+                              {`
+                                .preview-container-${comp.id} {
+                                  ${comp.component_json?.props?.css || ""}
+                                  width: 100%;
+                                  display: flex;
+                                  justify-content: center;
+                                  align-items: center;
+                                }
+                                
+                                .inner-scaler-${comp.id} {
+                                  zoom: 0.5; 
+                                  -moz-transform: scale(0.5);
+                                  -moz-transform-origin: center center;
+                                  width: max-content;
+                                  height: max-content;
+                                }
+                              `}
+                            </style>
+                            <div
+                              className={`preview-container-${comp.id} w-full h-full`}
+                            >
+                              <div
+                                className={`inner-scaler-${comp.id}`}
+                                dangerouslySetInnerHTML={{
+                                  __html:
+                                    comp.component_json?.props?.html || "",
+                                }}
+                              />
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                Public
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Component Info */}
+                          <div className="px-4 py-3 border-t border-border/40 bg-card">
+                            <div className="flex items-center justify-between gap-3">
+                              <h5 className="text-[13px] font-semibold text-foreground/90 truncate flex-1">
+                                {comp.name}
+                              </h5>
+                              <button
+                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDeleteComponentDialog(comp);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-500" />
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-[10px] text-muted-foreground/60">
+                                Published{" "}
+                                {new Date(comp.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Imported Components Section */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
