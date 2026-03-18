@@ -350,8 +350,8 @@ export function EditorLayout({
                         userConfig={{
                           paymongoKey: state.userProjectConfig?.paymongoKey,
                           resendApiKey: state.userProjectConfig?.resendApiKey,
-                          supabaseUrl: localStorage.getItem('target_supabase_url') ?? undefined,
-                          supabaseKey: localStorage.getItem('target_supabase_key') ?? undefined,
+                          supabaseUrl: state.userProjectConfig?.supabaseUrl || undefined,
+                          supabaseKey: state.userProjectConfig?.supabaseKey || undefined,
                         }}
                         activePageId={state.activePageId}
                         onCodeChange={(newComponents) => {

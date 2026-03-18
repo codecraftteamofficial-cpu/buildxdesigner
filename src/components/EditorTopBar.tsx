@@ -345,22 +345,28 @@ export function EditorTopBar({
     (c) => c.isCurrentUser && c.role.trim().toLowerCase() === "owner",
   );
 
-  useEffect(() => {
+useEffect(() => {
+  setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
+  setSupabaseIntegrationToken(
+    localStorage.getItem("supabase_integration_token"),
+  );
+
+  const handleStorageChange = () => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
     setSupabaseIntegrationToken(
       localStorage.getItem("supabase_integration_token"),
     );
+  };
 
-    const handleStorageChange = () => {
-      setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
-      setSupabaseIntegrationToken(
-        localStorage.getItem("supabase_integration_token"),
-      );
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  window.addEventListener("storage", handleStorageChange);
+  window.addEventListener("supabaseKeysUpdated", handleStorageChange);
+  window.addEventListener("userProjectConfigUpdated", handleStorageChange);
+  return () => {
+    window.removeEventListener("storage", handleStorageChange);
+    window.removeEventListener("supabaseKeysUpdated", handleStorageChange);
+    window.removeEventListener("userProjectConfigUpdated", handleStorageChange);
+  };
+}, []);
 
   // Fetch data only when the popover is opened
   const handleOpenPopover = (open: boolean) => {
@@ -371,6 +377,7 @@ export function EditorTopBar({
 
   const handleRefreshSupabaseData = () => {
     const token = localStorage.getItem("supabase_integration_token");
+    console.log("[Supabase] token:", token ? "present" : "missing");
     if (!token) return;
 
     setIsLoadingSupabase(true);
@@ -381,6 +388,8 @@ export function EditorTopBar({
       : hostname === "buildxdesigner.site"
         ? "https://buildxdesigner.duckdns.org"
         : "";
+
+    console.log("[Supabase] backendBase:", backendBase);
 
     Promise.all([
       fetch(`${backendBase}/api/supabase/organizations`, {
@@ -1630,12 +1639,11 @@ export function EditorTopBar({
                             );
                             localStorage.setItem("target_supabase_url", newUrl);
                             localStorage.setItem("target_supabase_key", newKey);
-
+                            window.dispatchEvent(new CustomEvent("supabaseKeysUpdated"));
                             toast.success(
                               `Successfully connected to: ${newProjectId}`,
                               {
-                                description:
-                                  "The connection will be used for data operations.",
+                                description: "The connection will be used for data operations.",
                                 duration: 4000,
                               },
                             );

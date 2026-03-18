@@ -71,6 +71,7 @@ function getInitialTheme(): "light" | "dark" | "system" {
 function getInitialUserProjectConfig() {
   const url = localStorage.getItem("target_supabase_url");
   const key = localStorage.getItem("target_supabase_key");
+  console.log("[init] supabase config:", { url, key });
   const resendKey = localStorage.getItem("target_resend_api_key");
   const paymongoKey = localStorage.getItem("target_paymongo_key");  // ← add
   return {
@@ -468,6 +469,29 @@ useEffect(() => {
     }
   };
   syncPaymongoKeyFromProfile();
+}, []);
+
+useEffect(() => {
+  const syncSupabaseKeysFromStorage = () => {
+    const supabaseUrl = localStorage.getItem("target_supabase_url") || "";
+    const supabaseKey = localStorage.getItem("target_supabase_key") || "";
+    if (supabaseUrl && supabaseKey) {
+      setState((prev) => ({
+        ...prev,
+        userProjectConfig: {
+          ...prev.userProjectConfig,
+          supabaseUrl,
+          supabaseKey,
+        },
+      }));
+    }
+  };
+
+  syncSupabaseKeysFromStorage();
+
+  // Also listen for storage changes (in case keys are written after load)
+  window.addEventListener("storage", syncSupabaseKeysFromStorage);
+  return () => window.removeEventListener("storage", syncSupabaseKeysFromStorage);
 }, []);
 
   useEffect(() => {
@@ -972,25 +996,31 @@ const updateUserProjectConfig = (
   url: string,
   key: string,
   resendKey?: string,
-  paymongoKey?: string,  // ← add
+  paymongoKey?: string,
 ) => {
   const config = {
     supabaseUrl: url,
     supabaseKey: key,
     resendApiKey: resendKey,
-    paymongoKey: paymongoKey,  // ← add
+    paymongoKey: paymongoKey,
   };
   localStorage.setItem("target_supabase_url", url);
   localStorage.setItem("target_supabase_key", key);
+
+  // ❌ DELETE THESE TWO LINES — they belong in EditorTopBar, not here:
+  // window.dispatchEvent(new CustomEvent("supabaseKeysUpdated"));
+  // toast.success(`Successfully connected to: ${newProjectId}`, ...);
+  // setTimeout(() => window.location.reload(), 1000);
+
   if (resendKey) {
     localStorage.setItem("target_resend_api_key", resendKey);
   } else {
     localStorage.removeItem("target_resend_api_key");
   }
-  if (paymongoKey) {                                          // ← add
-    localStorage.setItem("target_paymongo_key", paymongoKey); // ← add
-  } else {                                                    // ← add
-    localStorage.removeItem("target_paymongo_key");           // ← add
+  if (paymongoKey) {
+    localStorage.setItem("target_paymongo_key", paymongoKey);
+  } else {
+    localStorage.removeItem("target_paymongo_key");
   }
   setState((prev) => ({ ...prev, userProjectConfig: config }));
 };
