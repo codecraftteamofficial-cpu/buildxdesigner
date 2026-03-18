@@ -26,6 +26,19 @@ import {
   matchPath,
 } from "react-router-dom";
 import { isOnboardingRequired } from "./utils/onboarding";
+import { supabase } from "./supabase/config/supabaseClient";
+
+// Make Supabase available globally for custom components
+if (typeof window !== 'undefined') {
+  window.supabaseClient = supabase;
+}
+
+// Add Supabase to global window type
+declare global {
+  interface Window {
+    supabaseClient: typeof supabase;
+  }
+}
 
 // Views
 import { LandingPage } from "./components/LandingPage";

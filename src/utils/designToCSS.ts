@@ -297,6 +297,9 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
 }
 
 .navbar-brand {

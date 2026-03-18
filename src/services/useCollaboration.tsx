@@ -550,7 +550,7 @@ function useCollaborationLogic({
         const currentComponents = yComponents.toArray();
 
         if (user_id) {
-          const { error: saveError } = await saveProject({
+          const { data: savedProject, error: saveError } = await saveProject({
             id: activeProjectId,
             name: state.projectName || "Untitled Project",
             user_id,
@@ -559,14 +559,42 @@ function useCollaborationLogic({
             siteTitle: state.siteTitle,
             siteLogoUrl: state.siteLogoUrl,
           });
-          persisted = !saveError;
-        }
 
-        const { error: syncError } = await syncProjectComponents(
-          currentComponents,
-          activeProjectId,
-        );
-        persisted = persisted || !syncError;
+          if (saveError) {
+            console.error("[autosave] project save error:", saveError);
+          } else {
+            console.log("[autosave] project save success", { savedId: savedProject?.id });
+          }
+
+          if (!saveError && savedProject?.id && savedProject.id !== activeProjectId) {
+            console.log("[autosave] project ID changed (new project), updating state", {
+              old: activeProjectId,
+              new: savedProject.id
+            });
+            // Update the state with the permanent ID
+            setState(prev => ({ ...prev, currentProjectId: savedProject.id }));
+            
+            // Re-sync components with the NEW permanent ID immediately
+            const { error: syncError } = await syncProjectComponents(
+              currentComponents,
+              savedProject.id,
+            );
+            if (syncError) console.error("[autosave] initial component sync error:", syncError);
+            
+            persisted = true;
+          } else {
+            persisted = !saveError;
+            
+            if (persisted) {
+              const { error: syncError } = await syncProjectComponents(
+                currentComponents,
+                activeProjectId,
+              );
+              if (syncError) console.error("[autosave] component sync error:", syncError);
+              persisted = !syncError;
+            }
+          }
+        }
 
         if (persisted) {
           setState((prev) => ({
