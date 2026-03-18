@@ -10,13 +10,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "./ui/dialog"
 import {
   Copy, ChevronRight, ChevronDown, File, Save, Pencil, X, Download,
   CheckCircle2, RefreshCw, AlertCircle, Plus, Trash2, FilePlus,
-  FolderPlus, FileCode, FileText, Globe, RefreshCcw, AlertTriangle, Layers, Lock, Eye
+  FolderPlus, FileCode, FileText, Globe, RefreshCcw, AlertTriangle,
+  Layers, Lock, Eye, FolderOpen, Folder, BarChart3, AlignLeft,
+  Files, Cpu, ExternalLink
 } from "lucide-react"
 import { toast } from "sonner"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
@@ -52,12 +52,12 @@ interface FileNode {
 
 type FileOverrides = Record<string, string>
 
-interface FileTypeOption { 
-  ext: string; 
-  label: string; 
-  icon: React.ReactNode; 
-  color: string; 
-  folder: string; 
+interface FileTypeOption {
+  ext: string
+  label: string
+  icon: React.ReactNode
+  color: string
+  folder: string
 }
 
 interface FileCreatorModalProps {
@@ -79,21 +79,20 @@ const customSyntaxTheme = {
 }
 
 const FILE_TEMPLATES: Record<string, (name: string) => string> = {
-  php: (name) => `<?php\n// Backend logic for ${name}\nrequire_once __DIR__ . '/../lib/supabase.php';\n\n// Add your logic here\n`,
-  js: (name) => `// ${name}.js logic\n`,
+  php:  (name) => `<?php\n// Backend logic for ${name}\nrequire_once __DIR__ . '/../lib/supabase.php';\n\n// Add your logic here\n`,
+  js:   (name) => `// ${name}.js logic\n`,
   json: (name) => `{\n  "name": "${name}"\n}\n`,
-  md: (name) => `# ${name}\n`,
+  md:   (name) => `# ${name}\n`,
 }
 
 const FILE_TYPE_OPTIONS: FileTypeOption[] = [
   { ext: "php",  label: "PHP Script",   icon: <span className="text-[10px] font-bold text-[#8892bf]">PHP</span>,  color: "text-[#8892bf]", folder: "app/api" },
-  { ext: "js",   label: "JavaScript",  icon: <span className="text-[10px] font-bold text-[#f7df1e]">JS</span>,   color: "text-[#f7df1e]", folder: "public/assets/js" },
-  { ext: "json", label: "JSON Config", icon: <span className="text-[10px] font-bold text-[#f5a623]">JSON</span>, color: "text-[#f5a623]", folder: "app/config" },
-  { ext: "md",   label: "Markdown",    icon: <span className="text-[10px] font-bold text-[#aaa]">MD</span>,      color: "text-[#aaa]",     folder: "docs" },
+  { ext: "js",   label: "JavaScript",   icon: <span className="text-[10px] font-bold text-[#f7df1e]">JS</span>,   color: "text-[#f7df1e]", folder: "public/assets/js" },
+  { ext: "json", label: "JSON Config",  icon: <span className="text-[10px] font-bold text-[#f5a623]">JSON</span>, color: "text-[#f5a623]", folder: "app/config" },
+  { ext: "md",   label: "Markdown",     icon: <span className="text-[10px] font-bold text-[#aaa]">MD</span>,      color: "text-[#aaa]",     folder: "docs" },
 ]
 
-// --- COMPONENTS ---
-
+// --- FILE CREATOR MODAL ---
 function FileCreatorModal({ onClose, existingPaths, onCreateFile }: FileCreatorModalProps) {
   const [selectedType, setSelectedType] = useState<FileTypeOption>(FILE_TYPE_OPTIONS[0])
   const [fileName, setFileName]         = useState("")
@@ -104,9 +103,9 @@ function FileCreatorModal({ onClose, existingPaths, onCreateFile }: FileCreatorM
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50) }, [])
 
-  const folder     = useCustomFolder ? customFolder : selectedType.folder
-  const cleanName  = fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase()
-  const finalPath  = cleanName ? `${folder}/${cleanName}.${selectedType.ext}` : ""
+  const folder    = useCustomFolder ? customFolder : selectedType.folder
+  const cleanName = fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase()
+  const finalPath = cleanName ? `${folder}/${cleanName}.${selectedType.ext}` : ""
 
   const validate = () => {
     if (!cleanName) return "File name is required."
@@ -192,9 +191,268 @@ function FileCreatorModal({ onClose, existingPaths, onCreateFile }: FileCreatorM
   )
 }
 
-// --- UTILITIES ---
-function sanitizeId(id: string) { return id.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase(); }
+// --- CODE EXPORT MODAL ---
+interface CodeExportModalProps {
+  components: ComponentData[]
+  projectName: string
+  pages: { id: string; name: string; path: string }[]
+  activePageId: string
+  effectiveFiles: Record<string, string>
+  onClose: () => void
+}
 
+function buildExportFileTree(paths: string[]): FileNode[] {
+  const root: FileNode[] = []
+  paths.forEach(path => {
+    const parts = path.split("/")
+    let currentLevel = root
+    parts.forEach((part, i) => {
+      const isFile = i === parts.length - 1
+      let existingNode = currentLevel.find(node => node.name === part)
+      if (!existingNode) {
+        existingNode = {
+          name: part,
+          path: parts.slice(0, i + 1).join("/"),
+          type: isFile ? "file" : "folder",
+          children: isFile ? undefined : [],
+        }
+        currentLevel.push(existingNode)
+      }
+      if (existingNode.children) currentLevel = existingNode.children
+    })
+  })
+  return root
+}
+
+function CodeExportModal({
+  components,
+  projectName,
+  pages,
+  activePageId,
+  effectiveFiles,
+  onClose,
+}: CodeExportModalProps) {
+  const defaultFile = useMemo(() => {
+    const activePage = pages.find(p => p.id === activePageId) || pages[0]
+    return `app/views/${slugify(activePage.name)}.php`
+  }, [pages, activePageId])
+
+  const [selectedFile, setSelectedFile] = useState<string>(defaultFile)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(["app", "app/views", "public", "public/assets", "public/assets/css"])
+  )
+
+  const fileTree = useMemo(() => buildExportFileTree(Object.keys(effectiveFiles)), [effectiveFiles])
+
+  const stats = useMemo(() => {
+    const totalFiles = Object.keys(effectiveFiles).length
+    const totalLines = Object.values(effectiveFiles).reduce((sum, c) => sum + c.split("\n").length, 0)
+    return { totalFiles, totalLines }
+  }, [effectiveFiles])
+
+  const frameworkLabel = useMemo(() => {
+    const ext = selectedFile.split(".").pop()
+    switch (ext) {
+      case "php":  return { name: "PHP Engine",       color: "text-[#8892bf]" }
+      case "css":  return { name: "CSS3 Styles",      color: "text-[#38bdf8]" }
+      case "js":   return { name: "JavaScript ES6",   color: "text-[#facc15]" }
+      case "sql":  return { name: "PostgreSQL",        color: "text-[#336791]" }
+      default:     return { name: "Plain Text",        color: "text-white/60" }
+    }
+  }, [selectedFile])
+
+  const downloadAll = async () => {
+    try {
+      const JSZip = (await import("jszip")).default
+      const zip = new JSZip()
+      Object.entries(effectiveFiles).forEach(([path, content]) => zip.file(path, content))
+      const blob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url; a.download = `${slugify(projectName)}_export.zip`; a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Project bundle downloaded!")
+    } catch {
+      toast.error("Failed to create zip")
+    }
+  }
+
+  const copyEntireProject = async () => {
+    const fullText = Object.entries(effectiveFiles)
+      .map(([path, content]) => `--- FILE: ${path} ---\n${content}\n`)
+      .join("\n")
+    try {
+      await navigator.clipboard.writeText(fullText)
+      toast.success("Entire project copied to clipboard!")
+    } catch {
+      toast.error("Failed to copy project")
+    }
+  }
+
+  const renderTree = (nodes: FileNode[], depth = 0): React.ReactNode =>
+    nodes
+      .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1))
+      .map(node => {
+        const isExpanded = expandedFolders.has(node.path)
+        const isSelected = selectedFile === node.path
+        return (
+          <div key={node.path}>
+            <div
+              onClick={() => {
+                if (node.type === "folder") {
+                  const next = new Set(expandedFolders)
+                  next.has(node.path) ? next.delete(node.path) : next.add(node.path)
+                  setExpandedFolders(next)
+                } else {
+                  setSelectedFile(node.path)
+                }
+              }}
+              className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-sm mb-0.5 ${
+                isSelected ? "bg-[#37373d] text-white" : "text-gray-400 hover:bg-[#2a2d2e] hover:text-gray-200"
+              }`}
+              style={{ paddingLeft: `${depth * 12 + 8}px` }}
+            >
+              {node.type === "folder" ? (
+                <>
+                  {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                  {isExpanded
+                    ? <FolderOpen className="w-4 h-4 text-blue-400/80" />
+                    : <Folder className="w-4 h-4 text-blue-400/80" />}
+                </>
+              ) : (
+                <FileCode className={`w-4 h-4 ${node.path.endsWith(".php") ? "text-blue-400" : node.path.endsWith(".css") ? "text-blue-300" : "text-yellow-400"}`} />
+              )}
+              <span className="truncate">{node.name}</span>
+            </div>
+            {node.type === "folder" && isExpanded && node.children && renderTree(node.children, depth + 1)}
+          </div>
+        )
+      })
+
+return (
+  <Dialog open={true} onOpenChange={onClose}>
+    <DialogContent
+      className="max-w-6xl w-[95vw] p-0 gap-0 flex flex-col overflow-hidden border-[#333] shadow-2xl text-white"
+      style={{
+        backgroundColor: "#1e1e1e",
+        height: "min(85vh, 700px)",
+      }}
+    >
+      <DialogHeader className="sr-only">
+        <DialogTitle>Export Code</DialogTitle>
+      </DialogHeader>
+
+      {/* Title bar */}
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b border-[#333] shrink-0"
+        style={{ backgroundColor: "#252526" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 px-2 py-0.5 rounded text-white font-bold text-[10px]">BUILDX</div>
+          <h2 className="text-sm font-medium text-gray-200 uppercase tracking-widest">
+            Export Project: {projectName}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost" size="sm"
+            className="text-gray-400 hover:text-white hover:bg-[#333]"
+            onClick={copyEntireProject}
+          >
+            <Files className="w-4 h-4 mr-2" /> Copy Project
+          </Button>
+          <Button
+            size="sm"
+            onClick={downloadAll}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-transform active:scale-95"
+          >
+            <Download className="w-4 h-4 mr-2" /> Download .zip
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 flex overflow-hidden min-h-0" style={{ backgroundColor: "#1e1e1e" }}>
+        {/* Explorer sidebar */}
+        <div
+          className="w-64 border-r border-[#333] flex flex-col shrink-0 overflow-y-auto"
+          style={{ backgroundColor: "#181818" }}
+        >
+          <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 mb-2">
+            Explorer
+          </div>
+          <div className="flex-1 px-1">{renderTree(fileTree)}</div>
+        </div>
+
+        {/* Code pane */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ backgroundColor: "#1e1e1e" }}>
+          <div
+            className="flex items-center gap-2 px-4 py-2 text-xs text-gray-300 border-b border-[#333] justify-between shrink-0"
+            style={{ backgroundColor: "#2d2d2d" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <FileCode className={`w-3.5 h-3.5 shrink-0 ${selectedFile.endsWith(".php") ? "text-blue-400" : "text-blue-300"}`} />
+              <span className="font-mono truncate">{selectedFile}</span>
+            </div>
+            <Button
+              variant="ghost" className="h-6 w-6 p-0 shrink-0 hover:bg-white/10"
+              onClick={() => { navigator.clipboard.writeText(effectiveFiles[selectedFile] ?? ""); toast.success("File copied!") }}
+            >
+              <Copy className="w-3 h-3" />
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-auto min-h-0" style={{ backgroundColor: "#1e1e1e" }}>
+            <SyntaxHighlighter
+              language={
+                selectedFile.endsWith(".css") ? "css"
+                : selectedFile.endsWith(".js") ? "javascript"
+                : selectedFile.endsWith(".sql") ? "sql"
+                : "php"
+              }
+              style={okaidia}
+              showLineNumbers
+              customStyle={{
+                margin: 0, padding: "24px",
+                backgroundColor: "#1e1e1e",
+                fontSize: "13px", lineHeight: "1.6",
+                minHeight: "100%", width: "100%",
+              }}
+            >
+              {effectiveFiles[selectedFile] || "// No content"}
+            </SyntaxHighlighter>
+          </div>
+        </div>
+      </div>
+
+      {/* Status bar */}
+      <div
+        className="h-7 text-white flex items-center px-4 justify-between shrink-0 text-[11px] font-medium"
+        style={{ backgroundColor: "#007acc" }}
+      >
+        <div className="flex items-center h-full">
+          <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full border-r border-white/10">
+            <BarChart3 className="w-3 h-3" /><span>{stats.totalFiles} Files</span>
+          </div>
+          <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full border-r border-white/10">
+            <AlignLeft className="w-3 h-3" /><span>{stats.totalLines} Lines</span>
+          </div>
+          <div className="flex items-center gap-1.5 cursor-default hover:bg-white/10 px-3 h-full">
+            <Cpu className={`w-3 h-3 ${frameworkLabel.color}`} />
+            <span className={frameworkLabel.color}>{frameworkLabel.name}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 px-3">
+          <span className="opacity-90">UTF-8</span>
+          <span className="opacity-90 uppercase font-bold">{selectedFile.split(".").pop()}</span>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+)
+}
+
+// --- UTILITIES ---
 const buildTreeFromPaths = (paths: string[]): FileNode[] => {
   const root: FileNode = { name: "root", type: "folder", path: "", children: [] }
   for (const path of paths) {
@@ -213,32 +471,42 @@ const buildTreeFromPaths = (paths: string[]): FileNode[] => {
     })
   }
   const sort = (nodes: FileNode[]): FileNode[] =>
-    nodes.sort((a, b) => a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1)
+    nodes
+      .sort((a, b) => a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1)
       .map(n => ({ ...n, children: n.children ? sort(n.children) : undefined }))
   return sort(root.children ?? [])
 }
 
-export function CodeViewEditor({ components, projectName = "php-builder", pages, activePageId, onCodeChange, onPageCreate }: CodeViewEditorProps) {
-  const [selectedFile, setSelectedFile] = useState("")
+// --- MAIN COMPONENT ---
+export function CodeViewEditor({
+  components,
+  projectName = "php-builder",
+  pages,
+  activePageId,
+  onCodeChange,
+  onPageCreate,
+}: CodeViewEditorProps) {
+  const [selectedFile, setSelectedFile]       = useState("")
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/api", "public", "config"]))
-  const [isEditing, setIsEditing] = useState(false)
-  const [draftContent, setDraftContent] = useState("")
-  const [savedIndicator, setSavedIndicator] = useState(false)
-  const [fileOverrides, setFileOverrides] = useState<FileOverrides>({})
-  const [customFiles, setCustomFiles] = useState<FileOverrides>({})
+  const [isEditing, setIsEditing]             = useState(false)
+  const [draftContent, setDraftContent]       = useState("")
+  const [savedIndicator, setSavedIndicator]   = useState(false)
+  const [fileOverrides, setFileOverrides]     = useState<FileOverrides>({})
+  const [customFiles, setCustomFiles]         = useState<FileOverrides>({})
   const [showFileCreator, setShowFileCreator] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)   // ← new
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  
-  const generatedFiles = useMemo(() => generateProjectFiles(components, pages, projectName), [components, pages, projectName])
-  const effectiveFiles = useMemo<Record<string, string>>(() => ({ ...generatedFiles, ...fileOverrides, ...customFiles }), [generatedFiles, fileOverrides, customFiles])
+
+  const generatedFiles  = useMemo(() => generateProjectFiles(components, pages, projectName), [components, pages, projectName])
+  const effectiveFiles  = useMemo<Record<string, string>>(() => ({ ...generatedFiles, ...fileOverrides, ...customFiles }), [generatedFiles, fileOverrides, customFiles])
 
   // Permissions logic
   const isViewPHP  = selectedFile.startsWith("app/views/") && selectedFile.endsWith(".php")
   const isCSSFile  = selectedFile.endsWith(".css")
   const isJSFile   = selectedFile.endsWith(".js")
-  const isGeneratedFrontend = isViewPHP || isCSSFile || isJSFile;
-  const canEdit = selectedFile && !isGeneratedFrontend;
+  const isGeneratedFrontend = isViewPHP || isCSSFile || isJSFile
+  const canEdit = selectedFile && !isGeneratedFrontend
 
   useEffect(() => {
     const page = pages.find(p => p.id === activePageId) ?? pages[0]
@@ -255,7 +523,7 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
   }
 
   const handleStartEdit = () => {
-    if (!canEdit) { toast.error("This file is managed by the Canvas."); return; }
+    if (!canEdit) { toast.error("This file is managed by the Canvas."); return }
     setDraftContent(readOnlyContent); setIsEditing(true)
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
@@ -264,7 +532,6 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
     if (!selectedFile || !canEdit) return
     if (isCustomFile) setCustomFiles(prev => ({ ...prev, [selectedFile]: draftContent }))
     else setFileOverrides(prev => ({ ...prev, [selectedFile]: draftContent }))
-
     setIsEditing(false); setDraftContent(""); setSavedIndicator(true)
     setTimeout(() => setSavedIndicator(false), 2000)
     toast.success("Logic saved successfully.")
@@ -291,25 +558,29 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
 
   const fileStructure = useMemo(() => buildTreeFromPaths(Object.keys(effectiveFiles)), [effectiveFiles])
 
-  // Helper for recursive rendering
   const renderFileNode = (node: FileNode, depth = 0): React.ReactNode => (
     <div key={node.path}>
-      <div onClick={() => node.type === "folder" 
-          ? setExpandedFolders(p => { const n = new Set(p); n.has(node.path) ? n.delete(node.path) : n.add(node.path); return n }) 
-          : handleSelectFile(node.path)}
-        className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-xs ${selectedFile === node.path ? "bg-blue-500/10 text-blue-400" : "text-muted-foreground hover:text-white hover:bg-[#222]"}`}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}>
-        {node.type === "folder" 
-          ? (expandedFolders.has(node.path) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />) 
-          : <File className="w-3 h-3 opacity-50" />
+      <div
+        onClick={() =>
+          node.type === "folder"
+            ? setExpandedFolders(p => { const n = new Set(p); n.has(node.path) ? n.delete(node.path) : n.add(node.path); return n })
+            : handleSelectFile(node.path)
         }
+        className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-xs ${
+          selectedFile === node.path ? "bg-blue-500/10 text-blue-400" : "text-muted-foreground hover:text-white hover:bg-[#222]"
+        }`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        {node.type === "folder"
+          ? (expandedFolders.has(node.path) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />)
+          : <File className="w-3 h-3 opacity-50" />}
         <span className="truncate">{node.name}</span>
       </div>
       {node.type === "folder" && expandedFolders.has(node.path) && node.children && (
         node.children.map(child => renderFileNode(child, depth + 1))
       )}
     </div>
-  );
+  )
 
   const handleDownloadZip = useCallback(async () => {
     try {
@@ -319,25 +590,43 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
       const blob = await zip.generateAsync({ type: "blob" })
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
-      anchor.href = url
-      anchor.download = `${projectName || "project"}.zip`
-      anchor.click()
+      anchor.href = url; anchor.download = `${projectName || "project"}.zip`; anchor.click()
       URL.revokeObjectURL(url)
       toast.success("Project zip downloaded")
-    } catch (error) {
+    } catch {
       toast.error("Failed to generate zip")
     }
   }, [effectiveFiles, projectName])
 
   return (
     <div className="w-full h-full flex gap-3 p-4 bg-[#0a0a0a]">
-      {showFileCreator && <FileCreatorModal existingPaths={Object.keys(effectiveFiles)} onClose={() => setShowFileCreator(false)} onCreateFile={handleCreateFile} />}
+      {/* Modals */}
+      {showFileCreator && (
+        <FileCreatorModal
+          existingPaths={Object.keys(effectiveFiles)}
+          onClose={() => setShowFileCreator(false)}
+          onCreateFile={handleCreateFile}
+        />
+      )}
+      {showExportModal && (
+        <CodeExportModal
+          components={components}
+          projectName={projectName}
+          pages={pages}
+          activePageId={activePageId}
+          effectiveFiles={effectiveFiles}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
 
       {/* Explorer */}
       <div className="w-56 border border-[#222] rounded-xl flex flex-col bg-[#111] overflow-hidden shrink-0">
         <div className="px-4 py-3 border-b border-[#222] flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Filesystem</span>
-          <button onClick={() => setShowFileCreator(true)} className="p-1 hover:bg-[#222] rounded text-muted-foreground hover:text-white">
+          <button
+            onClick={() => setShowFileCreator(true)}
+            className="p-1 hover:bg-[#222] rounded text-muted-foreground hover:text-white"
+          >
             <FilePlus className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -348,6 +637,7 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
 
       {/* Main Editor */}
       <div className="flex-1 border border-[#222] rounded-xl overflow-hidden flex flex-col bg-[#161616]">
+        {/* Toolbar */}
         <div className="px-4 py-2 bg-[#111] border-b border-[#222] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-muted-foreground truncate max-w-[250px]">{selectedFile}</span>
@@ -360,21 +650,53 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
           <div className="flex items-center gap-2">
             {!isEditing ? (
               <>
-                {canEdit && <Button size="sm" onClick={handleStartEdit} className="h-7 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5"><Pencil className="w-3 h-3" /> Edit Logic</Button>}
-                {!canEdit && <Button size="sm" disabled className="h-7 bg-[#222] text-muted-foreground text-xs gap-1.5"><Eye className="w-3 h-3" /> View Only</Button>}
-                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(readOnlyContent); toast.success("Copied!") }} className="h-7 w-7 p-0 text-muted-foreground hover:text-white"><Copy className="w-3.5 h-3.5" /></Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs border-[#333] text-muted-foreground hover:text-white" onClick={handleDownloadZip}><Download className="w-3 h-3" /></Button>
+                {canEdit && (
+                  <Button size="sm" onClick={handleStartEdit} className="h-7 bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5">
+                    <Pencil className="w-3 h-3" /> Edit Logic
+                  </Button>
+                )}
+                {!canEdit && (
+                  <Button size="sm" disabled className="h-7 bg-[#222] text-muted-foreground text-xs gap-1.5">
+                    <Eye className="w-3 h-3" /> View Only
+                  </Button>
+                )}
+                <Button
+                  size="sm" variant="ghost"
+                  onClick={() => { navigator.clipboard.writeText(readOnlyContent); toast.success("Copied!") }}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-white"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </Button>
+                {/* Export button — opens the full CodeExportModal */}
+                <Button
+                  size="sm" variant="outline"
+                  onClick={() => setShowExportModal(true)}
+                  className="h-7 text-xs border-[#333] text-muted-foreground hover:text-white gap-1.5"
+                >
+                  <ExternalLink className="w-3 h-3" /> Export
+                </Button>
+                <Button
+                  size="sm" variant="outline"
+                  onClick={handleDownloadZip}
+                  className="h-7 text-xs border-[#333] text-muted-foreground hover:text-white"
+                >
+                  <Download className="w-3 h-3" />
+                </Button>
               </>
             ) : (
               <div className="flex gap-1">
-                <Button size="sm" onClick={handleSave} className="h-7 bg-green-600 hover:bg-green-700 text-white text-xs gap-1.5"><Save className="w-3.5 h-3.5" /> Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} className="h-7 text-muted-foreground hover:text-white text-xs"><X className="w-3.5 h-3.5" /> Cancel</Button>
+                <Button size="sm" onClick={handleSave} className="h-7 bg-green-600 hover:bg-green-700 text-white text-xs gap-1.5">
+                  <Save className="w-3.5 h-3.5" /> Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} className="h-7 text-muted-foreground hover:text-white text-xs">
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </Button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Informative Banner */}
+        {/* Info banner for read-only frontend files */}
         {isGeneratedFrontend && !isEditing && (
           <div className="px-4 py-2 bg-blue-500/5 border-b border-blue-500/10 flex items-center gap-2 text-[11px] text-blue-400/80">
             <AlertCircle className="w-3.5 h-3.5" />
@@ -382,6 +704,7 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
           </div>
         )}
 
+        {/* Editor / viewer */}
         <div className="flex-1 relative overflow-hidden">
           {isEditing ? (
             <textarea
@@ -397,7 +720,11 @@ export function CodeViewEditor({ components, projectName = "php-builder", pages,
               language={syntaxLang}
               style={customSyntaxTheme}
               showLineNumbers
-              customStyle={{ margin: 0, padding: "24px", backgroundColor: "transparent", fontSize: "13px", lineHeight: "1.6", height: "100%" }}
+              customStyle={{
+                margin: 0, padding: "24px",
+                backgroundColor: "transparent",
+                fontSize: "13px", lineHeight: "1.6", height: "100%",
+              }}
             >
               {readOnlyContent || "// Select a file to view source"}
             </SyntaxHighlighter>
