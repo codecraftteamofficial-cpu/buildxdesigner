@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
@@ -98,6 +99,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^3.10.2",
     "daisyui": "^5.5.19",
+    "eslint": "^10.0.3",
     "postcss": "^8.5",
     "tailwindcss": "4.1.17",
     "typescript": "^5",
