@@ -1,17 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Slider } from './ui/slider';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
+} from "./ui/dialog";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Slider } from "./ui/slider";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 interface PreferencesModalProps {
   isOpen: boolean;
@@ -35,30 +41,34 @@ export function PreferencesModal({ isOpen, onClose }: PreferencesModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      const saved = localStorage.getItem('codecraft-preferences');
+      const saved = localStorage.getItem("codecraft-preferences");
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed.autoSave !== undefined) setAutoSave(parsed.autoSave);
-          if (parsed.autoSaveInterval !== undefined) setAutoSaveInterval(parsed.autoSaveInterval);
+          if (parsed.autoSaveInterval !== undefined)
+            setAutoSaveInterval(parsed.autoSaveInterval);
           if (parsed.showGrid !== undefined) setShowGrid(parsed.showGrid);
           if (parsed.snapToGrid !== undefined) setSnapToGrid(parsed.snapToGrid);
           if (parsed.gridSize !== undefined) setGridSize(parsed.gridSize);
           if (parsed.showRulers !== undefined) setShowRulers(parsed.showRulers);
-          if (parsed.defaultZoom !== undefined) setDefaultZoom(parsed.defaultZoom);
-          if (parsed.enableAnimations !== undefined) setEnableAnimations(parsed.enableAnimations);
-          if (parsed.compactMode !== undefined) setCompactMode(parsed.compactMode);
-          if (parsed.showLineNumbers !== undefined) setShowLineNumbers(parsed.showLineNumbers);
+          if (parsed.defaultZoom !== undefined)
+            setDefaultZoom(parsed.defaultZoom);
+          if (parsed.enableAnimations !== undefined)
+            setEnableAnimations(parsed.enableAnimations);
+          if (parsed.compactMode !== undefined)
+            setCompactMode(parsed.compactMode);
+          if (parsed.showLineNumbers !== undefined)
+            setShowLineNumbers(parsed.showLineNumbers);
           if (parsed.wordWrap !== undefined) setWordWrap(parsed.wordWrap);
           if (parsed.fontSize !== undefined) setFontSize(parsed.fontSize);
           if (parsed.tabSize !== undefined) setTabSize(parsed.tabSize);
         } catch (e) {
-          console.error('Failed to parse preferences', e);
+          console.error("Failed to parse preferences", e);
         }
       }
     }
   }, [isOpen]);
-
 
   const handleClose = () => {
     onClose();
@@ -82,8 +92,8 @@ export function PreferencesModal({ isOpen, onClose }: PreferencesModalProps) {
       fontSize,
       tabSize,
     };
-    localStorage.setItem('codecraft-preferences', JSON.stringify(preferences));
-    window.dispatchEvent(new CustomEvent('preferencesUpdated'));
+    localStorage.setItem("codecraft-preferences", JSON.stringify(preferences));
+    window.dispatchEvent(new CustomEvent("preferencesUpdated"));
 
     handleClose();
   };
@@ -106,7 +116,12 @@ export function PreferencesModal({ isOpen, onClose }: PreferencesModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) handleClose();
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Preferences</DialogTitle>
@@ -245,7 +260,9 @@ export function PreferencesModal({ isOpen, onClose }: PreferencesModalProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="default-zoom">Default zoom: {defaultZoom}%</Label>
+                <Label htmlFor="default-zoom">
+                  Default zoom: {defaultZoom}%
+                </Label>
                 <Slider
                   id="default-zoom"
                   min={50}
@@ -330,9 +347,7 @@ export function PreferencesModal({ isOpen, onClose }: PreferencesModalProps) {
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              Save Changes
-            </Button>
+            <Button onClick={handleSave}>Save Changes</Button>
           </div>
         </div>
       </DialogContent>
