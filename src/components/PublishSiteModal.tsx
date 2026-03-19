@@ -14,7 +14,7 @@ interface PublishSiteModalProps {
     isOpen: boolean
     onClose: () => void
     project: Project | null
-    onPublishSuccess: (url: string) => void
+    onPublishSuccess: (url: string, siteTitle?: string, siteLogoUrl?: string) => void
 }
 
 type AvailabilityState = "idle" | "checking" | "available" | "taken" | "error"
@@ -210,7 +210,7 @@ export function PublishSiteModal({ isOpen, onClose, project, onPublishSuccess }:
 
             if (result.url) {
                 setPublishedUrl(result.url)
-                onPublishSuccess(result.url)
+                onPublishSuccess(result.url, result.siteTitle, result.siteLogoUrl)
                 toast.success(isAlreadyPublished ? "Site redeployed successfully!" : "Site published successfully!", {
                     description: `Your site is live at ${result.url}`,
                 })

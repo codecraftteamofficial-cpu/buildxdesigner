@@ -175,6 +175,8 @@ export function useEditorState() {
     customComponents: [],
     fileOverrides: {} as Record<string, string>,
     customFiles: {} as Record<string, string>,
+    siteTitle: "",
+    siteLogoUrl: "",
   });
 
   const {
@@ -857,8 +859,8 @@ useEffect(() => {
             projectCategory: project.category || "Starter",
             projectThumbnail: project.thumbnail || "",
             pages: project.pages || [{ id: "home", name: "Home", path: "/" }],
-            siteTitle: project.siteTitle || "",
-            siteLogoUrl: project.siteLogoUrl || "",
+            siteTitle: project.siteTitle ?? "",
+            siteLogoUrl: project.siteLogoUrl ?? "",
             // Only overwrite file data if there are no unsaved changes
             fileOverrides: shouldPreserveFileData ? prev.fileOverrides || {} : project.file_overrides || {},
             customFiles: shouldPreserveFileData ? prev.customFiles || {} : project.custom_files || {},
@@ -1018,6 +1020,8 @@ useEffect(() => {
       projectRole: "owner",
       projectCanEdit: true,
       projectName: "Untitled Project",
+      siteTitle: "",
+      siteLogoUrl: "",
       hasUnsavedChanges: false,
     }));
   };
@@ -1036,6 +1040,8 @@ useEffect(() => {
       projectCanEdit: false,
       projectTemplatePublished: undefined,
       projectName: projectName ?? "Untitled Project",
+      siteTitle: "",
+      siteLogoUrl: "",
       selectedComponent: null,
       hasUnsavedChanges: false,
     }));

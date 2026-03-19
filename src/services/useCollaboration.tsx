@@ -353,8 +353,8 @@ function useCollaborationLogic({
           setState((prev) => ({
             ...prev,
             projectName: projectData.name || prev.projectName,
-            siteTitle: projectData.siteTitle || prev.siteTitle,
-            siteLogoUrl: projectData.siteLogoUrl || prev.siteLogoUrl,
+            siteTitle: projectData.siteTitle ?? "",
+            siteLogoUrl: projectData.siteLogoUrl ?? "",
             projectSubdomain: projectData.subdomain || prev.projectSubdomain,
             projectIsPublished:
               projectData.isPublished || prev.projectIsPublished,

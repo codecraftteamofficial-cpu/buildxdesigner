@@ -241,10 +241,17 @@ export async function saveProject(
       type: row.type,
       status: row.status,
       project_layout: row.project_layout || [],
+      subdomain: row.subdomain,
+      isPublished: row.is_published,
+      lastPublishedAt: row.last_published_at,
       pages: row.pages || [{ id: "home", name: "Home", path: "/" }],
       published_pages: row.published_pages || [
         { id: "home", name: "Home", path: "/" },
       ],
+      siteLogoUrl: row.site_logo_url,
+      siteTitle: row.site_title,
+      file_overrides: row.file_overrides || {},
+      custom_files: row.custom_files || {},
     };
 
     return { data: savedProject, error: null };
@@ -457,7 +464,7 @@ export async function publishProject(
   pages: any[],
   siteTitle?: string,
   siteLogoUrl?: string,
-): Promise<{ url: string | null; error: any }> {
+): Promise<{ url: string | null; siteTitle?: string; siteLogoUrl?: string; error: any }> {
   try {
     const {
       data: { user },
@@ -485,7 +492,12 @@ export async function publishProject(
       return { url: null, error: updateError };
     }
 
-    return { url: `https://${subdomain}.buildxdesigner.site`, error: null };
+    return { 
+      url: `https://${subdomain}.buildxdesigner.site`, 
+      siteTitle,
+      siteLogoUrl,
+      error: null 
+    };
   } catch (err) {
     return { url: null, error: err };
   }

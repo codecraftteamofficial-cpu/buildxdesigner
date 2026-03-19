@@ -216,12 +216,14 @@ export function EditorLayout({
               siteTitle: state.siteTitle,
               siteLogoUrl: state.siteLogoUrl,
             }}
-            onPublishSuccess={(subdomain: string) => {
+            onPublishSuccess={(subdomain: string, title?: string, logoUrl?: string) => {
               setState((prev) => ({
                 ...prev,
                 projectSubdomain: subdomain,
                 projectIsPublished: true,
                 projectLastPublishedAt: new Date().toISOString(),
+                siteTitle: title || prev.siteTitle,
+                siteLogoUrl: logoUrl || prev.siteLogoUrl,
               }));
             }}
           />

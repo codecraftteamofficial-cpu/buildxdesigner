@@ -115,7 +115,11 @@ interface EditorTopBarProps {
     };
   } | null;
   isSupabaseConnected?: boolean;
-  onPublishSuccess?: (subdomain: string) => void;
+  onPublishSuccess?: (
+    subdomain: string,
+    siteTitle?: string,
+    siteLogoUrl?: string,
+  ) => void;
   onTemplatePublishedChange?: (published: boolean) => void;
   onProjectVisibilityChange?: (isPublic: boolean) => void;
   pages?: { id: string; name: string; path: string }[];
@@ -1902,11 +1906,11 @@ useEffect(() => {
         isOpen={showPublishSiteModal}
         onClose={() => setShowPublishSiteModal(false)}
         project={currentProject}
-        onPublishSuccess={(url) => {
+        onPublishSuccess={(url, siteTitle, siteLogoUrl) => {
           if (onPublishSuccess) {
             // Extract subdomain from URL like https://subdomain.buildxdesigner.site
             const match = url.match(/https:\/\/([^.]+)\.buildxdesigner\.site/);
-            if (match) onPublishSuccess(match[1]);
+            if (match) onPublishSuccess(match[1], siteTitle, siteLogoUrl);
           }
         }}
       />

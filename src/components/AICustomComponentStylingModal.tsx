@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Eye, Code, Save, Loader2, Sparkles, Send, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from './ui/skeleton';
+import { Progress } from './ui/progress';
 import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
 import type { ComponentData } from "../App";
 
@@ -29,7 +30,8 @@ const generateStylingWithGemini = async (
   currentHtml: string, 
   currentCss: string, 
   currentJs: string,
-  history: { role: 'user' | 'assistant', content: string }[] = []
+  history: { role: 'user' | 'assistant', content: string }[] = [],
+  signal?: AbortSignal
 ): Promise<string> => {
   try {
     const openRouterKey = getOpenRouterKey();
@@ -49,6 +51,7 @@ const generateStylingWithGemini = async (
         'HTTP-Referer': 'http://localhost:3000',
         'X-Title': 'BuildXdesigner Styling Assistant',
       },
+      signal,
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
@@ -74,6 +77,24 @@ const generateStylingWithGemini = async (
             - Include comments explaining major changes
             - Ensure responsive design considerations
             - Use modern CSS features when appropriate
+            
+            IMPORTANT JAVASCRIPT IMPLEMENTATION RULES:
+            - ALWAYS use enhanced DOM querying functions provided in custom component environment
+            - Use \`$('selector')\` instead of \`document.getElementById('selector')\` or \`document.querySelector('selector')\`
+            - Use \`$$('selector')\` instead of \`document.querySelectorAll('selector')\`
+            - Use \`onclick\` instead of \`addEventListener('click', ...)\` for better compatibility
+            - ALWAYS use \`for loop\` instead of \`forEach()\` when working with NodeLists from \`$$()\`
+            - If you need to use array methods, convert NodeList to Array first: \`Array.from($$('.selector'))\`
+            - NEVER use \`document.body\` or \`body\` tag in custom components - it breaks CSS and component isolation
+            - Always include console.log statements for debugging
+            - Check if elements exist before attaching event listeners
+            
+            USER PHRASE RECOGNITION:
+            - "fit to canvas" or "fit to 1920 width" means the user wants the component to be exactly 1920px wide
+            - "javascript functions are not working" or "buttons not working" means you need to fix JavaScript event handlers
+            - When users report JavaScript functionality issues, ensure all event handlers use onclick and proper DOM queries
+            - Always test that buttons, forms, and interactive elements work in the preview environment
+            - For canvas fitting, ensure the main container or wrapper has width: 1920px
 
             RESPONSE FORMAT:
             Return the complete updated CSS and JavaScript code in the following format:
@@ -134,10 +155,12 @@ export function AICustomComponentStylingModal({
   const [jsCode, setJsCode] = useState('');
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [previewKey, setPreviewKey] = useState(0);
   const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const editorRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
@@ -169,6 +192,25 @@ export function AICustomComponentStylingModal({
       setIsPreviewUpdating(false);
     }
   }, [isOpen, component]);
+  
+  // Simulated progress logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isGenerating) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev < 30) return prev + 2; // Fast at first
+          if (prev < 70) return prev + 0.8; // Moderate
+          if (prev < 95) return prev + 0.2; // Slow down
+          return prev; // Stay at 95 until done
+        });
+      }, 100);
+    } else {
+      setProgress(100);
+    }
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   
   const handleGenerateStyling = async () => {
@@ -179,6 +221,10 @@ export function AICustomComponentStylingModal({
 
     setIsGenerating(true);
     
+    // Create new AbortController
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
     try {
       const currentHtml = component.props?.html || '';
       const response = await generateStylingWithGemini(
@@ -186,7 +232,8 @@ export function AICustomComponentStylingModal({
         currentHtml,
         cssCode,
         jsCode,
-        messages.slice(-10) // Include last 10 messages for context
+        messages.slice(-10), // Include last 10 messages for context
+        controller.signal
       );
 
       // Parse the response
@@ -220,6 +267,16 @@ export function AICustomComponentStylingModal({
     } finally {
       setIsGenerating(false);
       setCurrentPrompt('');
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStopGenerating = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsGenerating(false);
+      setProgress(0);
+      toast.info("AI generation stopped.");
     }
   };
 
@@ -274,14 +331,6 @@ export function AICustomComponentStylingModal({
       </head>
       <body>
         ${html}
-        ${php ? `<script>
-          // Simulate PHP output for preview
-          try {
-            ${php.replace(/<\?php|\?>/g, '').replace(/echo\s+['"]([^'"]*)['"];?/gi, 'console.log("PHP Output: $1");')}
-          } catch (error) {
-            console.error('Error in PHP preview:', error);
-          }
-        </script>` : ''}
         <script>
           // Provide DOM helpers for custom components
           function $(selector) {
@@ -344,12 +393,6 @@ export function AICustomComponentStylingModal({
                       className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
                     >
                       <Code className="w-3.5 h-3.5 mr-2" /> JavaScript
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="php" 
-                      className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
-                    >
-                      <Code className="w-3.5 h-3.5 mr-2" /> PHP
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -435,38 +478,6 @@ export function AICustomComponentStylingModal({
                     />
                   </div>
                 </TabsContent>
-                
-                <TabsContent value="php" className="flex-1 mt-0 relative min-h-0 overflow-hidden flex flex-col pt-4">
-                  <div className="flex-1 min-h-0">
-                    <Editor
-                      height="100%"
-                      defaultLanguage="php"
-                      theme="vs-dark"
-                      value={component.props?.php || ''}
-                      onChange={(value) => {
-                        if (component) {
-                          onUpdateComponent(component.id, {
-                            props: {
-                              ...component.props,
-                              php: value || ''
-                            }
-                          });
-                          triggerPreviewUpdate();
-                        }
-                      }}
-                      options={{
-                        minimap: { enabled: false },
-                        fontSize: 14,
-                        scrollBeyondLastLine: false,
-                        wordWrap: 'on',
-                        automaticLayout: true,
-                        tabSize: 2,
-                        lineNumbers: 'on',
-                        padding: { top: 10 }
-                      }}
-                    />
-                  </div>
-                </TabsContent>
               </Tabs>
             </div>
             
@@ -521,6 +532,22 @@ export function AICustomComponentStylingModal({
                     className="text-xs h-7"
                   >
                     Better Colors
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPrompt("Add smooth transitions and hover effects")}
+                    className="text-xs h-7"
+                  >
+                    Smooth Transitions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPrompt("Fit the component to the canvas size")}
+                    className="text-xs h-7"
+                  >
+                    Fit to Canvas Size
                   </Button>
                 </div>
               </div>
@@ -587,12 +614,41 @@ export function AICustomComponentStylingModal({
               
               {/* AI Generation Loading Overlay */}
               {isGenerating && (
-                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-lg flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-foreground">AI is Generating</p>
-                      <p className="text-xs text-muted-foreground">Please wait while we update your styling...</p>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
+                  <div className="bg-background/95 border border-border rounded-xl p-8 shadow-2xl flex flex-col items-center gap-6 w-80 animate-in fade-in zoom-in duration-300">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                      <Loader2 className="w-16 h-16 animate-spin text-primary" />
+                      <span className="absolute text-sm font-black text-primary drop-shadow-sm font-mono">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="w-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] items-center px-1 font-bold uppercase tracking-widest text-muted-foreground/80">
+                          <span>Progress</span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2.5 bg-muted/50 border border-primary/10" />
+                      </div>
+                      <div className="text-center space-y-1.5 border-t border-border pt-4">
+                        <p className="text-sm font-bold text-foreground flex items-center justify-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+                          AI is Refining Your Style
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-tight">
+                          {progress < 30 ? 'Analyzing request...' : 
+                           progress < 70 ? 'Generating modern CSS...' : 
+                           progress < 95 ? 'Optimizing layouts...' : 'Almost there...'}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleStopGenerating}
+                        className="w-full mt-2 border-red-200 hover:bg-red-50 hover:text-red-600 transition-colors gap-2 font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <X className="w-3 h-3" />
+                        Stop Generating
+                      </Button>
                     </div>
                   </div>
                 </div>

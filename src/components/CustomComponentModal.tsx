@@ -5,9 +5,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Eye, Code, Save, Copy, Loader2, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
+import { Eye, Code, Save, Copy, Loader2, Sparkles, ZoomIn, ZoomOut, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { MonacoGenAi } from './MonacoGenAi';
+import { Progress } from './ui/progress';
 import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
 
 // Gemini API function
@@ -16,8 +17,8 @@ const generateCodeWithGemini = async (
   currentHtml: string, 
   currentCss: string, 
   currentJs: string, 
-  currentPhp: string,
-  history: { role: 'user' | 'assistant', content: string }[] = []
+  history: { role: 'user' | 'assistant', content: string }[] = [],
+  signal?: AbortSignal
 ): Promise<string> => {
   try {
     const openRouterKey = getOpenRouterKey();
@@ -44,6 +45,7 @@ const generateCodeWithGemini = async (
         'HTTP-Referer': 'http://localhost:3000',
         'X-Title': 'BuildXdesigner',
       },
+      signal,
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
@@ -57,7 +59,6 @@ const generateCodeWithGemini = async (
             HTML: ${currentHtml}
             CSS: ${currentCss}
             JS: ${currentJs}
-            PHP: ${currentPhp}
             ---
 
             IMPORTANT CANVAS DIMENSIONS:
@@ -86,6 +87,12 @@ const generateCodeWithGemini = async (
             - NEVER use \`document.body\` or \`body\` tag in custom components - it breaks the CSS and component isolation
             - Always include console.log statements for debugging
             - Check if elements exist before attaching event listeners
+            
+            USER PHRASE RECOGNITION:
+            - "fit to canvas" or "fit to 1920 width" means the user wants the component to be exactly 1920px wide
+            - "javascript functions are not working" or "buttons not working" means you need to fix JavaScript event handlers
+            - When users report JavaScript functionality issues, ensure all event handlers use onclick and proper DOM queries
+            - Always test that buttons, forms, and interactive elements work in the preview environment
             - Example pattern for multiple elements:
               \`\`\`javascript
               console.log('Component loaded');
@@ -169,14 +176,14 @@ const generateCodeWithGemini = async (
             - If the user asks for a change (e.g., "make it blue"), modify the existing code provided in the context.
             - If the user asks for something new, generate complete code.
             - Use ONLY standard CSS for styling. No Tailwind.
-            - Always return all 4 blocks (html, css, javascript, php) even if some are empty.
-            - Use markdown code blocks for each language: \`\`\`html, \`\`\`css, \`\`\`javascript, \`\`\`php.
+            - Always return all 3 blocks (html, css, javascript) even if some are empty.
+            - Use markdown code blocks for each language: \`\`\`html, \`\`\`css, \`\`\`javascript.
             - No explanations. Only code blocks.`
           },
           ...history,
           {
             role: 'user',
-            content: `Task: ${prompt}. Please provide the updated HTML, CSS, JS, and PHP code blocks based on our conversation and the current code context.`
+            content: `Task: ${prompt}. Please provide the updated HTML, CSS, and JS code blocks based on our conversation and the current code context.`
           }
         ],
         max_tokens: 2500,
@@ -196,8 +203,8 @@ const generateCodeWithGemini = async (
 interface CustomComponentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string, description: string, html: string, css: string, js: string, php: string) => Promise<void>;
-  onUpdate?: (id: string, name: string, description: string, html: string, css: string, js: string, php: string) => Promise<void>;
+  onSave: (name: string, description: string, html: string, css: string, js: string) => Promise<void>;
+  onUpdate?: (id: string, name: string, description: string, html: string, css: string, js: string) => Promise<void>;
   projectId: string;
   initialData?: {
     id: string;
@@ -206,7 +213,6 @@ interface CustomComponentModalProps {
     html: string;
     css: string;
     js: string;
-    php: string;
   } | null;
 }
 
@@ -216,12 +222,13 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
   const [htmlCode, setHtmlCode] = useState('<div class="container">\n  <h1>Hello World</h1>\n  <p>This is a custom component.</p>\n</div>');
   const [cssCode, setCssCode] = useState('.container {\n  padding: 20px;\n  background: #f0f0f0;\n  border-radius: 8px;\n}\n\nh1 {\n  color: #333;\n  font-size: 24px;\n}\n\np {\n  color: #666;\n  font-size: 16px;\n}');
   const [jsCode, setJsCode] = useState('document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
-  const [phpCode, setPhpCode] = useState('<?php\n// Add your PHP code here\n\necho "Hello from PHP!";\n?>');
   const [aiCode, setAiCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Debounced preview state
   const [debouncedPreviewContent, setDebouncedPreviewContent] = useState('');
@@ -235,7 +242,6 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       setHtmlCode(initialData.html);
       setCssCode(initialData.css);
       setJsCode(initialData.js || 'document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
-      setPhpCode(initialData.php || '<?php\n// Add your PHP code here\n\necho "Hello from PHP!";\n?>');
       setAiCode('');
       setChatHistory([]);
     } else if (isOpen && !initialData) {
@@ -244,11 +250,29 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       setHtmlCode('<div class="container">\n  <h1>Hello World</h1>\n  <p>This is a custom component.</p>\n</div>');
       setCssCode('.container {\n  padding: 20px;\n  background: #f0f0f0;\n  border-radius: 8px;\n}\n\nh1 {\n  color: #333;\n  font-size: 24px;\n}\n\np {\n  color: #666;\n  font-size: 16px;\n}');
       setJsCode('document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
-      setPhpCode('<?php\n// Add your PHP code here\n\necho "Hello from PHP!";\n?>');
       setAiCode('');
       setChatHistory([]);
     }
   }, [isOpen, initialData]);
+
+  // Simulated progress logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isGenerating) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev < 30) return prev + 2; // Fast at first
+          if (prev < 70) return prev + 0.8; // Moderate
+          if (prev < 95) return prev + 0.2; // Slow down
+          return prev; // Stay at 95 until done
+        });
+      }, 100);
+    } else {
+      setProgress(100);
+    }
+    return () => clearInterval(interval);
+  }, [isGenerating]);
 
   // Trigger preview update function
   const triggerPreviewUpdate = () => {
@@ -465,10 +489,10 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
     setIsSaving(true);
     try {
       if (initialData && onUpdate) {
-        await onUpdate(initialData.id, name, description, htmlCode, cssCode, jsCode, phpCode);
+        await onUpdate(initialData.id, name, description, htmlCode, cssCode, jsCode);
         toast.success('Component updated successfully');
       } else {
-        await onSave(name, description, htmlCode, cssCode, jsCode, phpCode);
+        await onSave(name, description, htmlCode, cssCode, jsCode);
         toast.success('Component saved successfully');
       }
       onClose();
@@ -476,6 +500,15 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       toast.error(initialData ? 'Failed to update component' : 'Failed to save component');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleStopGenerating = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsGenerating(false);
+      setProgress(0);
+      toast.info("AI generation stopped.");
     }
   };
 
@@ -489,7 +522,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
     try {
       // Use " (Copy)" suffix for the name as requested
       const duplicatedName = `${name} (Copy)`;
-      await onSave(duplicatedName, description, htmlCode, cssCode, jsCode, phpCode);
+      await onSave(duplicatedName, description, htmlCode, cssCode, jsCode);
       toast.success('Component duplicated successfully');
       onClose();
     } catch (error) {
@@ -555,12 +588,6 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
                       >
                         <Code className="w-3.5 h-3.5 mr-2" /> JavaScript
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="php" 
-                        className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
-                      >
-                        <Code className="w-3.5 h-3.5 mr-2" /> PHP
                       </TabsTrigger>
                     </TabsList>
                   </div>
@@ -637,30 +664,6 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                       />
                     </div>
                   </TabsContent>
-                  <TabsContent value="php" className="flex-1 mt-0 relative min-h-0 overflow-hidden flex flex-col">
-                    <div className="flex-1 min-h-0">
-                      <Editor
-                        height="100%"
-                        defaultLanguage="php"
-                        theme="vs-dark"
-                        value={phpCode}
-                        onChange={(value) => {
-                        setPhpCode(value || '');
-                        triggerPreviewUpdate();
-                      }}
-                        options={{
-                          minimap: { enabled: false },
-                          fontSize: 14,
-                          scrollBeyondLastLine: false,
-                          wordWrap: 'on',
-                          automaticLayout: true,
-                          tabSize: 2,
-                          lineNumbers: 'on',
-                          padding: { top: 10 }
-                        }}
-                      />
-                    </div>
-                  </TabsContent>
                 </Tabs>
                 
                 {/* AI Input Field and Button - Fixed position at bottom */}
@@ -679,6 +682,11 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                         
                         const currentPrompt = aiCode;
                         setIsGenerating(true);
+                        
+                        // Create new AbortController
+                        const controller = new AbortController();
+                        abortControllerRef.current = controller;
+                        
                         try {
                           // Pass the current state values to the AI for context
                           const generatedCode = await generateCodeWithGemini(
@@ -686,19 +694,17 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                             htmlCode, 
                             cssCode, 
                             jsCode, 
-                            phpCode,
-                            chatHistory
+                            chatHistory,
+                            controller.signal
                           );
                           
                           const htmlMatch = generatedCode.match(/```html\n([\s\S]*?)\n```/);
                           const cssMatch = generatedCode.match(/```css\n([\s\S]*?)\n```/);
                           const jsMatch = generatedCode.match(/```javascript\n([\s\S]*?)\n```/);
-                          const phpMatch = generatedCode.match(/```php\n([\s\S]*?)\n```/);
                           
                           if (htmlMatch) setHtmlCode(htmlMatch[1].trim());
                           if (cssMatch) setCssCode(cssMatch[1].trim());
                           if (jsMatch) setJsCode(jsMatch[1].trim());
-                          if (phpMatch) setPhpCode(phpMatch[1].trim());
                           
                           // Update history
                           setChatHistory(prev => [
@@ -713,6 +719,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                           toast.error('Failed to generate code.');
                         } finally {
                           setIsGenerating(false);
+                          abortControllerRef.current = null;
                         }
                       }}
                       disabled={!aiCode.trim() || isGenerating}
@@ -771,12 +778,41 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
               
               {/* AI Generation Loading Overlay */}
               {isGenerating && (
-                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 shadow-lg flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-foreground">AI is Generating</p>
-                      <p className="text-xs text-muted-foreground">Please wait while we create your code...</p>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
+                  <div className="bg-background/95 border border-border rounded-xl p-8 shadow-2xl flex flex-col items-center gap-6 w-80 animate-in fade-in zoom-in duration-300">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                      <Loader2 className="w-16 h-16 animate-spin text-primary" />
+                      <span className="absolute text-sm font-black text-primary drop-shadow-sm font-mono">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="w-full space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] items-center px-1 font-bold uppercase tracking-widest text-muted-foreground/80">
+                          <span>Progress</span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2.5 bg-muted/50 border border-primary/10" />
+                      </div>
+                      <div className="text-center space-y-1.5 border-t border-border pt-4">
+                        <p className="text-sm font-bold text-foreground flex items-center justify-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
+                          AI is Crafting Your Code
+                        </p>
+                        <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-tight">
+                          {progress < 30 ? 'Analyzing requirements...' : 
+                           progress < 70 ? 'Generating components...' : 
+                           progress < 95 ? 'Writing logic...' : 'Almost there...'}
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleStopGenerating}
+                        className="w-full mt-2 border-red-200 hover:bg-red-50 hover:text-red-600 transition-colors gap-2 font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <X className="w-3 h-3" />
+                        Stop Generating
+                      </Button>
                     </div>
                   </div>
                 </div>
