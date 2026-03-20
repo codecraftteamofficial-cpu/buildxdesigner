@@ -264,9 +264,7 @@ export function useEditorState() {
 
     if (accessToken) {
       if (isIntegrationCallback) {
-        if (accessToken) {
-          localStorage.setItem("supabase_integration_token", accessToken);
-        }
+        localStorage.setItem("supabase_integration_token", accessToken);
         localStorage.setItem("open_account_settings", "integration");
         localStorage.setItem("update_supabase_status", "true");
         window.location.href = "/dashboard";
@@ -298,6 +296,16 @@ export function useEditorState() {
 
     // No token in URL, check existing session
     const checkSession = async () => {
+      // Check for deferred connection status update BEFORE fetching profile
+      const shouldUpdate = localStorage.getItem("update_supabase_status") === "true";
+      if (shouldUpdate) {
+        localStorage.removeItem("update_supabase_status");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("profiles").update({ isConnected: 1 }).eq("user_id", user.id);
+        }
+      }
+
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       const {
@@ -400,22 +408,23 @@ export function useEditorState() {
     };
   }, []);
 
-  // Listen for resend API key changes from Account Settings
+  // Listen for configuration changes from Account Settings or Dashboard
   useEffect(() => {
-const handleConfigUpdate = (e: Event) => {
-  const detail = (e as CustomEvent).detail;
-  setState((prev) => ({
-    ...prev,
-    userProjectConfig: {
-      ...prev.userProjectConfig,
-      ...(detail?.resendApiKey !== undefined && { resendApiKey: detail.resendApiKey }),
-      ...(detail?.paymongoKey !== undefined && { paymongoKey: detail.paymongoKey }),
-      ...(detail?.supabaseUrl !== undefined && { supabaseUrl: detail.supabaseUrl }),
-      ...(detail?.supabaseKey !== undefined && { supabaseKey: detail.supabaseKey }),
-      ...(detail?.supabaseServiceKey !== undefined && { supabaseServiceKey: detail.supabaseServiceKey }),
-    },
-  }));
-};
+    const handleConfigUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setState((prev) => ({
+        ...prev,
+        ...(detail?.isSupabaseConnected !== undefined && { isSupabaseConnected: detail.isSupabaseConnected }),
+        userProjectConfig: {
+          ...prev.userProjectConfig,
+          ...(detail?.resendApiKey !== undefined && { resendApiKey: detail.resendApiKey }),
+          ...(detail?.paymongoKey !== undefined && { paymongoKey: detail.paymongoKey }),
+          ...(detail?.supabaseUrl !== undefined && { supabaseUrl: detail.supabaseUrl }),
+          ...(detail?.supabaseKey !== undefined && { supabaseKey: detail.supabaseKey }),
+          ...(detail?.supabaseServiceKey !== undefined && { supabaseServiceKey: detail.supabaseServiceKey }),
+        },
+      }));
+    };
     window.addEventListener("userProjectConfigUpdated", handleConfigUpdate);
     return () => {
       window.removeEventListener(

@@ -21,7 +21,18 @@ export function PayMongoSettings({ apiKey, onChange }: PayMongoSettingsProps) {
                         <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                        <CardTitle className="text-base">PayMongo Integration</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <CardTitle className="text-base">PayMongo Integration</CardTitle>
+                            {apiKey && (apiKey.startsWith("sk_") || apiKey.startsWith("pk_")) ? (
+                                <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                    Configured
+                                </span>
+                            ) : apiKey ? (
+                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                                    Invalid Format
+                                </span>
+                            ) : null}
+                        </div>
                         <CardDescription>
                             Configure your PayMongo API keys for payment processing.
                         </CardDescription>

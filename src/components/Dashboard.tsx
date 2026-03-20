@@ -119,6 +119,7 @@ interface DashboardProps {
   theme?: "light" | "dark" | "system";
   onThemeChange?: (theme: "light" | "dark" | "system") => void;
   onLoadTemplate?: (components: ComponentData[]) => void;
+  isSupabaseConnected?: boolean;
 }
 
 interface ProfileDisplayData {
@@ -126,6 +127,7 @@ interface ProfileDisplayData {
   fullName: string;
   email: string;
   avatarUrl: string | null;
+  isConnected?: number;
 }
 
 const firstNonEmptyString = (...values: unknown[]): string | null => {
@@ -307,6 +309,7 @@ export function Dashboard({
   theme = "dark",
   onThemeChange,
   onLoadTemplate,
+  isSupabaseConnected,
 }: DashboardProps) {
   // --- AUTHENTICATION STATES ---
   const [authLoading, setAuthLoading] = useState(true);
@@ -472,39 +475,12 @@ export function Dashboard({
 
   useEffect(() => {
     const openSettingsTab = localStorage.getItem("open_account_settings");
-    const shouldUpdateStatus = localStorage.getItem("update_supabase_status");
 
     if (openSettingsTab) {
       setAccountSettingsTab(openSettingsTab);
       setShowAccountSettings(true);
 
-      // Optimistically update connection status if we are coming from the integration flow
-      if (openSettingsTab === "integration") {
-        setProfileData((prev) => ({ ...prev, isConnected: 1 }));
-      }
-
       localStorage.removeItem("open_account_settings");
-    }
-
-    if (shouldUpdateStatus) {
-      // Perform deferred DB update
-      localStorage.removeItem("update_supabase_status");
-
-      (async () => {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          const { error } = await supabase
-            .from("profiles")
-            .update({ isConnected: 1 })
-            .eq("user_id", user.id);
-
-          if (error) {
-            console.error("❌ Failed to update connection status:", error);
-          }
-        }
-      })();
     }
   }, []);
 
@@ -1222,6 +1198,7 @@ export function Dashboard({
               fullProfile.avatarUrl,
               sessionAvatarUrl,
             ),
+            isConnected: fullProfile.isConnected,
           });
         }
       } else {
@@ -2602,7 +2579,16 @@ export function Dashboard({
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+             </DropdownMenu>
+          
+          {(profileData.isConnected === 1 || isSupabaseConnected) && (
+            <div className="mt-3 px-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-500 ring-1 ring-inset ring-emerald-500/20">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                Supabase Connected
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Search */}
