@@ -298,11 +298,11 @@ export function SiteRenderer({
                             height: component.type === 'custom-component' ? "fit-content" : (component.style?.height || "fit-content"),
                         }}
                     >
-                        {component.props?.enableCustomCss && component.props?.customCss && (
-                            <style>{component.props.customCss}</style>
+                        {(component.props?.enableCustomCss || component.props?.css) && (
+                            <style>{component.props.customCss || component.props.css}</style>
                         )}
-                        {component.props?.enableCustomJs && component.props?.customJs && (
-                            <script dangerouslySetInnerHTML={{ __html: component.props.customJs }} />
+                        {(component.props?.enableCustomJs || component.props?.js) && (
+                            <script dangerouslySetInnerHTML={{ __html: component.props.customJs || component.props.js }} />
                         )}
                         <RenderableComponent
                             component={component}

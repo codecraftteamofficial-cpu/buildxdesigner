@@ -324,82 +324,54 @@ export function RenderableComponent({
     if (type === 'custom-component' && isPreview && props.js && contentRef.current) {
       const executeJs = () => {
         try {
-          // Verify the element exists and has content
           const element = contentRef.current;
-          if (!element) {
-            console.error('Custom component element not found:', component.id);
-            return;
-          }
+          if (!element) return;
           
-          // Check if the element has any child nodes (HTML content)
-          if (!element.hasChildNodes() && !props.html) {
-            console.warn('Custom component has no HTML content:', component.id);
-          }
-          
-          // Create a safe execution context with enhanced DOM querying
-          const enhancedJs = `
-            const run = () => {
-              try {
-                console.log('Executing JS for custom component:', element.id || element.className);
-                
-                // Enhanced element finding functions
-                const $ = (selector) => {
-                  // First try within the component scope
-                  let found = element.querySelector(selector);
-                  // If not found, try globally
-                  if (!found) found = document.querySelector(selector);
-                  return found;
-                };
-                
-                const $$ = (selector) => {
-                  // First try within the component scope
-                  let found = element.querySelectorAll(selector);
-                  // If none found, try globally
-                  if (found.length === 0) found = document.querySelectorAll(selector);
-                  return found;
-                };
-                
-                // Make these functions available to the user's JS
-                const querySelector = $;
-                const querySelectorAll = $$;
-                
-                // Make Supabase available globally for custom components
-                if (typeof window.supabaseClient !== 'undefined') {
-                  window.supabase = window.supabaseClient;
-                }
-                
-                ${props.js}
-                
-                console.log('Custom component JS execution completed');
-              } catch (err) {
-                console.error('Error in custom component logic:', err);
-                // Try to show error in the component if there's an output element
-                const outputEl = element.querySelector('#output, .output, .error-display');
-                if (outputEl) {
-                  outputEl.textContent = 'JavaScript Error: ' + err.message;
-                  outputEl.style.color = 'red';
-                }
-              }
-            };
-            
-            // Ensure DOM is ready
-            if (document.readyState !== 'loading') {
-              run();
-            } else {
-              document.addEventListener('DOMContentLoaded', run);
+          // Create a proxy for document to redirect body and other queries to the component
+          const proxyDocument = new Proxy(document, {
+            get(target, prop) {
+              if (prop === 'body' || prop === 'documentElement') return element;
+              if (prop === 'querySelector') return (s: string) => element.querySelector(s);
+              if (prop === 'querySelectorAll') return (s: string) => element.querySelectorAll(s);
+              if (prop === 'getElementById') return (id: string) => element.querySelector('#' + id);
+              
+              const value = Reflect.get(target, prop);
+              return typeof value === 'function' ? value.bind(target) : value;
             }
-          `;
-          
-          // Execute the enhanced JavaScript
-          const func = new Function('element', enhancedJs);
-          func(element);
-          console.log('Custom component JS executed successfully:', component.id);
+          });
+
+          // Create a proxy for window to redirect document and handle global events if needed
+          const proxyWindow = new Proxy(window, {
+            get(target, prop) {
+              if (prop === 'document') return proxyDocument;
+              if (prop === 'window' || prop === 'self' || prop === 'globalThis') return proxyWindow;
+              
+              const value = Reflect.get(target, prop);
+              return typeof value === 'function' ? value.bind(target) : value;
+            }
+          });
+
+          const $ = (s: string) => element.querySelector(s);
+          const $$ = (s: string) => element.querySelectorAll(s);
+
+          // Execute the JS with shadowed globals
+          try {
+            const isolatedFunc = new Function('element', 'document', 'window', '$', '$$', `
+              try {
+                ${props.js}
+              } catch (err) {
+                console.error('Error in component logic:', err);
+              }
+            `);
+            isolatedFunc(element, proxyDocument, proxyWindow, $, $$);
+          } catch (err) {
+            console.error('Failed to compile custom JS:', err);
+          }
         } catch (error) {
           console.error('Failed to execute JS for custom component:', error);
         }
       };
 
-      // Slight delay to ensure child DOM elements are rendered
       const timer = setTimeout(executeJs, 100);
       return () => clearTimeout(timer);
     }
@@ -1503,7 +1475,8 @@ export function RenderableComponent({
         })();
 
         return (
-          <ResizeHandle
+          <ResizeHandle 
+            id={props.elementId}
             onResize={handleResize}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
@@ -1555,6 +1528,7 @@ export function RenderableComponent({
             {customCssContent}
             <div 
               ref={contentRef}
+              id={props.elementId}
               style={{ 
                 ...combinedStyle, 
                 width: 'auto',
@@ -1783,6 +1757,7 @@ export function RenderableComponent({
           >
             {customCssContent}
             <Card
+              id={props.elementId}
               className="w-full h-full overflow-hidden flex flex-col"
               style={{ ...combinedStyle }}
             >
@@ -3651,7 +3626,6 @@ export function RenderableComponent({
               {cardProps.image && (
                 <div className="h-40 overflow-hidden">
                   <ImageWithFallback data-component-id={component.id}
-                    id={props.elementId}
                     src={cardProps.image}
                     alt={cardProps.title || 'Card image'}
                     width={300}
@@ -3664,7 +3638,6 @@ export function RenderableComponent({
                 {cardProps.title && (
                   <CardTitle>
                     <EditableText data-component-id={component.id}
-                      id={props.elementId}
                       text={cardProps.title}
                       onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
                       element="h3"
@@ -3680,7 +3653,6 @@ export function RenderableComponent({
                 {cardProps.description && (
                   <p className="text-sm text-muted-foreground mb-4">
                     <EditableText data-component-id={component.id}
-                      id={props.elementId}
                       text={cardProps.description}
                       onTextChange={(newText) => onUpdate({ props: { ...props, description: newText } })}
                       element="span"
@@ -3692,7 +3664,6 @@ export function RenderableComponent({
                 )}
                 {cardProps.buttonText && (
                   <Button data-component-id={component.id}
-                    id={props.elementId}
                     variant="outline"
                     size="sm"
                     className="mt-auto"
@@ -3704,7 +3675,6 @@ export function RenderableComponent({
                     }}
                   >
                     <EditableText data-component-id={component.id}
-                      id={props.elementId}
                       text={cardProps.buttonText}
                       onTextChange={(newText) => onUpdate({ props: { ...props, buttonText: newText } })}
                       element="span"
@@ -3756,7 +3726,6 @@ export function RenderableComponent({
               className={props.className || ''}
             >
               <EditableText data-component-id={component.id}
-                id={props.elementId}
                 text={props.title || 'Section Title'}
                 onTextChange={(newText) => onUpdate({ props: { ...props, title: newText } })}
                 element="h2"
@@ -3766,7 +3735,6 @@ export function RenderableComponent({
               />
               {props.subtitle && (
                 <EditableText data-component-id={component.id}
-                  id={props.elementId}
                   text={props.subtitle}
                   onTextChange={(newText) => onUpdate({ props: { ...props, subtitle: newText } })}
                   element="p"
@@ -3812,7 +3780,6 @@ export function RenderableComponent({
               className={props.className || ''}
             >
               <EditableText data-component-id={component.id}
-                id={props.elementId}
                 text={props.content || 'This is a paragraph. Double-click to edit the text.'}
                 onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
                 element="p"
@@ -3911,6 +3878,7 @@ export function RenderableComponent({
 
         return (
           <ResizeHandle 
+            id={props.elementId}
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}

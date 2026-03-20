@@ -11,6 +11,7 @@ import { Skeleton } from './ui/skeleton';
 import { Progress } from './ui/progress';
 import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
 import type { ComponentData } from "../App";
+import { AI_JAVASCRIPT_RULES, AI_COMMON_RULES } from "../constants/aiRules";
 
 // Debounce utility function
 const debounce = <T extends (...args: any[]) => any>(
@@ -26,9 +27,9 @@ const debounce = <T extends (...args: any[]) => any>(
 
 // Gemini API function for styling
 const generateStylingWithGemini = async (
-  prompt: string, 
-  currentHtml: string, 
-  currentCss: string, 
+  prompt: string,
+  currentHtml: string,
+  currentCss: string,
   currentJs: string,
   history: { role: 'user' | 'assistant', content: string }[] = [],
   signal?: AbortSignal
@@ -37,7 +38,7 @@ const generateStylingWithGemini = async (
     const openRouterKey = getOpenRouterKey();
     const geminiKey = getGeminiKey();
     const apiKey = openRouterKey || geminiKey;
-    
+
     if (!apiKey) {
       toast.error("API key not configured. Please set your OpenRouter or Gemini API key.")
       return "Error: API key not configured"
@@ -78,23 +79,9 @@ const generateStylingWithGemini = async (
             - Ensure responsive design considerations
             - Use modern CSS features when appropriate
             
-            IMPORTANT JAVASCRIPT IMPLEMENTATION RULES:
-            - ALWAYS use enhanced DOM querying functions provided in custom component environment
-            - Use \`$('selector')\` instead of \`document.getElementById('selector')\` or \`document.querySelector('selector')\`
-            - Use \`$$('selector')\` instead of \`document.querySelectorAll('selector')\`
-            - Use \`onclick\` instead of \`addEventListener('click', ...)\` for better compatibility
-            - ALWAYS use \`for loop\` instead of \`forEach()\` when working with NodeLists from \`$$()\`
-            - If you need to use array methods, convert NodeList to Array first: \`Array.from($$('.selector'))\`
-            - NEVER use \`document.body\` or \`body\` tag in custom components - it breaks CSS and component isolation
-            - Always include console.log statements for debugging
-            - Check if elements exist before attaching event listeners
-            
-            USER PHRASE RECOGNITION:
-            - "fit to canvas" or "fit to 1920 width" means the user wants the component to be exactly 1920px wide
-            - "javascript functions are not working" or "buttons not working" means you need to fix JavaScript event handlers
-            - When users report JavaScript functionality issues, ensure all event handlers use onclick and proper DOM queries
-            - Always test that buttons, forms, and interactive elements work in the preview environment
-            - For canvas fitting, ensure the main container or wrapper has width: 1920px
+            ${AI_JAVASCRIPT_RULES}
+
+            ${AI_COMMON_RULES}
 
             RESPONSE FORMAT:
             Return the complete updated CSS and JavaScript code in the following format:
@@ -123,7 +110,7 @@ const generateStylingWithGemini = async (
 
     const data = await response.json();
     return data.choices[0]?.message?.content || "No response received";
-    
+
   } catch (error) {
     console.error('Error generating styling:', error);
     toast.error("Failed to generate styling. Please try again.");
@@ -145,11 +132,11 @@ interface AiMessage {
   timestamp: Date;
 }
 
-export function AICustomComponentStylingModal({ 
-  isOpen, 
-  onClose, 
-  component, 
-  onUpdateComponent 
+export function AICustomComponentStylingModal({
+  isOpen,
+  onClose,
+  component,
+  onUpdateComponent
 }: AICustomComponentStylingModalProps) {
   const [cssCode, setCssCode] = useState('');
   const [jsCode, setJsCode] = useState('');
@@ -192,7 +179,7 @@ export function AICustomComponentStylingModal({
       setIsPreviewUpdating(false);
     }
   }, [isOpen, component]);
-  
+
   // Simulated progress logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -212,7 +199,7 @@ export function AICustomComponentStylingModal({
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  
+
   const handleGenerateStyling = async () => {
     if (!currentPrompt.trim() || !component) {
       toast.error("Please enter a styling request");
@@ -220,11 +207,11 @@ export function AICustomComponentStylingModal({
     }
 
     setIsGenerating(true);
-    
+
     // Create new AbortController
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    
+
     try {
       const currentHtml = component.props?.html || '';
       const response = await generateStylingWithGemini(
@@ -257,10 +244,10 @@ export function AICustomComponentStylingModal({
         content: response,
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, newMessage]);
       toast.success("Styling generated successfully!");
-      
+
     } catch (error) {
       console.error('Error generating styling:', error);
       toast.error("Failed to generate styling. Please try again.");
@@ -297,7 +284,7 @@ export function AICustomComponentStylingModal({
 
   const handleReset = () => {
     if (!component) return;
-    
+
     const originalCss = component.props?.css || '';
     const originalJs = component.props?.js || '';
     setCssCode(originalCss);
@@ -376,27 +363,27 @@ export function AICustomComponentStylingModal({
               <Tabs defaultValue="css" className="flex-1 flex flex-col min-h-0">
                 <div className="px-4 border-b shrink-0 bg-muted/5">
                   <TabsList className="bg-transparent h-10 p-0 gap-4">
-                    <TabsTrigger 
-                      value="html" 
+                    <TabsTrigger
+                      value="html"
                       className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
                     >
                       <Code className="w-3.5 h-3.5 mr-2" /> HTML
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="css" 
+                    <TabsTrigger
+                      value="css"
                       className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
                     >
                       <Code className="w-3.5 h-3.5 mr-2" /> CSS
                     </TabsTrigger>
-                    <TabsTrigger 
-                      value="javascript" 
+                    <TabsTrigger
+                      value="javascript"
                       className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary border-0 border-b-2 border-transparent rounded-none px-0 h-10 text-xs font-bold uppercase tracking-tight focus-visible:ring-0"
                     >
                       <Code className="w-3.5 h-3.5 mr-2" /> JavaScript
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                
+
                 <TabsContent value="html" className="flex-1 mt-0 relative min-h-0 overflow-hidden flex flex-col pt-4">
                   <div className="flex-1 min-h-0">
                     <Editor
@@ -428,7 +415,7 @@ export function AICustomComponentStylingModal({
                     />
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="css" className="flex-1 mt-0 relative min-h-0 overflow-hidden flex flex-col pt-4">
                   <div className="flex-1 min-h-0">
                     <Editor
@@ -453,7 +440,7 @@ export function AICustomComponentStylingModal({
                     />
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="javascript" className="flex-1 mt-0 relative min-h-0 overflow-hidden flex flex-col pt-4">
                   <div className="flex-1 min-h-0">
                     <Editor
@@ -480,7 +467,7 @@ export function AICustomComponentStylingModal({
                 </TabsContent>
               </Tabs>
             </div>
-            
+
             {/* AI Prompt Section */}
             <div className="p-4 border-t bg-muted/10 shrink-0">
               <div className="space-y-3">
@@ -506,7 +493,7 @@ export function AICustomComponentStylingModal({
                     Generate
                   </Button>
                 </div>
-                
+
                 {/* Quick Actions */}
                 <div className="flex gap-2 flex-wrap">
                   <Button
@@ -548,6 +535,15 @@ export function AICustomComponentStylingModal({
                     className="text-xs h-7"
                   >
                     Fit to Canvas Size
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPrompt("use self-invoking function (IIFE) for javascript")}
+                    className="text-xs h-7"
+                  >
+                    Self-Invoking Function (IIFE)
                   </Button>
                 </div>
               </div>
@@ -611,7 +607,7 @@ export function AICustomComponentStylingModal({
                   title="component-preview"
                 />
               )}
-              
+
               {/* AI Generation Loading Overlay */}
               {isGenerating && (
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
@@ -635,14 +631,14 @@ export function AICustomComponentStylingModal({
                           AI is Refining Your Style
                         </p>
                         <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-tight">
-                          {progress < 30 ? 'Analyzing request...' : 
-                           progress < 70 ? 'Generating modern CSS...' : 
-                           progress < 95 ? 'Optimizing layouts...' : 'Almost there...'}
+                          {progress < 30 ? 'Analyzing request...' :
+                            progress < 70 ? 'Generating modern CSS...' :
+                              progress < 95 ? 'Optimizing layouts...' : 'Almost there...'}
                         </p>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleStopGenerating}
                         className="w-full mt-2 border-red-200 hover:bg-red-50 hover:text-red-600 transition-colors gap-2 font-bold text-[10px] uppercase tracking-widest"
                       >
@@ -658,8 +654,8 @@ export function AICustomComponentStylingModal({
         </div>
 
         <DialogFooter className="p-4 border-t bg-muted/30 shrink-0 gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleReset}
             disabled={isGenerating}
           >

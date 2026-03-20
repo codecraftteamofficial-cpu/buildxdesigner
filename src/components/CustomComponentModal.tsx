@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { MonacoGenAi } from './MonacoGenAi';
 import { Progress } from './ui/progress';
 import { getOpenRouterKey, getGeminiKey } from "../config/apiKeys"
+import { AI_JAVASCRIPT_RULES, AI_COMMON_RULES, DEFAULT_CUSTOM_COMPONENT_JS } from "../constants/aiRules";
 
 // Gemini API function
 const generateCodeWithGemini = async (
@@ -61,86 +62,9 @@ const generateCodeWithGemini = async (
             JS: ${currentJs}
             ---
 
-            IMPORTANT CANVAS DIMENSIONS:
-            - The canvas has a FIXED width of 1920px - this will never change
-            - All components should be designed for 1920px width
-            - Do not use responsive breakpoints or fluid layouts that assume variable widths
-            - Design for desktop-first with 1920px as the base width
-            - This applies to HTML, CSS, JavaScript, and PHP code generation
+            ${AI_COMMON_RULES}
 
-            IMPORTANT MODAL JAVASCRIPT RULES:
-            - For modal components, NEVER use document.addEventListener('DOMContentLoaded', function() {...})
-            - Instead use immediately invoked function expressions: (function() { ... })();
-            - Use the provided $ and $$ functions for DOM selection
-            - Use onclick handlers instead of addEventListener for better compatibility
-            - Include console.log statements for debugging modal interactions
-            - Ensure modal JavaScript works in both preview mode and published sites
-            - Modal code should be self-contained and not rely on external dependencies
-
-            IMPORTANT JAVASCRIPT IMPLEMENTATION RULES:
-            - ALWAYS use the enhanced DOM querying functions provided in the custom component environment
-            - Use \`$('selector')\` instead of \`document.getElementById('selector')\` or \`document.querySelector('selector')\`
-            - Use \`$$('selector')\` instead of \`document.querySelectorAll('selector')\`
-            - Use \`onclick\` instead of \`addEventListener('click', ...)\` for better compatibility
-            - ALWAYS use \`for loop\` instead of \`forEach()\` when working with NodeLists from \`$$()\`
-            - If you need to use array methods, convert NodeList to Array first: \`Array.from($$('.selector'))\`
-            - NEVER use \`document.body\` or \`body\` tag in custom components - it breaks the CSS and component isolation
-            - Always include console.log statements for debugging
-            - Check if elements exist before attaching event listeners
-            
-            USER PHRASE RECOGNITION:
-            - "fit to canvas" or "fit to 1920 width" means the user wants the component to be exactly 1920px wide
-            - "javascript functions are not working" or "buttons not working" means you need to fix JavaScript event handlers
-            - When users report JavaScript functionality issues, ensure all event handlers use onclick and proper DOM queries
-            - Always test that buttons, forms, and interactive elements work in the preview environment
-            - Example pattern for multiple elements:
-              \`\`\`javascript
-              console.log('Component loaded');
-              
-              const headers = $$('.accordion-header');
-              console.log('Headers found:', headers.length);
-              
-              // Use for loop for NodeList compatibility
-              for (let i = 0; i < headers.length; i++) {
-                const header = headers[i];
-                header.onclick = function() {
-                  console.log('Header clicked:', i);
-                  // Your functionality here
-                };
-              }
-              
-              // OR convert to Array first:
-              const headerArray = Array.from($$('.accordion-header'));
-              headerArray.forEach((header, index) => {
-                header.onclick = function() {
-                  console.log('Header clicked:', index);
-                  // Your functionality here
-                };
-              });
-              \`\`\`
-            - Example pattern for single elements:
-              \`\`\`javascript
-              console.log('Component loaded');
-              
-              const button = $('#button-id');
-              const modal = $('#modal-id');
-              const closeBtn = $('.close-button');
-              
-              console.log('Elements found:', {
-                button: !!button,
-                modal: !!modal,
-                closeBtn: !!closeBtn
-              });
-              
-              if (button) {
-                button.onclick = function() {
-                  console.log('Button clicked!');
-                  if (modal) {
-                    modal.style.display = 'block';
-                  }
-                };
-              }
-              \`\`\`
+            ${AI_JAVASCRIPT_RULES}
 
             IMPORTANT CSS IMPLEMENTATION RULES:
             - NEVER use \`body\` tag styles in custom components - it breaks component isolation
@@ -221,7 +145,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
   const [description, setDescription] = useState('');
   const [htmlCode, setHtmlCode] = useState('<div class="container">\n  <h1>Hello World</h1>\n  <p>This is a custom component.</p>\n</div>');
   const [cssCode, setCssCode] = useState('.container {\n  padding: 20px;\n  background: #f0f0f0;\n  border-radius: 8px;\n}\n\nh1 {\n  color: #333;\n  font-size: 24px;\n}\n\np {\n  color: #666;\n  font-size: 16px;\n}');
-  const [jsCode, setJsCode] = useState('document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
+  const [jsCode, setJsCode] = useState(DEFAULT_CUSTOM_COMPONENT_JS);
   const [aiCode, setAiCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -241,7 +165,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       setDescription(initialData.description);
       setHtmlCode(initialData.html);
       setCssCode(initialData.css);
-      setJsCode(initialData.js || 'document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
+      setJsCode(initialData.js || DEFAULT_CUSTOM_COMPONENT_JS);
       setAiCode('');
       setChatHistory([]);
     } else if (isOpen && !initialData) {
@@ -249,7 +173,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       setDescription('');
       setHtmlCode('<div class="container">\n  <h1>Hello World</h1>\n  <p>This is a custom component.</p>\n</div>');
       setCssCode('.container {\n  padding: 20px;\n  background: #f0f0f0;\n  border-radius: 8px;\n}\n\nh1 {\n  color: #333;\n  font-size: 24px;\n}\n\np {\n  color: #666;\n  font-size: 16px;\n}');
-      setJsCode('document.addEventListener(\'DOMContentLoaded\', function() {\n  console.log(\'Component loaded\');\n  \n  // Add your JavaScript here\n});');
+      setJsCode(DEFAULT_CUSTOM_COMPONENT_JS);
       setAiCode('');
       setChatHistory([]);
     }
