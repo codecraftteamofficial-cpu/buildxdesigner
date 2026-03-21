@@ -500,10 +500,10 @@ function CodeExportModal({
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-6xl w-[95vw] p-0 gap-0 flex flex-col overflow-hidden border-[#333] shadow-2xl text-white"
+        className="max-w-[1600px] w-[98vw] p-0 gap-0 flex flex-col overflow-hidden border-[#333] shadow-2xl text-white"
         style={{
           backgroundColor: "#1e1e1e",
-          height: "min(85vh, 700px)",
+          height: "min(90vh, 900px)",
         }}
       >
         <DialogHeader className="sr-only">
@@ -718,7 +718,6 @@ export function CodeViewEditor({
   );
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState("");
-  const [savedIndicator, setSavedIndicator] = useState(false);
   const [showFileCreator, setShowFileCreator] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false); // ← new
 
@@ -741,7 +740,7 @@ export function CodeViewEditor({
   const isJSFile = selectedFile.endsWith(".js");
   const isGeneratedFrontend = isViewPHP || isCSSFile || isJSFile;
   const isOverridden = !!fileOverrides[selectedFile];
-  const canEdit = !!selectedFile;
+  const canEdit = !!selectedFile && !isGeneratedFrontend;
 
   useEffect(() => {
     const page = pages.find((p) => p.id === activePageId) ?? pages[0];
@@ -750,13 +749,6 @@ export function CodeViewEditor({
 
   const readOnlyContent = effectiveFiles[selectedFile] ?? "";
   const isCustomFile = !!customFiles[selectedFile];
-  const syntaxLang = selectedFile.endsWith(".css")
-    ? "css"
-    : selectedFile.endsWith(".js")
-      ? "javascript"
-      : selectedFile.endsWith(".json")
-        ? "json"
-        : "php";
 
   const handleSelectFile = (path: string) => {
     if (path === selectedFile) return;
@@ -781,8 +773,6 @@ export function CodeViewEditor({
     else onFileOverrideUpdate?.(selectedFile, draftContent);
     setIsEditing(false);
     setDraftContent("");
-    setSavedIndicator(true);
-    setTimeout(() => setSavedIndicator(false), 2000);
     toast.success("File saved successfully.");
   }, [
     selectedFile,
@@ -803,21 +793,7 @@ export function CodeViewEditor({
         next.add(parts.slice(0, i).join("/"));
       return next;
     });
-  }, []);
-
-  const handleTabKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== "Tab") return;
-    e.preventDefault();
-    const ta = e.currentTarget,
-      start = ta.selectionStart,
-      sp = "  ";
-    setDraftContent(
-      ta.value.slice(0, start) + sp + ta.value.slice(ta.selectionEnd),
-    );
-    requestAnimationFrame(() => {
-      ta.selectionStart = ta.selectionEnd = start + sp.length;
-    });
-  };
+  }, [onCustomFileUpdate]);
 
   const handleEditorWillMount = (monaco: any) => {
     monaco.editor.defineTheme("builder-dark", {
@@ -875,26 +851,6 @@ export function CodeViewEditor({
         node.children.map((child) => renderFileNode(child, depth + 1))}
     </div>
   );
-
-  const handleDownloadZip = useCallback(async () => {
-    try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      Object.entries(effectiveFiles).forEach(([filePath, content]) => {
-        zip.file(filePath, content);
-      });
-      const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `${projectName || "project"}.zip`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      toast.success("Project zip downloaded");
-    } catch {
-      toast.error("Failed to generate zip");
-    }
-  }, [effectiveFiles, projectName]);
 
   return (
     <div className="w-full h-full flex gap-3 p-4 bg-[#111111]">
@@ -986,7 +942,7 @@ export function CodeViewEditor({
                     }}
                     className="h-7 text-[10px] bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20 gap-1"
                   >
-                    <RefreshCcw className="w-3 h-3" /> Reset
+                    <RefreshCw className="w-3 h-3" /> Reset
                   </Button>
                 )}
                 {canEdit && (
@@ -1007,14 +963,6 @@ export function CodeViewEditor({
                   className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white border-none gap-1.5 transition-all shadow-lg active:scale-95"
                 >
                   <ExternalLink className="w-3 h-3 text-white/90" /> Export
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleDownloadZip}
-                  className="h-7 w-8 p-0 bg-blue-600 hover:bg-blue-700 text-white border-none transition-all shadow-lg active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5 text-white/90" />
                 </Button>
               </>
             ) : (

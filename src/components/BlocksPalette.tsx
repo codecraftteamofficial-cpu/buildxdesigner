@@ -1,9 +1,9 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { ScrollArea } from './ui/scroll-area';
-import { Input } from './ui/input';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Separator } from "./ui/separator";
+import { ScrollArea } from "./ui/scroll-area";
+import { Input } from "./ui/input";
 import {
   Search,
   Type,
@@ -31,13 +31,12 @@ import {
   AlertTriangle,
   Maximize2,
   CreditCard,
-  FormInput
-} from 'lucide-react';
-import { ComponentData } from '../App';
-import { useDrag, DragSourceMonitor } from 'react-dnd';
+  FormInput,
+} from "lucide-react";
+import { ComponentData } from "../App";
+import { useDrag, DragSourceMonitor } from "react-dnd";
 import { useEffect, useRef } from "react";
 import { TourGuide } from "./Guides/Highlight";
-
 
 interface BlocksPaletteProps {
   onSelectBlock: (block: ComponentData) => void;
@@ -52,13 +51,18 @@ interface DraggableBlockProps {
   className?: string;
 }
 
-function DraggableBlock({ block, onClick, children, className }: DraggableBlockProps) {
+function DraggableBlock({
+  block,
+  onClick,
+  children,
+  className,
+}: DraggableBlockProps) {
   const [{ isDragging }, drag] = useDrag({
     type: "component",
     item: {
       type: block.component.type,
       props: block.component.props,
-      style: block.component.style
+      style: block.component.style,
     },
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
@@ -69,646 +73,897 @@ function DraggableBlock({ block, onClick, children, className }: DraggableBlockP
     <div
       ref={drag as unknown as React.Ref<HTMLDivElement>}
       onClick={onClick}
-      className={`${className} ${isDragging ? 'opacity-50' : ''} cursor-move`}
+      className={`${className} ${isDragging ? "opacity-50" : ""} cursor-move`}
     >
       {children}
     </div>
   );
 }
 
-export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: BlocksPaletteProps) {
+export function BlocksPalette({
+  onSelectBlock,
+  searchTerm,
+  onSearchChange,
+}: BlocksPaletteProps) {
   const blockCategories = [
     {
-      name: 'Basic Elements',
+      name: "Basic Elements",
       icon: <Type className="w-4 h-4" />,
-      id: 'elements',
+      id: "elements",
       blocks: [
         {
-          id: 'text',
-          name: 'Text',
-          description: 'Simple text paragraph',
+          id: "text",
+          name: "Text",
+          description: "Simple text paragraph",
           icon: <Type className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'text',
-            props: { content: 'Sample text content' },
-            style: {}
-          }
+            id: "",
+            type: "text",
+            props: { content: "Sample text content" },
+            style: {},
+          },
         },
         {
-          id: 'heading',
-          name: 'Heading',
-          description: 'Page or section heading',
+          id: "heading",
+          name: "Heading",
+          description: "Page or section heading",
           icon: <Type className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'heading',
-            props: { content: 'Sample Heading', level: 1 },
-            style: {}
-          }
+            id: "",
+            type: "heading",
+            props: { content: "Sample Heading", level: 1 },
+            style: {},
+          },
         },
         {
-          id: 'button',
-          name: 'Button',
-          description: 'Interactive button element',
+          id: "button",
+          name: "Button",
+          description: "Interactive button element",
           icon: <MousePointer className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'button',
+            id: "",
+            type: "button",
             props: {
-              text: 'Click Me',
-              variant: 'default',
-              onClick: 'console.log("Button clicked!")'
+              text: "Click Me",
+              variant: "default",
+              onClick: 'console.log("Button clicked!")',
             },
-            style: {}
-          }
+            style: {},
+          },
         },
-
-      ]
+      ],
     },
     {
-      name: 'Shapes',
+      name: "Shapes",
       icon: <Square className="w-4 h-4" />,
-      id: 'shapes',
+      id: "shapes",
       blocks: [
         {
-          id: 'shapes',
-          name: 'Shapes',
-          description: 'A flexible shape block (pick the shape in Properties)',
+          id: "shapes",
+          name: "Shapes",
+          description: "A flexible shape block (pick the shape in Properties)",
           icon: <Square className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'shape',
+            id: "",
+            type: "shape",
             props: {
-              shape: 'rectangle',
-              fill: '#3b82f6',
-              stroke: '#1f2937',
+              shape: "rectangle",
+              fill: "#3b82f6",
+              stroke: "#1f2937",
               strokeWidth: 2,
-              cornerRadius: 0
+              cornerRadius: 0,
             },
             style: {
-              width: '200px',
-              height: '120px'
-            }
-          }
-        }
-      ]
+              width: "200px",
+              height: "120px",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Layout',
+      name: "Layout",
       icon: <Layout className="w-4 h-4" />,
       blocks: [
         {
-          id: 'divider',
-          name: 'Divider',
-          description: 'Horizontal line to separate content',
+          id: "divider",
+          name: "Divider",
+          description: "Horizontal line to separate content",
           icon: <Minus className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'divider',
+            id: "",
+            type: "divider",
             props: {
-              styleType: 'solid',
-              thickness: '1px',
-              color: '#000000ff'
+              styleType: "solid",
+              thickness: "1px",
+              color: "#000000ff",
             },
             style: {
-              width: '100%',
-              margin: '16px 0'
-            }
-          }
+              width: "100%",
+              margin: "16px 0",
+            },
+          },
         },
         {
-          id: 'container',
-          name: 'Container',
-          description: 'A container for other elements',
+          id: "container",
+          name: "Container",
+          description: "A container for other elements",
           icon: <Square className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'container',
+            id: "",
+            type: "container",
             props: {
               children: [],
-              className: 'p-4 border border-gray-200 rounded-lg bg-white',
-              elementId: 'container-' + Math.random().toString(36).substr(2, 9) // Generate a random ID
+              className: "p-4 border border-gray-200 rounded-lg bg-white",
+              elementId: "container-" + Math.random().toString(36).substr(2, 9), // Generate a random ID
             },
-            style: {}
-          }
-        }
-      ]
+            style: {},
+          },
+        },
+      ],
     },
     {
-      name: 'Interactive',
+      name: "Interactive",
       icon: <ChevronDown className="w-4 h-4" />,
       blocks: [
         {
-          id: 'accordion',
-          name: 'Accordion (FAQ)',
-          description: 'Collapsible content sections for FAQs',
+          id: "accordion",
+          name: "Accordion (FAQ)",
+          description: "Collapsible content sections for FAQs",
           icon: <PanelTopClose className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'accordion',
+            id: "",
+            type: "accordion",
             props: {
               items: [
-                { question: 'What is this?', answer: 'This is a sample accordion item. Click to expand or collapse.' },
-                { question: 'How does it work?', answer: 'Each item can be toggled open or closed independently.' }
+                {
+                  question: "What is this?",
+                  answer:
+                    "This is a sample accordion item. Click to expand or collapse.",
+                },
+                {
+                  question: "How does it work?",
+                  answer:
+                    "Each item can be toggled open or closed independently.",
+                },
               ],
-              allowMultiple: false
+              allowMultiple: false,
             },
             style: {
-              width: '100%'
-            }
-          }
+              width: "100%",
+            },
+          },
         },
         {
-          id: 'tabs',
-          name: 'Tabs',
-          description: 'Switchable content panels',
+          id: "tabs",
+          name: "Tabs",
+          description: "Switchable content panels",
           icon: <Columns className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'tabs',
+            id: "",
+            type: "tabs",
             props: {
               tabs: [
-                { label: 'Tab 1', content: 'Content for Tab 1' },
-                { label: 'Tab 2', content: 'Content for Tab 2' },
-                { label: 'Tab 3', content: 'Content for Tab 3' }
+                { label: "Tab 1", content: "Content for Tab 1" },
+                { label: "Tab 2", content: "Content for Tab 2" },
+                { label: "Tab 3", content: "Content for Tab 3" },
               ],
-              activeTab: 0
+              activeTab: 0,
             },
             style: {
-              width: '100%'
-            }
-          }
+              width: "100%",
+            },
+          },
         },
         {
-          id: 'modal',
-          name: 'Modal / Popup',
-          description: 'Button that opens a customizable overlay',
+          id: "modal",
+          name: "Modal / Popup",
+          description: "Button that opens a customizable overlay",
           icon: <Maximize2 className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'modal',
+            id: "",
+            type: "modal",
             props: {
-              triggerText: 'Open Modal',
-              modalTitle: 'Modal Title',
-              modalContent: 'This is the modal body content. You can customize this text.',
-              overlayColor: 'rgba(0,0,0,0.5)'
+              triggerText: "Open Modal",
+              modalTitle: "Modal Title",
+              modalContent:
+                "This is the modal body content. You can customize this text.",
+              overlayColor: "rgba(0,0,0,0.5)",
             },
             style: {
-              width: 'auto'
-            }
-          }
+              width: "auto",
+            },
+          },
         },
         {
-          id: 'alert',
-          name: 'Alert / Banner',
-          description: 'Callout box for important messages',
+          id: "alert",
+          name: "Alert / Banner",
+          description: "Callout box for important messages",
           icon: <AlertTriangle className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'alert',
+            id: "",
+            type: "alert",
             props: {
-              variant: 'info',
-              message: 'This is an informational alert message.',
-              dismissible: true
+              variant: "info",
+              message: "This is an informational alert message.",
+              dismissible: true,
             },
             style: {
-              width: '100%'
-            }
-          }
-        }
-      ]
+              width: "100%",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Navigation',
+      name: "Navigation",
       icon: <Navigation className="w-4 h-4" />,
       blocks: [
         {
-          id: 'navbar',
-          name: 'Navigation Bar',
-          description: 'Top navigation with logo and links',
+          id: "navbar",
+          name: "Navigation Bar",
+          description: "Top navigation with logo and links",
           icon: <Navigation className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'navbar',
-            props: { brand: 'Your Brand', links: ['Home', 'About', 'Services', 'Contact'] },
+            id: "",
+            type: "navbar",
+            props: {
+              brand: "Your Brand",
+              links: ["Home", "About", "Services", "Contact"],
+            },
             style: {},
-            page_id: '',
-            page_ids: []
-          }
+            page_id: "",
+            page_ids: [],
+          },
         },
         {
-          id: 'hero',
-          name: 'Hero Section',
-          description: 'Large banner with title and CTA',
+          id: "hero",
+          name: "Hero Section",
+          description: "Large banner with title and CTA",
           icon: <Star className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'hero',
-            props: { title: 'Welcome to Our Site', subtitle: 'Build amazing websites with ease' },
-            style: {}
-          }
+            id: "",
+            type: "hero",
+            props: {
+              title: "Welcome to Our Site",
+              subtitle: "Build amazing websites with ease",
+            },
+            style: {},
+          },
         },
         {
-          id: 'footer',
-          name: 'Footer',
-          description: 'Bottom page footer',
+          id: "footer",
+          name: "Footer",
+          description: "Bottom page footer",
           icon: <Menu className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'footer',
-            props: { copyright: '© 2024 Your Company. All rights reserved.' },
+            id: "",
+            type: "footer",
+            props: { copyright: "© 2024 Your Company. All rights reserved." },
             style: {},
-            page_id: '',
-            page_ids: []
-          }
-        }
-      ]
+            page_id: "",
+            page_ids: [],
+          },
+        },
+      ],
     },
     {
-      name: 'Forms',
+      name: "Forms",
       icon: <FileText className="w-4 h-4" />,
       blocks: [
         {
-          id: 'input',
-          name: 'Input Field',
-          description: 'Text input field',
+          id: "input",
+          name: "Input Field",
+          description: "Text input field",
           icon: <FileText className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'input',
-            props: { placeholder: 'Enter text...', type: 'text' },
-            style: {}
-          }
+            id: "",
+            type: "input",
+            props: { placeholder: "Enter text...", type: "text" },
+            style: {},
+          },
         },
         {
-          id: 'textarea',
-          name: 'Text Area',
-          description: 'Multi-line text input',
+          id: "textarea",
+          name: "Text Area",
+          description: "Multi-line text input",
           icon: <FileText className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'textarea',
-            props: { placeholder: 'Enter your message...' },
-            style: {}
-          }
+            id: "",
+            type: "textarea",
+            props: { placeholder: "Enter your message..." },
+            style: {},
+          },
         },
 
         {
-          id: 'form',
-          name: 'Contact Form',
-          description: 'Complete contact form',
+          id: "form",
+          name: "Contact Form",
+          description: "Complete contact form",
           icon: <Mail className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'form',
+            id: "",
+            type: "form",
             props: {
-              title: 'Get In Touch',
-              submitText: 'Submit',
-              recipientEmail: '',
-              fields: [
-                { id: 'field-1', label: 'Name', placeholder: 'Enter your name', type: 'text', required: true },
-                { id: 'field-2', label: 'Email', placeholder: 'Enter your email', type: 'email', required: true },
-                { id: 'field-3', label: 'Message', placeholder: 'Enter your message', type: 'textarea', required: true }
-              ]
-            },
-            style: {}
-          }
-        },
-        {
-          id: 'dynamic-form',
-          name: 'Dynamic Form',
-          description: 'Form with dynamic fields and Supabase CRUD support',
-          icon: <FormInput className="w-4 h-4" />,
-          component: {
-            id: '',
-            type: 'dynamic-form',
-            props: {
-              title: 'Dynamic Form',
-              submitButtonText: 'Submit',
-              supabaseTable: '',
-              supabaseOperation: 'insert',
+              title: "Get In Touch",
+              submitText: "Submit",
+              recipientEmail: "",
               fields: [
                 {
-                  id: 'field-1',
-                  label: 'Full Name',
-                  placeholder: 'Enter your full name',
-                  type: 'text',
+                  id: "field-1",
+                  label: "Name",
+                  placeholder: "Enter your name",
+                  type: "text",
                   required: true,
-                  fieldName: 'full_name'
                 },
                 {
-                  id: 'field-2',
-                  label: 'Email Address',
-                  placeholder: 'Enter your email',
-                  type: 'email',
+                  id: "field-2",
+                  label: "Email",
+                  placeholder: "Enter your email",
+                  type: "email",
                   required: true,
-                  fieldName: 'email_address'
-                }
+                },
+                {
+                  id: "field-3",
+                  label: "Message",
+                  placeholder: "Enter your message",
+                  type: "textarea",
+                  required: true,
+                },
+              ],
+            },
+            style: {},
+          },
+        },
+        {
+          id: "dynamic-form",
+          name: "Dynamic Form",
+          description: "Form with dynamic fields and Supabase CRUD support",
+          icon: <FormInput className="w-4 h-4" />,
+          component: {
+            id: "",
+            type: "dynamic-form",
+            props: {
+              title: "Dynamic Form",
+              submitButtonText: "Submit",
+              supabaseTable: "",
+              supabaseOperation: "insert",
+              fields: [
+                {
+                  id: "field-1",
+                  label: "Full Name",
+                  placeholder: "Enter your full name",
+                  type: "text",
+                  required: true,
+                  fieldName: "full_name",
+                },
+                {
+                  id: "field-2",
+                  label: "Email Address",
+                  placeholder: "Enter your email",
+                  type: "email",
+                  required: true,
+                  fieldName: "email_address",
+                },
               ],
               submitButtonActions: [
                 {
-                  id: 'submit-action-1',
-                  type: 'onClick',
-                  handlerType: 'supabase',
-                  handler: '',
-                  supabaseOperation: 'insert',
-                  supabaseTable: '',
-                  supabaseData: {}
-                }
-              ]
+                  id: "submit-action-1",
+                  type: "onClick",
+                  handlerType: "supabase",
+                  handler: "",
+                  supabaseOperation: "insert",
+                  supabaseTable: "",
+                  supabaseData: {},
+                },
+              ],
+              html: `<form class="dynamic-form" id="$elementId" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+  <h3>Dynamic Form</h3>
+  <?php if (!empty($formMsg)): ?><p class="form-msg"><?php echo htmlspecialchars($formMsg); ?></p><?php endif; ?>
+  <input type="hidden" name="action" value="insert">
+  <input type="hidden" name="table" value="your_table_name">
+  <div class="form-group">
+    <label>Full Name</label>
+    <input type="text" name="full_name" placeholder="Enter your full name" required />
+  </div>
+  <div class="form-group">
+    <label>Email Address</label>
+    <input type="email" name="email_address" placeholder="Enter your email" required />
+  </div>
+  <button type="submit" class="dynamic-submit">Submit</button>
+</form>`,
+              css: `.dynamic-form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
+.dynamic-form h3 { margin-top: 0; color: #111827; }
+.form-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; }
+.dynamic-form .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.dynamic-form .form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.dynamic-form input { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; outline: none; }
+.dynamic-form input:focus { border-color: #3b82f6; }
+.dynamic-form .dynamic-submit { padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+.dynamic-form .dynamic-submit:hover { background: #2563eb; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+$formMsg = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'insert') {
+    $db = new Supabase();
+    $table = $_POST['table'] ?? '';
+    if (!empty($table) && $table !== 'your_table_name') {
+        $reserved = ['table', 'action', 'filters'];
+        $data = array_diff_key($_POST, array_flip($reserved));
+        $res = $db->insert($table, $data);
+        if (isset($res['status']) && $res['status'] >= 200 && $res['status'] < 300) {
+            $formMsg = 'Success! Your information has been submitted.';
+        } else {
+            $formMsg = 'Error: ' . ($res['error']['message'] ?? 'Submission failed.');
+        }
+    } else {
+        $formMsg = 'Error: Table name is missing or invalid.';
+    }
+}`
             },
             style: {
-              width: '400px'
-            }
-          }
+              width: "400px",
+            },
+          },
         },
         {
-          id: 'select',
-          name: 'Select / Dropdown',
-          description: 'Dropdown menu for selecting options',
+          id: "select",
+          name: "Select / Dropdown",
+          description: "Dropdown menu for selecting options",
           icon: <ChevronDown className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'select',
+            id: "",
+            type: "select",
             props: {
-              label: 'Select Option',
-              placeholder: 'Select an option...',
+              label: "Select Option",
+              placeholder: "Select an option...",
               options: [
-                { label: 'Option 1', value: 'option1' },
-                { label: 'Option 2', value: 'option2' },
-                { label: 'Option 3', value: 'option3' }
-              ]
+                { label: "Option 1", value: "option1" },
+                { label: "Option 2", value: "option2" },
+                { label: "Option 3", value: "option3" },
+              ],
             },
             style: {
-              width: '100%'
-            }
-          }
+              width: "100%",
+            },
+          },
         },
         {
-          id: 'checkbox',
-          name: 'Checkbox',
-          description: 'Single checkbox with label',
+          id: "checkbox",
+          name: "Checkbox",
+          description: "Single checkbox with label",
           icon: <BoxSelect className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'checkbox',
+            id: "",
+            type: "checkbox",
             props: {
-              label: 'Remember me',
-              checked: false
+              label: "Remember me",
+              checked: false,
             },
-            style: {}
-          }
+            style: {},
+          },
         },
         {
-          id: 'radio-group',
-          name: 'Radio Group',
-          description: 'List of radio buttons for single selection',
+          id: "radio-group",
+          name: "Radio Group",
+          description: "List of radio buttons for single selection",
           icon: <Users className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'radio-group',
+            id: "",
+            type: "radio-group",
             props: {
-              label: 'Choose an option',
+              label: "Choose an option",
               options: [
-                { label: 'Option 1', value: 'option1' },
-                { label: 'Option 2', value: 'option2' }
+                { label: "Option 1", value: "option1" },
+                { label: "Option 2", value: "option2" },
               ],
-              defaultValue: 'option1'
+              defaultValue: "option1",
             },
             style: {
-              width: '100%'
-            }
-          }
-        }
-      ]
+              width: "100%",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Media',
+      name: "Media",
       icon: <Image className="w-4 h-4" />,
       blocks: [
         {
-          id: 'image',
-          name: 'Image',
-          description: 'Image with responsive sizing',
+          id: "image",
+          name: "Image",
+          description: "Image with responsive sizing",
           icon: <Image className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'image',
-            props: { src: '', alt: 'Sample image', width: 300, height: 200 },
-            style: {}
-          }
+            id: "",
+            type: "image",
+            props: { src: "", alt: "Sample image", width: 300, height: 200 },
+            style: {},
+          },
         },
         {
-          id: 'carousel',
-          name: 'Image Carousel',
-          description: 'Responsive image carousel with navigation',
+          id: "carousel",
+          name: "Image Carousel",
+          description: "Responsive image carousel with navigation",
           icon: <LayoutGrid className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'carousel',
+            id: "",
+            type: "carousel",
             props: {
               slides: [
-                { id: '1', src: '', alt: 'Slide 1', caption: 'First slide' },
-                { id: '2', src: '', alt: 'Slide 2', caption: 'Second slide' },
-                { id: '3', src: '', alt: 'Slide 3', caption: 'Third slide' }
+                { id: "1", src: "", alt: "Slide 1", caption: "First slide" },
+                { id: "2", src: "", alt: "Slide 2", caption: "Second slide" },
+                { id: "3", src: "", alt: "Slide 3", caption: "Third slide" },
               ],
               autoplay: true,
               autoplaySpeed: 3000,
               showArrows: true,
               showDots: true,
-              infinite: true
+              infinite: true,
             },
             style: {
-              width: '100%',
-              height: '300px',
-              borderRadius: '0.5rem',
-              overflow: 'hidden'
-            }
-          }
-        }
-      ]
+              width: "100%",
+              height: "300px",
+              borderRadius: "0.5rem",
+              overflow: "hidden",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Data',
+      name: "Data",
       icon: <LayoutGrid className="w-4 h-4" />,
       blocks: [
         {
-          id: 'table',
-          name: 'Data Table',
-          description: 'Display data in rows and columns',
+          id: "table",
+          name: "Data Table",
+          description: "Display data in rows and columns",
           icon: <LayoutGrid className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'table',
+            id: "",
+            type: "table",
             props: {
-              headers: ['Name', 'Role', 'Status'],
+              headers: ["Name", "Role", "Status"],
               data: [
-                { Name: 'John Doe', Role: 'Admin', Status: 'Active' },
-                { Name: 'Jane Smith', Role: 'User', Status: 'Pending' },
+                { Name: "John Doe", Role: "Admin", Status: "Active" },
+                { Name: "Jane Smith", Role: "User", Status: "Pending" },
               ],
-              supabaseTable: '', // To be connected to a table
-              tableName: 'Users Table', // Display title
+              supabaseTable: "", // To be connected to a table
+              tableName: "Users Table", // Display title
             },
             style: {
-              width: '100%',
-              overflow: 'auto'
-            }
-          }
-        }
-      ]
+              width: "100%",
+              overflow: "auto",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Authentication',
+      name: "Authentication",
       icon: <Users className="w-4 h-4" />,
       blocks: [
         {
-          id: 'sign-in',
-          name: 'Sign In Form',
-          description: 'Ready-to-use Supabase Sign In form',
+          id: "sign-in",
+          name: "Sign In Form",
+          description: "Ready-to-use Supabase Sign In form",
           icon: <LogIn className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'sign-in',
+            id: "",
+            type: "sign-in",
             props: {
-              title: 'Sign In',
-              description: 'Enter your email and password to access your account.',
-              buttonText: 'Sign In',
-              redirectUrl: '/',
-              switchToSignUpText: 'Sign Up',
-              switchToSignUpUrl: '/sign-up'
+              title: "Sign In",
+              description:
+                "Enter your email and password to access your account.",
+              buttonText: "Sign In",
+              redirectUrl: "/",
+              switchToSignUpText: "Sign Up",
+              switchToSignUpUrl: "/sign-up",
+              html: `<div class="auth-container" id="$elementId">
+  <h2>Sign In</h2>
+  <p>Enter your email and password to access your account.</p>
+  <?php if (!empty($signInError)): ?><p class="auth-error"><?php echo htmlspecialchars($signInError); ?></p><?php endif; ?>
+  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+    <input type="hidden" name="action" value="signin">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" name="password" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="auth-button">Sign In</button>
+  </form>
+  <div class="auth-links">
+    <p>Don't have an account? <a href="/sign-up">Sign Up</a></p>
+  </div>
+</div>`,
+              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
+.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
+.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
+.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
+.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
+.auth-button:hover { background-color: #2563eb; }
+.auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
+.auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
+.auth-links a:hover { text-decoration: underline; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+SupabaseSession::start();
+$signInError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'signin') {
+    $db = new Supabase();
+    $res = $db->signIn($_POST['email'] ?? '', $_POST['password'] ?? '');
+    if (isset($res['status']) && $res['status'] === 200) {
+        SupabaseSession::setUser($res['data']);
+        header('Location: /dashboard');
+        exit;
+    } else {
+        $signInError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign in failed.';
+    }
+}`
             },
             style: {
-              width: '400px',
-              padding: '24px',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-            }
-          }
+              width: "400px",
+              padding: "24px",
+              backgroundColor: "#ffffff",
+              borderRadius: "8px",
+              boxShadow:
+                "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            },
+          },
         },
         {
-          id: 'auth-block',
-          name: 'Unified Auth Block',
-          description: 'Combined Sign In & Sign Up with easy switching',
+          id: "auth-block",
+          name: "Unified Auth Block",
+          description: "Combined Sign In & Sign Up with easy switching",
           icon: <Users className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'auth-block',
+            id: "",
+            type: "auth-block",
             props: {
-              initialMode: 'signin',
-              signInTitle: 'Sign In',
-              signInDescription: 'Enter your email and password to access your account.',
-              signInButtonText: 'Sign In',
-              signUpTitle: 'Sign Up',
-              signUpDescription: 'Create a new account by filling out the form below.',
-              signUpButtonText: 'Sign Up',
-              redirectUrl: '/',
-              extraFields: []
+              initialMode: "signin",
+              signInTitle: "Sign In",
+              signInDescription:
+                "Enter your email and password to access your account.",
+              signInButtonText: "Sign In",
+              signUpTitle: "Sign Up",
+              signUpDescription:
+                "Create a new account by filling out the form below.",
+              signUpButtonText: "Sign Up",
+              redirectUrl: "/",
+              extraFields: [],
+              html: `<div class="auth-container" id="$elementId">
+  <h2>Sign In / Sign Up</h2>
+  <p>Please authenticate to continue.</p>
+  <?php if (!empty($authError)): ?><p class="auth-error"><?php echo htmlspecialchars($authError); ?></p><?php endif; ?>
+  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+    <input type="hidden" name="action" value="signin">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" name="password" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="auth-button">Continue</button>
+  </form>
+</div>`,
+              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
+.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
+.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
+.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
+.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
+.auth-button:hover { background-color: #2563eb; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+SupabaseSession::start();
+$authError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $db = new Supabase();
+    if ($_POST['action'] === 'signin') {
+        $res = $db->signIn($_POST['email'] ?? '', $_POST['password'] ?? '');
+        if (isset($res['status']) && $res['status'] === 200) {
+            SupabaseSession::setUser($res['data']);
+            header('Location: /dashboard');
+            exit;
+        } else {
+            $authError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign in failed.';
+        }
+    } else if ($_POST['action'] === 'signup') {
+        $res = $db->signUp($_POST['email'] ?? '', $_POST['password'] ?? '');
+        if (isset($res['status']) && $res['status'] === 200) {
+            $authError = 'Sign up successful. You can now verify or login.';
+        } else {
+            $authError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign up failed.';
+        }
+    }
+}`
             },
             style: {
-              width: '400px',
-              padding: '24px',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-            }
-          }
+              width: "400px",
+              padding: "24px",
+              backgroundColor: "#ffffff",
+              borderRadius: "8px",
+              boxShadow:
+                "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            },
+          },
         },
         {
-          id: 'sign-up',
-          name: 'Sign Up Form',
-          description: 'Supabase Sign Up with custom metadata fields',
+          id: "sign-up",
+          name: "Sign Up Form",
+          description: "Supabase Sign Up with custom metadata fields",
           icon: <UserPlus className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'sign-up',
+            id: "",
+            type: "sign-up",
             props: {
-              title: 'Sign Up',
-              description: 'Create a new account by filling out the form below.',
-              buttonText: 'Sign Up',
-              redirectUrl: '/',
+              title: "Sign Up",
+              description:
+                "Create a new account by filling out the form below.",
+              buttonText: "Sign Up",
+              redirectUrl: "/",
               extraFields: [],
-              switchToSignInText: 'Sign In',
-              switchToSignInUrl: '/sign-in'
+              switchToSignInText: "Sign In",
+              switchToSignInUrl: "/sign-in",
+              html: `<div class="auth-container" id="$elementId">
+  <h2>Sign Up</h2>
+  <p>Create a new account by filling out the form below.</p>
+  <?php if (!empty($signUpError)): ?><p class="auth-error"><?php echo htmlspecialchars($signUpError); ?></p><?php endif; ?>
+  <?php if (!empty($signUpSuccess)): ?><p class="auth-success">Sign up successful! Please check your email.</p><?php endif; ?>
+  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+    <input type="hidden" name="action" value="signup">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" name="password" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="auth-button">Sign Up</button>
+  </form>
+  <div class="auth-links">
+    <p>Already have an account? <a href="/sign-in">Sign In</a></p>
+  </div>
+</div>`,
+              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
+.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
+.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
+.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
+.auth-success { color: #16a34a; background: #dcfce7; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
+.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
+.auth-button:hover { background-color: #2563eb; }
+.auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
+.auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
+.auth-links a:hover { text-decoration: underline; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+$signUpError = '';
+$signUpSuccess = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'signup') {
+    $db = new Supabase();
+    $res = $db->signUp($_POST['email'] ?? '', $_POST['password'] ?? '');
+    if (isset($res['status']) && $res['status'] === 200) {
+        $signUpSuccess = true;
+    } else {
+        $signUpError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign up failed.';
+    }
+}`
             },
             style: {
-              width: '400px',
-              padding: '24px',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-            }
-          }
+              width: "400px",
+              padding: "24px",
+              backgroundColor: "#ffffff",
+              borderRadius: "8px",
+              boxShadow:
+                "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            },
+          },
         },
         {
-          id: 'profile',
-          name: 'Profile Dropdown',
-          description: 'User avatar with customizable dropdown menu',
+          id: "profile",
+          name: "Profile Dropdown",
+          description: "User avatar with customizable dropdown menu",
           icon: <Users className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'profile',
+            id: "",
+            type: "profile",
             props: {
-              menuItems: [
-                { id: '1', label: 'Settings', path: '/settings' }
-              ]
+              menuItems: [{ id: "1", label: "Settings", path: "/settings" }],
+              html: `<div class="profile-dropdown" id="$elementId">
+  <button class="profile-btn"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></button>
+  <div class="dropdown-menu">
+    <a href="/settings">Settings</a>
+    <hr>
+    <a href="/logout">Logout</a>
+  </div>
+</div>`,
+              css: `.profile-dropdown { position: relative; display: inline-block; font-family: system-ui, sans-serif; }
+.profile-btn { background: #f3f4f6; border: none; border-radius: 50%; padding: 0.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #4b5563; transition: background 0.2s; }
+.profile-btn:hover { background: #e5e7eb; }
+.dropdown-menu { display: none; position: absolute; right: 0; margin-top: 0.5rem; width: 12rem; background: white; border-radius: 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; z-index: 50; overflow: hidden; }
+.profile-dropdown:hover .dropdown-menu { display: block; }
+.dropdown-menu a { display: block; padding: 0.75rem 1rem; text-decoration: none; color: #374151; font-size: 0.875rem; transition: background 0.15s; }
+.dropdown-menu a:hover { background: #f9fafb; }
+.dropdown-menu hr { border: 0; border-top: 1px solid #e5e7eb; margin: 0; }`,
             },
             style: {
-              width: '50px',
-              height: '50px'
-            }
-          }
-        }
-      ]
+              width: "50px",
+              height: "50px",
+            },
+          },
+        },
+      ],
     },
     {
-      name: 'Payment',
+      name: "Payment",
       icon: <CreditCard className="w-4 h-4" />,
       blocks: [
         {
-          id: 'paymongo-button',
-          name: 'PayMongo Button',
-          description: 'Payment button with PayMongo integration',
+          id: "paymongo-button",
+          name: "PayMongo Button",
+          description: "Payment button with PayMongo integration",
           icon: <CreditCard className="w-4 h-4" />,
           component: {
-            id: '',
-            type: 'paymongo-button',
+            id: "",
+            type: "paymongo-button",
             props: {
-              label: 'Buy Now',
+              label: "Buy Now",
               amount: 100,
-              description: 'Product Purchase',
-              currency: 'PHP',
-              variant: 'default',
-              size: 'default'
+              description: "Product Purchase",
+              currency: "PHP",
+              variant: "default",
+              size: "default",
+              html: `<button type="button" class="paymongo-btn" id="$elementId" onclick="window.location.href='/api/paymongo.php'">Buy Now (PHP 100)</button>`,
+              css: `.paymongo-btn { background-color: #3b82f6; color: #fff; font-weight: 500; padding: 0.625rem 1.25rem; border-radius: 0.375rem; border: none; cursor: pointer; transition: background-color 0.15s; font-family: system-ui, sans-serif; }
+.paymongo-btn:hover { background-color: #2563eb; }`,
             },
-            style: {}
-          }
-        }
-      ]
-    }
+            style: {},
+          },
+        },
+      ],
+    },
   ];
 
   // Filter blocks based on search term
-  const filteredCategories = blockCategories.map(category => ({
-    ...category,
-    blocks: category.blocks.filter(block =>
-      block.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      block.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  })).filter(category => category.blocks.length > 0);
+  const filteredCategories = blockCategories
+    .map((category) => ({
+      ...category,
+      blocks: category.blocks.filter(
+        (block) =>
+          block.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          block.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    }))
+    .filter((category) => category.blocks.length > 0);
 
   const handleBlockClick = (block: any) => {
     const componentData: ComponentData = {
       ...block.component,
-      id: Date.now().toString() + Math.random()
+      id: Date.now().toString() + Math.random(),
     };
     onSelectBlock(componentData);
   };
 
   return (
-    <Card className="h-full flex flex-col"
-      id="blocks-palette">
+    <Card className="h-full flex flex-col" id="blocks-palette">
       <CardHeader className="pb-3 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -716,7 +971,11 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             Blocks Palette
           </CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {filteredCategories.reduce((total, cat) => total + cat.blocks.length, 0)} blocks
+            {filteredCategories.reduce(
+              (total, cat) => total + cat.blocks.length,
+              0,
+            )}{" "}
+            blocks
           </Badge>
         </div>
 
