@@ -411,6 +411,30 @@ export function BlocksPalette({
                   required: true,
                 },
               ],
+              html: `<form class="contact-form" id="$elementId" method="POST" action="">
+  <h3>{{FORM_TITLE}}</h3>
+  <?php if (!empty($contactMsg)): ?><p class="contact-msg"><?php echo htmlspecialchars($contactMsg); ?></p><?php endif; ?>
+  <input type="hidden" name="action" value="contact">
+  <div class="form-group"><label>Name</label><input type="text" name="name" required placeholder="Enter your name"></div>
+  <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="Enter your email"></div>
+  <div class="form-group"><label>Message</label><textarea name="message" required placeholder="Enter your message"></textarea></div>
+  <button type="submit">{{SUBMIT_TEXT}}</button>
+</form>`,
+              css: `.contact-form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
+.contact-form h3 { margin-top: 0; color: #111827; }
+.contact-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; }
+.contact-form .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.contact-form .form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
+.contact-form input, .contact-form textarea { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; outline: none; font-family: inherit; }
+.contact-form input:focus, .contact-form textarea:focus { border-color: #3b82f6; }
+.contact-form button { padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
+.contact-form button:hover { background: #2563eb; }`,
+              php_backend: `$contactMsg = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'contact') {
+    $to = '{{RECIPIENT_EMAIL}}';
+    $name = htmlspecialchars($_POST['name'] ?? '');
+    $contactMsg = "Thank you $name, your message has been " . (!empty($to) ? "sent successfully!" : "received!");
+}`,
             },
             style: {},
           },
@@ -457,7 +481,7 @@ export function BlocksPalette({
                   supabaseData: {},
                 },
               ],
-              html: `<form class="dynamic-form" id="$elementId" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+              html: `<form class="dynamic-form" id="$elementId" method="POST" action="">
   <h3>Dynamic Form</h3>
   <?php if (!empty($formMsg)): ?><p class="form-msg"><?php echo htmlspecialchars($formMsg); ?></p><?php endif; ?>
   <input type="hidden" name="action" value="insert">
@@ -631,6 +655,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               ],
               supabaseTable: "", // To be connected to a table
               tableName: "Users Table", // Display title
+              html: `<div class="data-table-container" id="$elementId">
+  <h3>{{TABLE_TITLE}}</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <?php if (!empty($tableColumns)): foreach($tableColumns as $col): ?>
+          <th><?php echo htmlspecialchars($col); ?></th>
+        <?php endforeach; else: ?>
+          <th>Name</th><th>Role</th><th>Status</th>
+        <?php endif; ?>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (!empty($tableData)): foreach($tableData as $row): ?>
+      <tr>
+        <?php foreach($tableColumns as $col): ?>
+          <td><?php echo htmlspecialchars($row[$col] ?? ''); ?></td>
+        <?php endforeach; ?>
+      </tr>
+      <?php endforeach; else: ?>
+      <tr><td>John Doe</td><td>Admin</td><td>Active</td></tr>
+      <tr><td>Jane Smith</td><td>User</td><td>Pending</td></tr>
+      <?php endif; ?>
+    </tbody>
+  </table>
+</div>`,
+              css: `.data-table-container { width: 100%; overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 1rem 0; font-family: system-ui, sans-serif; }
+.data-table-container h3 { padding: 1rem; margin: 0; border-bottom: 1px solid #e5e7eb; color: #111827; }
+.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+.data-table th, .data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; }
+.data-table th { background: #f9fafb; font-weight: 500; color: #374151; font-size: 0.875rem; text-transform: capitalize; letter-spacing: 0.05em; }
+.data-table td { color: #4b5563; font-size: 0.875rem; }
+.data-table tr:hover { background: #f9fafb; transition: background 0.15s; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+$tableData = [];
+$tableColumns = [];
+$tableName = '{{SUPABASE_TABLE}}';
+if (!empty($tableName)) {
+    $db = new Supabase();
+    $res = $db->fetch($tableName);
+    if (isset($res['status']) && $res['status'] >= 200 && $res['status'] < 300 && is_array($res['data'])) {
+        $tableData = $res['data'];
+        if (count($tableData) > 0) {
+            $tableColumns = array_keys($tableData[0]);
+        }
+    }
+}`,
             },
             style: {
               width: "100%",
@@ -664,7 +735,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   <h2>Sign In</h2>
   <p>Enter your email and password to access your account.</p>
   <?php if (!empty($signInError)): ?><p class="auth-error"><?php echo htmlspecialchars($signInError); ?></p><?php endif; ?>
-  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+  <form class="auth-form" method="POST" action="">
     <input type="hidden" name="action" value="signin">
     <div class="form-group">
       <label>Email</label>
@@ -743,7 +814,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   <h2>Sign In / Sign Up</h2>
   <p>Please authenticate to continue.</p>
   <?php if (!empty($authError)): ?><p class="auth-error"><?php echo htmlspecialchars($authError); ?></p><?php endif; ?>
-  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+  <form class="auth-form" method="POST" action="">
     <input type="hidden" name="action" value="signin">
     <div class="form-group">
       <label>Email</label>
@@ -823,7 +894,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
   <p>Create a new account by filling out the form below.</p>
   <?php if (!empty($signUpError)): ?><p class="auth-error"><?php echo htmlspecialchars($signUpError); ?></p><?php endif; ?>
   <?php if (!empty($signUpSuccess)): ?><p class="auth-success">Sign up successful! Please check your email.</p><?php endif; ?>
-  <form class="auth-form" method="POST" action="/api/<?php echo basename(__FILE__); ?>">
+  <form class="auth-form" method="POST" action="">
     <input type="hidden" name="action" value="signup">
     <div class="form-group">
       <label>Email</label>
@@ -890,9 +961,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               html: `<div class="profile-dropdown" id="$elementId">
   <button class="profile-btn"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></button>
   <div class="dropdown-menu">
-    <a href="/settings">Settings</a>
-    <hr>
-    <a href="/logout">Logout</a>
+    <?php if (class_exists('SupabaseSession') && SupabaseSession::getUser()): ?>
+      <a href="/settings">Settings</a>
+      <hr>
+      <form method="POST" action="" style="margin:0;">
+        <input type="hidden" name="action" value="logout">
+        <button type="submit" style="width:100%; text-align:left; background:none; border:none; padding:0.75rem 1rem; cursor:pointer;" class="dropdown-item">Logout</button>
+      </form>
+    <?php else: ?>
+      <a href="/sign-in">Sign In</a>
+    <?php endif; ?>
   </div>
 </div>`,
               css: `.profile-dropdown { position: relative; display: inline-block; font-family: system-ui, sans-serif; }
@@ -900,9 +978,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 .profile-btn:hover { background: #e5e7eb; }
 .dropdown-menu { display: none; position: absolute; right: 0; margin-top: 0.5rem; width: 12rem; background: white; border-radius: 0.375rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e5e7eb; z-index: 50; overflow: hidden; }
 .profile-dropdown:hover .dropdown-menu { display: block; }
-.dropdown-menu a { display: block; padding: 0.75rem 1rem; text-decoration: none; color: #374151; font-size: 0.875rem; transition: background 0.15s; }
-.dropdown-menu a:hover { background: #f9fafb; }
+.dropdown-menu a, .dropdown-item { display: block; padding: 0.75rem 1rem; text-decoration: none; color: #374151; font-size: 0.875rem; transition: background 0.15s; font-family: inherit; }
+.dropdown-menu a:hover, .dropdown-item:hover { background: #f9fafb; }
 .dropdown-menu hr { border: 0; border-top: 1px solid #e5e7eb; margin: 0; }`,
+              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
+if (!class_exists('SupabaseSession')) {
+    SupabaseSession::start();
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'logout') {
+    SupabaseSession::clearUser();
+    header('Location: /');
+    exit;
+}`,
             },
             style: {
               width: "50px",

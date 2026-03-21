@@ -16,7 +16,6 @@ import {
   X,
   Download,
   CheckCircle2,
-  RefreshCw,
   AlertCircle,
   Plus,
   Trash2,
@@ -725,11 +724,17 @@ export function CodeViewEditor({
 
   // Ensure the generated code uses the configuration
   const generatedFiles = useMemo(() => {
-    return generateProjectFiles(components, pages, projectName, userConfig);
-  }, [components, pages, projectName, userConfig]);
+    return generateProjectFiles(
+      components,
+      pages,
+      projectName,
+      userConfig,
+      fileOverrides,
+    );
+  }, [components, pages, projectName, userConfig, fileOverrides]);
 
   const effectiveFiles = useMemo<Record<string, string>>(
-    () => ({ ...generatedFiles, ...fileOverrides, ...customFiles }),
+    () => ({ ...fileOverrides, ...generatedFiles, ...customFiles }),
     [generatedFiles, fileOverrides, customFiles],
   );
 
@@ -783,17 +788,20 @@ export function CodeViewEditor({
     onFileOverrideUpdate,
   ]);
 
-  const handleCreateFile = useCallback((path: string, content: string) => {
-    onCustomFileUpdate?.(path, content);
-    setSelectedFile(path);
-    const parts = path.split("/");
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      for (let i = 1; i < parts.length; i++)
-        next.add(parts.slice(0, i).join("/"));
-      return next;
-    });
-  }, [onCustomFileUpdate]);
+  const handleCreateFile = useCallback(
+    (path: string, content: string) => {
+      onCustomFileUpdate?.(path, content);
+      setSelectedFile(path);
+      const parts = path.split("/");
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        for (let i = 1; i < parts.length; i++)
+          next.add(parts.slice(0, i).join("/"));
+        return next;
+      });
+    },
+    [onCustomFileUpdate],
+  );
 
   const handleEditorWillMount = (monaco: any) => {
     monaco.editor.defineTheme("builder-dark", {
@@ -868,7 +876,8 @@ export function CodeViewEditor({
           projectName={projectName}
           pages={pages}
           activePageId={activePageId}
-          effectiveFiles={effectiveFiles}
+          fileOverrides={fileOverrides}
+          customFiles={customFiles}
           userConfig={userConfig}
           onClose={() => setShowExportModal(false)}
         />
@@ -930,12 +939,16 @@ export function CodeViewEditor({
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
-                {fileOverrides[selectedFile] !== undefined && !isEditing && (
+                {/* {fileOverrides[selectedFile] !== undefined && !isEditing && (
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      if (window.confirm("Restore this file to the original generated version? Your manual changes will be lost.")) {
+                      if (
+                        window.confirm(
+                          "Restore this file to the original generated version? Your manual changes will be lost.",
+                        )
+                      ) {
                         onFileOverrideUpdate?.(selectedFile, null as any);
                         toast.success("File restored to default");
                       }
@@ -944,7 +957,7 @@ export function CodeViewEditor({
                   >
                     <RefreshCw className="w-3 h-3" /> Reset
                   </Button>
-                )}
+                )} */}
                 {canEdit && (
                   <Button
                     size="sm"

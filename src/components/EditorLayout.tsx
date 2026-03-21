@@ -684,6 +684,8 @@ export function EditorLayout({
                 supabaseKey: state.userProjectConfig?.supabaseKey || undefined,
                 supabaseServiceKey: state.userProjectConfig?.supabaseServiceKey || undefined,
               }}
+              fileOverrides={state.fileOverrides || {}}
+              customFiles={state.customFiles || {}}
               onClose={() => setShowCodeExportModal(false)}
             />
           )}

@@ -42,6 +42,8 @@ interface CodeExportModalProps {
     supabaseKey?: string
     supabaseServiceKey?: string
   }
+  fileOverrides?: Record<string, string>
+  customFiles?: Record<string, string>
   onClose: () => void
 }
 
@@ -75,7 +77,7 @@ const buildFileTree = (paths: string[]): FileNode[] => {
   return root
 }
 
-export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, userConfig, onClose }: CodeExportModalProps) {
+export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, userConfig, fileOverrides = {}, customFiles = {}, onClose }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
     const activePage = pages.find(p => p.id === activePageId) || pages[0];
     return `app/views/${slugify(activePage.name)}.php`;
@@ -88,10 +90,10 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
   });
 
   // Use the shared generator ONLY - do not redeclare this variable later
-  const getFiles = useMemo(() =>
-    generateProjectFiles(components, pages, projectName, userConfig),
-    [components, pages, projectName, userConfig]
-  );
+  const getFiles = useMemo(() => {
+    const generated = generateProjectFiles(components, pages, projectName, userConfig, fileOverrides);
+    return { ...generated, ...customFiles };
+  }, [components, pages, projectName, userConfig, fileOverrides, customFiles]);
 
   const downloadAll = async () => {
     try {
