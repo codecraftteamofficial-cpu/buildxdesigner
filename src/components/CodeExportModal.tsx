@@ -149,7 +149,11 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
             onClick={() => {
               if (node.type === "folder") {
                 const next = new Set(expandedFolders)
-                next.has(node.path) ? next.delete(node.path) : next.add(node.path)
+                if (next.has(node.path)) {
+                  next.delete(node.path)
+                } else {
+                  next.add(node.path)
+                }
                 setExpandedFolders(next)
               } else {
                 setSelectedFile(node.path)

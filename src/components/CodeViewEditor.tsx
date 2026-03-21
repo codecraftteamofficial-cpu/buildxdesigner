@@ -25,7 +25,6 @@ import {
   FileCode,
   FileText,
   Globe,
-  RefreshCcw,
   AlertTriangle,
   Layers,
   Lock,
@@ -69,6 +68,7 @@ interface CodeViewEditorProps {
   };
   fileOverrides?: Record<string, string>;
   onFileOverrideUpdate?: (path: string, content: string) => void;
+
   customFiles?: Record<string, string>;
   onCustomFileUpdate?: (path: string, content: string) => void;
 }
@@ -452,9 +452,11 @@ function CodeExportModal({
               onClick={() => {
                 if (node.type === "folder") {
                   const next = new Set(expandedFolders);
-                  next.has(node.path)
-                    ? next.delete(node.path)
-                    : next.add(node.path);
+                  if (next.has(node.path)) {
+                    next.delete(node.path);
+                  } else {
+                    next.add(node.path);
+                  }
                   setExpandedFolders(next);
                 } else {
                   setSelectedFile(node.path);
@@ -738,6 +740,7 @@ export function CodeViewEditor({
   const isCSSFile = selectedFile.endsWith(".css");
   const isJSFile = selectedFile.endsWith(".js");
   const isGeneratedFrontend = isViewPHP || isCSSFile || isJSFile;
+  const isOverridden = !!fileOverrides[selectedFile];
   const canEdit = !!selectedFile;
 
   useEffect(() => {
@@ -839,7 +842,11 @@ export function CodeViewEditor({
           node.type === "folder"
             ? setExpandedFolders((p) => {
                 const n = new Set(p);
-                n.has(node.path) ? n.delete(node.path) : n.add(node.path);
+                if (n.has(node.path)) {
+                  n.delete(node.path);
+                } else {
+                  n.add(node.path);
+                }
                 return n;
               })
             : handleSelectFile(node.path)
@@ -939,11 +946,17 @@ export function CodeViewEditor({
             </span>
             {isGeneratedFrontend && (
               <span
-                className="text-[10px] flex items-center gap-1.5 text-yellow-300 font-bold px-2 py-0.5 bg-yellow-400/10 rounded-full border border-yellow-400/20"
-                title="Changes here may be overwritten by the visual Canvas"
+                className={`text-[10px] flex items-center gap-1.5 font-bold px-2 py-0.5 rounded-full border ${isOverridden ? "text-red-400 bg-red-400/10 border-red-400/20" : "text-yellow-300 bg-yellow-400/10 border-yellow-400/20"}`}
+                title={
+                  isOverridden
+                    ? "Visual changes are currently ignored due to manual edits"
+                    : "Changes here may be overwritten by the visual Canvas"
+                }
               >
-                <AlertTriangle className="w-3 h-3 text-yellow-400" /> Managed by
-                Canvas
+                <AlertTriangle
+                  className={`w-3 h-3 ${isOverridden ? "text-red-400" : "text-yellow-400"}`}
+                />{" "}
+                {isOverridden ? "Override Active" : "Managed by Canvas"}
               </span>
             )}
           </div>
@@ -985,6 +998,7 @@ export function CodeViewEditor({
                     <Pencil className="w-3 h-3" /> Edit
                   </Button>
                 )}
+
                 {/* Export button — opens the full CodeExportModal */}
                 <Button
                   size="sm"
@@ -1043,7 +1057,9 @@ export function CodeViewEditor({
               >
                 Canvas
               </strong>{" "}
-              to prevent desync.
+              {isOverridden
+                ? "to update this file. (Override active - visual changes are ignored)"
+                : "to prevent desync."}
             </span>
           </div>
         )}
