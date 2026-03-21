@@ -267,7 +267,7 @@ export function useEditorState() {
         localStorage.setItem("supabase_integration_token", accessToken);
         localStorage.setItem("open_account_settings", "integration");
         localStorage.setItem("update_supabase_status", "true");
-        window.location.href = "/dashboard";
+        window.location.href = window.location.pathname;
         return;
       }
 
@@ -465,53 +465,53 @@ export function useEditorState() {
     syncResendKeyFromProfile();
   }, []);
 
-useEffect(() => {
-  const syncPaymongoKeyFromProfile = async () => {
-    try {
-      const { data: { session } } = await getSupabaseSession();
-      if (session?.user) {
-        const metadata = session.user.user_metadata as Record<string, unknown>;
-        const paymongoKey = (metadata?.paymongo_key as string) || "";
-        if (paymongoKey) {
-          localStorage.setItem("target_paymongo_key", paymongoKey);
-          setState((prev) => ({
-            ...prev,
-            userProjectConfig: {
-              ...prev.userProjectConfig,
-              paymongoKey,
-            },
-          }));
+  useEffect(() => {
+    const syncPaymongoKeyFromProfile = async () => {
+      try {
+        const { data: { session } } = await getSupabaseSession();
+        if (session?.user) {
+          const metadata = session.user.user_metadata as Record<string, unknown>;
+          const paymongoKey = (metadata?.paymongo_key as string) || "";
+          if (paymongoKey) {
+            localStorage.setItem("target_paymongo_key", paymongoKey);
+            setState((prev) => ({
+              ...prev,
+              userProjectConfig: {
+                ...prev.userProjectConfig,
+                paymongoKey,
+              },
+            }));
+          }
         }
+      } catch (err) {
+        // Non-critical — silently ignore
       }
-    } catch (err) {
-      // Non-critical — silently ignore
-    }
-  };
-  syncPaymongoKeyFromProfile();
-}, []);
+    };
+    syncPaymongoKeyFromProfile();
+  }, []);
 
-useEffect(() => {
-  const syncSupabaseKeysFromStorage = () => {
-    const supabaseUrl = localStorage.getItem("target_supabase_url") || "";
-    const supabaseKey = localStorage.getItem("target_supabase_key") || "";
-    if (supabaseUrl && supabaseKey) {
-      setState((prev) => ({
-        ...prev,
-        userProjectConfig: {
-          ...prev.userProjectConfig,
-          supabaseUrl,
-          supabaseKey,
-        },
-      }));
-    }
-  };
+  useEffect(() => {
+    const syncSupabaseKeysFromStorage = () => {
+      const supabaseUrl = localStorage.getItem("target_supabase_url") || "";
+      const supabaseKey = localStorage.getItem("target_supabase_key") || "";
+      if (supabaseUrl && supabaseKey) {
+        setState((prev) => ({
+          ...prev,
+          userProjectConfig: {
+            ...prev.userProjectConfig,
+            supabaseUrl,
+            supabaseKey,
+          },
+        }));
+      }
+    };
 
-  syncSupabaseKeysFromStorage();
+    syncSupabaseKeysFromStorage();
 
-  // Also listen for storage changes (in case keys are written after load)
-  window.addEventListener("storage", syncSupabaseKeysFromStorage);
-  return () => window.removeEventListener("storage", syncSupabaseKeysFromStorage);
-}, []);
+    // Also listen for storage changes (in case keys are written after load)
+    window.addEventListener("storage", syncSupabaseKeysFromStorage);
+    return () => window.removeEventListener("storage", syncSupabaseKeysFromStorage);
+  }, []);
 
   useEffect(() => {
     console.log("[view state]", {
@@ -715,22 +715,22 @@ useEffect(() => {
               const row = rows.find((entry: any) => {
                 const rowUserId = String(
                   entry?.user_id ??
-                    entry?.userId ??
-                    entry?.id ??
-                    entry?.member_id ??
-                    entry?.profile_id ??
-                    entry?.profiles?.user_id ??
-                    "",
+                  entry?.userId ??
+                  entry?.id ??
+                  entry?.member_id ??
+                  entry?.profile_id ??
+                  entry?.profiles?.user_id ??
+                  "",
                 ).trim();
                 const rowEmail = String(
                   entry?.email ??
-                    entry?.email_address ??
-                    entry?.user_email ??
-                    entry?.user?.email ??
-                    entry?.profile?.email ??
-                    entry?.profiles?.email ??
-                    entry?.profiles?.email_address ??
-                    "",
+                  entry?.email_address ??
+                  entry?.user_email ??
+                  entry?.user?.email ??
+                  entry?.profile?.email ??
+                  entry?.profiles?.email ??
+                  entry?.profiles?.email_address ??
+                  "",
                 )
                   .trim()
                   .toLowerCase();
@@ -757,8 +757,8 @@ useEffect(() => {
                 collaboratorRole = isOwnerRow
                   ? "owner"
                   : normalizeCollaboratorRole(
-                      row?.role ?? row?.permission ?? row?.access_level,
-                    );
+                    row?.role ?? row?.permission ?? row?.access_level,
+                  );
               }
             }
           } catch (permissionsError) {
@@ -796,7 +796,7 @@ useEffect(() => {
               projectRecord.last_published_at || undefined,
             projectTemplatePublished:
               projectRecord.published_template === null ||
-              projectRecord.published_template === undefined
+                projectRecord.published_template === undefined
                 ? undefined
                 : !!projectRecord.published_template,
           };
@@ -836,7 +836,7 @@ useEffect(() => {
     const loadProjectData = async () => {
       try {
         const { data: project, error } = await fetchProjectById(state.currentProjectId!);
-        
+
         if (error) {
           console.error("Failed to load project data:", error);
           return;
@@ -850,8 +850,8 @@ useEffect(() => {
         // Update state with loaded project data
         setState((prev) => {
           // Don't overwrite fileOverrides and customFiles if there are unsaved changes
-          const shouldPreserveFileData = prev.hasUnsavedChanges || 
-            Object.keys(prev.fileOverrides || {}).length > 0 || 
+          const shouldPreserveFileData = prev.hasUnsavedChanges ||
+            Object.keys(prev.fileOverrides || {}).length > 0 ||
             Object.keys(prev.customFiles || {}).length > 0;
 
           console.log("Project data loading:", {
@@ -1071,38 +1071,38 @@ useEffect(() => {
     localStorage.setItem("fulldev-ai-project-name", name);
   };
 
-const updateUserProjectConfig = (
+  const updateUserProjectConfig = (
     url: string,
     key: string,
     resendKey?: string,
     paymongoKey?: string,
   ) => {
-  const config = {
-    supabaseUrl: url,
-    supabaseKey: key,
-    resendApiKey: resendKey,
-    paymongoKey: paymongoKey,
+    const config = {
+      supabaseUrl: url,
+      supabaseKey: key,
+      resendApiKey: resendKey,
+      paymongoKey: paymongoKey,
+    };
+    localStorage.setItem("target_supabase_url", url);
+    localStorage.setItem("target_supabase_key", key);
+
+    // ❌ DELETE THESE TWO LINES — they belong in EditorTopBar, not here:
+    // window.dispatchEvent(new CustomEvent("supabaseKeysUpdated"));
+    // toast.success(`Successfully connected to: ${newProjectId}`, ...);
+    // setTimeout(() => window.location.reload(), 1000);
+
+    if (resendKey) {
+      localStorage.setItem("target_resend_api_key", resendKey);
+    } else {
+      localStorage.removeItem("target_resend_api_key");
+    }
+    if (paymongoKey) {
+      localStorage.setItem("target_paymongo_key", paymongoKey);
+    } else {
+      localStorage.removeItem("target_paymongo_key");
+    }
+    setState((prev) => ({ ...prev, userProjectConfig: config }));
   };
-  localStorage.setItem("target_supabase_url", url);
-  localStorage.setItem("target_supabase_key", key);
-
-  // ❌ DELETE THESE TWO LINES — they belong in EditorTopBar, not here:
-  // window.dispatchEvent(new CustomEvent("supabaseKeysUpdated"));
-  // toast.success(`Successfully connected to: ${newProjectId}`, ...);
-  // setTimeout(() => window.location.reload(), 1000);
-
-  if (resendKey) {
-    localStorage.setItem("target_resend_api_key", resendKey);
-  } else {
-    localStorage.removeItem("target_resend_api_key");
-  }
-  if (paymongoKey) {
-    localStorage.setItem("target_paymongo_key", paymongoKey);
-  } else {
-    localStorage.removeItem("target_paymongo_key");
-  }
-  setState((prev) => ({ ...prev, userProjectConfig: config }));
-};
 
   // ==================== TEMPLATE LOADING ====================
 
@@ -1193,8 +1193,8 @@ const updateUserProjectConfig = (
     console.log("View mode changing to:", viewMode);
     // Set active editor mode based on view mode
     const activeMode = viewMode === "code" ? "code" : "canvas";
-    setState((prev) => ({ 
-      ...prev, 
+    setState((prev) => ({
+      ...prev,
       viewMode,
       activeEditorMode: activeMode
     }));
@@ -1249,7 +1249,7 @@ const updateUserProjectConfig = (
         // Only save file overrides if we're in code mode
         const shouldSaveFileOverrides = state.activeEditorMode === "code";
         const hasFileOverrides = state.fileOverrides && Object.keys(state.fileOverrides).length > 0;
-        
+
         console.log("Save details:", {
           activeEditorMode: state.activeEditorMode,
           shouldSaveFileOverrides,
@@ -1257,7 +1257,7 @@ const updateUserProjectConfig = (
           fileOverridesCount: state.fileOverrides ? Object.keys(state.fileOverrides).length : 0,
           is_override: shouldSaveFileOverrides && hasFileOverrides ? true : false
         });
-        
+
         const { error: saveError } = await saveProject({
           id: state.currentProjectId,
           name: state.projectName || "Untitled Project",

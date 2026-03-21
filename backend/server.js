@@ -114,12 +114,16 @@ app.get("/v2/oauth/authorize", (req, res) => {
 
 app.get("/api/auth/supabase", (req, res) => {
   const rootUrl = "https://api.supabase.com/v1/oauth/authorize";
+  const redirectTo = req.query.redirect_to || FRONTEND_URL + "/dashboard";
+  
+  console.log(`[Auth Debug] /api/auth/supabase - redirect_to query: ${req.query.redirect_to}`);
+  console.log(`[Auth Debug] /api/auth/supabase - Final redirectTo: ${redirectTo}`);
+
   const options = {
     client_id: SUPABASE_CLIENT_ID,
     redirect_uri: CALLBACK_URL,
     response_type: "code",
-    state: "optional-custom-state",
-    // Note: 'scope' parameter is deprecated. Scopes are now configured when creating the OAuth app in Supabase dashboard
+    state: redirectTo, // Use state to pass the target URL
   };
 
   const qs = new URLSearchParams(options).toString();
@@ -150,9 +154,36 @@ app.get("/api/auth/callback", async (req, res) => {
     );
 
     const { access_token, refresh_token } = tokenResponse.data;
+    const state = req.query.state;
+    
+    console.log(`[Auth Debug] /api/auth/callback - Received state: ${state}`);
+    
+    let targetUrl = FRONTEND_URL + "/dashboard";
+    
+    if (state && state !== "optional-custom-state") {
+      try {
+        const url = new URL(state);
+        // Basic validation: ensure the origin is allowed
+        const origin = url.origin;
+        console.log(`[Auth Debug] /api/auth/callback - Parsed origin: ${origin}`);
+        console.log(`[Auth Debug] /api/auth/callback - Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
+        
+        if (allowedOrigins.includes(origin) || /^https?:\/\/[^.]+\.buildxdesigner\.site$/.test(origin)) {
+          console.log(`[Auth Debug] /api/auth/callback - Origin is ALLOWED`);
+          targetUrl = state;
+        } else {
+          console.warn(`[Auth Warning] Blocked redirect to external origin: ${origin}`);
+        }
+      } catch (e) {
+        console.error(`[Auth Error] Invalid state URL: ${state}`);
+      }
+    }
 
+    console.log(`[Auth Debug] /api/auth/callback - Final redirection to: ${targetUrl}`);
+
+    const separator = targetUrl.includes("?") ? "&" : "?";
     res.redirect(
-      `${FRONTEND_URL}/dashboard?status=success&token=${access_token}&refresh_token=${refresh_token}`,
+      `${targetUrl}${separator}status=success&token=${access_token}&refresh_token=${refresh_token}`,
     );
   } catch (error) {
     console.error("OAuth Error:", error.response?.data || error.message);

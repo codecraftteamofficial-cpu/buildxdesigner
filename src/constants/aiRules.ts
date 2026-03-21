@@ -1,6 +1,7 @@
 export const AI_JAVASCRIPT_RULES = `
 IMPORTANT JAVASCRIPT IMPLEMENTATION RULES:
-- MANDATORY: Wrap ALL JavaScript logic in a Self-Invoking Function (IIFE): (function() { ... })();
+- MANDATORY: Wrap ALL JavaScript logic in an Immediately Invoked Function Expression (IIFE): (function() { ... })();
+- STRICT RULE: Any code placed outside the IIFE wrapper is FORBIDDEN and will be rejected.
 - Do NOT use document.addEventListener('DOMContentLoaded', ...) or any similar global load listeners.
 - Ensure all variables are scoped inside the IIFE to prevent conflicts with other components.
 - Ensure JavaScript works in both preview mode and published sites.
@@ -9,10 +10,10 @@ IMPORTANT JAVASCRIPT IMPLEMENTATION RULES:
   - Use $('selector') instead of document.getElementById('selector') or document.querySelector('selector')
   - Use $$('selector') instead of document.querySelectorAll('selector')
 - Use onclick instead of addEventListener('click', ...) for better compatibility.
-- When using $$('selector'), use a standard 'for loop' or 'Array.from().forEach()' to ensure logic applies to all instances of a component on the canvas.
+- When using $$('selector'), use a standard 'for loop' to iterate through elements.
 - NEVER use document.body or body tag in custom components - it breaks CSS and component isolation.
 - Always include console.log statements for debugging.
-- Check if elements exist before attaching event listeners.
+- Check if elements exist before attaching event handlers.
 
 STRICT ISOLATION RULES:
 - NEVER attempt to access or modify elements outside of your component.
@@ -20,7 +21,7 @@ STRICT ISOLATION RULES:
 - All DOM manipulations MUST happen within the component's root element (using $ or $$).
 - If you need a modal or overlay, create it INSIDE your component's HTML structure and toggle its visibility.
 
-EXAMPLE JAVASCRIPT PATTERN:
+MANDATORY JAVASCRIPT PATTERN (FOLLOW THIS EXACTLY):
 (function() {
   const elements = $$('.your-class');
   console.log('Found elements:', elements.length);
@@ -46,16 +47,9 @@ USER PHRASE RECOGNITION:
 `;
 
 export const DEFAULT_CUSTOM_COMPONENT_JS = `(function() {
-  console.log('Component loaded');
-  
-  // Use $$ to select all similar elements within your component
-  const buttons = $$('.your-button-class');
-  
-  if (buttons.length > 0) {
-    for (let i = 0; i < buttons.length; i++) {
-       buttons[i].onclick = function() {
-         console.log('Button clicked:', i);
-       };
-    }
+  const elements = $$('.your-class');
+  console.log('Found elements:', elements.length);
+  for (let i = 0; i < elements.length; i++) {
+    elements[i].onclick = () => { console.log('Clicked!'); };
   }
 })();`;

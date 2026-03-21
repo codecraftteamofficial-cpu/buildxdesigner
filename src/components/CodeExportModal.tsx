@@ -8,11 +8,11 @@ import {
   DialogTitle,
 } from "./ui/dialog"
 import { Button } from "./ui/button"
-import { 
-  Copy, 
-  Download, 
-  FileCode, 
-  ChevronRight, 
+import {
+  Copy,
+  Download,
+  FileCode,
+  ChevronRight,
   ChevronDown,
   FolderOpen,
   Folder,
@@ -35,6 +35,13 @@ interface CodeExportModalProps {
   projectName?: string
   pages: { id: string; name: string; path: string }[]
   activePageId: string
+  userConfig?: {
+    paymongoKey?: string
+    resendApiKey?: string
+    supabaseUrl?: string
+    supabaseKey?: string
+    supabaseServiceKey?: string
+  }
   onClose: () => void
 }
 
@@ -54,11 +61,11 @@ const buildFileTree = (paths: string[]): FileNode[] => {
       const isFile = i === parts.length - 1
       let existingNode = currentLevel.find(node => node.name === part)
       if (!existingNode) {
-        existingNode = { 
-          name: part, 
-          path: parts.slice(0, i + 1).join("/"), 
-          type: isFile ? "file" : "folder", 
-          children: isFile ? undefined : [] 
+        existingNode = {
+          name: part,
+          path: parts.slice(0, i + 1).join("/"),
+          type: isFile ? "file" : "folder",
+          children: isFile ? undefined : []
         }
         currentLevel.push(existingNode)
       }
@@ -68,7 +75,7 @@ const buildFileTree = (paths: string[]): FileNode[] => {
   return root
 }
 
-export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, onClose }: CodeExportModalProps) {
+export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, userConfig, onClose }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
     const activePage = pages.find(p => p.id === activePageId) || pages[0];
     return `app/views/${slugify(activePage.name)}.php`;
@@ -76,21 +83,21 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
 
   const [selectedFile, setSelectedFile] = useState<string>(defaultFile);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/views", "public", "public/assets", "public/assets/css"]))
-    const [resolvedComponents] = useState<ComponentData[]>(() => {
+  const [resolvedComponents] = useState<ComponentData[]>(() => {
     return components;
   });
 
   // Use the shared generator ONLY - do not redeclare this variable later
-  const getFiles = useMemo(() => 
-    generateProjectFiles(components, pages, projectName), 
-    [components, pages, projectName]
+  const getFiles = useMemo(() =>
+    generateProjectFiles(components, pages, projectName, userConfig),
+    [components, pages, projectName, userConfig]
   );
 
   const downloadAll = async () => {
     try {
       const zip = new JSZip()
-      Object.entries(getFiles).forEach(([path, content]) => { 
-        zip.file(path, content) 
+      Object.entries(getFiles).forEach(([path, content]) => {
+        zip.file(path, content)
       })
       const blob = await zip.generateAsync({ type: "blob" })
       saveAs(blob, `${slugify(projectName)}_export.zip`)
@@ -138,7 +145,7 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
 
       return (
         <div key={node.path}>
-          <div 
+          <div
             onClick={() => {
               if (node.type === "folder") {
                 const next = new Set(expandedFolders)
@@ -148,9 +155,8 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
                 setSelectedFile(node.path)
               }
             }}
-            className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-sm mb-0.5 ${
-              isSelected ? 'bg-[#37373d] text-white' : 'text-gray-400 hover:bg-[#2a2d2e] hover:text-gray-200'
-            }`}
+            className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors text-sm mb-0.5 ${isSelected ? 'bg-[#37373d] text-white' : 'text-gray-400 hover:bg-[#2a2d2e] hover:text-gray-200'
+              }`}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
           >
             {node.type === "folder" ? (
@@ -171,12 +177,12 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent 
+      <DialogContent
         className="max-w-6xl w-[95vw] h-[90vh] p-0 gap-0 flex flex-col overflow-hidden border-[#333] shadow-2xl opacity-100! text-white backdrop-blur-none"
         style={{ backgroundColor: "#1e1e1e" }}
       >
         <DialogHeader className="sr-only">
-            <DialogTitle>Export Code</DialogTitle>
+          <DialogTitle>Export Code</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#252526] shrink-0" style={{ backgroundColor: "#252526" }}>
@@ -210,20 +216,20 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
                 <Copy className="w-3 h-3" />
               </Button>
             </div>
-            
+
             <div className="flex-1 overflow-auto" style={{ backgroundColor: "#1e1e1e" }}>
               <SyntaxHighlighter
                 language={selectedFile.endsWith('.css') ? 'css' : selectedFile.endsWith('.js') ? 'javascript' : selectedFile.endsWith('.sql') ? 'sql' : 'php'}
                 style={okaidia}
                 showLineNumbers
-                customStyle={{ 
-                  margin: 0, 
-                  padding: '24px', 
-                  backgroundColor: '#1e1e1e', 
-                  fontSize: "13px", 
-                  lineHeight: "1.6", 
+                customStyle={{
+                  margin: 0,
+                  padding: '24px',
+                  backgroundColor: '#1e1e1e',
+                  fontSize: "13px",
+                  lineHeight: "1.6",
                   minHeight: "100%",
-                  width: '100%' 
+                  width: '100%'
                 }}
               >
                 {getFiles[selectedFile] || "// No content"}

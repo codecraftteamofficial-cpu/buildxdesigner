@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Eye, Code, Save, Copy, Loader2, Sparkles, ZoomIn, ZoomOut, X } from 'lucide-react';
+import { Eye, Code, Save, Copy, Loader2, Sparkles, ZoomIn, ZoomOut, X, Database, Mail, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { MonacoGenAi } from './MonacoGenAi';
 import { Progress } from './ui/progress';
@@ -101,7 +102,9 @@ const generateCodeWithGemini = async (
             - If the user asks for something new, generate complete code.
             - Use ONLY standard CSS for styling. No Tailwind.
             - Always return all 3 blocks (html, css, javascript) even if some are empty.
+            - MANDATORY: The JavaScript block MUST be wrapped in: (function() { ... })();
             - Use markdown code blocks for each language: \`\`\`html, \`\`\`css, \`\`\`javascript.
+            - STRICTLY NO PHP CODE. ONLY HTML, CSS, AND JAVASCRIPT.
             - No explanations. Only code blocks.`
           },
           ...history,
@@ -139,6 +142,24 @@ interface CustomComponentModalProps {
     js: string;
   } | null;
 }
+
+const validateJsCode = (js: string): { isValid: boolean; error?: string } => {
+  const trimmed = js.trim();
+  if (!trimmed) return { isValid: true };
+  
+  // Check for IIFE wrapper
+  const startsWithIIFE = trimmed.startsWith('(function() {') || trimmed.startsWith('(function () {');
+  const endsWithIIFE = trimmed.endsWith('})();');
+  
+  if (!startsWithIIFE || !endsWithIIFE) {
+    return { 
+      isValid: false, 
+      error: 'MANDATORY: JavaScript must be wrapped exactly in: (function() { ... })();' 
+    };
+  }
+  
+  return { isValid: true };
+};
 
 export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projectId, initialData }: CustomComponentModalProps) {
   const [name, setName] = useState('');
@@ -409,6 +430,12 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
       toast.error('Please enter a component name');
       return;
     }
+
+    const validation = validateJsCode(jsCode);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
     
     setIsSaving(true);
     try {
@@ -439,6 +466,12 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
   const handleDuplicate = async () => {
     if (!name.trim()) {
       toast.error('Please enter a component name');
+      return;
+    }
+
+    const validation = validateJsCode(jsCode);
+    if (!validation.isValid) {
+      toast.error(validation.error);
       return;
     }
     
@@ -485,6 +518,39 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
                 />
               </div>
             </div>
+            
+            {/* Integration Status */}
+            {(initialData as any)?.integrations && (initialData as any).integrations.length > 0 && (
+              <div className="bg-muted/10 rounded-lg p-2 border border-border/60">
+                <div className="flex items-center gap-2 mb-2">
+                  <Code className="w-3 h-3 text-primary" />
+                  <span className="text-[10px] font-medium uppercase text-muted-foreground">Active Integrations</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(initialData as any)?.integrations?.map((integration: any) => (
+                    <Badge 
+                      key={integration.id} 
+                      variant="outline" 
+                      className={`text-[9px] h-5 px-2 ${
+                        integration.type === 'supabase' ? 'bg-green-50 text-green-700 border-green-200' :
+                        integration.type === 'resend' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                        'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1">
+                        {integration.type === 'supabase' && <Database className="w-3 h-3" />}
+                        {integration.type === 'resend' && <Mail className="w-3 h-3" />}
+                        {integration.type === 'paymongo' && <CreditCard className="w-3 h-3" />}
+                        {integration.name}
+                      </div>
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  Configure integrations via Properties panel → Content tab → Add Integration
+                </p>
+              </div>
+            )}
           </div>
         </DialogHeader>
 

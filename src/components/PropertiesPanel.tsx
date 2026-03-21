@@ -44,6 +44,7 @@ import { styleToCss } from "../utils/styleManager"
 import { supabase } from "../supabase/config/supabaseClient"
 import { CustomCssModal } from "./CustomCssModal"
 import { AICustomComponentStylingModal } from "./AICustomComponentStylingModal"
+import { CustomComponentIntegrationModal } from "./CustomComponentIntegrationModal"
 type ActionType = "onClick" | "onHover" | "onFocus" | "onBlur"
 type ActionHandlerType = "custom" | "navigate" | "scroll" | "copy" | "toggle" | "supabase" | "condition" | "showAlert"
 const styleStr = (value: any): string => String(value ?? "")
@@ -114,13 +115,13 @@ const SOLID_PRESETS = [
 ]
 const GRADIENT_PRESETS = [
   { label: 'Purple–Pink', v: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)' },
-  { label: 'Blue–Cyan',   v: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)' },
-  { label: 'Orange–Red',  v: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)' },
-  { label: 'Green–Teal',  v: 'linear-gradient(135deg, #10b981 0%, #0ea5e9 100%)' },
-  { label: 'Midnight',    v: 'linear-gradient(135deg, #1f2937 0%, #6366f1 100%)' },
-  { label: 'Sunset',      v: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)' },
-  { label: 'Ocean',       v: 'radial-gradient(circle, #0ea5e9 0%, #1f2937 100%)' },
-  { label: 'Rose',        v: 'linear-gradient(135deg, #fda4af 0%, #fb7185 100%)' },
+  { label: 'Blue–Cyan', v: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)' },
+  { label: 'Orange–Red', v: 'linear-gradient(135deg, #f97316 0%, #ef4444 100%)' },
+  { label: 'Green–Teal', v: 'linear-gradient(135deg, #10b981 0%, #0ea5e9 100%)' },
+  { label: 'Midnight', v: 'linear-gradient(135deg, #1f2937 0%, #6366f1 100%)' },
+  { label: 'Sunset', v: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)' },
+  { label: 'Ocean', v: 'radial-gradient(circle, #0ea5e9 0%, #1f2937 100%)' },
+  { label: 'Rose', v: 'linear-gradient(135deg, #fda4af 0%, #fb7185 100%)' },
 ]
 
 function buildGradient(type: 'linear' | 'radial', angle: number, c1: string, p1: number, c2: string, p2: number) {
@@ -158,7 +159,7 @@ function ColorPicker({ label, value, onChange, hideGradient }: { label: string; 
     } else if (value?.startsWith('radial-gradient')) {
       setMode('gradient'); setGradientType('radial')
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const currentGradient = buildGradient(gradientType, gradientAngle, stop1Color, stop1Pos, stop2Color, stop2Pos)
@@ -282,12 +283,12 @@ export function PropertiesPanel({
 }: PropertiesPanelProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState("content")
-  const [showResendApiKey, setShowResendApiKey] = useState(false)
   const [showIndividualBorders, setShowIndividualBorders] = useState(false)
   const [isPickingElement, setIsPickingElement] = useState<string | null>(null) // actionId or null
   const [pickingMode, setPickingMode] = useState<{ type: "selector" | "column"; column?: string } | null>(null)
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState(false)
   const [isAIStylingModalOpen, setIsAIStylingModalOpen] = useState(false)
+  const [isIntegrationModalOpen, setIsIntegrationModalOpen] = useState(false)
   const [boxShadowValues, setBoxShadowValues] = useState({
     hOffset: 0,
     vOffset: 2,
@@ -1253,7 +1254,7 @@ export function PropertiesPanel({
                                               className="h-7 text-xs"
                                             />
                                           </div>
-                                          
+
                                           <div className="space-y-1">
                                             <Label className="text-[10px] font-bold uppercase text-muted-foreground">Canvas ID or Static Value</Label>
                                             <div className="flex items-center gap-2">
@@ -1865,7 +1866,7 @@ export function PropertiesPanel({
                         config = { supabaseUrl: url, supabaseKey: key };
                       }
                     }
-                    
+
                     let client = supabase;
                     if (config?.supabaseUrl && config?.supabaseKey) {
                       client = createClient(config.supabaseUrl, config.supabaseKey);
@@ -2271,8 +2272,8 @@ export function PropertiesPanel({
               </div>
             </div>
 
-            <Tabs 
-              value={props.initialMode === 'signup' ? 'signup-config' : 'signin-config'} 
+            <Tabs
+              value={props.initialMode === 'signup' ? 'signup-config' : 'signin-config'}
               onValueChange={(val) => updateProps("initialMode", val === 'signup-config' ? 'signup' : 'signin')}
               className="w-full"
             >
@@ -2280,7 +2281,7 @@ export function PropertiesPanel({
                 <TabsTrigger value="signin-config" className="text-[10px]">Sign In UI</TabsTrigger>
                 <TabsTrigger value="signup-config" className="text-[10px]">Sign Up UI</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="signin-config" className="space-y-4">
                 <div>
                   <Label className="text-xs">Sign In Title</Label>
@@ -2339,13 +2340,13 @@ export function PropertiesPanel({
                     className="h-8 text-xs mt-1"
                   />
                 </div>
-                
+
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between mb-2">
                     <Label className="text-xs font-medium">Extra Registration Fields</Label>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         const existingFields = Array.isArray(props.extraFields) ? props.extraFields : [];
                         const newField = {
@@ -2355,7 +2356,7 @@ export function PropertiesPanel({
                           required: false,
                         };
                         updateProps("extraFields", [...existingFields, newField]);
-                      }} 
+                      }}
                       className="h-6 w-6 p-0"
                     >
                       <Plus className="h-4 w-4" />
@@ -2479,7 +2480,7 @@ export function PropertiesPanel({
                   >
                     <X className="h-3 w-3" />
                   </Button>
-                  
+
                   <div className="space-y-2">
                     <div>
                       <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Item Label</Label>
@@ -2490,7 +2491,7 @@ export function PropertiesPanel({
                         placeholder="e.g. Settings"
                       />
                     </div>
-                    
+
                     <div>
                       <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Redirect Page</Label>
                       <Select
@@ -2510,7 +2511,7 @@ export function PropertiesPanel({
                   </div>
                 </div>
               ))}
-              
+
               {menuItems.length === 0 && (
                 <div className="text-center py-6 border border-dashed rounded-lg bg-white">
                   <p className="text-xs text-muted-foreground">No custom menu items</p>
@@ -2528,62 +2529,6 @@ export function PropertiesPanel({
               <p className="text-[10px] text-blue-800 leading-relaxed">
                 A default "Log out" button is always included at the bottom of the dropdown. It uses your project's Supabase configuration to sign users out.
               </p>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <Label className="text-xs font-semibold flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-violet-500" />
-                Integrations
-              </Label>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="resend-api-key" className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                    Resend API Key
-                  </Label>
-                  {userProjectConfig?.resendApiKey && !userProjectConfig.resendApiKey.startsWith('re_') && (
-                    <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-600 border-amber-200">
-                      Invalid Format
-                    </Badge>
-                  )}
-                </div>
-                <div className="relative">
-                  <Input
-                    id="resend-api-key"
-                    type={showResendApiKey ? "text" : "password"}
-                    value={userProjectConfig?.resendApiKey || ""}
-                    onChange={(e) => {
-                      onUpdateUserProjectConfig?.(
-                        userProjectConfig?.supabaseUrl || "",
-                        userProjectConfig?.supabaseKey || "",
-                        e.target.value
-                      );
-                    }}
-                    placeholder="re_123456789..."
-                    className={`h-8 text-xs mt-1 bg-white pr-8 ${
-                      userProjectConfig?.resendApiKey && !userProjectConfig.resendApiKey.startsWith('re_') 
-                        ? "border-amber-400 focus-visible:ring-amber-400" 
-                        : ""
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowResendApiKey(!showResendApiKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showResendApiKey ? (
-                      <EyeOff className="h-3 w-3" />
-                    ) : (
-                      <Eye className="h-3 w-3" />
-                    )}
-                  </button>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Required for form submissions. Must start with <code>re_</code>.
-                </p>
-              </div>
             </div>
           </div>
         )
@@ -2904,7 +2849,7 @@ export function PropertiesPanel({
         return (
           <div className="flex flex-col items-center justify-center p-8 text-center bg-muted/20 rounded-lg border border-dashed border-muted">
             <div className="h-10 w-10 flex items-center justify-center rounded-full bg-muted mb-3 text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
             </div>
             <p className="text-xs font-medium text-foreground">Divider Component</p>
             <p className="text-[10px] text-muted-foreground mt-1 max-w-[150px]">All styling properties for this divider can be found in the Styling tab.</p>
@@ -3491,21 +3436,21 @@ export function PropertiesPanel({
           const updatedTypes = [...navLinkTypes]
           const target = direction === "up" ? index - 1 : index + 1
           if (target < 0 || target >= updatedLinks.length) return
-          
+
           while (updatedUrls.length <= Math.max(index, target)) updatedUrls.push("#")
           while (updatedTypes.length <= Math.max(index, target)) updatedTypes.push("url")
 
-          ;[updatedLinks[index], updatedLinks[target]] = [updatedLinks[target], updatedLinks[index]]
-          ;[updatedUrls[index], updatedUrls[target]] = [updatedUrls[target], updatedUrls[index]]
-          ;[updatedTypes[index], updatedTypes[target]] = [updatedTypes[target], updatedTypes[index]]
-          
+            ;[updatedLinks[index], updatedLinks[target]] = [updatedLinks[target], updatedLinks[index]]
+            ;[updatedUrls[index], updatedUrls[target]] = [updatedUrls[target], updatedUrls[index]]
+            ;[updatedTypes[index], updatedTypes[target]] = [updatedTypes[target], updatedTypes[index]]
+
           onUpdateComponent(selectedComponent.id, {
-             props: {
-               ...selectedComponent.props,
-               links: updatedLinks,
-               linkUrls: updatedUrls,
-               linkTypes: updatedTypes,
-             }
+            props: {
+              ...selectedComponent.props,
+              links: updatedLinks,
+              linkUrls: updatedUrls,
+              linkTypes: updatedTypes,
+            }
           })
         }
 
@@ -3638,12 +3583,12 @@ export function PropertiesPanel({
               ) : (
                 <div className="space-y-2">
                   {navLinks.map((link, idx) => {
-const currentUrl = navLinkUrls[idx] || "#"
+                    const currentUrl = navLinkUrls[idx] || "#"
 
-// Add this derived value right below:
-const isKnownUrl = pages?.some(p => p.path === currentUrl)
-const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" : currentUrl
-                    
+                    // Add this derived value right below:
+                    const isKnownUrl = pages?.some(p => p.path === currentUrl)
+                    const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" : currentUrl
+
                     return (
                       <div key={idx} className="flex gap-2 group p-2 border border-border rounded bg-muted/20">
                         {/* Reorder buttons */}
@@ -3705,7 +3650,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                               </SelectContent>
                             </Select>
                           </div>
-                          
+
                           {/* Link target selection */}
                           <div className="flex items-center gap-2">
                             <Label className="text-[10px] w-10 shrink-0">
@@ -3762,16 +3707,16 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                                     )}
                                     <SelectItem value="separator" disabled className="text-[10px] font-bold opacity-50 py-1">--- Custom ---</SelectItem>
                                     <div className="p-2">
-                                       <Input 
-                                         placeholder="Paste URL or ID..." 
-                                         className="h-7 text-xs"
-                                         onKeyDown={(e) => {
-                                           if (e.key === 'Enter') {
-                                             updateNavLinkUrl(idx, e.currentTarget.value);
-                                             e.preventDefault();
-                                           }
-                                         }}
-                                       />
+                                      <Input
+                                        placeholder="Paste URL or ID..."
+                                        className="h-7 text-xs"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            updateNavLinkUrl(idx, e.currentTarget.value);
+                                            e.preventDefault();
+                                          }
+                                        }}
+                                      />
                                     </div>
                                   </SelectContent>
                                 </Select>
@@ -4067,7 +4012,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
 
           const newFields = [...formFields]
           const targetIndex = direction === "up" ? index - 1 : index + 1
-          ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
+            ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
 
           updateProps("fields", newFields)
         }
@@ -4291,15 +4236,15 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
 
           const newFields = [...fields]
           const targetIndex = direction === 'up' ? index - 1 : index + 1
-          ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
-          
+            ;[newFields[index], newFields[targetIndex]] = [newFields[targetIndex], newFields[index]]
+
           updateProps('fields', newFields)
         }
 
         const updateSupabaseAction = (key: string, value: any) => {
           const actionIndex = submitActions.findIndex((a: any) => a.handlerType === 'supabase')
           let newActions = [...submitActions]
-          
+
           if (actionIndex === -1) {
             newActions.push({
               id: `action-${Date.now()}`,
@@ -4311,10 +4256,10 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
               supabaseData: {}
             })
           }
-          
+
           const actionIdx = actionIndex === -1 ? newActions.length - 1 : actionIndex
           newActions[actionIdx] = { ...newActions[actionIdx], [key]: value }
-          
+
           // Sync top-level props for backward compatibility and UI binding
           const updates: any = { submitButtonActions: newActions }
           if (key === 'supabaseOperation') updates.supabaseOperation = value
@@ -4398,7 +4343,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-medium">Button Color</Label>
                 <div className="flex items-center gap-2">
-                  <div 
+                  <div
                     className="w-6 h-6 rounded border cursor-pointer shadow-sm"
                     style={{ backgroundColor: props.submitButtonColor || "#3b82f6" }}
                     onClick={() => {
@@ -4423,7 +4368,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 Supabase Configuration
               </h4>
-              
+
               <div>
                 <Label htmlFor="supabase-table">Table Name</Label>
                 <Input
@@ -4859,8 +4804,8 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                     id="element-id"
                     value={selectedComponent.props?.elementId || ""}
                     onChange={(e) => {
-                      const val = e.target.value.trim().startsWith('#') 
-                        ? e.target.value.trim().substring(1) 
+                      const val = e.target.value.trim().startsWith('#')
+                        ? e.target.value.trim().substring(1)
                         : e.target.value.trim();
                       updateProps("elementId", val);
                     }}
@@ -4868,7 +4813,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                     className="h-7 text-xs bg-accent/20 border-accent/40 focus:bg-accent/30 focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Used for anchor links and triggering alerts. Must be unique. 
+                    Used for anchor links and triggering alerts. Must be unique.
                     Do not use dots (.) or hashes (#); the system handles those automatically.
                   </p>
                 </div>
@@ -4879,7 +4824,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                       <Badge variant="outline" className="text-[10px] h-5 px-1 bg-primary/10 text-primary border-primary/20">Enabled</Badge>
                     )}
                   </div>
-                  
+
                   {['text', 'heading', 'button'].includes(selectedComponent.type) ? (
                     <>
                       <Button
@@ -4909,6 +4854,24 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                           Switch to the Styling tab to edit CSS or use the sidebar pencil icon for core logic.
                         </p>
                       </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between bg-accent/10 p-2 rounded-md border border-accent/20">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs font-medium">Integrations</Label>
+                            <p className="text-[10px] text-muted-foreground">Connect external services</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsIntegrationModalOpen(true)}
+                            className="h-7 text-xs bg-primary/5 border-primary/20 hover:bg-primary/10 text-primary transition-colors"
+                          >
+                            <Code2 className="w-3 h-3 mr-2" />
+                            Add Integration
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-2 space-y-1.5">
@@ -4917,7 +4880,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                         <span className="text-[10px] font-medium uppercase tracking-wider">Note</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground leading-normal">
-                        This component cannot be edited with custom CSS because it contains complex nested structures. 
+                        This component cannot be edited with custom CSS because it contains complex nested structures.
                         To maintain stability and ensure cross-browser compatibility, direct CSS overrides are disabled for advanced components.
                         <b> But you can use the styling tab to style this component</b>
                       </p>
@@ -4945,14 +4908,14 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                     <Label className="text-xs font-medium">Page Assignment</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="h-7 text-xs w-full justify-between bg-accent/20 border-accent/40 font-normal"
                         >
                           <span className="truncate">
-                            {selectedComponent.page_ids?.includes("all") 
-                              ? "Global (All Pages)" 
+                            {selectedComponent.page_ids?.includes("all")
+                              ? "Global (All Pages)"
                               : selectedComponent.page_ids && selectedComponent.page_ids.length > 0
                                 ? `${selectedComponent.page_ids.length} Page${selectedComponent.page_ids.length > 1 ? 's' : ''} Selected`
                                 : "Select Pages..."}
@@ -4962,29 +4925,29 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                       </PopoverTrigger>
                       <PopoverContent className="w-[200px] p-2" align="start">
                         <div className="space-y-2">
-                          <div 
+                          <div
                             className="flex items-center space-x-2 p-1 hover:bg-accent rounded cursor-pointer"
                             onClick={() => {
                               const originId = selectedComponent.page_id || activePageId || "home";
                               const currentIds = selectedComponent.page_ids || [];
-                              const newIds = currentIds.includes("all") 
-                                ? [originId] 
+                              const newIds = currentIds.includes("all")
+                                ? [originId]
                                 : ["all"];
-                              onUpdateComponent(selectedComponent.id, { 
+                              onUpdateComponent(selectedComponent.id, {
                                 page_ids: newIds,
                                 page_id: selectedComponent.page_id || originId
                               });
                             }}
                           >
-                            <Checkbox 
-                              id="page-all" 
+                            <Checkbox
+                              id="page-all"
                               checked={selectedComponent.page_ids?.includes("all")}
                               onCheckedChange={(checked: boolean) => {
                                 const originId = selectedComponent.page_id || activePageId || "home";
-                                const newIds = checked 
-                                  ? ["all"] 
+                                const newIds = checked
+                                  ? ["all"]
                                   : [originId];
-                                onUpdateComponent(selectedComponent.id, { 
+                                onUpdateComponent(selectedComponent.id, {
                                   page_ids: newIds,
                                   page_id: selectedComponent.page_id || originId
                                 });
@@ -4992,17 +4955,17 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                             />
                             <Label htmlFor="page-all" className="text-xs cursor-pointer flex-1">Global (All Pages)</Label>
                           </div>
-                          
+
                           <Separator className="my-1" />
-                          
+
                           <div className="max-h-[200px] overflow-y-auto space-y-1 pt-1">
                             {pages.map(p => {
                               const isSelected = selectedComponent.page_ids?.includes(p.id) || selectedComponent.page_ids?.includes("all");
                               const isDisabled = selectedComponent.page_ids?.includes("all");
-                              
+
                               return (
-                                <div 
-                                  key={p.id} 
+                                <div
+                                  key={p.id}
                                   className={`flex items-center space-x-2 p-1 hover:bg-accent rounded cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   onClick={() => {
                                     if (isDisabled) return;
@@ -5011,19 +4974,19 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                                     let newIds = currentIds.includes(p.id)
                                       ? currentIds.filter(id => id !== p.id)
                                       : [...currentIds, p.id];
-                                    
+
                                     if (newIds.length === 0) {
                                       newIds = [originId];
                                     }
-                                    
-                                    onUpdateComponent(selectedComponent.id, { 
+
+                                    onUpdateComponent(selectedComponent.id, {
                                       page_ids: newIds,
                                       page_id: selectedComponent.page_id || originId
                                     });
                                   }}
                                 >
-                                  <Checkbox 
-                                    id={`page-${p.id}`} 
+                                  <Checkbox
+                                    id={`page-${p.id}`}
                                     checked={isSelected}
                                     disabled={isDisabled}
                                     onCheckedChange={(checked: boolean) => {
@@ -5033,12 +4996,12 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                                       let newIds = checked
                                         ? [...currentIds, p.id]
                                         : currentIds.filter(id => id !== p.id);
-                                      
+
                                       if (newIds.length === 0) {
                                         newIds = [originId];
                                       }
-                                      
-                                      onUpdateComponent(selectedComponent.id, { 
+
+                                      onUpdateComponent(selectedComponent.id, {
                                         page_ids: newIds,
                                         page_id: selectedComponent.page_id || originId
                                       });
@@ -5089,510 +5052,596 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                   </Button>
                 </div>
                 <Separator className="opacity-50" />
-                
+
               </div>
             ) : (
               <div className="pb-4">
                 <div className="space-y-3">
-                {/* Button Styling Section */}
-                {selectedComponent.type === "button" && (
-                  <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                    <Label className="text-xs font-semibold">Button Styling</Label>
+                  {/* Button Styling Section */}
+                  {selectedComponent.type === "button" && (
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                      <Label className="text-xs font-semibold">Button Styling</Label>
 
-                    {/* Size Presets */}
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground">Size Preset</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs text-muted-foreground"
-                          onClick={() => {
-                            updateStyle("padding", "")
-                            updateStyle("width", "")
-                            updateStyle("height", "")
-                          }}
-                        >
-                          Reset
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mt-1">
-                        {[
-                          { value: "sm", label: "Small", padding: "0.25rem 0.75rem", height: "1.5rem" },
-                          { value: "default", label: "Medium", padding: "0.5rem 1rem", height: "2.25rem" },
-                          { value: "lg", label: "Large", padding: "0.75rem 1.5rem", height: "2.75rem" },
-                        ].map(({ value, label, padding, height }) => (
-                          <Button
-                            key={value}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs bg-transparent"
-                            onClick={() => {
-                              updateStyle("padding", padding)
-                              updateStyle("height", height)
-                            }}
-                          >
-                            {label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Width and Height */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Width</Label>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Input
-                            type="text"
-                            value={selectedComponent.style?.width || ""}
-                            onChange={(e) => updateStyle("width", e.target.value)}
-                            placeholder="auto"
-                            className="h-8 text-xs"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => updateStyle("width", "")}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Height</Label>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Input
-                            type="text"
-                            value={selectedComponent.style?.height || ""}
-                            onChange={(e) => updateStyle("height", e.target.value)}
-                            placeholder="auto"
-                            className="h-8 text-xs"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => updateStyle("height", "")}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Padding */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Padding</Label>
-                      <div className="grid grid-cols-4 gap-1 mt-1">
-                        {["Top", "Right", "Bottom", "Left"].map((side, i) => {
-                          const prop = `padding${side}` as keyof React.CSSProperties
-                          const value = selectedComponent.style?.[prop] || ""
-                          return (
-                            <div key={side} className="space-y-1">
-                              <div className="text-[10px] text-center text-muted-foreground">{side[0]}</div>
-                              <Input
-                                value={value}
-                                onChange={(e) => updateStyle(prop, e.target.value)}
-                                placeholder="0"
-                                className="h-8 text-xs text-center"
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Text Styling Section - Only for text and heading components */}
-                {/* Navbar Styling Section */}
-                {selectedComponent.type === "navbar" && (
-                  <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                    <Label className="text-xs font-semibold">Navbar Styling</Label>
-
-                    {/* Layout */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Layout</Label>
-                      <div className="grid grid-cols-2 gap-2 mt-1">
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Justify Content</Label>
-                          <Select
-                            value={selectedComponent.style?.justifyContent || "space-between"}
-                            onValueChange={(value: string) => updateStyle("justifyContent", value)}
-                          >
-                            <SelectTrigger className="h-8 text-xs mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="flex-start">Start</SelectItem>
-                              <SelectItem value="center">Center</SelectItem>
-                              <SelectItem value="flex-end">End</SelectItem>
-                              <SelectItem value="space-between">Space Between</SelectItem>
-                              <SelectItem value="space-around">Space Around</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Align Items</Label>
-                          <Select
-                            value={selectedComponent.style?.alignItems || "center"}
-                            onValueChange={(value: string) => updateStyle("alignItems", value)}
-                          >
-                            <SelectTrigger className="h-8 text-xs mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="flex-start">Start</SelectItem>
-                              <SelectItem value="center">Center</SelectItem>
-                              <SelectItem value="flex-end">End</SelectItem>
-                              <SelectItem value="stretch">Stretch</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Colors */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker
-                        label="Background"
-                        value={selectedComponent.style?.background || selectedComponent.style?.backgroundColor || "#ffffff"}
-                        onChange={(val) => {
-                          const isGrad = val.includes('gradient');
-                          onUpdateComponent(selectedComponent.id, {
-                            ...selectedComponent,
-                            style: {
-                              ...selectedComponent.style,
-                              backgroundColor: isGrad ? undefined : val,
-                              background: isGrad ? val : "",
-                            },
-                          });
-                        }}
-                      />
-                      <ColorPicker
-                        label="Text Color"
-                        value={selectedComponent.style?.color || "#000000"}
-                        onChange={(val) => updateStyle("color", val)}
-                      />
-                      <ColorPicker
-                        label="Hover Color"
-                        value={selectedComponent.style?.["--nav-hover"] || "#f3f4f6"}
-                        onChange={(val) => updateStyle("--nav-hover", val)}
-                      />
-                      <ColorPicker
-                        label="Active Color"
-                        value={selectedComponent.style?.["--nav-active"] || "#e5e7eb"}
-                        onChange={(val) => updateStyle("--nav-active", val)}
-                      />
-                    </div>
-
-                    {/* Spacing */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Link Spacing</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Input
-                            type="range"
-                            min="0.5"
-                            max="3"
-                            step="0.1"
-                            value={Number.parseFloat(selectedComponent.style?.["--nav-spacing"] || "1").toFixed(1)}
-                            onChange={(e) => updateStyle("--nav-spacing", `${e.target.value}rem`)}
-                            className="h-1.5 flex-1"
-                          />
-                          <span className="text-xs w-8">
-                            {Number.parseFloat(selectedComponent.style?.["--nav-spacing"] || "1").toFixed(1)}rem
-                          </span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Padding</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Input
-                            type="range"
-                            min="0.5"
-                            max="3"
-                            step="0.1"
-                            value={Number.parseFloat(
-                              styleStr(selectedComponent.style?.padding).replace("rem", "") || "1",
-                            ).toFixed(1)}
-                            onChange={(e) => updateStyle("padding", `${e.target.value}rem`)}
-                            className="h-1.5 flex-1"
-                          />
-                          <span className="text-xs w-8">
-                            {Number.parseFloat(styleStr(selectedComponent.style?.padding).replace("rem", "") || "1").toFixed(1)}
-                            rem
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Border & Shadow */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Border Radius</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Input
-                            type="range"
-                            min="0"
-                            max="20"
-                            value={Number.parseInt(styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0")}
-                            onChange={(e) => updateStyle("borderRadius", `${e.target.value}px`)}
-                            className="h-1.5 flex-1"
-                          />
-                          <span className="text-xs w-8">{selectedComponent.style?.borderRadius || "0px"}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Shadow</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Select
-                            value={selectedComponent.style?.boxShadow || "none"}
-                            onValueChange={(value: string) => updateStyle("boxShadow", value)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              <SelectItem value="0 1px 3px rgba(0,0,0,0.1)">Small</SelectItem>
-                              <SelectItem value="0 4px 6px -1px rgba(0,0,0,0.1)">Medium</SelectItem>
-                              <SelectItem value="0 10px 15px -3px rgba(0,0,0,0.1)">Large</SelectItem>
-                              <SelectItem value="0 20px 25px -5px rgba(0,0,0,0.1)">Extra Large</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Position */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Position</Label>
-                      <div className="grid grid-cols-3 gap-2 mt-1">
-                        {["sticky", "static", "fixed"].map((pos) => (
-                          <Button
-                            key={pos}
-                            variant={selectedComponent.style?.position === pos ? "default" : "outline"}
-                            size="sm"
-                            className="h-8 text-xs capitalize"
-                            onClick={() => updateStyle("position", pos)}
-                          >
-                            {pos}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Divider Styling Section */}
-                {selectedComponent.type === "divider" && (
-                  <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                    <Label className="text-xs font-semibold">Divider Styling</Label>
-                    
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Line Style</Label>
-                      <Select
-                        value={selectedComponent.props.styleType || 'solid'}
-                        onValueChange={(val: string) => updateProps("styleType", val)}
-                      >
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="solid">Solid</SelectItem>
-                          <SelectItem value="dashed">Dashed</SelectItem>
-                          <SelectItem value="dotted">Dotted</SelectItem>
-                          <SelectItem value="double">Double</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Thickness</Label>
-                      <Select
-                        value={String(selectedComponent.props.thickness || '1px').replace("px", "")}
-                        onValueChange={(val: string) => updateProps("thickness", `${val}px`)}
-                      >
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DIVIDER_THICKNESS.map((t) => (
-                            <SelectItem key={t} value={String(t)}>
-                              {t}px
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <ColorPicker
-                      label="Color"
-                      value={selectedComponent.props.color || '#e5e7eb'}
-                      onChange={(val) => updateProps("color", val)}
-                    />
-                  </div>
-                )}
-
-                {/* Text Styling Section - Only for text and heading components */}
-                {(selectedComponent.type === "text" || selectedComponent.type === "heading") && (
-                  <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                    <Label className="text-xs font-semibold">Text Styling</Label>
-
-                    {/* Font Family */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Font Family</Label>
-                      <Select
-                        value={selectedComponent.style?.fontFamily || "sans-serif"}
-                        onValueChange={(value: string) => updateStyle("fontFamily", value)}
-                      >
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sans-serif">Sans-serif</SelectItem>
-                          <SelectItem value="serif">Serif</SelectItem>
-                          <SelectItem value="monospace">Monospace</SelectItem>
-                          <SelectItem value="cursive">Cursive</SelectItem>
-                          <SelectItem value="fantasy">Fantasy</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Font Size */}
-                    {(selectedComponent.type === "text" || selectedComponent.type === "heading") && (
+                      {/* Size Presets */}
                       <div>
                         <div className="flex justify-between items-center">
-                          <Label className="text-xs text-muted-foreground">Font Size</Label>
+                          <Label className="text-xs text-muted-foreground">Size Preset</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs text-muted-foreground"
+                            onClick={() => {
+                              updateStyle("padding", "")
+                              updateStyle("width", "")
+                              updateStyle("height", "")
+                            }}
+                          >
+                            Reset
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                          {[
+                            { value: "sm", label: "Small", padding: "0.25rem 0.75rem", height: "1.5rem" },
+                            { value: "default", label: "Medium", padding: "0.5rem 1rem", height: "2.25rem" },
+                            { value: "lg", label: "Large", padding: "0.75rem 1.5rem", height: "2.75rem" },
+                          ].map(({ value, label, padding, height }) => (
+                            <Button
+                              key={value}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs bg-transparent"
+                              onClick={() => {
+                                updateStyle("padding", padding)
+                                updateStyle("height", height)
+                              }}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Width and Height */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Width</Label>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Input
+                              type="text"
+                              value={selectedComponent.style?.width || ""}
+                              onChange={(e) => updateStyle("width", e.target.value)}
+                              placeholder="auto"
+                              className="h-8 text-xs"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => updateStyle("width", "")}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Height</Label>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Input
+                              type="text"
+                              value={selectedComponent.style?.height || ""}
+                              onChange={(e) => updateStyle("height", e.target.value)}
+                              placeholder="auto"
+                              className="h-8 text-xs"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => updateStyle("height", "")}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Padding */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Padding</Label>
+                        <div className="grid grid-cols-4 gap-1 mt-1">
+                          {["Top", "Right", "Bottom", "Left"].map((side, i) => {
+                            const prop = `padding${side}` as keyof React.CSSProperties
+                            const value = selectedComponent.style?.[prop] || ""
+                            return (
+                              <div key={side} className="space-y-1">
+                                <div className="text-[10px] text-center text-muted-foreground">{side[0]}</div>
+                                <Input
+                                  value={value}
+                                  onChange={(e) => updateStyle(prop, e.target.value)}
+                                  placeholder="0"
+                                  className="h-8 text-xs text-center"
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Text Styling Section - Only for text and heading components */}
+                  {/* Navbar Styling Section */}
+                  {selectedComponent.type === "navbar" && (
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                      <Label className="text-xs font-semibold">Navbar Styling</Label>
+
+                      {/* Layout */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Layout</Label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Justify Content</Label>
+                            <Select
+                              value={selectedComponent.style?.justifyContent || "space-between"}
+                              onValueChange={(value: string) => updateStyle("justifyContent", value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="flex-start">Start</SelectItem>
+                                <SelectItem value="center">Center</SelectItem>
+                                <SelectItem value="flex-end">End</SelectItem>
+                                <SelectItem value="space-between">Space Between</SelectItem>
+                                <SelectItem value="space-around">Space Around</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Align Items</Label>
+                            <Select
+                              value={selectedComponent.style?.alignItems || "center"}
+                              onValueChange={(value: string) => updateStyle("alignItems", value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs mt-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="flex-start">Start</SelectItem>
+                                <SelectItem value="center">Center</SelectItem>
+                                <SelectItem value="flex-end">End</SelectItem>
+                                <SelectItem value="stretch">Stretch</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Colors */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <ColorPicker
+                          label="Background"
+                          value={selectedComponent.style?.background || selectedComponent.style?.backgroundColor || "#ffffff"}
+                          onChange={(val) => {
+                            const isGrad = val.includes('gradient');
+                            onUpdateComponent(selectedComponent.id, {
+                              ...selectedComponent,
+                              style: {
+                                ...selectedComponent.style,
+                                backgroundColor: isGrad ? undefined : val,
+                                background: isGrad ? val : "",
+                              },
+                            });
+                          }}
+                        />
+                        <ColorPicker
+                          label="Text Color"
+                          value={selectedComponent.style?.color || "#000000"}
+                          onChange={(val) => updateStyle("color", val)}
+                        />
+                        <ColorPicker
+                          label="Hover Color"
+                          value={selectedComponent.style?.["--nav-hover"] || "#f3f4f6"}
+                          onChange={(val) => updateStyle("--nav-hover", val)}
+                        />
+                        <ColorPicker
+                          label="Active Color"
+                          value={selectedComponent.style?.["--nav-active"] || "#e5e7eb"}
+                          onChange={(val) => updateStyle("--nav-active", val)}
+                        />
+                      </div>
+
+                      {/* Spacing */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Link Spacing</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              type="range"
+                              min="0.5"
+                              max="3"
+                              step="0.1"
+                              value={Number.parseFloat(selectedComponent.style?.["--nav-spacing"] || "1").toFixed(1)}
+                              onChange={(e) => updateStyle("--nav-spacing", `${e.target.value}rem`)}
+                              className="h-1.5 flex-1"
+                            />
+                            <span className="text-xs w-8">
+                              {Number.parseFloat(selectedComponent.style?.["--nav-spacing"] || "1").toFixed(1)}rem
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Padding</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              type="range"
+                              min="0.5"
+                              max="3"
+                              step="0.1"
+                              value={Number.parseFloat(
+                                styleStr(selectedComponent.style?.padding).replace("rem", "") || "1",
+                              ).toFixed(1)}
+                              onChange={(e) => updateStyle("padding", `${e.target.value}rem`)}
+                              className="h-1.5 flex-1"
+                            />
+                            <span className="text-xs w-8">
+                              {Number.parseFloat(styleStr(selectedComponent.style?.padding).replace("rem", "") || "1").toFixed(1)}
+                              rem
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Border & Shadow */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Border Radius</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              type="range"
+                              min="0"
+                              max="20"
+                              value={Number.parseInt(styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0")}
+                              onChange={(e) => updateStyle("borderRadius", `${e.target.value}px`)}
+                              className="h-1.5 flex-1"
+                            />
+                            <span className="text-xs w-8">{selectedComponent.style?.borderRadius || "0px"}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Shadow</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Select
+                              value={selectedComponent.style?.boxShadow || "none"}
+                              onValueChange={(value: string) => updateStyle("boxShadow", value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="0 1px 3px rgba(0,0,0,0.1)">Small</SelectItem>
+                                <SelectItem value="0 4px 6px -1px rgba(0,0,0,0.1)">Medium</SelectItem>
+                                <SelectItem value="0 10px 15px -3px rgba(0,0,0,0.1)">Large</SelectItem>
+                                <SelectItem value="0 20px 25px -5px rgba(0,0,0,0.1)">Extra Large</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Position */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Position</Label>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                          {["sticky", "static", "fixed"].map((pos) => (
+                            <Button
+                              key={pos}
+                              variant={selectedComponent.style?.position === pos ? "default" : "outline"}
+                              size="sm"
+                              className="h-8 text-xs capitalize"
+                              onClick={() => updateStyle("position", pos)}
+                            >
+                              {pos}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Divider Styling Section */}
+                  {selectedComponent.type === "divider" && (
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                      <Label className="text-xs font-semibold">Divider Styling</Label>
+
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Line Style</Label>
+                        <Select
+                          value={selectedComponent.props.styleType || 'solid'}
+                          onValueChange={(val: string) => updateProps("styleType", val)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="solid">Solid</SelectItem>
+                            <SelectItem value="dashed">Dashed</SelectItem>
+                            <SelectItem value="dotted">Dotted</SelectItem>
+                            <SelectItem value="double">Double</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Thickness</Label>
+                        <Select
+                          value={String(selectedComponent.props.thickness || '1px').replace("px", "")}
+                          onValueChange={(val: string) => updateProps("thickness", `${val}px`)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DIVIDER_THICKNESS.map((t) => (
+                              <SelectItem key={t} value={String(t)}>
+                                {t}px
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <ColorPicker
+                        label="Color"
+                        value={selectedComponent.props.color || '#e5e7eb'}
+                        onChange={(val) => updateProps("color", val)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Text Styling Section - Only for text and heading components */}
+                  {(selectedComponent.type === "text" || selectedComponent.type === "heading") && (
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                      <Label className="text-xs font-semibold">Text Styling</Label>
+
+                      {/* Font Family */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Font Family</Label>
+                        <Select
+                          value={selectedComponent.style?.fontFamily || "sans-serif"}
+                          onValueChange={(value: string) => updateStyle("fontFamily", value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="sans-serif">Sans-serif</SelectItem>
+                            <SelectItem value="serif">Serif</SelectItem>
+                            <SelectItem value="monospace">Monospace</SelectItem>
+                            <SelectItem value="cursive">Cursive</SelectItem>
+                            <SelectItem value="fantasy">Fantasy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Font Size */}
+                      {(selectedComponent.type === "text" || selectedComponent.type === "heading") && (
+                        <div>
+                          <div className="flex justify-between items-center">
+                            <Label className="text-xs text-muted-foreground">Font Size</Label>
+                            <span className="text-xs text-muted-foreground">
+                              {selectedComponent.style?.fontSize || (selectedComponent.type === "heading" ? "24px" : "16px")}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 mt-1">
+                            <Select
+                              value={String(selectedComponent.style?.fontSize ?? "").replace("px", "") || (selectedComponent.type === "heading" ? "24" : "16")}
+                              onValueChange={(value: string) => updateStyle("fontSize", `${value}px`)}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-full">
+                                <SelectValue placeholder="Size" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {FONT_SIZES.map((size) => (
+                                  <SelectItem key={size} value={String(size)}>
+                                    {size}px
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Font Weight */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Font Weight</Label>
+                        <Select
+                          value={selectedComponent.style?.fontWeight || "400"}
+                          onValueChange={(value: string) => updateStyle("fontWeight", value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="100">Thin (100)</SelectItem>
+                            <SelectItem value="300">Light (300)</SelectItem>
+                            <SelectItem value="400">Regular (400)</SelectItem>
+                            <SelectItem value="500">Medium (500)</SelectItem>
+                            <SelectItem value="600">Semi-bold (600)</SelectItem>
+                            <SelectItem value="700">Bold (700)</SelectItem>
+                            <SelectItem value="900">Black (900)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Text Align */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Text Align</Label>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                          <Button
+                            variant={selectedComponent.style?.textAlign === "left" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => updateStyle("textAlign", "left")}
+                          >
+                            Left
+                          </Button>
+                          <Button
+                            variant={selectedComponent.style?.textAlign === "center" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => updateStyle("textAlign", "center")}
+                          >
+                            Center
+                          </Button>
+                          <Button
+                            variant={selectedComponent.style?.textAlign === "right" ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => updateStyle("textAlign", "right")}
+                          >
+                            Right
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Letter Spacing */}
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <Label className="text-xs text-muted-foreground">Letter Spacing</Label>
                           <span className="text-xs text-muted-foreground">
-                            {selectedComponent.style?.fontSize || (selectedComponent.type === "heading" ? "24px" : "16px")}
+                            {selectedComponent.style?.letterSpacing || "0px"}
                           </span>
                         </div>
                         <div className="flex gap-2 mt-1">
                           <Select
-                            value={String(selectedComponent.style?.fontSize ?? "").replace("px", "") || (selectedComponent.type === "heading" ? "24" : "16")}
-                            onValueChange={(value: string) => updateStyle("fontSize", `${value}px`)}
+                            value={styleStr(selectedComponent.style?.letterSpacing).replace("px", "") || "0"}
+                            onValueChange={(value: string) => updateStyle("letterSpacing", `${value}px`)}
                           >
                             <SelectTrigger className="h-8 text-xs w-full">
-                              <SelectValue placeholder="Size" />
+                              <SelectValue placeholder="Spacing" />
                             </SelectTrigger>
                             <SelectContent>
-                              {FONT_SIZES.map((size) => (
-                                <SelectItem key={size} value={String(size)}>
-                                  {size}px
+                              {LETTER_SPACING_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val}px
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
                       </div>
-                    )}
 
-                    {/* Font Weight */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Font Weight</Label>
-                      <Select
-                        value={selectedComponent.style?.fontWeight || "400"}
-                        onValueChange={(value: string) => updateStyle("fontWeight", value)}
-                      >
-                        <SelectTrigger className="h-8 text-xs mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="100">Thin (100)</SelectItem>
-                          <SelectItem value="300">Light (300)</SelectItem>
-                          <SelectItem value="400">Regular (400)</SelectItem>
-                          <SelectItem value="500">Medium (500)</SelectItem>
-                          <SelectItem value="600">Semi-bold (600)</SelectItem>
-                          <SelectItem value="700">Bold (700)</SelectItem>
-                          <SelectItem value="900">Black (900)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                      {/* Line Height */}
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <Label className="text-xs text-muted-foreground">Line Height</Label>
+                          <span className="text-xs text-muted-foreground">
+                            {selectedComponent.style?.lineHeight || "1.5"}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <Select
+                            value={String(selectedComponent.style?.lineHeight || "1.5")}
+                            onValueChange={(value: string) => updateStyle("lineHeight", value)}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-full">
+                              <SelectValue placeholder="Line Height" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {LINE_HEIGHT_VALUES.map((val) => (
+                                <SelectItem key={val} value={String(val)}>
+                                  {val}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-                    {/* Text Align */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Text Align</Label>
-                      <div className="grid grid-cols-3 gap-2 mt-1">
-                        <Button
-                          variant={selectedComponent.style?.textAlign === "left" ? "default" : "outline"}
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={() => updateStyle("textAlign", "left")}
-                        >
-                          Left
-                        </Button>
-                        <Button
-                          variant={selectedComponent.style?.textAlign === "center" ? "default" : "outline"}
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={() => updateStyle("textAlign", "center")}
-                        >
-                          Center
-                        </Button>
-                        <Button
-                          variant={selectedComponent.style?.textAlign === "right" ? "default" : "outline"}
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={() => updateStyle("textAlign", "right")}
-                        >
-                          Right
-                        </Button>
+                      {/* Text Decoration */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Text Decoration</Label>
+                        <div className="flex gap-1 mt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`h-8 flex-1 text-xs ${selectedComponent.style?.textDecoration?.includes("underline") ? "bg-accent" : ""}`}
+                            onClick={() => {
+                              const currentDecoration = selectedComponent.style?.textDecoration || ""
+                              const newDecoration = currentDecoration.includes("underline")
+                                ? currentDecoration.replace("underline", "").trim()
+                                : `${currentDecoration} underline`.trim()
+                              updateStyle("textDecoration", newDecoration || "none")
+                            }}
+                          >
+                            <Underline className="h-3.5 w-3.5 mr-1" />
+                            Underline
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={`h-8 flex-1 text-xs ${selectedComponent.style?.fontStyle === "italic" ? "bg-accent" : ""}`}
+                            onClick={() =>
+                              updateStyle("fontStyle", selectedComponent.style?.fontStyle === "italic" ? "normal" : "italic")
+                            }
+                          >
+                            <Italic className="h-3.5 w-3.5 mr-1" />
+                            Italic
+                          </Button>
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Letter Spacing */}
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground">Letter Spacing</Label>
-                        <span className="text-xs text-muted-foreground">
-                          {selectedComponent.style?.letterSpacing || "0px"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 mt-1">
+                  {/* Dimensions Section */}
+                  <div className="bg-muted/30 rounded-lg p-2.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold">Dimensions</Label>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                        Resizable
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="width" className="text-xs text-muted-foreground">
+                          Width
+                        </Label>
                         <Select
-                          value={styleStr(selectedComponent.style?.letterSpacing).replace("px", "") || "0"}
-                          onValueChange={(value: string) => updateStyle("letterSpacing", `${value}px`)}
+                          value={selectedComponent.style?.width || "auto"}
+                          onValueChange={(value: string) => updateStyle("width", value)}
                         >
-                          <SelectTrigger className="h-8 text-xs w-full">
-                            <SelectValue placeholder="Spacing" />
+                          <SelectTrigger id="width" className="h-8 text-xs mt-1 px-2">
+                            <SelectValue placeholder="auto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {LETTER_SPACING_VALUES.map((val) => (
-                              <SelectItem key={val} value={String(val)}>
-                                {val}px
+                            {DIMENSION_VALUES.map((val) => (
+                              <SelectItem key={val} value={val}>
+                                {val}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    </div>
-
-                    {/* Line Height */}
-                    <div>
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs text-muted-foreground">Line Height</Label>
-                        <span className="text-xs text-muted-foreground">
-                          {selectedComponent.style?.lineHeight || "1.5"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 mt-1">
+                      <div>
+                        <Label htmlFor="height" className="text-xs text-muted-foreground">
+                          Height
+                        </Label>
                         <Select
-                          value={String(selectedComponent.style?.lineHeight || "1.5")}
-                          onValueChange={(value: string) => updateStyle("lineHeight", value)}
+                          value={selectedComponent.style?.height || "auto"}
+                          onValueChange={(value: string) => updateStyle("height", value)}
                         >
-                          <SelectTrigger className="h-8 text-xs w-full">
-                            <SelectValue placeholder="Line Height" />
+                          <SelectTrigger id="height" className="h-8 text-xs mt-1 px-2">
+                            <SelectValue placeholder="auto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {LINE_HEIGHT_VALUES.map((val) => (
-                              <SelectItem key={val} value={String(val)}>
+                            {DIMENSION_VALUES.map((val) => (
+                              <SelectItem key={val} value={val}>
                                 {val}
                               </SelectItem>
                             ))}
@@ -5600,369 +5649,283 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                         </Select>
                       </div>
                     </div>
-
-                    {/* Text Decoration */}
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Text Decoration</Label>
-                      <div className="flex gap-1 mt-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={`h-8 flex-1 text-xs ${selectedComponent.style?.textDecoration?.includes("underline") ? "bg-accent" : ""}`}
-                          onClick={() => {
-                            const currentDecoration = selectedComponent.style?.textDecoration || ""
-                            const newDecoration = currentDecoration.includes("underline")
-                              ? currentDecoration.replace("underline", "").trim()
-                              : `${currentDecoration} underline`.trim()
-                            updateStyle("textDecoration", newDecoration || "none")
-                          }}
-                        >
-                          <Underline className="h-3.5 w-3.5 mr-1" />
-                          Underline
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={`h-8 flex-1 text-xs ${selectedComponent.style?.fontStyle === "italic" ? "bg-accent" : ""}`}
-                          onClick={() =>
-                            updateStyle("fontStyle", selectedComponent.style?.fontStyle === "italic" ? "normal" : "italic")
-                          }
-                        >
-                          <Italic className="h-3.5 w-3.5 mr-1" />
-                          Italic
-                        </Button>
-                      </div>
-                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      💡 Hover over component to see resize handles
+                    </p>
                   </div>
-                )}
 
-                {/* Dimensions Section */}
-                <div className="bg-muted/30 rounded-lg p-2.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Dimensions</Label>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                      Resizable
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label htmlFor="width" className="text-xs text-muted-foreground">
-                        Width
-                      </Label>
-                      <Select
-                        value={selectedComponent.style?.width || "auto"}
-                        onValueChange={(value: string) => updateStyle("width", value)}
-                      >
-                        <SelectTrigger id="width" className="h-8 text-xs mt-1 px-2">
-                          <SelectValue placeholder="auto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DIMENSION_VALUES.map((val) => (
-                            <SelectItem key={val} value={val}>
-                              {val}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="height" className="text-xs text-muted-foreground">
-                        Height
-                      </Label>
-                      <Select
-                        value={selectedComponent.style?.height || "auto"}
-                        onValueChange={(value: string) => updateStyle("height", value)}
-                      >
-                        <SelectTrigger id="height" className="h-8 text-xs mt-1 px-2">
-                          <SelectValue placeholder="auto" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DIMENSION_VALUES.map((val) => (
-                            <SelectItem key={val} value={val}>
-                              {val}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    💡 Hover over component to see resize handles
-                  </p>
-                </div>
-
-                {selectedComponent.type !== "navbar" && (
-                  <>
-                    <Separator />
-                    <div className="grid grid-cols-2 gap-3">
-                      <ColorPicker
-                        label="Background"
-                        value={selectedComponent.style?.background || selectedComponent.style?.backgroundColor || "#ffffff"}
-                        onChange={(val) => {
-                          const isGrad = val.includes('gradient');
-                          onUpdateComponent(selectedComponent.id, {
-                            ...selectedComponent,
-                            style: {
-                              ...selectedComponent.style,
-                              backgroundColor: isGrad ? undefined : val,
-                              background: isGrad ? val : "",
-                            },
-                          });
-                        }}
-                      />
-                      <ColorPicker
-                        label="Text Color"
-                        value={selectedComponent.style?.color || "#000000"}
-                        onChange={(val) => updateStyle("color", val)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="padding" className="text-xs">
-                      Padding
-                    </Label>
-                    <Select
-                      value={String(selectedComponent.style?.padding || "0").replace("px", "")}
-                      onValueChange={(value: string) => updateStyle("padding", `${value}px`)}
-                    >
-                      <SelectTrigger id="padding" className="h-8 text-xs mt-1">
-                        <SelectValue placeholder="Size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SPACING_VALUES.map((val) => (
-                          <SelectItem key={val} value={String(val)}>
-                            {val}px
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="margin" className="text-xs">
-                      Margin
-                    </Label>
-                    <Select
-                      value={String(selectedComponent.style?.margin || "0").replace("px", "")}
-                      onValueChange={(value: string) => updateStyle("margin", `${value}px`)}
-                    >
-                      <SelectTrigger id="margin" className="h-8 text-xs mt-1">
-                        <SelectValue placeholder="Size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SPACING_VALUES.map((val) => (
-                          <SelectItem key={val} value={String(val)}>
-                            {val}px
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {!(selectedComponent.type === 'image' && selectedComponent.props.imageShape && selectedComponent.props.imageShape !== 'original') && (
-                  <>
-                    {/* Border Section */}
-                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs font-semibold">Border</Label>
-                          <div className="flex items-center gap-1.5 ml-2">
-                            <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
-                            <Switch
-                              id="individual-border-toggle"
-                              checked={showIndividualBorders}
-                              onCheckedChange={(val) => {
-                                setShowIndividualBorders(val)
-                                
-                                const individualKeys = [
-                                  "borderTopWidth", "borderTopStyle", "borderTopColor",
-                                  "borderRightWidth", "borderRightStyle", "borderRightColor",
-                                  "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
-                                  "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
-                                ];
-                                const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
-                                
-                                const newStyle = { ...selectedComponent.style };
-                                if (val) {
-                                  // If switching to individual, clear global
-                                  globalKeys.forEach(k => delete newStyle[k]);
-                                } else {
-                                  // If switching back to global, clear individual
-                                  individualKeys.forEach(k => delete newStyle[k]);
-                                }
-                                
-                                onUpdateComponent(selectedComponent.id, {
-                                  ...selectedComponent,
-                                  style: newStyle
-                                });
-                              }}
-                              className="scale-75 origin-left"
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5"
-                          onClick={() => {
-                            const styleKeys = [
-                              "border", "borderWidth", "borderStyle", "borderColor",
-                              "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
-                              "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
-                              "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
-                              "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
-                            ];
-                            const newStyle = { ...selectedComponent.style };
-                            styleKeys.forEach(key => delete newStyle[key]);
+                  {selectedComponent.type !== "navbar" && (
+                    <>
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-3">
+                        <ColorPicker
+                          label="Background"
+                          value={selectedComponent.style?.background || selectedComponent.style?.backgroundColor || "#ffffff"}
+                          onChange={(val) => {
+                            const isGrad = val.includes('gradient');
                             onUpdateComponent(selectedComponent.id, {
                               ...selectedComponent,
-                              style: newStyle
+                              style: {
+                                ...selectedComponent.style,
+                                backgroundColor: isGrad ? undefined : val,
+                                background: isGrad ? val : "",
+                              },
                             });
                           }}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                        </Button>
+                        />
+                        <ColorPicker
+                          label="Text Color"
+                          value={selectedComponent.style?.color || "#000000"}
+                          onChange={(val) => updateStyle("color", val)}
+                        />
                       </div>
+                    </>
+                  )}
 
-                      {!showIndividualBorders ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Width</Label>
-                              <Select
-                                value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
-                                onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
-                              >
-                                <SelectTrigger className="h-8 text-xs mt-1">
-                                  <SelectValue placeholder="0px" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_WIDTHS.map((w) => (
-                                    <SelectItem key={w} value={String(w)}>
-                                      {w}px
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="padding" className="text-xs">
+                        Padding
+                      </Label>
+                      <Select
+                        value={String(selectedComponent.style?.padding || "0").replace("px", "")}
+                        onValueChange={(value: string) => updateStyle("padding", `${value}px`)}
+                      >
+                        <SelectTrigger id="padding" className="h-8 text-xs mt-1">
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SPACING_VALUES.map((val) => (
+                            <SelectItem key={val} value={String(val)}>
+                              {val}px
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="margin" className="text-xs">
+                        Margin
+                      </Label>
+                      <Select
+                        value={String(selectedComponent.style?.margin || "0").replace("px", "")}
+                        onValueChange={(value: string) => updateStyle("margin", `${value}px`)}
+                      >
+                        <SelectTrigger id="margin" className="h-8 text-xs mt-1">
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SPACING_VALUES.map((val) => (
+                            <SelectItem key={val} value={String(val)}>
+                              {val}px
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Style</Label>
-                              <Select
-                                value={selectedComponent.style?.borderStyle || "none"}
-                                onValueChange={(value: string) => updateStyle("borderStyle", value)}
-                              >
-                                <SelectTrigger className="h-8 text-xs mt-1">
-                                  <SelectValue placeholder="none" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_STYLES.map((s) => (
-                                    <SelectItem key={s} value={s} className="capitalize">
-                                      {s}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                  {!(selectedComponent.type === 'image' && selectedComponent.props.imageShape && selectedComponent.props.imageShape !== 'original') && (
+                    <>
+                      {/* Border Section */}
+                      <div className="bg-muted/30 rounded-lg p-2.5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs font-semibold">Border</Label>
+                            <div className="flex items-center gap-1.5 ml-2">
+                              <Label htmlFor="individual-border-toggle" className="text-[10px] text-muted-foreground">Individual</Label>
+                              <Switch
+                                id="individual-border-toggle"
+                                checked={showIndividualBorders}
+                                onCheckedChange={(val) => {
+                                  setShowIndividualBorders(val)
+
+                                  const individualKeys = [
+                                    "borderTopWidth", "borderTopStyle", "borderTopColor",
+                                    "borderRightWidth", "borderRightStyle", "borderRightColor",
+                                    "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                                    "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                                  ];
+                                  const globalKeys = ["borderWidth", "borderStyle", "borderColor"];
+
+                                  const newStyle = { ...selectedComponent.style };
+                                  if (val) {
+                                    // If switching to individual, clear global
+                                    globalKeys.forEach(k => delete newStyle[k]);
+                                  } else {
+                                    // If switching back to global, clear individual
+                                    individualKeys.forEach(k => delete newStyle[k]);
+                                  }
+
+                                  onUpdateComponent(selectedComponent.id, {
+                                    ...selectedComponent,
+                                    style: newStyle
+                                  });
+                                }}
+                                className="scale-75 origin-left"
+                              />
                             </div>
                           </div>
-
-                          <ColorPicker
-                            label="Border Color"
-                            value={selectedComponent.style?.borderColor || "#000000"}
-                            onChange={(val) => updateStyle("borderColor", val)}
-                            hideGradient={true}
-                          />
-                        </>
-                      ) : (
-                        <div className="space-y-4">
-                          {["Top", "Right", "Bottom", "Left"].map((side) => {
-                            const sideKey = side === "All" ? "" : side;
-                            const widthKey = `border${sideKey}Width`;
-                            const styleKey = `border${sideKey}Style`;
-                            const colorKey = `border${sideKey}Color`;
-
-                            return (
-                              <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
-                                <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <Select
-                                      value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
-                                      onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
-                                    >
-                                      <SelectTrigger className="h-7 text-[11px]">
-                                        <SelectValue placeholder="Width" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {BORDER_WIDTHS.map((w) => (
-                                          <SelectItem key={w} value={String(w)} className="text-[11px]">
-                                            {w}px
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div>
-                                    <Select
-                                      value={selectedComponent.style?.[styleKey] || "none"}
-                                      onValueChange={(value: string) => updateStyle(styleKey, value)}
-                                    >
-                                      <SelectTrigger className="h-7 text-[11px]">
-                                        <SelectValue placeholder="Style" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {BORDER_STYLES.map((s) => (
-                                          <SelectItem key={s} value={s} className="capitalize text-[11px]">
-                                            {s}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                <ColorPicker
-                                  label={`${side} Color`}
-                                  value={selectedComponent.style?.[colorKey] || "#000000"}
-                                  onChange={(val) => updateStyle(colorKey, val)}
-                                  hideGradient={true}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Label className="text-xs font-medium">Border Radius</Label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {selectedComponent.style?.borderRadius || "0"}
-                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-5 w-5"
                             onClick={() => {
-                              updateStyle("borderRadius", "0")
-                              updateStyle("borderTopLeftRadius", "0")
-                              updateStyle("borderTopRightRadius", "0")
-                              updateStyle("borderBottomLeftRadius", "0")
-                              updateStyle("borderBottomRightRadius", "0")
+                              const styleKeys = [
+                                "border", "borderWidth", "borderStyle", "borderColor",
+                                "borderTop", "borderTopWidth", "borderTopStyle", "borderTopColor",
+                                "borderRight", "borderRightWidth", "borderRightStyle", "borderRightColor",
+                                "borderBottom", "borderBottomWidth", "borderBottomStyle", "borderBottomColor",
+                                "borderLeft", "borderLeftWidth", "borderLeftStyle", "borderLeftColor"
+                              ];
+                              const newStyle = { ...selectedComponent.style };
+                              styleKeys.forEach(key => delete newStyle[key]);
+                              onUpdateComponent(selectedComponent.id, {
+                                ...selectedComponent,
+                                style: newStyle
+                              });
                             }}
                           >
                             <RotateCcw className="h-3 w-3" />
                           </Button>
                         </div>
+
+                        {!showIndividualBorders ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Width</Label>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.borderWidth).replace("px", "") || "0"}
+                                  onValueChange={(value: string) => updateStyle("borderWidth", `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue placeholder="0px" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_WIDTHS.map((w) => (
+                                      <SelectItem key={w} value={String(w)}>
+                                        {w}px
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Style</Label>
+                                <Select
+                                  value={selectedComponent.style?.borderStyle || "none"}
+                                  onValueChange={(value: string) => updateStyle("borderStyle", value)}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue placeholder="none" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_STYLES.map((s) => (
+                                      <SelectItem key={s} value={s} className="capitalize">
+                                        {s}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <ColorPicker
+                              label="Border Color"
+                              value={selectedComponent.style?.borderColor || "#000000"}
+                              onChange={(val) => updateStyle("borderColor", val)}
+                              hideGradient={true}
+                            />
+                          </>
+                        ) : (
+                          <div className="space-y-4">
+                            {["Top", "Right", "Bottom", "Left"].map((side) => {
+                              const sideKey = side === "All" ? "" : side;
+                              const widthKey = `border${sideKey}Width`;
+                              const styleKey = `border${sideKey}Style`;
+                              const colorKey = `border${sideKey}Color`;
+
+                              return (
+                                <div key={side} className="space-y-2 p-2 bg-muted/20 rounded-md border border-border/10">
+                                  <Label className="text-[11px] font-medium text-primary/80">{side}</Label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Select
+                                        value={styleStr(selectedComponent.style?.[widthKey]).replace("px", "") || "0"}
+                                        onValueChange={(value: string) => updateStyle(widthKey, `${value}px`)}
+                                      >
+                                        <SelectTrigger className="h-7 text-[11px]">
+                                          <SelectValue placeholder="Width" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {BORDER_WIDTHS.map((w) => (
+                                            <SelectItem key={w} value={String(w)} className="text-[11px]">
+                                              {w}px
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div>
+                                      <Select
+                                        value={selectedComponent.style?.[styleKey] || "none"}
+                                        onValueChange={(value: string) => updateStyle(styleKey, value)}
+                                      >
+                                        <SelectTrigger className="h-7 text-[11px]">
+                                          <SelectValue placeholder="Style" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {BORDER_STYLES.map((s) => (
+                                            <SelectItem key={s} value={s} className="capitalize text-[11px]">
+                                              {s}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  <ColorPicker
+                                    label={`${side} Color`}
+                                    value={selectedComponent.style?.[colorKey] || "#000000"}
+                                    onChange={(val) => updateStyle(colorKey, val)}
+                                    hideGradient={true}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="space-y-3 p-2 bg-muted/20 rounded-md">
-                        {/* All Corners */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-xs font-medium">Border Radius</Label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {selectedComponent.style?.borderRadius || "0"}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => {
+                                updateStyle("borderRadius", "0")
+                                updateStyle("borderTopLeftRadius", "0")
+                                updateStyle("borderTopRightRadius", "0")
+                                updateStyle("borderBottomLeftRadius", "0")
+                                updateStyle("borderBottomRightRadius", "0")
+                              }}
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 p-2 bg-muted/20 rounded-md">
+                          {/* All Corners */}
                           <div className="flex justify-between items-center px-1">
                             <Label htmlFor="borderRadius-all" className="text-xs text-muted-foreground">
                               All Corners
@@ -5970,16 +5933,16 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                             <div className="flex items-center gap-2">
                               <Select
                                 value={styleStr(selectedComponent.style?.borderRadius).replace("px", "") || "0"}
-                                 onValueChange={(value: string) => {
-                                const newRadius = `${value}px`;
-                                onUpdateStyle(selectedComponent.id, { 
-                                  borderRadius: newRadius,
-                                  borderTopLeftRadius: undefined,
-                                  borderTopRightRadius: undefined,
-                                  borderBottomLeftRadius: undefined,
-                                  borderBottomRightRadius: undefined
-                                });
-                              }}
+                                onValueChange={(value: string) => {
+                                  const newRadius = `${value}px`;
+                                  onUpdateStyle(selectedComponent.id, {
+                                    borderRadius: newRadius,
+                                    borderTopLeftRadius: undefined,
+                                    borderTopRightRadius: undefined,
+                                    borderBottomLeftRadius: undefined,
+                                    borderBottomRightRadius: undefined
+                                  });
+                                }}
                               >
                                 <SelectTrigger id="borderRadius-all" className="h-6 w-20 text-xs px-1">
                                   <SelectValue placeholder="Radius" />
@@ -5995,288 +5958,288 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
                             </div>
                           </div>
 
-                        <Separator className="my-2" />
+                          <Separator className="my-2" />
 
-                        {/* Individual Corners */}
-                        <div className="space-y-3">
-                          {/* Top Row */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
-                              <Select
-                                value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
-                                onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
-                              >
-                                <SelectTrigger className="h-7 text-xs px-2">
-                                  <SelectValue placeholder="0px" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_RADIUS_VALUES.map((val) => (
-                                    <SelectItem key={val} value={String(val)}>
-                                      {val === 9999 ? 'Pill' : `${val}px`}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                          {/* Individual Corners */}
+                          <div className="space-y-3">
+                            {/* Top Row */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground px-1">Top Left</Label>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.borderTopLeftRadius).replace("px", "") || "0"}
+                                  onValueChange={(value) => updateStyle("borderTopLeftRadius", `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs px-2">
+                                    <SelectValue placeholder="0px" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_RADIUS_VALUES.map((val) => (
+                                      <SelectItem key={val} value={String(val)}>
+                                        {val === 9999 ? 'Pill' : `${val}px`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
+                                  onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs px-2">
+                                    <SelectValue placeholder="0px" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_RADIUS_VALUES.map((val) => (
+                                      <SelectItem key={val} value={String(val)}>
+                                        {val === 9999 ? 'Pill' : `${val}px`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
 
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground px-1">Top Right</Label>
-                              <Select
-                                value={styleStr(selectedComponent.style?.borderTopRightRadius).replace("px", "") || "0"}
-                                onValueChange={(value) => updateStyle("borderTopRightRadius", `${value}px`)}
-                              >
-                                <SelectTrigger className="h-7 text-xs px-2">
-                                  <SelectValue placeholder="0px" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_RADIUS_VALUES.map((val) => (
-                                    <SelectItem key={val} value={String(val)}>
-                                      {val === 9999 ? 'Pill' : `${val}px`}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
+                            {/* Bottom Row */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
+                                  onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs px-2">
+                                    <SelectValue placeholder="0px" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_RADIUS_VALUES.map((val) => (
+                                      <SelectItem key={val} value={String(val)}>
+                                        {val === 9999 ? 'Pill' : `${val}px`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
 
-                          {/* Bottom Row */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground px-1">Bottom Left</Label>
-                              <Select
-                                value={styleStr(selectedComponent.style?.borderBottomLeftRadius).replace("px", "") || "0"}
-                                onValueChange={(value) => updateStyle("borderBottomLeftRadius", `${value}px`)}
-                              >
-                                <SelectTrigger className="h-7 text-xs px-2">
-                                  <SelectValue placeholder="0px" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_RADIUS_VALUES.map((val) => (
-                                    <SelectItem key={val} value={String(val)}>
-                                      {val === 9999 ? 'Pill' : `${val}px`}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
-                              <Select
-                                value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
-                                onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
-                              >
-                                <SelectTrigger className="h-7 text-xs px-2">
-                                  <SelectValue placeholder="0px" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BORDER_RADIUS_VALUES.map((val) => (
-                                    <SelectItem key={val} value={String(val)}>
-                                      {val === 9999 ? 'Pill' : `${val}px`}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground px-1">Bottom Right</Label>
+                                <Select
+                                  value={styleStr(selectedComponent.style?.borderBottomRightRadius).replace("px", "") || "0"}
+                                  onValueChange={(value) => updateStyle("borderBottomRightRadius", `${value}px`)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs px-2">
+                                    <SelectValue placeholder="0px" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {BORDER_RADIUS_VALUES.map((val) => (
+                                      <SelectItem key={val} value={String(val)}>
+                                        {val === 9999 ? 'Pill' : `${val}px`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </>
-                )}
+                    </>
+                  )}
 
-                <div>
-                  <Label htmlFor="opacity" className="text-xs">
-                    Opacity
-                  </Label>
-                  <div className="space-y-2 mt-1">
-                    <RangeSlider
-                      value={Math.round(Number.parseFloat(selectedComponent.style?.opacity || "1") * 100)}
-                      onValueChange={(value) => updateStyle("opacity", (value / 100).toString())}
-                      min={0}
-                      max={100}
-                      step={5}
-                      className="w-full"
-                    />
-                    <div className="text-xs text-muted-foreground text-center">
-                      {Math.round(Number.parseFloat(selectedComponent.style?.opacity || "1") * 100)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Box Shadow Section */}
-                <div className="bg-muted/30 rounded-lg p-3 space-y-3">
-                  <Label className="text-xs font-semibold">Box Shadow</Label>
-
-                  {/* Horizontal Offset */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Horizontal</Label>
-                      <span className="text-xs text-muted-foreground">{boxShadowValues.hOffset}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="-20"
-                      max="20"
-                      value={boxShadowValues.hOffset}
-                      onChange={(e) => {
-                        const value = Number.parseInt(e.target.value)
-                        setBoxShadowValues((prev) => ({
-                          ...prev,
-                          hOffset: value,
-                        }))
-                        updateStyle(
-                          "boxShadow",
-                          `${value}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                        )
-                      }}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Vertical Offset */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Vertical</Label>
-                      <span className="text-xs text-muted-foreground">{boxShadowValues.vOffset}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="-20"
-                      max="20"
-                      value={boxShadowValues.vOffset}
-                      onChange={(e) => {
-                        const value = Number.parseInt(e.target.value)
-                        setBoxShadowValues((prev) => ({
-                          ...prev,
-                          vOffset: value,
-                        }))
-                        updateStyle(
-                          "boxShadow",
-                          `${boxShadowValues.hOffset}px ${value}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                        )
-                      }}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Blur Radius */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Blur</Label>
-                      <span className="text-xs text-muted-foreground">{boxShadowValues.blur}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="50"
-                      value={boxShadowValues.blur}
-                      onChange={(e) => {
-                        const value = Number.parseInt(e.target.value)
-                        setBoxShadowValues((prev) => ({
-                          ...prev,
-                          blur: value,
-                        }))
-                        updateStyle(
-                          "boxShadow",
-                          `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${value}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                        )
-                      }}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Spread Radius */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs">Spread</Label>
-                      <span className="text-xs text-muted-foreground">{boxShadowValues.spread}px</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="-20"
-                      max="20"
-                      value={boxShadowValues.spread}
-                      onChange={(e) => {
-                        const value = Number.parseInt(e.target.value)
-                        setBoxShadowValues((prev) => ({
-                          ...prev,
-                          spread: value,
-                        }))
-                        updateStyle(
-                          "boxShadow",
-                          `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${value}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                        )
-                      }}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
-
-                  {/* Color and Inset Toggle */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div>
-                      <Label className="text-xs">Color</Label>
-                      <div className="flex gap-1 mt-1">
-                        <input
-                          type="color"
-                          value={boxShadowValues.color}
-                          onChange={(e) => {
-                            const value = e.target.value
-                            setBoxShadowValues((prev) => ({
-                              ...prev,
-                              color: value,
-                            }))
-                            updateStyle(
-                              "boxShadow",
-                              `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${value} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                            )
-                          }}
-                          className="w-8 h-8 p-0.5 border rounded cursor-pointer"
-                        />
-                        <Input
-                          value={boxShadowValues.color}
-                          onChange={(e) => {
-                            const value = e.target.value
-                            setBoxShadowValues((prev) => ({
-                              ...prev,
-                              color: value,
-                            }))
-                            updateStyle(
-                              "boxShadow",
-                              `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${value} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
-                            )
-                          }}
-                          className="h-8 text-xs"
-                        />
+                  <div>
+                    <Label htmlFor="opacity" className="text-xs">
+                      Opacity
+                    </Label>
+                    <div className="space-y-2 mt-1">
+                      <RangeSlider
+                        value={Math.round(Number.parseFloat(selectedComponent.style?.opacity || "1") * 100)}
+                        onValueChange={(value) => updateStyle("opacity", (value / 100).toString())}
+                        min={0}
+                        max={100}
+                        step={5}
+                        className="w-full"
+                      />
+                      <div className="text-xs text-muted-foreground text-center">
+                        {Math.round(Number.parseFloat(selectedComponent.style?.opacity || "1") * 100)}%
                       </div>
                     </div>
-                    <div className="flex items-end">
-                      <div className="flex items-center space-x-2 h-8">
-                        <Switch
-                          id="shadow-inset"
-                          checked={boxShadowValues.inset}
-                          onCheckedChange={(checked: boolean) => {
-                            setBoxShadowValues((prev) => ({
-                              ...prev,
-                              inset: checked,
-                            }))
-                            updateStyle(
-                              "boxShadow",
-                              `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${checked ? "inset" : ""}`.trim(),
-                            )
-                          }}
-                        />
-                        <Label htmlFor="shadow-inset" className="text-xs">
-                          Inset
-                        </Label>
+                  </div>
+
+                  {/* Box Shadow Section */}
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-3">
+                    <Label className="text-xs font-semibold">Box Shadow</Label>
+
+                    {/* Horizontal Offset */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs">Horizontal</Label>
+                        <span className="text-xs text-muted-foreground">{boxShadowValues.hOffset}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-20"
+                        max="20"
+                        value={boxShadowValues.hOffset}
+                        onChange={(e) => {
+                          const value = Number.parseInt(e.target.value)
+                          setBoxShadowValues((prev) => ({
+                            ...prev,
+                            hOffset: value,
+                          }))
+                          updateStyle(
+                            "boxShadow",
+                            `${value}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                          )
+                        }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Vertical Offset */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs">Vertical</Label>
+                        <span className="text-xs text-muted-foreground">{boxShadowValues.vOffset}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-20"
+                        max="20"
+                        value={boxShadowValues.vOffset}
+                        onChange={(e) => {
+                          const value = Number.parseInt(e.target.value)
+                          setBoxShadowValues((prev) => ({
+                            ...prev,
+                            vOffset: value,
+                          }))
+                          updateStyle(
+                            "boxShadow",
+                            `${boxShadowValues.hOffset}px ${value}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                          )
+                        }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Blur Radius */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs">Blur</Label>
+                        <span className="text-xs text-muted-foreground">{boxShadowValues.blur}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="50"
+                        value={boxShadowValues.blur}
+                        onChange={(e) => {
+                          const value = Number.parseInt(e.target.value)
+                          setBoxShadowValues((prev) => ({
+                            ...prev,
+                            blur: value,
+                          }))
+                          updateStyle(
+                            "boxShadow",
+                            `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${value}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                          )
+                        }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Spread Radius */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs">Spread</Label>
+                        <span className="text-xs text-muted-foreground">{boxShadowValues.spread}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-20"
+                        max="20"
+                        value={boxShadowValues.spread}
+                        onChange={(e) => {
+                          const value = Number.parseInt(e.target.value)
+                          setBoxShadowValues((prev) => ({
+                            ...prev,
+                            spread: value,
+                          }))
+                          updateStyle(
+                            "boxShadow",
+                            `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${value}px ${boxShadowValues.color} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                          )
+                        }}
+                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Color and Inset Toggle */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <Label className="text-xs">Color</Label>
+                        <div className="flex gap-1 mt-1">
+                          <input
+                            type="color"
+                            value={boxShadowValues.color}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setBoxShadowValues((prev) => ({
+                                ...prev,
+                                color: value,
+                              }))
+                              updateStyle(
+                                "boxShadow",
+                                `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${value} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                              )
+                            }}
+                            className="w-8 h-8 p-0.5 border rounded cursor-pointer"
+                          />
+                          <Input
+                            value={boxShadowValues.color}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setBoxShadowValues((prev) => ({
+                                ...prev,
+                                color: value,
+                              }))
+                              updateStyle(
+                                "boxShadow",
+                                `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${value} ${boxShadowValues.inset ? "inset" : ""}`.trim(),
+                              )
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-end">
+                        <div className="flex items-center space-x-2 h-8">
+                          <Switch
+                            id="shadow-inset"
+                            checked={boxShadowValues.inset}
+                            onCheckedChange={(checked: boolean) => {
+                              setBoxShadowValues((prev) => ({
+                                ...prev,
+                                inset: checked,
+                              }))
+                              updateStyle(
+                                "boxShadow",
+                                `${boxShadowValues.hOffset}px ${boxShadowValues.vOffset}px ${boxShadowValues.blur}px ${boxShadowValues.spread}px ${boxShadowValues.color} ${checked ? "inset" : ""}`.trim(),
+                              )
+                            }}
+                          />
+                          <Label htmlFor="shadow-inset" className="text-xs">
+                            Inset
+                          </Label>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
           </TabsContent>
         </div>
       </Tabs>
@@ -6284,7 +6247,7 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
         <CustomCssModal
           isOpen={isCustomCssModalOpen}
           initialCss={
-            selectedComponent.type === 'custom-component' 
+            selectedComponent.type === 'custom-component'
               ? selectedComponent.props?.css || ''
               : selectedComponent.props?.customCss || styleToCss(selectedComponent.style || {}, selectedComponent.props?.elementId ? `#${selectedComponent.props.elementId}` : `[data-component-id="${selectedComponent.id}"]`, selectedComponent.type)
           }
@@ -6318,6 +6281,31 @@ const selectValue = (!currentUrl || currentUrl === "#" || !isKnownUrl) ? "none" 
           onClose={() => setIsAIStylingModalOpen(false)}
           component={selectedComponent}
           onUpdateComponent={onUpdateComponent}
+        />
+      )}
+      {isIntegrationModalOpen && (
+        <CustomComponentIntegrationModal
+          isOpen={isIntegrationModalOpen}
+          onClose={() => setIsIntegrationModalOpen(false)}
+          componentCode={selectedComponent.props?.html || ''}
+          componentJs={selectedComponent.props?.js || ''}
+          componentIntegrations={selectedComponent.props?.integrations || []}
+          onUpdateJavascript={(newJs) => {
+            onUpdateComponent(selectedComponent.id, {
+              props: {
+                ...selectedComponent.props,
+                js: newJs
+              }
+            });
+          }}
+          onSaveIntegrations={(integrations) => {
+            onUpdateComponent(selectedComponent.id, {
+              props: {
+                ...selectedComponent.props,
+                integrations
+              }
+            });
+          }}
         />
       )}
     </div>

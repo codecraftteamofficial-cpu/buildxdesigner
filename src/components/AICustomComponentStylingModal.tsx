@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Eye, Code, Save, Loader2, Sparkles, Send, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Eye, Code, Save, Loader2, Sparkles, Send, RefreshCw, X, ZoomIn, ZoomOut, Database, Mail, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from './ui/skeleton';
 import { Progress } from './ui/progress';
@@ -71,6 +72,10 @@ const generateStylingWithGemini = async (
             IMPORTANT STYLING RULES:
             - Focus ONLY on CSS and JavaScript modifications
             - Do not change the HTML structure unless specifically requested for styling purposes
+            - Always return all 3 blocks (html, css, javascript) even if some are empty.
+            - STRICTLY NO PHP CODE. ONLY HTML, CSS, AND JAVASCRIPT.
+            - Use markdown code blocks for each language: \`\`\`html, \`\`\`css, \`\`\`javascript.
+            - No explanations. Only code blocks.
             - Use the existing CSS classes and selectors from the current code
             - Add new CSS rules as needed, but preserve existing styles
             - For JavaScript, focus on event handlers, animations, and interactive styling
@@ -91,6 +96,7 @@ const generateStylingWithGemini = async (
 
             === JAVASCRIPT ===
             [Your updated JavaScript code here, or "No changes" if no JS modifications needed]
+            IMPORTANT: If you provide JavaScript, it MUST be wrapped exactly in: (function() { ... })();
 
             If only CSS changes are needed, return "No changes" for the JavaScript section.
             `
@@ -131,6 +137,24 @@ interface AiMessage {
   content: string;
   timestamp: Date;
 }
+
+const validateJsCode = (js: string): { isValid: boolean; error?: string } => {
+  const trimmed = js.trim();
+  if (!trimmed || trimmed === 'No changes') return { isValid: true };
+  
+  // Check for IIFE wrapper
+  const startsWithIIFE = trimmed.startsWith('(function() {') || trimmed.startsWith('(function () {');
+  const endsWithIIFE = trimmed.endsWith('})();');
+  
+  if (!startsWithIIFE || !endsWithIIFE) {
+    return { 
+      isValid: false, 
+      error: 'MANDATORY: JavaScript must be wrapped exactly in: (function() { ... })();' 
+    };
+  }
+  
+  return { isValid: true };
+};
 
 export function AICustomComponentStylingModal({
   isOpen,
@@ -270,6 +294,12 @@ export function AICustomComponentStylingModal({
   const handleApplyChanges = () => {
     if (!component) return;
 
+    const validation = validateJsCode(jsCode);
+    if (!validation.isValid) {
+      toast.error(validation.error);
+      return;
+    }
+
     onUpdateComponent(component.id, {
       props: {
         ...component.props,
@@ -300,7 +330,6 @@ export function AICustomComponentStylingModal({
     const html = component.props?.html || '';
     const css = cssCode || '';
     const js = jsCode || '';
-    const php = component.props?.php || '';
 
     return `
       <!DOCTYPE html>
@@ -352,6 +381,36 @@ export function AICustomComponentStylingModal({
               AI Styling Assistant
             </DialogTitle>
             <DialogDescription className="text-xs">Describe the styling changes you want to make to this component using AI.</DialogDescription>
+            
+            {/* Integration Status */}
+            {component?.props?.integrations && component.props.integrations.length > 0 && (
+              <div className="bg-muted/10 rounded-lg p-2 border border-border/60 mt-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <Code className="w-3 h-3 text-primary" />
+                  <span className="text-[9px] font-medium uppercase text-muted-foreground">Active Integrations</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {component.props.integrations.map((integration: any) => (
+                    <Badge 
+                      key={integration.id} 
+                      variant="outline" 
+                      className={`text-[8px] h-4 px-1 ${
+                        integration.type === 'supabase' ? 'bg-green-50 text-green-700 border-green-200' :
+                        integration.type === 'resend' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                        'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1">
+                        {integration.type === 'supabase' && <Database className="w-2.5 h-2.5" />}
+                        {integration.type === 'resend' && <Mail className="w-2.5 h-2.5" />}
+                        {integration.type === 'paymongo' && <CreditCard className="w-2.5 h-2.5" />}
+                        {integration.name}
+                      </div>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </DialogHeader>
 
