@@ -37,6 +37,7 @@ import {
 import { Button } from "./ui/button";
 import { Toaster } from "./ui/sonner";
 import { CodeViewEditor } from "./CodeViewEditor";
+import { CodeExportModal } from "./CodeExportModal";
 import type { useEditorState } from "../hooks/useEditorState";
 import type { ComponentData } from "../types/editor";
 import { GetOut } from "./UnexpectedEntry/UnexpectedEntry";
@@ -52,6 +53,7 @@ export function EditorLayout({
   onStartTour,
   onStartPublishingBasics,
 }: EditorLayoutProps) {
+  console.log("[EditorLayout] Render state.userProjectConfig:", editor?.state?.userProjectConfig);
   const {
     state,
     setState,
@@ -95,9 +97,10 @@ export function EditorLayout({
   } = editor;
 
   const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false);
-  
+
   const [showExportConfirmDialog, setShowExportConfirmDialog] = useState(false);
   const [pendingExportComponent, setPendingExportComponent] = useState<any>(null);
+  const [showCodeExportModal, setShowCodeExportModal] = useState(false);
 
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
@@ -172,6 +175,7 @@ export function EditorLayout({
             onShare={handleShare}
             onPreview={togglePreview}
             onGoToDashboard={goToDashboard}
+            onExport={() => setShowCodeExportModal(true)}
             isSaving={state.isSaving}
             lastSaved={state.lastSaved}
             hasUnsavedChanges={state.hasUnsavedChanges}
@@ -242,9 +246,8 @@ export function EditorLayout({
             )}
 
             <div
-              className={`shrink-0 bg-card border-r border-border overflow-hidden relative ${
-                state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
-              }`}
+              className={`shrink-0 bg-card border-r border-border overflow-hidden relative ${state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
+                }`}
               style={{
                 width: state.isLeftSidebarVisible
                   ? `${state.leftSidebarWidth}px`
@@ -268,13 +271,13 @@ export function EditorLayout({
 
                   <div className="flex-1 overflow-auto h-full pt-0">
                     <Sidebar
-                      onAddComponent={canEditProject ? addComponent : () => {}}
+                      onAddComponent={canEditProject ? addComponent : () => { }}
                       components={state.components}
                       selectedId={state.selectedComponent}
                       onSelect={selectComponent}
-                      onDelete={canEditProject ? deleteComponent : () => {}}
-                      onReorder={canEditProject ? reorderComponent : () => {}}
-                      onMoveLayer={canEditProject ? editor.moveLayer : () => {}}
+                      onDelete={canEditProject ? deleteComponent : () => { }}
+                      onReorder={canEditProject ? reorderComponent : () => { }}
+                      onMoveLayer={canEditProject ? editor.moveLayer : () => { }}
                       activePageId={state.activePageId}
                       customComponents={state.customComponents}
                       onSaveCustomComponent={saveCustomComponent}
@@ -364,12 +367,20 @@ export function EditorLayout({
                         onPageCreate={
                           canEditProject
                             ? (name, path) => {
-                                editor.addPage(name, path);
-                              }
+                              editor.addPage(name, path);
+                            }
                             : undefined
                         }
                         fileOverrides={state.fileOverrides || {}}
                         onFileOverrideUpdate={(path, content) => {
+                          if (content === null) {
+                            setState((prev) => {
+                              const newOverrides = { ...(prev.fileOverrides || {}) };
+                              delete newOverrides[path];
+                              return { ...prev, fileOverrides: newOverrides, hasUnsavedChanges: true };
+                            });
+                            return;
+                          }
                           console.log("File override update:", path, content.substring(0, 100));
                           setState((prev) => ({
                             ...prev,
@@ -417,9 +428,8 @@ export function EditorLayout({
             )}
 
             <div
-              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col ${
-                state.isRightSidebarVisible ? "" : "w-0 border-l-0"
-              }`}
+              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col ${state.isRightSidebarVisible ? "" : "w-0 border-l-0"
+                }`}
               style={{
                 width: state.isRightSidebarVisible
                   ? `${state.rightSidebarWidth}px`
@@ -451,11 +461,10 @@ export function EditorLayout({
                             rightSidebarTab: "properties",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
-                          state.rightSidebarTab === "properties"
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
                             ? "bg-card text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
-                        }`}
+                          }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
@@ -467,11 +476,10 @@ export function EditorLayout({
                             rightSidebarTab: "ai-assistant",
                           }))
                         }
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
-                          state.rightSidebarTab === "ai-assistant"
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
                             ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
                             : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
-                        }`}
+                          }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         AI Assistant
@@ -486,7 +494,7 @@ export function EditorLayout({
                         activePageId={state.activePageId}
                         selectedComponent={selectedComponentObject}
                         onUpdateComponent={
-                          canEditProject ? updateComponent : () => {}
+                          canEditProject ? updateComponent : () => { }
                         }
                         onUpdateStyle={(id, style) => {
                           if (!canEditProject) return;
@@ -546,7 +554,7 @@ export function EditorLayout({
                       <RightSidebar
                         selectedComponent={selectedComponentObject}
                         onUpdateComponent={
-                          canEditProject ? updateComponent : () => {}
+                          canEditProject ? updateComponent : () => { }
                         }
                         propertiesPanelVisible={false}
                         onToggleProperties={togglePropertiesPanel}
@@ -599,7 +607,7 @@ export function EditorLayout({
 
           <MobilePropertiesModal
             selectedComponent={selectedComponentObject}
-            onUpdateComponent={canEditProject ? updateComponent : () => {}}
+            onUpdateComponent={canEditProject ? updateComponent : () => { }}
             isOpen={state.showMobileProperties}
             onClose={() =>
               setState((prev) => ({ ...prev, showMobileProperties: false }))
@@ -619,9 +627,9 @@ export function EditorLayout({
           {state.showAIAssistantModal && (
             <RightSidebar
               selectedComponent={selectedComponentObject}
-              onUpdateComponent={canEditProject ? updateComponent : () => {}}
+              onUpdateComponent={canEditProject ? updateComponent : () => { }}
               propertiesPanelVisible={false}
-              onToggleProperties={() => {}}
+              onToggleProperties={() => { }}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
               pages={state.pages}
@@ -662,6 +670,23 @@ export function EditorLayout({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {showCodeExportModal && (
+            <CodeExportModal
+              components={state.components}
+              projectName={state.projectName}
+              pages={state.pages}
+              activePageId={state.activePageId}
+              userConfig={{
+                paymongoKey: state.userProjectConfig?.paymongoKey,
+                resendApiKey: state.userProjectConfig?.resendApiKey,
+                supabaseUrl: state.userProjectConfig?.supabaseUrl || undefined,
+                supabaseKey: state.userProjectConfig?.supabaseKey || undefined,
+                supabaseServiceKey: state.userProjectConfig?.supabaseServiceKey || undefined,
+              }}
+              onClose={() => setShowCodeExportModal(false)}
+            />
+          )}
 
           <Toaster />
         </div>

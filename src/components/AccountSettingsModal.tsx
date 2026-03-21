@@ -696,7 +696,8 @@ export function AccountSettingsModal({
                                 disabled={isConnectingSupabase}
                                 onClick={() => {
                                   setIsConnectingSupabase(true);
-                                  window.location.href = `${getBackendUrl()}/api/auth/supabase`;
+                                  const currentUrl = window.location.href;
+                                  window.location.href = `${getBackendUrl()}/api/auth/supabase?redirect_to=${encodeURIComponent(currentUrl)}`;
                                 }}
                               >
                                 {isConnectingSupabase ? (

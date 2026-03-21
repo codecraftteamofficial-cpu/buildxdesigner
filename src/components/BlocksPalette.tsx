@@ -35,8 +35,8 @@ import {
 } from 'lucide-react';
 import { ComponentData } from '../App';
 import { useDrag, DragSourceMonitor } from 'react-dnd';
-import {useEffect, useRef} from "react";
-import {TourGuide} from "./Guides/Highlight";
+import { useEffect, useRef } from "react";
+import { TourGuide } from "./Guides/Highlight";
 
 
 interface BlocksPaletteProps {
@@ -123,7 +123,7 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
             style: {}
           }
         },
-        
+
       ]
     },
     {
@@ -362,16 +362,16 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
           component: {
             id: '',
             type: 'form',
-            props: { 
-            title: 'Get In Touch',
-            submitText: 'Submit',
-            recipientEmail: '',
-            fields: [
-              { id: 'field-1', label: 'Name', placeholder: 'Enter your name', type: 'text', required: true },
-              { id: 'field-2', label: 'Email', placeholder: 'Enter your email', type: 'email', required: true },
-              { id: 'field-3', label: 'Message', placeholder: 'Enter your message', type: 'textarea', required: true }
-            ]
-          },
+            props: {
+              title: 'Get In Touch',
+              submitText: 'Submit',
+              recipientEmail: '',
+              fields: [
+                { id: 'field-1', label: 'Name', placeholder: 'Enter your name', type: 'text', required: true },
+                { id: 'field-2', label: 'Email', placeholder: 'Enter your email', type: 'email', required: true },
+                { id: 'field-3', label: 'Message', placeholder: 'Enter your message', type: 'textarea', required: true }
+              ]
+            },
             style: {}
           }
         },
@@ -389,19 +389,19 @@ export function BlocksPalette({ onSelectBlock, searchTerm, onSearchChange }: Blo
               supabaseTable: '',
               supabaseOperation: 'insert',
               fields: [
-                { 
-                  id: 'field-1', 
-                  label: 'Full Name', 
-                  placeholder: 'Enter your full name', 
-                  type: 'text', 
+                {
+                  id: 'field-1',
+                  label: 'Full Name',
+                  placeholder: 'Enter your full name',
+                  type: 'text',
                   required: true,
                   fieldName: 'full_name'
                 },
-                { 
-                  id: 'field-2', 
-                  label: 'Email Address', 
-                  placeholder: 'Enter your email', 
-                  type: 'email', 
+                {
+                  id: 'field-2',
+                  label: 'Email Address',
+                  placeholder: 'Enter your email',
+                  type: 'email',
                   required: true,
                   fieldName: 'email_address'
                 }

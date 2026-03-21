@@ -221,7 +221,7 @@ export function RenderableComponent({
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
-  
+
   // Background gradient support & background clearing
   if (typeof combinedStyle.backgroundColor === 'string' && combinedStyle.backgroundColor.includes('gradient')) {
     combinedStyle.background = combinedStyle.backgroundColor;
@@ -260,7 +260,7 @@ export function RenderableComponent({
   const [tableHeaders, setTableHeaders] = React.useState(props?.headers || []);
   const tableRef = React.useRef<HTMLTableElement>(null);
   const dataTableInstance = React.useRef<any>(null);
-  
+
   const [checkboxChecked, setCheckboxChecked] = React.useState(props.checked || false);
   const [formState, setFormState] = React.useState<Record<string, string>>({});
   const [isSubmittingForm, setIsSubmittingForm] = React.useState(false);
@@ -273,8 +273,8 @@ export function RenderableComponent({
 
   if (shouldApplyCustomCss) {
     const visualStylesToStrip = [
-      'color', 'backgroundColor', 'background', 'borderColor', 'borderStyle', 
-      'borderWidth', 'borderRadius', 'boxShadow', 'fontSize', 'fontWeight', 
+      'color', 'backgroundColor', 'background', 'borderColor', 'borderStyle',
+      'borderWidth', 'borderRadius', 'boxShadow', 'fontSize', 'fontWeight',
       'fontFamily', 'textAlign', 'padding', 'margin'
     ];
     visualStylesToStrip.forEach(prop => {
@@ -290,7 +290,7 @@ export function RenderableComponent({
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        
+
         // Only update if dimensions meaningfully changed (prevent infinite loops)
         const parseSize = (value: any, defaultValue: number) => {
           if (typeof value === 'number') return value;
@@ -326,7 +326,7 @@ export function RenderableComponent({
         try {
           const element = contentRef.current;
           if (!element) return;
-          
+
           // Create a proxy for document to redirect body and other queries to the component
           const proxyDocument = new Proxy(document, {
             get(target, prop) {
@@ -334,7 +334,7 @@ export function RenderableComponent({
               if (prop === 'querySelector') return (s: string) => element.querySelector(s);
               if (prop === 'querySelectorAll') return (s: string) => element.querySelectorAll(s);
               if (prop === 'getElementById') return (id: string) => element.querySelector('#' + id);
-              
+
               const value = Reflect.get(target, prop);
               return typeof value === 'function' ? value.bind(target) : value;
             }
@@ -345,7 +345,7 @@ export function RenderableComponent({
             get(target, prop) {
               if (prop === 'document') return proxyDocument;
               if (prop === 'window' || prop === 'self' || prop === 'globalThis') return proxyWindow;
-              
+
               const value = Reflect.get(target, prop);
               return typeof value === 'function' ? value.bind(target) : value;
             }
@@ -354,16 +354,298 @@ export function RenderableComponent({
           const $ = (s: string) => element.querySelector(s);
           const $$ = (s: string) => element.querySelectorAll(s);
 
+          // BuildX Integration Engine (with backwards compatibility)
+          // BuildX Integration Engine (with backwards compatibility)
+          const buildx: any = {
+            run: async (integrationId: string) => {
+              console.log(`%c[buildx] 🚀 Running integration: ${integrationId}`, 'color: #3b82f6; font-weight: bold');
+              const integration = props.integrations?.find((i: any) => i.id === integrationId);
+              
+              if (!integration) {
+                console.error(`[buildx] ❌ Integration ${integrationId} not found. Available:`, props.integrations?.map((i: any) => i.id));
+                toast.error("Integration not found");
+                return { success: false, error: "Integration not found" };
+              }
+
+              try {
+                if (integration.type === 'supabase') {
+                  const { table, data: mapping, filters, selectColumns } = integration.config;
+                  const operation = integration.config.operation || 'insert';
+                  console.log(`[buildx] 📂 Table: ${table}, Op: ${operation}`);
+                  
+                  // 1. Collect data from DOM 
+                  const payload: Record<string, any> = {};
+                  if (mapping && typeof mapping === 'object' && (operation === 'insert' || operation === 'update')) {
+                    console.log(`[buildx] 🔍 Collecting data using mapping:`, mapping);
+                    for (const [columnName, mappingValue] of Object.entries(mapping)) {
+                      // mappingValue is something like "formData.phone_input" or just "phone_input"
+                      // We need to convert it to a selector if it's an element reference
+                      let selector = String(mappingValue);
+                      if (selector.startsWith('formData.')) {
+                        selector = `#${selector.substring(9)}`; // remove formData. and add #
+                      } else if (!selector.startsWith('#') && !selector.startsWith('.')) {
+                        // If it's just a raw ID string without #
+                        selector = `#${selector}`;
+                      }
+
+                      const el = element.querySelector(selector) as any;
+                      if (el) {
+                        let val;
+                        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                          val = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) : el.value);
+                        } else {
+                          val = el.innerText;
+                        }
+                        payload[columnName] = val;
+                        console.log(`   - [${selector}] -> [${columnName}]:`, val);
+                      } else {
+                        console.warn(`   - ⚠️ Element not found for selector: ${selector} (Mapped to ${columnName})`);
+                      }
+                    }
+                  }
+
+                  // 2. Setup Client
+                  console.log(`[buildx] 🔐 Initializing Supabase client...`);
+                  let client = supabase;
+                  if (userProjectConfig?.supabaseUrl && userProjectConfig?.supabaseKey) {
+                    console.log(`[buildx] ✅ Using project-specific config`);
+                    client = createClient(userProjectConfig.supabaseUrl, userProjectConfig.supabaseKey);
+                  } else {
+                    console.warn(`[buildx] ⚠️ No project config found, using default client`);
+                  }
+
+                  const tableName = (table as string).replace(/^public\./, '');
+                  let query: any = client.from(tableName);
+                  
+                  // Helper to resolve filter values from DOM
+                  const resolveFilterValue = (val: any) => {
+                    if (!val || typeof val !== 'string') return val;
+                    let selector = val;
+                    if (selector.startsWith('formData.')) {
+                      selector = `#${selector.substring(9)}`;
+                    }
+                    if (selector.startsWith('#') || selector.startsWith('.')) {
+                      const refEl = element.querySelector(selector) as any;
+                      if (refEl) return refEl.value || refEl.innerText || val;
+                    }
+                    return val;
+                  };
+
+                  // 3. Apply Operation & Filters
+                  let result;
+                  if (operation === 'insert') {
+                    console.log(`[buildx] 📤 Executing INSERT...`);
+                    console.table(payload);
+                    result = await query.insert(payload).select();
+                  } else if (operation === 'select') {
+                    console.log(`[buildx] 🔍 Executing SELECT...`);
+                    query = query.select(selectColumns || '*');
+                    if (filters?.length > 0) {
+                      filters.forEach((f: any) => {
+                        let val = resolveFilterValue(f.value);
+                        console.log(`   - Filter: ${f.column} ${f.operator} ${val}`);
+                        switch(f.operator) {
+                          case 'eq': query = query.eq(f.column, val); break;
+                          case 'neq': query = query.neq(f.column, val); break;
+                          case 'gt': query = query.gt(f.column, val); break;
+                          case 'lt': query = query.lt(f.column, val); break;
+                          case 'gte': query = query.gte(f.column, val); break;
+                          case 'lte': query = query.lte(f.column, val); break;
+                          case 'like': query = query.like(f.column, val); break;
+                          case 'ilike': query = query.ilike(f.column, val); break;
+                        }
+                      });
+                    }
+                    result = await query;
+                  } else if (operation === 'update') {
+                    console.log(`[buildx] 📝 Executing UPDATE...`);
+                    console.table(payload);
+                    query = query.update(payload);
+                    if (!filters || filters.length === 0) throw new Error("Update requires filters (e.g., id = 1)");
+                    filters.forEach((f: any) => {
+                      let val = resolveFilterValue(f.value);
+                      console.log(`   - Match: ${f.column} ${f.operator || 'eq'} ${val}`);
+                      switch(f.operator || 'eq') {
+                        case 'eq': query = query.eq(f.column, val); break;
+                        case 'neq': query = query.neq(f.column, val); break;
+                        case 'gt': query = query.gt(f.column, val); break;
+                        case 'lt': query = query.lt(f.column, val); break;
+                        case 'gte': query = query.gte(f.column, val); break;
+                        case 'lte': query = query.lte(f.column, val); break;
+                        case 'like': query = query.like(f.column, val); break;
+                        case 'ilike': query = query.ilike(f.column, val); break;
+                        default: query = query.eq(f.column, val);
+                      }
+                    });
+                    result = await query.select();
+                  } else if (operation === 'delete') {
+                    console.log(`[buildx] 🗑️ Executing DELETE...`);
+                    query = query.delete();
+                    if (!filters || filters.length === 0) throw new Error("Delete requires filters");
+                    filters.forEach((f: any) => {
+                      let val = resolveFilterValue(f.value);
+                      console.log(`   - Match: ${f.column} ${f.operator || 'eq'} ${val}`);
+                      switch(f.operator || 'eq') {
+                        case 'eq': query = query.eq(f.column, val); break;
+                        case 'neq': query = query.neq(f.column, val); break;
+                        case 'gt': query = query.gt(f.column, val); break;
+                        case 'lt': query = query.lt(f.column, val); break;
+                        case 'gte': query = query.gte(f.column, val); break;
+                        case 'lte': query = query.lte(f.column, val); break;
+                        case 'like': query = query.like(f.column, val); break;
+                        case 'ilike': query = query.ilike(f.column, val); break;
+                        default: query = query.eq(f.column, val);
+                      }
+                    });
+                    result = await query;
+                  }
+
+                  if (result.error) {
+                    console.error(`[buildx] ❌ Operation error:`, result.error);
+                    throw result.error;
+                  }
+                  
+                  if (operation === 'update' || operation === 'delete') {
+                    if (!result.data || result.data.length === 0) {
+                       console.warn(`[buildx] ⚠️ Operation successful but 0 rows were affected. Check if your filters match any data!`);
+                    }
+                  }
+                  
+                  console.log(`[buildx] ✅ Success!`, result.data);
+                  return { success: true, data: result.data };
+
+                } 
+                
+                if (integration.type === 'resend') {
+                  console.log(`[buildx] 📧 Triggering Resend email...`);
+                  const { to } = integration.config;
+                  
+                  // Collect mapped data
+                  let formData: Record<string, any> = {};
+                  if (integration.config.data) {
+                    Object.entries(integration.config.data).forEach(([key, val]) => {
+                      if (typeof val === 'string' && val.startsWith('formData.')) {
+                        let id = val.replace('formData.', '');
+                        if (!id.startsWith('#')) id = '#' + id;
+                        const el = element.querySelector(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+                        if (el) {
+                           formData[key] = el.type === 'checkbox' ? (el as HTMLInputElement).checked : el.value;
+                        }
+                      } else {
+                        formData[key] = val;
+                      }
+                    });
+                  }
+
+                  const emailRows = Object.entries(formData).map(([label, value]) => `
+                    <tr>
+                      <td style="padding: 12px 0; border-bottom: 1px solid #edf2f7; color: #4a5568; font-size: 14px; font-weight: 600; width: 30%; vertical-align: top;">${label}</td>
+                      <td style="padding: 12px 0; border-bottom: 1px solid #edf2f7; color: #2d3748; font-size: 14px; vertical-align: top;">${value}</td>
+                    </tr>
+                  `).join('');
+
+                  const renderedHtml = `
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 20px; line-height: 1.6;">
+                      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+                        <div style="background-color: #2563eb; padding: 32px; text-align: center;">
+                          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em;">New Submission</h1>
+                        </div>
+                        <div style="padding: 32px;">
+                          <table style="width: 100%; border-collapse: collapse;">
+                            <tbody>${emailRows}</tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+
+                  // Get current session for auth
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                  if (session?.access_token) {
+                    headers['Authorization'] = `Bearer ${session.access_token}`;
+                  }
+
+                  const res = await fetch(`${BACKEND_URL}/api/send-email`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                      resendApiKey: userProjectConfig?.resendApiKey,
+                      projectId: projectId,
+                      to: to || 'test@example.com',
+                      subject: "New Form Submission",
+                      html: renderedHtml,
+                      from: "BuildX <onboarding@resend.dev>",
+                      replyTo: formData['email'] || formData['Email'] || undefined
+                    })
+                  });
+
+                  const resData = await res.json();
+                  if (!res.ok) throw new Error(resData.error || 'Failed to send email');
+                  
+                  toast.success("Test email sent via Preview!");
+                  return { success: true, data: resData };
+                }
+                
+                if (integration.type === 'paymongo') {
+                  console.log(`[buildx] 💳 Triggering PayMongo checkout...`);
+                  const { amount, currency, description } = integration.config;
+                  
+                  // Get current session for auth
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                  if (session?.access_token) {
+                    headers['Authorization'] = `Bearer ${session.access_token}`;
+                  }
+
+                  const res = await fetch(`${BACKEND_URL}/api/paymongo/checkout`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                      projectId: projectId,
+                      amount: amount || 100,
+                      currency: currency || 'PHP',
+                      description: description || 'Test Payment'
+                    })
+                  });
+                  
+                  const resData = await res.json();
+                  if (!res.ok) throw new Error(resData.error || 'Payment creation failed');
+                  
+                  if (resData.data?.attributes?.checkout_url) {
+                    toast.success("Checkout link generated! Opening in new tab...");
+                    window.open(resData.data.attributes.checkout_url, '_blank');
+                    return { success: true, data: resData };
+                  }
+                  
+                  throw new Error('Checkout URL not found in response');
+                }
+              } catch (err: any) {
+                console.error(`[buildx] ❌ System failure:`, err);
+                toast.error(`Integration failed: ${err.message || 'Unknown error'}`);
+                return { success: false, error: err };
+              }
+            }
+          };
+          
+          buildx.runIntegration = buildx.run;
+
           // Execute the JS with shadowed globals
           try {
-            const isolatedFunc = new Function('element', 'document', 'window', '$', '$$', `
+            const isolatedFunc = new Function('element', 'document', 'window', '$', '$$', 'buildx', 'antigravity', `
               try {
                 ${props.js}
               } catch (err) {
                 console.error('Error in component logic:', err);
               }
             `);
-            isolatedFunc(element, proxyDocument, proxyWindow, $, $$);
+            isolatedFunc(element, proxyDocument, proxyWindow, $, $$, buildx, buildx);
+
+            // Fail-safe: Prevent any form inside the component from submitting normally and redirecting
+            element.addEventListener('submit', (e: Event) => {
+              console.log('[buildx] 🛑 Global submit intercepted and prevented.');
+              e.preventDefault();
+            }, true);
           } catch (err) {
             console.error('Failed to compile custom JS:', err);
           }
@@ -564,12 +846,12 @@ export function RenderableComponent({
 
               // Add delegated event listener for action buttons
               const $table = $(tableRef.current);
-              $table.find('tbody').on('click', '.datatable-action-btn', function(e) {
+              $table.find('tbody').on('click', '.datatable-action-btn', function (e) {
                 e.stopPropagation();
                 const $btn = $(this);
                 const action = $btn.data('action');
                 const rowIndex = $btn.data('index');
-                
+
                 if (rowIndex !== undefined && tableData[rowIndex]) {
                   const row = tableData[rowIndex];
                   if (action === 'update') {
@@ -747,7 +1029,7 @@ export function RenderableComponent({
                     script: `(function() { ${scrollScript} })()`
                   }, '*');
                 }
-                
+
                 // Also execute locally for non-iframe previews or cases where selector might be in parent
                 const localScript = document.createElement('script');
                 localScript.text = `(function() { ${scrollScript} })();`;
@@ -766,8 +1048,8 @@ export function RenderableComponent({
               const selector = action.selector;
               const cleanId = selector.startsWith('#') ? selector.substring(1) : selector;
 
-              const previewContainer = (event?.currentTarget as HTMLElement)?.closest('.preview-container') 
-                || document.querySelector('.preview-container') 
+              const previewContainer = (event?.currentTarget as HTMLElement)?.closest('.preview-container')
+                || document.querySelector('.preview-container')
                 || document;
 
               let elements = previewContainer.querySelectorAll(selector);
@@ -777,12 +1059,12 @@ export function RenderableComponent({
               if (elements.length === 0) {
                 elements = previewContainer.querySelectorAll(`[data-component-id="${cleanId}"], [id="${cleanId}"]`);
               }
-              
+
               if (elements.length > 0) {
                 elements.forEach(element => {
                   const wrapper = element.closest('.initially-hidden');
                   const targetEl = (wrapper || element) as HTMLElement;
-                  
+
                   if (typeof action.toggleState === 'boolean') {
                     targetEl.style.display = action.toggleState ? 'block' : 'none';
                   } else {
@@ -801,19 +1083,19 @@ export function RenderableComponent({
             // Handle alert action
             if (action.handlerType === 'showAlert' && action.alertSelector) {
               console.log('Executing showAlert action for:', action.alertSelector);
-              
+
               // Clean up selector (remove leading # if present)
-              const elementId = action.alertSelector.startsWith('#') 
-                ? action.alertSelector.substring(1) 
+              const elementId = action.alertSelector.startsWith('#')
+                ? action.alertSelector.substring(1)
                 : action.alertSelector;
 
               // Dispatch a custom event that the alert component can listen for
               const showAlertEvent = new CustomEvent('showAlertRequested', {
                 detail: { elementId }
               });
-              
+
               window.dispatchEvent(showAlertEvent);
-              
+
               // Also try to dispatch to iframe if it exists
               try {
                 const iframe = document.querySelector('iframe');
@@ -828,7 +1110,7 @@ export function RenderableComponent({
               } catch (e) {
                 console.warn('Failed to dispatch alert event to iframe:', e);
               }
-              
+
               return true;
             }
 
@@ -886,30 +1168,30 @@ export function RenderableComponent({
                   }
                 }
 
-                 if (element && ('value' in element)) {
-                   recordData[col] = element.value;
-                   console.log(`[Supabase] Mapped column "${col}" to input value: "${element.value}" (Element ID: ${cleanId})`);
-                 } else if (element) {
-                   recordData[col] = element.innerText;
-                   console.log(`[Supabase] Mapped column "${col}" to text content: "${element.innerText}"`);
-                 } else {
-                   // Check if the static value is a JS expression like {currentUser.id}
-                   if (typeof valOrId === 'string' && valOrId.startsWith('{') && valOrId.endsWith('}')) {
-                     const expression = valOrId.substring(1, valOrId.length - 1);
-                     try {
-                       // Evaluate the expression with a limited scope
-                       const evaluationFn = new Function('currentUser', 'window', `return ${expression}`);
-                       recordData[col] = evaluationFn(currentUser, window);
-                       console.log(`[Supabase] Evaluated expression for column "${col}":`, recordData[col]);
-                     } catch (err) {
-                       console.error(`[Supabase] Error evaluating expression "${expression}":`, err);
-                       recordData[col] = valOrId;
-                     }
-                   } else {
-                     recordData[col] = valOrId;
-                     console.log(`[Supabase] Mapped column "${col}" to static value: "${valOrId}" (Element not found)`);
-                   }
-                 }
+                if (element && ('value' in element)) {
+                  recordData[col] = element.value;
+                  console.log(`[Supabase] Mapped column "${col}" to input value: "${element.value}" (Element ID: ${cleanId})`);
+                } else if (element) {
+                  recordData[col] = element.innerText;
+                  console.log(`[Supabase] Mapped column "${col}" to text content: "${element.innerText}"`);
+                } else {
+                  // Check if the static value is a JS expression like {currentUser.id}
+                  if (typeof valOrId === 'string' && valOrId.startsWith('{') && valOrId.endsWith('}')) {
+                    const expression = valOrId.substring(1, valOrId.length - 1);
+                    try {
+                      // Evaluate the expression with a limited scope
+                      const evaluationFn = new Function('currentUser', 'window', `return ${expression}`);
+                      recordData[col] = evaluationFn(currentUser, window);
+                      console.log(`[Supabase] Evaluated expression for column "${col}":`, recordData[col]);
+                    } catch (err) {
+                      console.error(`[Supabase] Error evaluating expression "${expression}":`, err);
+                      recordData[col] = valOrId;
+                    }
+                  } else {
+                    recordData[col] = valOrId;
+                    console.log(`[Supabase] Mapped column "${col}" to static value: "${valOrId}" (Element not found)`);
+                  }
+                }
               });
 
               (async () => {
@@ -1187,7 +1469,7 @@ export function RenderableComponent({
     }
 
     setIsSubmittingForm(true);
-    
+
     try {
       await sendFormEmail({
         apiKey,
@@ -1210,18 +1492,18 @@ export function RenderableComponent({
 
   const processHtml = (html: string, prefix: string) => {
     if (!html) return '';
-    
+
     let processed = html
       .replace(/<!DOCTYPE[^>]*>/gi, '')
       .replace(/<\/?html[^>]*>/gi, '')
       .replace(/<\/?head[^>]*>/gi, '')
       .replace(/<\/?body[^>]*>/gi, '');
-      
+
     processed = processed.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (_match, css) => {
       const scoped = scopeCss(css, prefix);
       return `<style>${scoped}</style>`;
     });
-    
+
     return processed.trim();
   };
 
@@ -1250,7 +1532,7 @@ export function RenderableComponent({
         const textHeight = parseSize(style?.height, 50);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1268,15 +1550,15 @@ export function RenderableComponent({
           >
             {customCssContent}
             <EditableText
-                id={props.elementId}
+              id={props.elementId}
               text={props.content}
               onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
               element="p"
-              style={{ 
-                ...combinedStyle, 
-                width: props.enableCustomCss ? undefined : '100%', 
-                height: props.enableCustomCss ? undefined : '100%', 
-                display: 'flex', 
+              style={{
+                ...combinedStyle,
+                width: props.enableCustomCss ? undefined : '100%',
+                height: props.enableCustomCss ? undefined : '100%',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
               }}
@@ -1298,7 +1580,7 @@ export function RenderableComponent({
         const headingHeight = parseSize(style?.height, 60);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1321,11 +1603,11 @@ export function RenderableComponent({
               text={props.content}
               onTextChange={(newText) => onUpdate({ props: { ...props, content: newText } })}
               element={HeadingElement}
-              style={{ 
-                ...combinedStyle, 
-                width: props.enableCustomCss ? undefined : '100%', 
-                height: props.enableCustomCss ? undefined : '100%', 
-                display: 'flex', 
+              style={{
+                ...combinedStyle,
+                width: props.enableCustomCss ? undefined : '100%',
+                height: props.enableCustomCss ? undefined : '100%',
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: combinedStyle.textAlign === 'center' ? 'center' : (combinedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start')
               }}
@@ -1344,7 +1626,7 @@ export function RenderableComponent({
         const buttonHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1414,7 +1696,7 @@ export function RenderableComponent({
                 executeActions(hoverActions, e);
               }}
             >
-            <EditableText
+              <EditableText
                 text={props.text}
                 onTextChange={(newText) => onUpdate({ props: { ...props, text: newText } })}
                 element="span"
@@ -1475,7 +1757,7 @@ export function RenderableComponent({
         })();
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             id={props.elementId}
             onResize={handleResize}
             initialX={component.position?.x || 0}
@@ -1510,7 +1792,7 @@ export function RenderableComponent({
 
       case 'custom-component':
         return (
-          <ResizeHandle 
+          <ResizeHandle
             data-component-id={component.id}
             onResize={handleResize}
             initialX={component.position?.x || 0}
@@ -1526,14 +1808,14 @@ export function RenderableComponent({
             autoSize={true}
           >
             {customCssContent}
-            <div 
+            <div
               ref={contentRef}
               id={props.elementId}
-              style={{ 
-                ...combinedStyle, 
+              style={{
+                ...combinedStyle,
                 width: 'auto',
                 height: 'auto',
-                pointerEvents: isPreview ? 'auto' : 'none' 
+                pointerEvents: isPreview ? 'auto' : 'none'
               }}
               className={props.className}
             >
@@ -1550,7 +1832,7 @@ export function RenderableComponent({
         const pmHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1590,7 +1872,7 @@ export function RenderableComponent({
 
       case 'sign-in':
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1627,7 +1909,7 @@ export function RenderableComponent({
 
       case 'sign-up':
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1665,7 +1947,7 @@ export function RenderableComponent({
 
       case 'auth-block':
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1705,7 +1987,7 @@ export function RenderableComponent({
 
       case 'profile':
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1740,7 +2022,7 @@ export function RenderableComponent({
         const tableHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1929,7 +2211,7 @@ export function RenderableComponent({
         const styleType = props.styleType || 'solid';
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -1987,7 +2269,7 @@ export function RenderableComponent({
         const items = props.items || [];
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2069,7 +2351,7 @@ export function RenderableComponent({
         const tabs = props.tabs || [];
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2145,7 +2427,7 @@ export function RenderableComponent({
         const [isModalOpen, setIsModalOpen] = React.useState(false);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2163,9 +2445,9 @@ export function RenderableComponent({
             {customCssContent}
             <div id={props.elementId} style={{ width: '100%', height: '100%' }}>
               <button
-                onClick={(e) => { 
-                  if (!isPreview) return; 
-                  setIsModalOpen(true); 
+                onClick={(e) => {
+                  if (!isPreview) return;
+                  setIsModalOpen(true);
                 }}
                 style={{
                   width: '100%',
@@ -2255,7 +2537,7 @@ export function RenderableComponent({
 
           const handleShowAlert = (e: any) => {
             const eventId = e.detail?.elementId || (e.data?.type === 'SHOW_ALERT' ? e.data.elementId : null);
-            
+
             // Robust comparison: trim and compare case-sensitively
             const targetId = (props.elementId || '').trim();
             const receivedId = (eventId || '').trim();
@@ -2279,17 +2561,17 @@ export function RenderableComponent({
         // Auto-dismiss logic
         React.useEffect(() => {
           if (!isPreview) return;
-          
+
           const isCurrentlyVisible = !isDismissed && (!isTriggered || isTriggeredVisible);
           const duration = Number(props.showDuration) || 0;
-          
+
           if (isCurrentlyVisible && duration > 0) {
             console.log(`[Alert] Starting auto-dismiss timer for ${duration}s. TriggeredVisible: ${isTriggeredVisible}`);
             const timer = setTimeout(() => {
               console.log(`[Alert] Duration reached, dismissing component`);
               setIsDismissed(true);
             }, duration * 1000);
-            
+
             return () => clearTimeout(timer);
           }
         }, [isPreview, isDismissed, isTriggered, isTriggeredVisible, props.showDuration]);
@@ -2297,7 +2579,7 @@ export function RenderableComponent({
         if (isDismissed && isPreview) return null;
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2424,7 +2706,7 @@ export function RenderableComponent({
         };
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}  // ← use the shared handleResize, same as every other component
@@ -2453,7 +2735,7 @@ export function RenderableComponent({
                   alt={props.alt || 'Image'}
                   width="100%"
                   height="100%"
-                  style={{ 
+                  style={{
                     ...(() => {
                       const baseStyle = { ...combinedStyle };
                       if (props.imageShape && props.imageShape !== 'original') {
@@ -2465,18 +2747,18 @@ export function RenderableComponent({
                       }
                       return baseStyle;
                     })(),
-                    width: '100%', 
-                    height: '100%', 
+                    width: '100%',
+                    height: '100%',
                     objectFit: props.imageShape && props.imageShape !== 'original' ? 'cover' : 'fill',
-                    borderRadius: props.imageShape === 'circle' ? '50%' : 
-                                  props.imageShape === 'rounded' ? '12px' : 
-                                  props.imageShape === 'pill' ? '9999px' : 
-                                  props.imageShape === 'squircle' ? '25% 10%' : '0',
+                    borderRadius: props.imageShape === 'circle' ? '50%' :
+                      props.imageShape === 'rounded' ? '12px' :
+                        props.imageShape === 'pill' ? '9999px' :
+                          props.imageShape === 'squircle' ? '25% 10%' : '0',
                     clipPath: props.imageShape === 'hexagon' ? 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' :
-                              props.imageShape === 'diamond' ? 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' :
-                              props.imageShape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
-                              props.imageShape === 'parallelogram' ? 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)' :
-                              props.imageShape === 'star' ? 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' : 'none'
+                      props.imageShape === 'diamond' ? 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' :
+                        props.imageShape === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' :
+                          props.imageShape === 'parallelogram' ? 'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)' :
+                            props.imageShape === 'star' ? 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' : 'none'
                   }}
                   className={`${props.className || ''} ${isDraggingOver ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
                 />
@@ -2503,7 +2785,7 @@ export function RenderableComponent({
         const groupHeight = parseSize(style?.height, 200);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2572,7 +2854,7 @@ export function RenderableComponent({
         const containerHeight = parseSize(style?.height, 150);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2623,7 +2905,7 @@ export function RenderableComponent({
         const navHeight = parseSize(style?.height, 64);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2655,17 +2937,17 @@ export function RenderableComponent({
             >
               <div className="flex items-center gap-3 h-full">
                 {props.logoUrl && (
-                  <img 
-                    src={props.logoUrl} 
-                    alt="Logo" 
-                    style={{ 
-                      height: '80%', 
+                  <img
+                    src={props.logoUrl}
+                    alt="Logo"
+                    style={{
+                      height: '80%',
                       maxHeight: '100%',
                       width: props.logoShape === 'circle' || props.logoShape === 'square' ? 'auto' : 'auto',
                       aspectRatio: props.logoShape === 'circle' || props.logoShape === 'square' ? '1/1' : 'auto',
                       objectFit: props.logoShape === 'original' ? 'contain' : 'cover',
                       borderRadius: props.logoShape === 'circle' ? '50%' : props.logoShape === 'rounded' ? '8px' : '0',
-                    }} 
+                    }}
                   />
                 )}
                 <EditableText
@@ -2683,11 +2965,11 @@ export function RenderableComponent({
                   const typeArray: string[] = Array.isArray(props.linkTypes) ? props.linkTypes : [];
                   const url = urlArray[index] || '#';
                   const type = typeArray[index] || 'url';
-                  
+
                   return (
-                    <a 
-                      key={index} 
-                      href={url} 
+                    <a
+                      key={index}
+                      href={url}
                       className="hover:text-gray-300"
                       style={{ fontSize: props.linkFontSize ? `${props.linkFontSize}px` : undefined }}
                       onClick={(e) => {
@@ -2701,7 +2983,7 @@ export function RenderableComponent({
                             window.dispatchEvent(scrollEvent);
                           } else if (url !== '' || link) {
                             const targetUrl = (url !== '#' && url !== '') ? url : labelToPath(link);
-                            
+
                             const isInternal = targetUrl.startsWith('/') || targetUrl.startsWith('./');
                             if (isInternal && navigate) {
                               navigate(targetUrl);
@@ -2738,7 +3020,7 @@ export function RenderableComponent({
         const heroHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2812,7 +3094,7 @@ export function RenderableComponent({
         const footerHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2863,7 +3145,7 @@ export function RenderableComponent({
         const inputHeight = parseSize(style?.height, 40);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2920,7 +3202,7 @@ export function RenderableComponent({
         const options = props.options || [];
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -2940,7 +3222,7 @@ export function RenderableComponent({
               {props.label && (
                 <Label className="text-xs font-medium mb-1">{props.label}</Label>
               )}
-              <div 
+              <div
                 className="w-full h-full"
                 style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
                 onClick={(e) => {
@@ -2967,7 +3249,7 @@ export function RenderableComponent({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {isSelected && (
                 <div
                   className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
@@ -2990,9 +3272,9 @@ export function RenderableComponent({
 
       case 'checkbox': {
         const checkboxSize = 25; // Standard size for checkbox
-        
+
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3008,7 +3290,7 @@ export function RenderableComponent({
             onResizeEnd={onResizeEnd}
           >
             {customCssContent}
-            <div 
+            <div
               className="relative w-full h-full flex items-center gap-2"
               style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
               onClick={(e) => {
@@ -3025,7 +3307,7 @@ export function RenderableComponent({
                 }}
               />
               {props.label && (
-                <Label 
+                <Label
                   htmlFor={props.elementId}
                   className="text-sm font-medium leading-none cursor-pointer"
                   style={combinedStyle}
@@ -3033,7 +3315,7 @@ export function RenderableComponent({
                   {props.label}
                 </Label>
               )}
-              
+
               {isSelected && (
                 <div
                   className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
@@ -3056,9 +3338,9 @@ export function RenderableComponent({
 
       case 'radio-group': {
         const options = props.options || [];
-        
+
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3074,7 +3356,7 @@ export function RenderableComponent({
             onResizeEnd={onResizeEnd}
           >
             {customCssContent}
-            <div 
+            <div
               className="relative w-full h-full flex flex-col gap-3"
               style={{ pointerEvents: isPreview ? 'auto' : 'none' }}
               onClick={(e) => {
@@ -3084,7 +3366,7 @@ export function RenderableComponent({
               {props.label && (
                 <Label className="text-sm font-semibold mb-1">{props.label}</Label>
               )}
-              <RadioGroup 
+              <RadioGroup
                 defaultValue={props.defaultValue}
                 disabled={disabled}
                 onValueChange={(val: string) => {
@@ -3097,7 +3379,7 @@ export function RenderableComponent({
                 {options.map((opt: any, idx: number) => (
                   <div key={idx} className="flex items-center space-x-2">
                     <RadioGroupItem value={opt.value} id={`${props.elementId}-${idx}`} />
-                    <Label 
+                    <Label
                       htmlFor={`${props.elementId}-${idx}`}
                       className="text-sm font-medium leading-none cursor-pointer"
                     >
@@ -3106,7 +3388,7 @@ export function RenderableComponent({
                   </div>
                 ))}
               </RadioGroup>
-              
+
               {isSelected && (
                 <div
                   className="absolute -top-7 left-0 text-xs bg-blue-500 text-white px-2 py-0.5 rounded cursor-pointer hover:bg-blue-600 z-10"
@@ -3132,7 +3414,7 @@ export function RenderableComponent({
         const textareaHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3184,7 +3466,7 @@ export function RenderableComponent({
         const formHeight = parseSize(style?.height, 300);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3333,8 +3615,8 @@ export function RenderableComponent({
               ...action,
               supabaseTable: action.supabaseTable || props.supabaseTable,
               supabaseOperation: action.supabaseOperation || props.supabaseOperation || 'insert',
-              supabaseData: action.supabaseData && Object.keys(action.supabaseData).length > 0 
-                ? action.supabaseData 
+              supabaseData: action.supabaseData && Object.keys(action.supabaseData).length > 0
+                ? action.supabaseData
                 : buildSupabaseDataMapping()
             };
           }
@@ -3342,7 +3624,7 @@ export function RenderableComponent({
         });
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3440,12 +3722,11 @@ export function RenderableComponent({
               </CardContent>
 
               {/* CardFooter ensures the button stays at the bottom of the Card */}
-              <CardFooter className={`flex w-full pt-3 border-t shrink-0 ${
-                props.submitButtonAlignment === "left" ? "justify-start" :
-                props.submitButtonAlignment === "right" ? "justify-end" :
-                props.submitButtonAlignment === "full" ? "justify-stretch" :
-                "justify-center"
-              }`}>
+              <CardFooter className={`flex w-full pt-3 border-t shrink-0 ${props.submitButtonAlignment === "left" ? "justify-start" :
+                  props.submitButtonAlignment === "right" ? "justify-end" :
+                    props.submitButtonAlignment === "full" ? "justify-stretch" :
+                      "justify-center"
+                }`}>
                 <Button
                   id={`${props.elementId || 'dynamic-form'}-submit`}
                   disabled={isDynamicFormSubmitting}
@@ -3453,9 +3734,9 @@ export function RenderableComponent({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    
+
                     if (!isPreview) return;
-                    
+
                     if (enhancedSubmitActions.length > 0) {
                       console.log('Executing dynamic form submit actions:', enhancedSubmitActions);
                       executeActions(enhancedSubmitActions, e);
@@ -3464,7 +3745,7 @@ export function RenderableComponent({
                       toast.success('Form submitted successfully!');
                     }
                   }}
-                  style={{ 
+                  style={{
                     pointerEvents: 'auto',
                     backgroundColor: props.submitButtonColor || undefined
                   }}
@@ -3511,7 +3792,7 @@ export function RenderableComponent({
         const isVertical = props.orientation === 'vertical';
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3602,7 +3883,7 @@ export function RenderableComponent({
         const cardHeight = parseSize(style?.height, 350);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3694,7 +3975,7 @@ export function RenderableComponent({
         const sectionHeadingHeight = parseSize(style?.height, 120);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3753,7 +4034,7 @@ export function RenderableComponent({
         const paragraphHeight = parseSize(style?.height, 100);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3798,7 +4079,7 @@ export function RenderableComponent({
         const galleryHeight = parseSize(style?.height, 400);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
             onResize={handleResize}
@@ -3877,7 +4158,7 @@ export function RenderableComponent({
         }, [props.autoplay, props.autoplaySpeed, currentSlide, isPreview]);
 
         return (
-          <ResizeHandle 
+          <ResizeHandle
             id={props.elementId}
             ref={contentRef}
             data-component-id={component.id}
@@ -4001,9 +4282,11 @@ export function RenderableComponent({
             initialWidth={parseSize(style?.width, 400)} initialHeight={parseSize(style?.height, 80)}
             className="group" disabled={isPreview} onResizeStart={onResizeStart} onResizeEnd={onResizeEnd}>
             {customCssContent}
-            <div style={{ ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center',
+            <div style={{
+              ...combinedStyle, width: '100%', height: '100%', display: 'flex', alignItems: 'center',
               justifyContent: 'center', gap: '8px', border: '2px dashed #f97316', borderRadius: '8px',
-              backgroundColor: 'rgba(249,115,22,0.08)', padding: '16px' }}>
+              backgroundColor: 'rgba(249,115,22,0.08)', padding: '16px'
+            }}>
               <span style={{ fontSize: '16px' }}>⚠️</span>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#f97316' }}>
@@ -4029,16 +4312,16 @@ export function RenderableComponent({
   const previewHidden = isPreview && isHidden && type !== 'alert';
 
   return (
-    <div 
+    <div
       ref={contentRef}
-      className={`relative group ${previewHidden ? 'initially-hidden' : ''}`} 
-      onContextMenu={onContextMenu} 
+      className={`relative group ${previewHidden ? 'initially-hidden' : ''}`}
+      onContextMenu={onContextMenu}
       style={previewHidden ? { display: 'none' } : undefined}
     >
       {!isPreview && isHidden && (
         <>
           {/* Universal Visibility Overlay for Editor */}
-          <div 
+          <div
             className="absolute inset-0 z-[40] pointer-events-none"
             style={{
               background: 'rgba(59, 130, 246, 0.05)',

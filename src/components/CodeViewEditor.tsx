@@ -314,6 +314,13 @@ interface CodeExportModalProps {
   pages: { id: string; name: string; path: string }[];
   activePageId: string;
   effectiveFiles: Record<string, string>;
+  userConfig?: {
+    paymongoKey?: string;
+    resendApiKey?: string;
+    supabaseUrl?: string;
+    supabaseKey?: string;
+    supabaseServiceKey?: string;
+  };
   onClose: () => void;
 }
 
@@ -346,6 +353,7 @@ function CodeExportModal({
   pages,
   activePageId,
   effectiveFiles,
+  userConfig,
   onClose,
 }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
@@ -701,6 +709,7 @@ export function CodeViewEditor({
   customFiles = {},
   onCustomFileUpdate,
 }: CodeViewEditorProps) {
+  // Remove diagnostic logs as we found the issue
   const [selectedFile, setSelectedFile] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(["app", "app/api", "public", "config"]),
@@ -713,10 +722,10 @@ export function CodeViewEditor({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const generatedFiles = useMemo(
-    () => generateProjectFiles(components, pages, projectName, userConfig),
-    [components, pages, projectName, userConfig],
-  );
+  // Ensure the generated code uses the configuration
+  const generatedFiles = useMemo(() => {
+    return generateProjectFiles(components, pages, projectName, userConfig);
+  }, [components, pages, projectName, userConfig]);
 
   const effectiveFiles = useMemo<Record<string, string>>(
     () => ({ ...generatedFiles, ...fileOverrides, ...customFiles }),
@@ -897,6 +906,7 @@ export function CodeViewEditor({
           pages={pages}
           activePageId={activePageId}
           effectiveFiles={effectiveFiles}
+          userConfig={userConfig}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -951,6 +961,21 @@ export function CodeViewEditor({
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
+                {fileOverrides[selectedFile] !== undefined && !isEditing && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (window.confirm("Restore this file to the original generated version? Your manual changes will be lost.")) {
+                        onFileOverrideUpdate?.(selectedFile, null as any);
+                        toast.success("File restored to default");
+                      }
+                    }}
+                    className="h-7 text-[10px] bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/20 gap-1"
+                  >
+                    <RefreshCcw className="w-3 h-3" /> Reset
+                  </Button>
+                )}
                 {canEdit && (
                   <Button
                     size="sm"
