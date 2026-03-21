@@ -16,7 +16,6 @@ import {
   X,
   Download,
   CheckCircle2,
-  RefreshCw,
   AlertCircle,
   Plus,
   Trash2,
@@ -940,7 +939,7 @@ export function CodeViewEditor({
                 >
                   <Copy className="w-3.5 h-3.5" />
                 </Button>
-                {fileOverrides[selectedFile] !== undefined && !isEditing && (
+                {/* {fileOverrides[selectedFile] !== undefined && !isEditing && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -958,7 +957,7 @@ export function CodeViewEditor({
                   >
                     <RefreshCw className="w-3 h-3" /> Reset
                   </Button>
-                )}
+                )} */}
                 {canEdit && (
                   <Button
                     size="sm"
