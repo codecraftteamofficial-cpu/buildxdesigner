@@ -1,5 +1,5 @@
 // lib/code-generator.ts
-import { ComponentData } from "../App"
+import { ComponentData } from "../App";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DESIGN_WIDTH = 1920;
@@ -16,13 +16,18 @@ const SCALE = {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 export const slugify = (value: string) =>
-  value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "page";
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "") || "page";
 
 const camelToKebab = (value: string): string =>
   value.replace(/([A-Z])/g, "-$1").toLowerCase();
 
 const isUnitless = (key: string) =>
-  ["opacity", "zIndex", "fontWeight", "lineHeight", "flex", "order"].includes(key);
+  ["opacity", "zIndex", "fontWeight", "lineHeight", "flex", "order"].includes(
+    key,
+  );
 
 const parsePixelValue = (value: any): number | null => {
   if (typeof value === "number") return value;
@@ -33,12 +38,11 @@ const parsePixelValue = (value: any): number | null => {
   return null;
 };
 
-const sanitizeId = (id: string): string =>
-  id.replace(/[^a-zA-Z0-9_-]/g, "-");
+const sanitizeId = (id: string): string => id.replace(/[^a-zA-Z0-9_-]/g, "-");
 
 // ── Collect all components recursively (flattens nested children) ──
 const collectAllComponents = (components: ComponentData[]): ComponentData[] =>
-  components.flatMap(c => [c, ...collectAllComponents(c.children ?? [])]);
+  components.flatMap((c) => [c, ...collectAllComponents(c.children ?? [])]);
 
 const isReadableId = (id: string): boolean => {
   if (!id) return false;
@@ -56,16 +60,22 @@ const compIdClass = (component: ComponentData): string => {
 const compClass = (component: ComponentData): string => {
   const idClass = compIdClass(component);
   const userClass = component.props?.className;
-  const isAutoClass = !userClass
-    || userClass.trim() === idClass
-    || /^comp-/.test(userClass.trim().split(/\s+/)[0]);
+  const isAutoClass =
+    !userClass ||
+    userClass.trim() === idClass ||
+    /^comp-/.test(userClass.trim().split(/\s+/)[0]);
   return isAutoClass ? idClass : `${idClass} ${userClass}`;
 };
 
 const scalePx = (value: number, ratio: number): string =>
   `${Math.round(value * ratio)}px`;
 
-const FULL_WIDTH_TYPES = new Set(["navbar", "hero", "footer", "section-heading"]);
+const FULL_WIDTH_TYPES = new Set([
+  "navbar",
+  "hero",
+  "footer",
+  "section-heading",
+]);
 
 const buildResponsiveCss = (
   component: ComponentData,
@@ -78,17 +88,21 @@ const buildResponsiveCss = (
   const desktopLines: string[] = [`  position: absolute;`];
 
   if (position) {
-    desktopLines.push(`  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
+    desktopLines.push(
+      `  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`,
+    );
     desktopLines.push(`  top: ${Math.round(position.y)}px;`);
   }
 
   const rawW = parsePixelValue(style.width);
   const rawH = parsePixelValue(style.height);
-  if (rawW !== null) desktopLines.push(`  width: ${((rawW / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
+  if (rawW !== null)
+    desktopLines.push(`  width: ${((rawW / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
   if (rawH !== null) desktopLines.push(`  height: ${rawH}px;`);
 
   for (const [key, value] of Object.entries(style)) {
-    if (["left", "top", "right", "bottom", "width", "height"].includes(key)) continue;
+    if (["left", "top", "right", "bottom", "width", "height"].includes(key))
+      continue;
     if (key === "position" && value === "absolute") continue;
     if (value === undefined || value === null || value === "") continue;
     const unit = typeof value === "number" && !isUnitless(key) ? "px" : "";
@@ -103,7 +117,10 @@ const buildResponsiveCss = (
     css += `\n\n@media (max-width: ${BREAKPOINTS.mobile}px) {\n  ${cls} {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: center;\n  }\n  ${cls} .nav-toggle {\n    display: flex !important;\n  }\n  ${cls} .nav-links {\n    display: none;\n    width: 100%;\n    order: 3;\n  }\n  ${cls} .nav-links.open {\n    display: flex !important;\n  }\n}`;
   }
 
-  for (const [bpName, bpMax] of Object.entries(BREAKPOINTS) as [keyof typeof BREAKPOINTS, number][]) {
+  for (const [bpName, bpMax] of Object.entries(BREAKPOINTS) as [
+    keyof typeof BREAKPOINTS,
+    number,
+  ][]) {
     const ratio = SCALE[bpName];
     const bpLines: string[] = [];
 
@@ -112,29 +129,43 @@ const buildResponsiveCss = (
       bpLines.push(`  left: 0;`);
       bpLines.push(`  top: 0;`);
       bpLines.push(`  width: 100%;`);
-      if (rawH !== null) bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
+      if (rawH !== null)
+        bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
     } else {
       if (position) {
-        bpLines.push(`  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
+        bpLines.push(
+          `  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`,
+        );
         bpLines.push(`  top: ${Math.round(position.y * ratio)}px;`);
       }
-      if (rawH !== null) bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
-      if (rawW !== null) bpLines.push(`  min-width: ${Math.max(32, Math.round(rawW * ratio))}px;`);
+      if (rawH !== null)
+        bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
+      if (rawW !== null)
+        bpLines.push(
+          `  min-width: ${Math.max(32, Math.round(rawW * ratio))}px;`,
+        );
     }
 
     const rawFs = parsePixelValue(style.fontSize);
     if (rawFs !== null) bpLines.push(`  font-size: ${scalePx(rawFs, ratio)};`);
 
-    for (const pad of ["paddingTop", "paddingRight", "paddingBottom", "paddingLeft"] as const) {
+    for (const pad of [
+      "paddingTop",
+      "paddingRight",
+      "paddingBottom",
+      "paddingLeft",
+    ] as const) {
       const v = parsePixelValue(style[pad]);
-      if (v !== null) bpLines.push(`  ${camelToKebab(pad)}: ${scalePx(v, ratio)};`);
+      if (v !== null)
+        bpLines.push(`  ${camelToKebab(pad)}: ${scalePx(v, ratio)};`);
     }
 
     const rawBr = parsePixelValue(style.borderRadius);
-    if (rawBr !== null) bpLines.push(`  border-radius: ${scalePx(rawBr, ratio)};`);
+    if (rawBr !== null)
+      bpLines.push(`  border-radius: ${scalePx(rawBr, ratio)};`);
 
     if (bpLines.length > 0) {
-      css += `\n\n@media (max-width: ${bpMax}px) {\n  ${cls} {\n${bpLines.map(l => "  " + l).join("\n")}\n  }\n}`;
+      css += `\n\n@media (max-width: ${bpMax}px) {\n  ${cls} {\n${bpLines.map((l) => "  " + l).join("\n")}\n  }\n}`;
     }
   }
 
@@ -143,17 +174,34 @@ const buildResponsiveCss = (
 
 // ─── PHP renderer ─────────────────────────────────────────────────────────────
 const esc = (s: any): string =>
-  String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
   const indent = "  ".repeat(depth);
   const props = component.props ?? {};
   const cls = compClass(component);
   const idAttr = ` id="${esc(props.elementId || compIdClass(component))}"`;
-  const btnId = component.type === "button" ? ` id="btn-${compIdClass(component)}"` : "";
+  const btnId =
+    component.type === "button" ? ` id="btn-${compIdClass(component)}"` : "";
   const childOutput = (component.children ?? [])
     .map((child) => renderComponentToPHP(child, depth + 1))
     .join("\n");
+
+  if (props.html !== undefined || props.php !== undefined) {
+    const htmlRaw = (props.html || "").replace(
+      /\\$elementId/g,
+      compIdClass(component),
+    );
+    const phpRaw = props.php || "";
+    const innerOutput = phpRaw
+      ? `<?php\n${indent}${phpRaw}\n${indent}?>\n${indent}${htmlRaw}`
+      : htmlRaw;
+    return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${indent}  ${innerOutput}\n${childOutput ? childOutput + "\n" : ""}${indent}</div>`;
+  }
 
   switch (component.type) {
     case "heading": {
@@ -170,13 +218,21 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
       return `${indent}<img${idAttr} src="${esc(props.src)}" alt="${esc(props.alt) || "image"}" class="${cls}" />`;
     case "navbar": {
       const brand = esc(props.brand || "");
-      const links: string[] = Array.isArray(props.links) && props.links.length > 0 ? props.links : ["Home", "About", "Contact"];
-      const linkUrls: string[] = Array.isArray(props.linkUrls) ? props.linkUrls : [];
-      const linkItems = links.map((l: string, i: number) => {
-        const raw = linkUrls[i];
-        const href = raw && raw.trim() !== "" && raw.trim() !== "#" ? raw.trim() : "#";
-        return `${indent}    <li><a href="${esc(href)}">${esc(l)}</a></li>`;
-      }).join("\n");
+      const links: string[] =
+        Array.isArray(props.links) && props.links.length > 0
+          ? props.links
+          : ["Home", "About", "Contact"];
+      const linkUrls: string[] = Array.isArray(props.linkUrls)
+        ? props.linkUrls
+        : [];
+      const linkItems = links
+        .map((l: string, i: number) => {
+          const raw = linkUrls[i];
+          const href =
+            raw && raw.trim() !== "" && raw.trim() !== "#" ? raw.trim() : "#";
+          return `${indent}    <li><a href="${esc(href)}">${esc(l)}</a></li>`;
+        })
+        .join("\n");
       return [
         `${indent}<nav${idAttr} class="${cls} full-width-block">`,
         `${indent}  <div class="nav-brand">${brand}</div>`,
@@ -201,7 +257,9 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
         subtitle ? `${indent}  <p>${subtitle}</p>` : "",
         `${indent}  <a href="#" class="hero-btn">${btnText}</a>`,
         `${indent}</section>`,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     }
     case "footer":
       return [
@@ -215,16 +273,24 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
         `${indent}  <h2>${esc(props.title) || "Section"}</h2>`,
         props.subtitle ? `${indent}  <p>${esc(props.subtitle)}</p>` : "",
         `${indent}</div>`,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     case "card":
       return [
         `${indent}<div${idAttr} class="${cls}">`,
-        props.image ? `${indent}  <img src="${esc(props.image)}" alt="${esc(props.title)}" />` : "",
+        props.image
+          ? `${indent}  <img src="${esc(props.image)}" alt="${esc(props.title)}" />`
+          : "",
         `${indent}  <h3>${esc(props.title) || ""}</h3>`,
         `${indent}  <p>${esc(props.description) || ""}</p>`,
-        props.buttonText ? `${indent}  <a href="#" class="card-btn">${esc(props.buttonText)}</a>` : "",
+        props.buttonText
+          ? `${indent}  <a href="#" class="card-btn">${esc(props.buttonText)}</a>`
+          : "",
         `${indent}</div>`,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     case "input":
       return `${indent}<input${idAttr} class="${cls}" type="${esc(props.type) || "text"}" placeholder="${esc(props.placeholder)}" />`;
     case "textarea":
@@ -240,14 +306,20 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
       return [
         `${indent}<div${idAttr} class="${cls}">`,
         `${indent}  <video controls${props.poster ? ` poster="${esc(props.poster)}"` : ""}>`,
-        props.src ? `${indent}    <source src="${esc(props.src)}" type="video/mp4" />` : "",
+        props.src
+          ? `${indent}    <source src="${esc(props.src)}" type="video/mp4" />`
+          : "",
         `${indent}  </video>`,
         `${indent}</div>`,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
     case "custom-component": {
       const html = props.html || "";
       const php = props.php || "";
-      let innerOutput = php ? `<?php\n${indent}${php}\n${indent}?>\n${indent}${html}` : html;
+      const innerOutput = php
+        ? `<?php\n${indent}${php}\n${indent}?>\n${indent}${html}`
+        : html;
       return `${indent}<div${idAttr} class="${cls}" data-component-type="custom-component">\n${indent}  ${innerOutput}\n${indent}</div>`;
     }
     default:
@@ -256,15 +328,21 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
 };
 
 // ─── JS generator ─────────────────────────────────────────────────────────────
-const generatePageJS = (components: ComponentData[], pageName: string): string => {
-  const hasNavbar = components.some(c => c.type === "navbar");
-  const buttons = components.filter(c => c.type === "button");
-  const listeners = buttons.map(btn => {
-    const id = `btn-${compIdClass(btn)}`;
-    return `// Event listener for ${btn.props?.content || "Button"}\n  document.getElementById("${id}")?.addEventListener("click", () => {\n    console.log("${id} clicked!");\n  });`;
-  }).join("\n\n  ");
+const generatePageJS = (
+  components: ComponentData[],
+  pageName: string,
+): string => {
+  const hasNavbar = components.some((c) => c.type === "navbar");
+  const buttons = components.filter((c) => c.type === "button");
+  const listeners = buttons
+    .map((btn) => {
+      const id = `btn-${compIdClass(btn)}`;
+      return `// Event listener for ${btn.props?.content || "Button"}\n  document.getElementById("${id}")?.addEventListener("click", () => {\n    console.log("${id} clicked!");\n  });`;
+    })
+    .join("\n\n  ");
 
-  const navScript = hasNavbar ? `
+  const navScript = hasNavbar
+    ? `
   // Hamburger nav toggle (tablet + mobile)
   document.querySelectorAll(".nav-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -283,12 +361,13 @@ const generatePageJS = (components: ComponentData[], pageName: string): string =
       if (links) links.classList.remove("open");
       if (btn) btn.setAttribute("aria-expanded", "false");
     });
-  });` : "";
+  });`
+    : "";
 
   const allComponents = collectAllComponents(components);
   const customScripts = allComponents
-    .filter(c => c.type === "custom-component" && c.props?.js)
-    .map(c => {
+    .filter((c) => c.type === "custom-component" && c.props?.js)
+    .map((c) => {
       const id = compIdClass(c);
       return `// Custom JS for ${c.id}
 (function() {
@@ -330,7 +409,8 @@ ${c.props.js}
     }
   }
 })();`;
-    }).join("\n\n");
+    })
+    .join("\n\n");
 
   return `document.addEventListener("DOMContentLoaded", () => {
   console.log("${pageName} page loaded");
@@ -452,8 +532,19 @@ img { max-width: 100%; height: auto; }
 `;
 
 // ─── HTML page wrapper ────────────────────────────────────────────────────────
-const generateHTMLWrapper = (pageName: string, fileName: string, bodyContent: string, integrationsJson: string = '[]'): string =>
-  `<!DOCTYPE html>
+const generateHTMLWrapper = (
+  pageName: string,
+  fileName: string,
+  bodyContent: string,
+  integrationsJson: string = "[]",
+): string =>
+  `<?php
+$backendFile = __DIR__ . '/../api/' . basename(__FILE__);
+if (file_exists($backendFile)) {
+    require_once $backendFile;
+}
+?>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -475,38 +566,70 @@ ${bodyContent}
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 const SEMANTIC_SUFFIXES_GEN: Record<string, string[]> = {
-  navbar: ["main", "top", "site", "primary"], hero: ["main", "banner", "top", "landing"],
-  footer: ["main", "site", "bottom", "primary"], heading: ["title", "main", "primary", "section"],
-  text: ["body", "content", "copy", "description"], paragraph: ["intro", "body", "content", "description"],
-  button: ["primary", "cta", "action", "submit"], image: ["main", "hero", "cover", "featured"],
-  input: ["field", "name", "email", "search"], textarea: ["message", "bio", "notes", "content"],
-  select: ["field", "option", "filter", "dropdown"], checkbox: ["field", "agree", "option", "toggle"],
-  "radio-group": ["options", "choice", "field", "selector"], card: ["item", "feature", "product", "profile"],
-  container: ["wrapper", "section", "block", "content"], grid: ["layout", "gallery", "features", "cards"],
-  form: ["contact", "signup", "login", "subscribe"], divider: ["section", "main", "content", "break"],
-  accordion: ["faq", "main", "content", "details"], tabs: ["main", "content", "sections", "nav"],
-  modal: ["dialog", "popup", "confirm", "info"], alert: ["info", "warning", "success", "error"],
-  table: ["data", "main", "list", "records"], gallery: ["images", "portfolio", "photos", "work"],
-  carousel: ["slides", "hero", "featured", "promo"], "section-heading": ["main", "about", "features", "services"],
-  "sign-in": ["form", "main", "user", "auth"], "sign-up": ["form", "main", "register", "auth"],
-  "paymongo-button": ["pay", "checkout", "buy", "order"], video: ["main", "hero", "promo", "embed"],
+  navbar: ["main", "top", "site", "primary"],
+  hero: ["main", "banner", "top", "landing"],
+  footer: ["main", "site", "bottom", "primary"],
+  heading: ["title", "main", "primary", "section"],
+  text: ["body", "content", "copy", "description"],
+  paragraph: ["intro", "body", "content", "description"],
+  button: ["primary", "cta", "action", "submit"],
+  image: ["main", "hero", "cover", "featured"],
+  input: ["field", "name", "email", "search"],
+  textarea: ["message", "bio", "notes", "content"],
+  select: ["field", "option", "filter", "dropdown"],
+  checkbox: ["field", "agree", "option", "toggle"],
+  "radio-group": ["options", "choice", "field", "selector"],
+  card: ["item", "feature", "product", "profile"],
+  container: ["wrapper", "section", "block", "content"],
+  grid: ["layout", "gallery", "features", "cards"],
+  form: ["contact", "signup", "login", "subscribe"],
+  divider: ["section", "main", "content", "break"],
+  accordion: ["faq", "main", "content", "details"],
+  tabs: ["main", "content", "sections", "nav"],
+  modal: ["dialog", "popup", "confirm", "info"],
+  alert: ["info", "warning", "success", "error"],
+  table: ["data", "main", "list", "records"],
+  gallery: ["images", "portfolio", "photos", "work"],
+  carousel: ["slides", "hero", "featured", "promo"],
+  "section-heading": ["main", "about", "features", "services"],
+  "sign-in": ["form", "main", "user", "auth"],
+  "sign-up": ["form", "main", "register", "auth"],
+  "paymongo-button": ["pay", "checkout", "buy", "order"],
+  video: ["main", "hero", "promo", "embed"],
 };
 
 function pickReadableId(type: string, used: Set<string>): string {
-  const suffixes = SEMANTIC_SUFFIXES_GEN[type] ?? ["main", "content", "block", "section"];
+  const suffixes = SEMANTIC_SUFFIXES_GEN[type] ?? [
+    "main",
+    "content",
+    "block",
+    "section",
+  ];
   for (const suffix of suffixes) {
-    const c = `${type}-${suffix}`; if (!used.has(c)) { used.add(c); return c; }
+    const c = `${type}-${suffix}`;
+    if (!used.has(c)) {
+      used.add(c);
+      return c;
+    }
   }
   for (const suffix of suffixes) {
     for (let n = 2; n <= 20; n++) {
-      const c = `${type}-${suffix}-${n}`; if (!used.has(c)) { used.add(c); return c; }
+      const c = `${type}-${suffix}-${n}`;
+      if (!used.has(c)) {
+        used.add(c);
+        return c;
+      }
     }
   }
-  const c = `${type}-${Date.now().toString(36).slice(-4)}`; used.add(c); return c;
+  const c = `${type}-${Date.now().toString(36).slice(-4)}`;
+  used.add(c);
+  return c;
 }
 
 function migrateToReadableIds(components: ComponentData[]): ComponentData[] {
-  const used = new Set(components.filter(c => isReadableId(c.id)).map(c => c.id));
+  const used = new Set(
+    components.filter((c) => isReadableId(c.id)).map((c) => c.id),
+  );
   const migrate = (c: ComponentData): ComponentData => {
     const newId = isReadableId(c.id) ? c.id : pickReadableId(c.type, used);
     return { ...c, id: newId, children: c.children?.map(migrate) };
@@ -519,16 +642,17 @@ export const generateProjectFiles = (
   pages: any[],
   projectName: string,
   userConfig?: {
-    paymongoKey?: string
-    resendApiKey?: string
-    supabaseUrl?: string
-    supabaseKey?: string
-    supabaseAnonKey?: string
-    supabaseServiceKey?: string
+    paymongoKey?: string;
+    resendApiKey?: string;
+    supabaseUrl?: string;
+    supabaseKey?: string;
+    supabaseAnonKey?: string;
+    supabaseServiceKey?: string;
   },
 ): Record<string, string> => {
   const migratedComponents = migrateToReadableIds(components);
-  const defaultPage = pages && pages.length > 0 ? slugify(pages[0].name) : "home";
+  const defaultPage =
+    pages && pages.length > 0 ? slugify(pages[0].name) : "home";
 
   const files: Record<string, string> = {
     "public/index.php": `<?php
@@ -895,15 +1019,81 @@ curl_close($ch);
 
   pages.forEach((page, index) => {
     const fileName = slugify(page.name);
-    const pageComponents = migratedComponents.filter(c => c.page_id === page.id || c.page_id === "all" || (!c.page_id && (page.id === "home" || index === 0)));
-    const bodyContent = `<div class="canvas-container">\n` + (pageComponents.length > 0 ? pageComponents.map(c => renderComponentToPHP(c, 1)).join("\n") : "  <!-- No components -->") + `\n</div>`;
+    const pageComponents = migratedComponents.filter(
+      (c) =>
+        c.page_id === page.id ||
+        c.page_id === "all" ||
+        (!c.page_id && (page.id === "home" || index === 0)),
+    );
+    const bodyContent =
+      `<div class="canvas-container">\n` +
+      (pageComponents.length > 0
+        ? pageComponents.map((c) => renderComponentToPHP(c, 1)).join("\n")
+        : "  <!-- No components -->") +
+      `\n</div>`;
     const allPageComponents = collectAllComponents(pageComponents);
-    const integrationsJson = JSON.stringify(allPageComponents.flatMap(c => Array.isArray(c.props?.integrations) ? c.props.integrations : []));
-    files[`app/views/${fileName}.php`] = generateHTMLWrapper(page.name, fileName, bodyContent, integrationsJson);
-    const componentCssBlocks = allPageComponents.filter(c => (c.style && Object.keys(c.style).length > 0) || c.type === "navbar").map(c => buildResponsiveCss(c, (c as any).position));
-    const customComponentCss = allPageComponents.filter(c => c.type === "custom-component" && c.props?.css).map(c => `/* CSS for ${c.id} */\n${c.props.css}`);
-    files[`public/assets/css/${fileName}.css`] = [`/* ${page.name} styles */`, ...componentCssBlocks, ...customComponentCss].filter(Boolean).join("\n\n");
-    files[`public/assets/js/${fileName}.js`] = generatePageJS(pageComponents, page.name);
+    const integrationsJson = JSON.stringify(
+      allPageComponents.flatMap((c) =>
+        Array.isArray(c.props?.integrations) ? c.props.integrations : [],
+      ),
+    );
+    files[`app/views/${fileName}.php`] = generateHTMLWrapper(
+      page.name,
+      fileName,
+      bodyContent,
+      integrationsJson,
+    );
+    const componentCssBlocks = allPageComponents
+      .filter(
+        (c) =>
+          (c.style && Object.keys(c.style).length > 0) || c.type === "navbar",
+      )
+      .map((c) => buildResponsiveCss(c, (c as any).position));
+    const customComponentCss = allPageComponents
+      .filter((c) => c.type === "custom-component" && c.props?.css)
+      .map((c) => `/* CSS for ${c.id} */\n${c.props.css}`);
+    const propsCss = allPageComponents
+      .filter((c) => c.props?.css && c.type !== "custom-component")
+      .map(
+        (c) =>
+          `/* CSS from props for ${compIdClass(c)} */\n${c.props.css.replace(/\\$elementId/g, compIdClass(c))}`,
+      );
+
+    files[`public/assets/css/${fileName}.css`] = [
+      `/* ${page.name} styles */`,
+      ...componentCssBlocks,
+      ...customComponentCss,
+      ...propsCss,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    files[`public/assets/js/${fileName}.js`] = generatePageJS(
+      pageComponents,
+      page.name,
+    );
+
+    // Generate the backend API file if it doesn't conflict with global API files
+    const globalApis = ["auth", "data", "paymongo", "resend"];
+    if (!globalApis.includes(fileName)) {
+      const pagePhpBackends = allPageComponents
+        .filter((c) => c.props?.php_backend)
+        .map((c) => {
+          const rawPhp = c.props.php_backend;
+          // Trim out opening/closing tags if they exist to safely concatenate
+          return `// --- Backend logic for ${c.type} (${compIdClass(c)}) ---\n` + 
+                 rawPhp.replace(/^<\\?php\\s*/, '').replace(/\\?>$/, '').trim();
+        })
+        .join("\n\n");
+
+      files[`app/api/${fileName}.php`] = `<?php
+// Backend logic for ${page.name}
+// This file is automatically generated whenever you create a new page.
+// You can add your custom PHP logic here. 
+// It is imported at the top of app/views/${fileName}.php
+
+${pagePhpBackends ? pagePhpBackends : '// Example:\\n// $pageTitle = "' + page.name + ' - My Site";'}
+?>`;
+    }
   });
 
   return files;
