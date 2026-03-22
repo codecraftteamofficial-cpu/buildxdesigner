@@ -360,19 +360,17 @@ function CodeExportModal({
   customFiles = {},
 }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
-    const activePage = pages?.find((p) => p.id === activePageId) || pages?.[0];
-    const pageName = activePage?.name || "home";
-    return `app/views/${slugify(pageName)}.php`;
+    const activePage = pages.find((p) => p.id === activePageId) || pages[0];
+    return `public/${slugify(activePage.name)}.html`;
   }, [pages, activePageId]);
 
   const [selectedFile, setSelectedFile] = useState<string>(defaultFile);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set([
-      "app",
-      "app/views",
       "public",
       "public/assets",
       "public/assets/css",
+      "public/assets/js",
     ]),
   );
 
@@ -745,17 +743,16 @@ export function CodeViewEditor({
   );
 
   // Permissions logic
-  const isViewPHP =
-    selectedFile.startsWith("app/views/") && selectedFile.endsWith(".php");
+  const isViewHTML = selectedFile.endsWith(".html");
   const isCSSFile = selectedFile.endsWith(".css");
   const isJSFile = selectedFile.endsWith(".js");
-  const isGeneratedFrontend = isViewPHP || isCSSFile || isJSFile;
+  const isGeneratedFrontend = isViewHTML || isCSSFile || isJSFile;
   const isOverridden = !!fileOverrides[selectedFile];
-  const canEdit = !!selectedFile && !isGeneratedFrontend;
+  const canEdit = !!selectedFile && !isViewHTML; // Disable HTML editing to keep it managed by Canvas
 
   useEffect(() => {
     const page = pages.find((p) => p.id === activePageId) ?? pages[0];
-    setSelectedFile((prev) => prev || `app/views/${slugify(page.name)}.php`);
+    setSelectedFile((prev) => prev || `public/${slugify(page.name)}.html`);
   }, [activePageId, pages]);
 
   const readOnlyContent = effectiveFiles[selectedFile] ?? "";
@@ -882,8 +879,7 @@ export function CodeViewEditor({
           projectName={projectName}
           pages={pages}
           activePageId={activePageId}
-          fileOverrides={fileOverrides}
-          customFiles={customFiles}
+          effectiveFiles={effectiveFiles}
           userConfig={userConfig}
           effectiveFiles={effectiveFiles}
           onClose={() => setShowExportModal(false)}
@@ -916,19 +912,12 @@ export function CodeViewEditor({
             <span className="text-xs font-mono text-white truncate max-w-[250px] font-medium">
               {selectedFile}
             </span>
-            {isGeneratedFrontend && (
+            {isGeneratedFrontend && !isOverridden && (
               <span
-                className={`text-[10px] flex items-center gap-1.5 font-bold px-2 py-0.5 rounded-full border ${isOverridden ? "text-red-400 bg-red-400/10 border-red-400/20" : "text-yellow-300 bg-yellow-400/10 border-yellow-400/20"}`}
-                title={
-                  isOverridden
-                    ? "Visual changes are currently ignored due to manual edits"
-                    : "Changes here may be overwritten by the visual Canvas"
-                }
+                className="text-[10px] flex items-center gap-1.5 font-bold px-2 py-0.5 rounded-full border text-yellow-300 bg-yellow-400/10 border-yellow-400/20"
+                title="Changes here may be overwritten by the visual Canvas"
               >
-                <AlertTriangle
-                  className={`w-3 h-3 ${isOverridden ? "text-red-400" : "text-yellow-400"}`}
-                />{" "}
-                {isOverridden ? "Override Active" : "Managed by Canvas"}
+                <AlertTriangle className="w-3 h-3 text-yellow-400" /> Managed by Canvas
               </span>
             )}
           </div>
@@ -1025,9 +1014,7 @@ export function CodeViewEditor({
               >
                 Canvas
               </strong>{" "}
-              {isOverridden
-                ? "to update this file. (Override active - visual changes are ignored)"
-                : "to prevent desync."}
+              to keep your design in sync.
             </span>
           </div>
         )}

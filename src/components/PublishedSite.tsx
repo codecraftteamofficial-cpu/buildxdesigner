@@ -89,7 +89,10 @@ export function PublishedSite() {
                     subdomain = override;
                 }
             } else if (parts.length > 2) {
-                subdomain = parts[0];
+                const isVercel = hostname.endsWith(".vercel.app");
+                if (!isVercel) {
+                    subdomain = parts[0];
+                }
             }
 
             if (!subdomain || subdomain === "www" || subdomain === "app") {

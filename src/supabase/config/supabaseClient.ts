@@ -21,8 +21,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const SUPABASE_OAUTH_CLIENT_ID = "c169dad4-7d02-4938-b977-b30c4a5c15ce";
 const SUPABASE_OAUTH_CLIENT_SECRET =
   "sba_8ad4f8116daf4199d4387bfca901595f1134d02e";
-const SUPABASE_REDIRECT_URI =
-  "https://buildxdesigner.site/api/supabase/oauth/callback";
+const SUPABASE_REDIRECT_URI = typeof window !== 'undefined' 
+  ? `${window.location.origin}/api/supabase/oauth/callback`
+  : "https://buildxdesigner.site/api/supabase/oauth/callback";
 
 const finalUrl = SUPABASE_URL || "https://odswfrqmqbybfkhpemsv.supabase.co";
 const finalKey =

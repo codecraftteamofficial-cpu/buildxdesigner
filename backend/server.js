@@ -18,20 +18,28 @@ const allowedOrigins = [
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) {
-      // Allow server-to-server / non-browser requests
       callback(null, true);
       return;
     }
-    // Allow exact matches from the allowedOrigins list
+    
+    // Allow exact matches
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
-    // Allow ALL *.buildxdesigner.site subdomains (published sites)
+    
+    // Allow ALL *.buildxdesigner.site subdomains
     if (/^https?:\/\/[^.]+\.buildxdesigner\.site$/.test(origin)) {
       callback(null, true);
       return;
     }
+
+    // Allow ALL *.vercel.app subdomains (for preview/feature branches)
+    if (/^https?:\/\/[^.]+\.vercel\.app$/.test(origin)) {
+      callback(null, true);
+      return;
+    }
+
     callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -168,7 +176,11 @@ app.get("/api/auth/callback", async (req, res) => {
         console.log(`[Auth Debug] /api/auth/callback - Parsed origin: ${origin}`);
         console.log(`[Auth Debug] /api/auth/callback - Allowed Origins: ${JSON.stringify(allowedOrigins)}`);
         
-        if (allowedOrigins.includes(origin) || /^https?:\/\/[^.]+\.buildxdesigner\.site$/.test(origin)) {
+        if (
+          allowedOrigins.includes(origin) || 
+          /^https?:\/\/[^.]+\.buildxdesigner\.site$/.test(origin) ||
+          /^https?:\/\/[^.]+\.vercel\.app$/.test(origin)
+        ) {
           console.log(`[Auth Debug] /api/auth/callback - Origin is ALLOWED`);
           targetUrl = state;
         } else {
