@@ -232,6 +232,12 @@ const renderComponentToHTML = (component: ComponentData, depth = 0): string => {
       /\$elementId/g,
       compIdClass(component),
     );
+    
+    // Auth-related replacements
+    if (props.redirectUrl || (component.type === 'sign-in' || component.type === 'sign-up' || component.type === 'auth-block')) {
+      const redirect = props.redirectUrl || '/';
+      htmlRaw = htmlRaw.replace(/\{\{REDIRECT_URL\}\}/g, redirect);
+    }
 
     if (component.type === "dynamic-form") {
       const title = esc(props.title || "Dynamic Form");
@@ -457,7 +463,32 @@ const generatePageJS = (
       if (handler.includes("<?php")) {
         return `/* [CANVAS-INJECTION]: ${id} had PHP logic which cannot be injected into JS. */`;
       }
-      const innerContent = `(function(elementId) {\n  const $elementId = elementId; \n${handler.replace(/\$elementId/g, id)}\n})("${id}");`;
+      const redirect = c.props?.redirectUrl || '/';
+      let processedHandler = handler
+        .replace(/\$elementId/g, id)
+        .replace(/\{\{REDIRECT_URL\}\}/g, redirect);
+      
+      if (c.type === 'table') {
+        const table = c.props?.supabaseTable || '';
+        const columns = c.props?.supabaseSelectColumns || c.props?.columnsToSelect || '*';
+        const headers = Array.isArray(c.props?.headers) ? c.props.headers : [];
+        const headerConfig = headers.map((h: any) => {
+          if (typeof h === 'string') {
+            const [label, key] = h.split(':');
+            const finalKey = key || label;
+            return `"${finalKey}": "${label}"`;
+          }
+          return `"${h.key}": "${h.label}"`;
+        }).join(', ');
+
+        processedHandler = processedHandler
+          .replace(/\{\{SUPABASE_TABLE\}\}/g, table)
+          .replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, columns)
+          .replace(/\{\{TABLE_HEADERS_CONFIG\}\}/g, headerConfig)
+          .replace(/\{\{TABLE_TITLE\}\}/g, c.props?.tableName || 'Data Table');
+      }
+
+      const innerContent = `(function(elementId) {\n  const $elementId = elementId; \n${processedHandler}\n})("${id}");`;
       const contentHash = Array.from(innerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
       return `/* [CANVAS-INJECTION]: ${id} | hash:${contentHash} */\n${innerContent}\n/* [END-CANVAS-INJECTION]: ${id} */`;
     })
@@ -733,6 +764,15 @@ const CONFIG = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
   
+  if (url === '/config.json') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      supabaseUrl: CONFIG.supabaseUrl,
+      supabaseAnonKey: CONFIG.supabaseAnonKey
+    }));
+    return;
+  }
+
   // Static file server
   let filePath = path.join(__dirname, 'public', url === '/' ? 'index.html' : url);
   if (!path.extname(filePath)) filePath += '.html';
@@ -801,27 +841,41 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
 
   window.buildx.auth = {
     async signUp(email, password, metadata = {}) {
-      const { supabaseUrl, supabaseAnonKey } = await getConfig();
-      const res = await fetch(\`\${supabaseUrl}/auth/v1/signup\`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, data: metadata })
-      });
-      return await res.json();
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const res = await fetch(\`\${supabaseUrl}/auth/v1/signup\`, {
+          method: 'POST',
+          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, data: metadata })
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        return { data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
     },
     async signIn(email, password) {
-      const { supabaseUrl, supabaseAnonKey } = await getConfig();
-      const res = await fetch(\`\${supabaseUrl}/auth/v1/token?grant_type=password\`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (data.access_token) {
-        localStorage.setItem('supabase.auth.token', data.access_token);
-        localStorage.setItem('supabase.auth.user', JSON.stringify(data.user));
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const res = await fetch(\`\${supabaseUrl}/auth/v1/token?grant_type=password\`, {
+          method: 'POST',
+          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        
+        if (data.access_token) {
+          localStorage.setItem('supabase.auth.token', data.access_token);
+          localStorage.setItem('supabase.auth.user', JSON.stringify(data.user));
+        }
+        return { data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
       }
-      return data;
     },
     signOut() {
       localStorage.removeItem('supabase.auth.token');
@@ -839,42 +893,61 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
 
   window.buildx.data = {
     async select(table, columns = '*', filters = {}) {
-      const { supabaseUrl, supabaseAnonKey } = await getConfig();
-      const params = new URLSearchParams({ select: columns });
-      Object.entries(filters).forEach(([col, val]) => {
-        if (val !== undefined && val !== null) params.append(col, 'eq.' + val);
-      });
-      const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}?\${params.toString()}\`, {
-        headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey) }
-      });
-      return await res.json();
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const params = new URLSearchParams({ select: columns });
+        Object.entries(filters).forEach(([col, val]) => {
+          if (val !== undefined && val !== null) params.append(col, 'eq.' + val);
+        });
+        const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}?\${params.toString()}\`, {
+          headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey) }
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        return { data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
     },
     async insert(table, data) {
-      const { supabaseUrl, supabaseAnonKey } = await getConfig();
-      const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}\`, {
-        method: 'POST',
-        headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-        body: JSON.stringify(data)
-      });
-      return await res.json();
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}\`, {
+          method: 'POST',
+          headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (!res.ok) return { data: null, error: result };
+        return { data: result, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
     }
   };
 
   window.buildx.run = async function(id, data = {}) {
-    const integrations = window.__BUILDX_INTEGRATIONS__ || [];
-    const integration = integrations.find(i => i.id === id);
-    if (!integration) return { success: false, error: 'Integration not found' };
+    try {
+      const integrations = window.__BUILDX_INTEGRATIONS__ || [];
+      const integration = integrations.find(i => i.id === id);
+      if (!integration) throw new Error('Integration not found');
 
-    const baseUrl = window.__BUILDX_BASE_URL__ || '';
-    if (integration.type === 'resend') {
-       const res = await fetch(baseUrl + '/api/resend', { method: 'POST', body: JSON.stringify(data) });
-       return await res.json();
+      const baseUrl = window.__BUILDX_BASE_URL__ || '';
+      const endpoint = baseUrl + (integration.type === 'resend' ? '/api/resend' : '/api/paymongo');
+      
+      const res = await fetch(endpoint, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data) 
+      });
+      const result = await res.json();
+      if (!res.ok) return { success: false, data: null, error: result };
+      return { success: true, data: result, error: null };
+    } catch (err) {
+      return { success: false, data: null, error: err };
     }
-    if (integration.type === 'paymongo') {
-       const res = await fetch(baseUrl + '/api/paymongo', { method: 'POST', body: JSON.stringify(data) });
-       return await res.json();
-    }
-    return { success: false, error: 'Unsupported integration type' };
   };
 
   document.addEventListener('submit', async (e) => {
@@ -889,21 +962,39 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
       try {
         if (action === 'insert' || action === 'update') {
           const table = form.dataset.table;
-          await window.buildx.data.insert(table, data);
-          if (msgEl) { msgEl.textContent = 'Success!'; msgEl.style.display = 'block'; }
+          const { error } = await window.buildx.data.insert(table, data);
+          if (!error) {
+            if (msgEl) { msgEl.textContent = 'Success!'; msgEl.style.display = 'block'; }
+          } else if (msgEl) {
+            msgEl.textContent = 'Error: ' + (error.message || 'Submission failed');
+            msgEl.style.display = 'block';
+          }
         } else if (action === 'signin') {
-          const res = await window.buildx.auth.signIn(data.email, data.password);
-          if (res.access_token) window.location.href = form.dataset.redirect || 'index.html';
-          else if (msgEl) { msgEl.textContent = res.error_description || 'Auth failed'; msgEl.style.display = 'block'; }
+          const { data: authData, error } = await window.buildx.auth.signIn(data.email, data.password);
+          if (authData && authData.access_token) window.location.href = form.dataset.redirect || 'index.html';
+          else if (msgEl) { 
+            msgEl.textContent = (error && (error.message || error.error_description)) || 'Auth failed'; 
+            msgEl.style.display = 'block'; 
+          }
         } else if (action === 'signup') {
-          const res = await window.buildx.auth.signUp(data.email, data.password);
-          if (msgEl) { msgEl.textContent = 'Sign up successful! check your email.'; msgEl.style.display = 'block'; }
+          const { error } = await window.buildx.auth.signUp(data.email, data.password);
+          if (!error) { 
+            if (msgEl) { msgEl.textContent = 'Sign up successful! check your email.'; msgEl.style.display = 'block'; }
+          } else if (msgEl) {
+            msgEl.textContent = error.message || error.error_description || 'Sign up failed';
+            msgEl.style.display = 'block';
+          }
         } else if (action === 'contact') {
           const integrations = window.__BUILDX_INTEGRATIONS__ || [];
           const resend = integrations.find(i => i.type === 'resend');
           if (resend) {
-            await window.buildx.run(resend.id, { to: 'you@example.com', subject: 'Contact Form', html: JSON.stringify(data) });
-            if (msgEl) { msgEl.textContent = 'Message sent!'; msgEl.style.display = 'block'; }
+            const result = await window.buildx.run(resend.id, { to: 'you@example.com', subject: 'Contact Form', html: JSON.stringify(data) });
+            if (result.success) {
+              if (msgEl) { msgEl.textContent = 'Message sent!'; msgEl.style.display = 'block'; }
+            } else if (msgEl) {
+              msgEl.textContent = 'Error: ' + (result.error?.message || 'Failed to send');
+              msgEl.style.display = 'block';
+            }
           }
         }
       } catch (err) {

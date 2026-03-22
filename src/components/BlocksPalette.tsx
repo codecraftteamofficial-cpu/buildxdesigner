@@ -440,7 +440,7 @@ if (form) {
     msgEl.textContent = 'Sending...';
     msgEl.style.display = 'block';
     
-    const result = await window.buildx.apiCall('/api/resend', {
+    const result = await window.buildx.run('{{RESEND_INTEGRATION_ID}}', {
       to: '{{RECIPIENT_EMAIL}}',
       subject: 'New Contact Form Submission',
       html: '<table>' + Object.entries(data).map(([k, v]) => '<tr><td><b>' + k + '</b></td><td>' + v + '</td></tr>').join('') + '</table>'
@@ -450,7 +450,7 @@ if (form) {
       msgEl.textContent = 'Thank you ' + (data.name || '') + ', your message has been sent successfully!';
       form.reset();
     } else {
-      msgEl.textContent = 'Error: ' + (result.error || 'Failed to send message.');
+      msgEl.textContent = 'Error: ' + (result.error?.message || 'Failed to send message.');
       msgEl.style.background = '#fee2e2';
       msgEl.style.color = '#991b1b';
     }
@@ -540,12 +540,12 @@ if (form) {
     msgEl.textContent = 'Submitting...';
     msgEl.style.display = 'block';
 
-    const result = await window.buildx.data.insert(table, data);
-    if (!result.error) {
+    const { data: resultData, error } = await window.buildx.data.insert(table, data);
+    if (!error) {
       msgEl.textContent = 'Success! Your information has been submitted.';
       form.reset();
     } else {
-      msgEl.textContent = 'Error: ' + (result.error.message || 'Submission failed.');
+      msgEl.textContent = 'Error: ' + (error.message || 'Submission failed.');
       msgEl.style.background = '#fee2e2';
       msgEl.style.color = '#991b1b';
     }
@@ -727,7 +727,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if (container) {
   const table = '{{SUPABASE_TABLE}}';
   const columns = '{{SUPABASE_SELECT_COLUMNS}}' || '*';
-  const headerConfig = [{{TABLE_HEADERS_CONFIG}}]; // Expected format: 'key' => 'label' (PHP style) -> needs manual fix or use object
+  const headerConfig = { {{TABLE_HEADERS_CONFIG}} };
   
   const loadData = async () => {
     if (!table) return;
@@ -741,10 +741,11 @@ if (container) {
     const theadRow = container.querySelector('.header-row');
     
     if (data && data.length > 0) {
-      const keys = Object.keys(data[0]);
+      const configKeys = Object.keys(headerConfig);
+      const keys = configKeys.length > 0 ? configKeys : Object.keys(data[0]);
       
       // Build Headers
-      theadRow.innerHTML = keys.map(k => '<th>' + k + '</th>').join('');
+      theadRow.innerHTML = keys.map(k => '<th>' + (headerConfig[k] || k) + '</th>').join('');
       
       // Build Rows
       tbody.innerHTML = data.map(row => '<tr>' + keys.map(k => '<td>' + (row[k] || '') + '</td>').join('') + '</tr>').join('');
@@ -787,7 +788,7 @@ if (container) {
   <h2>Sign In</h2>
   <p>Enter your email and password to access your account.</p>
   <p class="auth-error" style="display:none;"></p>
-  <form class="auth-form" data-action="signin" data-redirect="/">
+  <form class="auth-form" data-action="signin" data-redirect="{{REDIRECT_URL}}">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -823,13 +824,13 @@ if (form) {
     const errorEl = form.parentElement.querySelector('.auth-error');
     const email = form.querySelector('input[name="email"]').value;
     const password = form.querySelector('input[name="password"]').value;
-    const redirect = form.getAttribute('data-redirect') || '/';
+    const redirect = form.getAttribute('data-redirect') || '{{REDIRECT_URL}}';
     
     errorEl.style.display = 'none';
     
-    const { error } = await window.buildx.auth.signIn(email, password);
+    const { data, error } = await window.buildx.auth.signIn(email, password);
     if (error) {
-      errorEl.textContent = error.message;
+      errorEl.textContent = error.message || error.error_description || 'Authentication failed';
       errorEl.style.display = 'block';
     } else {
       window.location.href = redirect;
@@ -871,7 +872,7 @@ if (form) {
   <h2>Sign In / Sign Up</h2>
   <p>Please authenticate to continue.</p>
   <p class="auth-error" style="display:none;"></p>
-  <form class="auth-form" data-action="signin">
+  <form class="auth-form" data-action="signin" data-redirect="{{REDIRECT_URL}}">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -904,7 +905,7 @@ if (container) {
     const email = form.querySelector('input[name="email"]').value;
     const password = form.querySelector('input[name="password"]').value;
     const action = form.getAttribute('data-action');
-    const redirect = '/';
+    const redirect = '{{REDIRECT_URL}}';
     
     errorEl.style.display = 'none';
     
@@ -916,7 +917,7 @@ if (container) {
     }
     
     if (result.error) {
-      errorEl.textContent = result.error.message;
+      errorEl.textContent = result.error.message || result.error.error_description || 'Authentication failed';
       errorEl.style.display = 'block';
     } else {
       window.location.href = redirect;
@@ -956,7 +957,7 @@ if (container) {
   <p>Create a new account by filling out the form below.</p>
   <p class="auth-error" style="display:none;"></p>
   <p class="auth-success" style="display:none;">Sign up successful! Please check your email.</p>
-  <form class="auth-form" data-action="signup">
+  <form class="auth-form" data-action="signup" data-redirect="{{REDIRECT_URL}}">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -996,14 +997,14 @@ if (container) {
     e.preventDefault();
     const email = form.querySelector('input[name="email"]').value;
     const password = form.querySelector('input[name="password"]').value;
-    const redirect = form.getAttribute('data-redirect') || '/';
+    const redirect = form.getAttribute('data-redirect') || '{{REDIRECT_URL}}';
     
     errorEl.style.display = 'none';
     successEl.style.display = 'none';
     
     const { error } = await window.buildx.auth.signUp(email, password);
     if (error) {
-      errorEl.textContent = error.message;
+      errorEl.textContent = error.message || error.error_description || 'Sign up failed';
       errorEl.style.display = 'block';
     } else {
       successEl.style.display = 'block';
