@@ -15,11 +15,46 @@ const SCALE = {
 } as const;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-export const slugify = (value: string) =>
-  value
+export const slugify = (value: string | undefined) =>
+  (value || "page")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "") || "page";
+
+// Enhanced typo correction function for column names
+const correctColumnTypos = (columnString: string): string => {
+  const commonCorrections: Record<string, string> = {
+    'uername': 'username',
+    'usrname': 'username',
+    'usernm': 'username',
+    'user_name': 'username',
+    'user-id': 'user_id',
+    'userid': 'user_id',
+    'emailadress': 'email',
+    'email_address': 'email',
+    'fristname': 'firstname',
+    'firstname': 'first_name',
+    'lastname': 'last_name',
+    'createdat': 'created_at',
+    'updatedat': 'updated_at',
+    'phonenumber': 'phone_number',
+    'phno': 'phone_number'
+  };
+
+  // Handle comma-separated column lists
+  return columnString
+    .split(',')
+    .map(col => {
+      const trimmedCol = col.trim();
+      const corrected = commonCorrections[trimmedCol.toLowerCase()];
+      if (corrected) {
+        console.log(`[buildx] 🔧 Auto-corrected column "${trimmedCol}" to "${corrected}"`);
+        return corrected;
+      }
+      return trimmedCol;
+    })
+    .join(',');
+};
 
 const camelToKebab = (value: string): string =>
   value.replace(/([A-Z])/g, "-$1").toLowerCase();
@@ -752,7 +787,17 @@ class Supabase {
 
   private function request(string $method, string $endpoint, array $body = [], array $query = [], array $headers = []): array {
     $url = $this->url . '/rest/v1/' . ltrim($endpoint, '/');
-    if (!empty($query)) $url .= '?' . http_build_query($query);
+    if (!empty($query)) {
+        $qParts = [];
+        foreach ($query as $k => $v) {
+            if (is_array($v)) {
+                foreach ($v as $subV) $qParts[] = rawurlencode($k) . '=' . rawurlencode($subV);
+            } else {
+                $qParts[] = rawurlencode($k) . '=' . rawurlencode($v);
+            }
+        }
+        $url .= '?' . implode('&', $qParts);
+    }
     $ch = curl_init($url);
     $defaultHeaders = ['apikey: ' . $this->key, 'Authorization: Bearer ' . $this->key, 'Content-Type: application/json', 'Prefer: return=representation'];
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_CUSTOMREQUEST => strtoupper($method), CURLOPT_HTTPHEADER => array_merge($defaultHeaders, $headers)]);
@@ -761,7 +806,7 @@ class Supabase {
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     $decoded = json_decode($response, true);
-    return ['data' => $decoded, 'status' => $status, 'error' => ($status >= 400) ? $decoded : null];
+    return ['data' => $decoded, 'status' => $status, 'error' => ($status >= 400 || !$response) ? ($decoded ?: ['message' => 'CURL Request Failed']) : null];
   }
 
   public function signUp(string $email, string $password, array $metadata = []): array {
@@ -812,6 +857,16 @@ class Supabase {
         $value = $val['value'];
         if ($value === null || $value === '') continue;
         $query[$column] = $op . '.' . $value;
+      } else if (is_array($val)) {
+        // Handle multiple same filters if they come as simple array of op.val
+        foreach ($val as $v) {
+          if ($v === null || $v === '') continue;
+          if (!isset($query[$col])) $query[$col] = $v;
+          else {
+              if (is_array($query[$col])) $query[$col][] = $v;
+              else $query[$col] = [$query[$col], $v];
+          }
+        }
       } else if (!is_array($val)) {
         if ($val === null || $val === '') continue;
         if (is_string($val) && strpos($val, '.') !== false) { $query[$col] = $val; }
@@ -886,15 +941,73 @@ if ($res) { http_response_code($res['status'] ?? 200); echo json_encode($res); }
 require_once __DIR__ . '/../lib/supabase.php';
 header('Content-Type: application/json');
 $db = new Supabase();
+
+// Enhanced typo correction function for backend
+function correctColumnTypos($columnString) {
+  $commonCorrections = [
+    'uername' => 'username',
+    'usrname' => 'username', 
+    'usernm' => 'username',
+    'user_name' => 'username',
+    'user-id' => 'user_id',
+    'userid' => 'user_id',
+    'emailadress' => 'email',
+    'email_address' => 'email',
+    'fristname' => 'firstname',
+    'firstname' => 'first_name',
+    'lastname' => 'last_name',
+    'createdat' => 'created_at',
+    'updatedat' => 'updated_at',
+    'phonenumber' => 'phone_number',
+    'phno' => 'phone_number'
+  ];
+  
+  // Handle comma-separated column lists
+  $columns = explode(',', $columnString);
+  $corrected = [];
+  foreach ($columns as $col) {
+    $trimmedCol = trim($col);
+    $lowerCol = strtolower($trimmedCol);
+    if (isset($commonCorrections[$lowerCol])) {
+      error_log("[buildx] 🔧 Backend auto-corrected column '$trimmedCol' to '{$commonCorrections[$lowerCol]}'");
+      $corrected[] = $commonCorrections[$lowerCol];
+    } else {
+      $corrected[] = $trimmedCol;
+    }
+  }
+  return implode(',', $corrected);
+}
 $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
   $table = $_GET['table'] ?? '';
-  $columns = $_GET['select'] ?? '*';
+  $columns = str_replace(' ', '', $_GET['select'] ?? '*');
+  // Apply typo correction to select columns
+  $columns = correctColumnTypos($columns);
   $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
   $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : null;
   $order = $_GET['order'] ?? null;
-  $reserved = ['table','select','limit','offset','order'];
-  $filters = array_diff_key($_GET, array_flip($reserved));
+  $reserved = ['table','select','limit','offset','order','url'];
+  
+  // Custom filter parsing for duplicate keys (age=gt.18&age=lt.30)
+  $filters = [];
+  $queryStr = $_SERVER['QUERY_STRING'] ?? '';
+  if ($queryStr) {
+    foreach (explode('&', $queryStr) as $pair) {
+      if (strpos($pair, '=') === false) continue;
+      list($k, $v) = explode('=', $pair, 2);
+      $k = urldecode($k);
+      if (in_array($k, $reserved)) continue;
+      $v = urldecode($v);
+      
+      // Apply typo correction to filter columns
+      $correctedK = correctColumnTypos($k);
+      
+      if (!isset($filters[$correctedK])) $filters[$correctedK] = $v;
+      else if (is_array($filters[$correctedK])) $filters[$correctedK][] = $v;
+      else $filters[$correctedK] = [$filters[$correctedK], $v];
+    }
+  }
+  
   $res = $db->select($table, $columns, $filters, $limit, $offset, $order);
   http_response_code($res['status'] ?? 200);
   echo json_encode($res);
@@ -948,11 +1061,45 @@ curl_close($ch);
 (function() {
   window.buildx = window.buildx || {};
   
+  // Enhanced typo correction function for column names
+  const correctColumnTypos = (columnString) => {
+    const commonCorrections = {
+      'uername': 'username',
+      'usrname': 'username',
+      'usernm': 'username',
+      'user_name': 'username',
+      'user-id': 'user_id',
+      'userid': 'user_id',
+      'emailadress': 'email',
+      'email_address': 'email',
+      'fristname': 'firstname',
+      'firstname': 'first_name',
+      'lastname': 'last_name',
+      'createdat': 'created_at',
+      'updatedat': 'updated_at',
+      'phonenumber': 'phone_number',
+      'phno': 'phone_number'
+    };
+
+    return columnString
+      .split(',')
+      .map(col => {
+        const trimmedCol = col.trim();
+        const corrected = commonCorrections[trimmedCol.toLowerCase()];
+        if (corrected) {
+          console.log('[buildx] 🔧 Auto-corrected column "' + trimmedCol + '" to "' + corrected + '"');
+          return corrected;
+        }
+        return trimmedCol;
+      })
+      .join(',');
+  };
+
   function renderTemplate(template, data) {
     return template.replace(/\\{\\{formData\\.([^}]+)\\}\\}/g, (match, key) => data[key] || '');
   }
 
-  window.buildx.run = async function(integrationId) {
+  window.buildx.run = async function(integrationId, context) {
     const integrations = window.__BUILDX_INTEGRATIONS__ || [];
     const config = integrations.find(i => i.id === integrationId);
     
@@ -972,20 +1119,24 @@ curl_close($ch);
             if (typeof val === 'string' && val.startsWith('formData.')) {
               let id = val.replace('formData.', '');
               if (!id.startsWith('#')) id = '#' + id;
-              const el = document.querySelector(id);
+              const el = (context && context.querySelector) ? context.querySelector(id) : document.querySelector(id);
               if (el) {
-                formData[key] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) : el.value);
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                  formData[key] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) || 0 : el.value);
+                } else {
+                  formData[key] = el.innerText.trim();
+                }
               } else { formData[key] = ''; }
             } else { formData[key] = val; }
           });
         }
         
-        const resolvedFilters = (config.config.filters || []).map(f => {
+        let resolvedFilters = (config.config.filters || []).map(f => {
           let val = f.value;
           if (typeof val === 'string' && val.startsWith('formData.')) {
             let id = val.replace('formData.', '');
             if (!id.startsWith('#')) id = '#' + id;
-            const el = document.querySelector(id);
+            const el = (context && context.querySelector) ? context.querySelector(id) : document.querySelector(id);
             if (el) {
               if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
                 val = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) : el.value);
@@ -999,7 +1150,21 @@ curl_close($ch);
         if (operation === 'select') {
           const params = new URLSearchParams();
           params.append('table', table);
-          params.append('select', config.config.selectColumns || '*');
+          // PostgREST select should not have spaces
+          // PostgREST select should not have spaces
+          let cleanSelect = (config.config.selectColumns || '*').replace(/\s+/g, '');
+          
+          // Enhanced typo correction for select columns
+          cleanSelect = correctColumnTypos(cleanSelect);
+          
+          console.log('[buildx] 📋 Select columns after correction:', cleanSelect);
+          params.append('select', cleanSelect);
+          
+          // Apply typo correction to filters as well
+          resolvedFilters = resolvedFilters.map(f => ({
+            ...f,
+            column: correctColumnTypos(f.column)
+          }));
           resolvedFilters.forEach(f => {
             if (f.column && f.operator && f.value !== '' && f.value !== null) {
               // Always include operator for PostgREST
@@ -1070,8 +1235,8 @@ curl_close($ch);
 })();
 `,
     ".env.example": `SUPABASE_URL=\nSUPABASE_ANON_KEY=\n`,
-    ".htaccess": `RewriteEngine On\nRewriteRule ^$ public/index.php [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteCond %{REQUEST_URI} !/public/\nRewriteRule ^(.*)$ public/$1 [L]`,
-    "public/.htaccess": `RewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^(.*)$ index.php?url=$1 [QSA,L]`,
+    ".htaccess": `Options +FollowSymLinks\nRewriteEngine On\nRewriteRule ^$ public/index.php [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteCond %{REQUEST_URI} !/public/\nRewriteRule ^(.*)$ public/$1 [L]`,
+    "public/.htaccess": `Options +FollowSymLinks\nRewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^(.*)$ index.php?url=$1 [QSA,L]`,
   };
 
   pages.forEach((page, index) => {
@@ -1091,7 +1256,14 @@ curl_close($ch);
     const allPageComponents = collectAllComponents(pageComponents);
     const integrationsJson = JSON.stringify(
       allPageComponents.flatMap((c) =>
-        Array.isArray(c.props?.integrations) ? c.props.integrations : [],
+        (Array.isArray(c.props?.integrations) ? c.props.integrations : []).map(i => ({
+          ...i,
+          config: {
+            ...i.config,
+            // Enhanced typo correction for select columns
+            selectColumns: i.config?.selectColumns ? correctColumnTypos(i.config.selectColumns.replace(/\s+/g, '')) : '*'
+          }
+        }))
       ),
     );
     files[`app/views/${fileName}.php`] = generateHTMLWrapper(
