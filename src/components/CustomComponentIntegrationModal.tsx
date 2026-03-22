@@ -28,6 +28,29 @@ import {
 import { toast } from 'sonner';
 import { createClient } from '@supabase/supabase-js';
 
+// Common typo correction function
+const correctCommonTypos = (columnName: string): string => {
+  const commonCorrections: Record<string, string> = {
+    'uername': 'username',
+    'usrname': 'username',
+    'usernm': 'username',
+    'user_name': 'username',
+    'user-id': 'user_id',
+    'userid': 'user_id',
+    'emailadress': 'email',
+    'email_address': 'email',
+    'fristname': 'firstname',
+    'firstname': 'first_name',
+    'lastname': 'last_name',
+    'createdat': 'created_at',
+    'updatedat': 'updated_at',
+    'phonenumber': 'phone_number',
+    'phno': 'phone_number'
+  };
+  
+  return commonCorrections[columnName.toLowerCase()] || columnName;
+};
+
 
 // Helper component for stable mapping edits
 function MappingRow({
@@ -338,7 +361,9 @@ export function CustomComponentIntegrationModal({
         .limit(1);
 
       if (!error && data && data.length > 0 && isMounted.current && isOpen) {
-        const columns = Object.keys(data[0]);
+        let columns = Object.keys(data[0]);
+        // Apply typo correction to column names
+        columns = columns.map(col => correctCommonTypos(col));
         setTableColumns(prev => ({ ...prev, [tableName]: columns }));
         return;
       }
@@ -365,7 +390,9 @@ export function CustomComponentIntegrationModal({
             || pathInfo?.post?.parameters?.[0]?.schema?.['$ref']?.split('/')?.pop();
 
           if (definitionName && schema.definitions?.[definitionName]?.properties) {
-            const columns = Object.keys(schema.definitions[definitionName].properties);
+            let columns = Object.keys(schema.definitions[definitionName].properties);
+            // Apply typo correction to column names
+            columns = columns.map(col => correctCommonTypos(col));
             setTableColumns(prev => ({ ...prev, [tableName]: columns }));
             return;
           }
@@ -379,7 +406,8 @@ export function CustomComponentIntegrationModal({
           .flatMap(i => Object.keys(i.config.data || {}));
 
         if (existingCols.length > 0) {
-          setTableColumns(prev => ({ ...prev, [tableName]: Array.from(new Set(existingCols)) }));
+          let correctedCols = existingCols.map(col => correctCommonTypos(col));
+          setTableColumns(prev => ({ ...prev, [tableName]: Array.from(new Set(correctedCols)) }));
         }
       }
     } catch (error) {
@@ -798,28 +826,38 @@ export function CustomComponentIntegrationModal({
                             </Badge>
 
                           ) : (
-                            integration.config.selectColumns.split(',').filter(Boolean).map((col, cIdx) => (
-                              <Badge key={cIdx} variant="secondary" className="gap-1 bg-blue-50 text-blue-700 border-blue-200 pr-1">
-                                {col.trim()}
-                                <button
-                                  type="button"
-                                  className="ml-1 p-0.5 rounded-full hover:bg-blue-100 transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    const currentStr = integration.config.selectColumns || '';
-                                    const cols = currentStr.split(',').filter(Boolean).map(c => c.trim());
-                                    const newCols = cols.filter(c => c !== col.trim());
-                                    updateIntegration(integration.id, {
-                                      config: { ...integration.config, selectColumns: newCols.join(', ') || '*' }
-                                    });
-                                  }}
+                            integration.config.selectColumns.split(',').filter(Boolean).map((col, cIdx) => {
+                              const trimmedCol = col.trim();
+                              const isPotentialTypo = correctCommonTypos(trimmedCol) !== trimmedCol;
+                              
+                              return (
+                                <Badge 
+                                  key={cIdx} 
+                                  variant="secondary" 
+                                  className={`gap-1 pr-1 ${isPotentialTypo ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}
+                                  title={isPotentialTypo ? `Potential typo detected: "${trimmedCol}" should be "${correctCommonTypos(trimmedCol)}"` : ''}
                                 >
-                                  <X className="w-3 h-3 text-blue-500 hover:text-destructive" />
-                                </button>
-                              </Badge>
-
-                            ))
+                                  {trimmedCol}
+                                  {isPotentialTypo && <AlertCircle className="w-3 h-3 ml-1" />}
+                                  <button
+                                    type="button"
+                                    className="ml-1 p-0.5 rounded-full hover:bg-blue-100 transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      const currentStr = integration.config.selectColumns || '';
+                                      const cols = currentStr.split(',').filter(Boolean).map(c => c.trim());
+                                      const newCols = cols.filter(c => c !== trimmedCol);
+                                      updateIntegration(integration.id, {
+                                        config: { ...integration.config, selectColumns: newCols.join(',') || '*' }
+                                      });
+                                    }}
+                                  >
+                                    <X className="w-3 h-3 text-blue-500 hover:text-destructive" />
+                                  </button>
+                                </Badge>
+                              );
+                            })
                           )}
 
                           <Select
@@ -831,7 +869,7 @@ export function CustomComponentIntegrationModal({
                               const currentCols = integration.config.selectColumns === '*' ? [] : (integration.config.selectColumns || '').split(',').filter(Boolean).map(c => c.trim());
                               if (!currentCols.includes(val)) {
                                 updateIntegration(integration.id, {
-                                  config: { ...integration.config, selectColumns: [...currentCols, val].join(', ') }
+                                  config: { ...integration.config, selectColumns: [...currentCols, val].join(',') }
                                 });
                               }
                             }}
@@ -845,9 +883,22 @@ export function CustomComponentIntegrationModal({
                               {loadingColumns[integration.config.table || ''] ? (
                                 <SelectItem value="_loading" disabled>Loading columns...</SelectItem>
                               ) : (
-                                (tableColumns[integration.config.table || ''] || []).map(col => (
-                                  <SelectItem key={col} value={col}>{col}</SelectItem>
-                                ))
+                                (tableColumns[integration.config.table || ''] || []).map(col => {
+                                  const correctedCol = correctCommonTypos(col);
+                                  const hasTypo = correctedCol !== col;
+                                  return (
+                                    <SelectItem key={col} value={col}>
+                                      <div className="flex items-center gap-2">
+                                        {col}
+                                        {hasTypo && (
+                                          <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">
+                                            Will be corrected to "{correctedCol}"
+                                          </span>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  );
+                                })
                               )}
                               {!loadingColumns[integration.config.table || ''] && (tableColumns[integration.config.table || ''] || []).length === 0 && (
                                 <SelectItem value="_loading" disabled>
@@ -861,6 +912,13 @@ export function CustomComponentIntegrationModal({
                         <p className="text-[10px] text-muted-foreground mt-1">
                           Select the columns you want to retrieve. "*" gets everything.
                         </p>
+                        <div className="text-[10px] text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Info className="w-3 h-3" />
+                            <span className="font-medium">Auto-Correction Active</span>
+                          </div>
+                          Common typos are automatically corrected (e.g., "uername" → "username", "emailadress" → "email"). Orange badges indicate detected typos that will be fixed automatically.
+                        </div>
                       </div>
                     )}
 
@@ -1482,14 +1540,14 @@ export function CustomComponentIntegrationModal({
                             // Strip # for getElementById
                             const containerIdClean = containerId.startsWith('#') ? containerId.substring(1) : containerId;
 
-                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {\n      const result = await buildx.run('${integration.id}');\n      if (result.success && result.data) {\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const container = document.getElementById('${containerIdClean}');\n        if (container) {\n          container.innerHTML = '';\n          \n          // Ensure data is an array before looping\n          const items = Array.isArray(result.data) ? result.data : (result.data.data && Array.isArray(result.data.data) ? result.data.data : []);\n          \n          if (items.length === 0) {\n            container.innerHTML = '<tr><td colspan="3">No data found</td></tr>';\n            return;\n          }\n\n          items.forEach(row => {\n            const item = document.createElement('tr');\n            item.innerHTML = \`\n              <td>\${row.id || Object.values(row)[0] || 'N/A'}</td>\n              <td>\${Object.values(row)[1] || 'N/A'}</td>\n              <td>\${Object.values(row)[2] || 'N/A'}</td>\n            \`;\n            container.appendChild(item);\n          });\n        } else {\n          console.warn('[buildx] ⚠️ Container #${containerIdClean} not found.');\n        }\n      } else {\n        console.error('[buildx] ❌ Failed to fetch data:', result.error || result.data?.message || 'Unknown error');\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
+                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {\n      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);\n      if (result.success && result.data) {\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const container = document.getElementById('${containerIdClean}');\n        if (container) {\n          container.innerHTML = '';\n          \n          // Ensure data is an array before looping\n          const items = Array.isArray(result.data) ? result.data : (result.data.data && Array.isArray(result.data.data) ? result.data.data : []);\n          \n          if (items.length === 0) {\n            container.innerHTML = '<tr><td colspan="3">No data found</td></tr>';\n            return;\n          }\n\n          items.forEach(row => {\n            const item = document.createElement('tr');\n            item.innerHTML = \`\n              <td>\${row.id || Object.values(row)[0] || 'N/A'}</td>\n              <td>\${Object.values(row)[1] || 'N/A'}</td>\n              <td>\${Object.values(row)[2] || 'N/A'}</td>\n            \`;\n            container.appendChild(item);\n          });\n        } else {\n          console.warn('[buildx] ⚠️ Container #${containerIdClean} not found.');\n        }\n      } else {\n        console.error('[buildx] ❌ Failed to fetch data:', result.error || result.data?.message || 'Unknown error');\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
                           } else {
                             // --- SINGLE INPUTS / ELEMENTS TARGET SNIPPET ---
                             const mappingsList = Object.entries(mappingsObj).map(([col, elem]) => {
                               const rawSelector = (elem as string).replace('formData.', '');
                               // $ uses querySelector, so it needs # for IDs
                               const selector = rawSelector.startsWith('#') || rawSelector.startsWith('.') ? rawSelector : `#${rawSelector}`;
-                              return `if ($('${selector}')) $('${selector}').value = row.${col} || '';`;
+                              return `const el_${col} = $('${selector}');\n        if (el_${col}) {\n          if (el_${col}.tagName === 'INPUT' || el_${col}.tagName === 'TEXTAREA' || el_${col}.tagName === 'SELECT') el_${col}.value = row.${col} || '';\n          else el_${col}.textContent = row.${col} || '';\n        }`;
                             }).join('\n        ');
 
                             // Handle empty mapping edge case
@@ -1497,12 +1555,18 @@ export function CustomComponentIntegrationModal({
                               ? mappingsList
                               : `// No columns mapped yet. Add Data Mappings in the integration settings!\n        // Example: if (document.getElementById('name_input')) document.getElementById('name_input').value = row.fullname || '';`;
 
-                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {\n      const result = await buildx.run('${integration.id}');\n      if (result.success && result.data && result.data.length > 0) {\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const row = result.data[0];\n        // 🔥 AUTO-FILL MAPPED INPUTS 🔥\n        ${mappingCodeBlock}\n      } else {\n        console.warn('[buildx] ⚠️ No data found or failed to fetch:', result.error);\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
+                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {
+      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+      if (result.success && result.data && result.data.length > 0) {
+\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const row = result.data[0];\n        // 🔥 AUTO-FILL MAPPED INPUTS 🔥\n        ${mappingCodeBlock}\n      } else {\n        console.warn('[buildx] ⚠️ No data found or failed to fetch:', result.error);\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
                           }
                         } else {
                           // $ uses querySelector
                           const cleanSelector = triggerSelector.startsWith('#') || triggerSelector.startsWith('.') ? triggerSelector : `#${triggerSelector}`;
-                          snippet = `(function() {\n  // Trigger ${integration.name}\n  const btn = $('${cleanSelector}');\n  if (btn) {\n    btn.addEventListener('click', async (e) => {\n      if (e) e.preventDefault();\n      console.log('[buildx] 🖱️ Button clicked. Starting integration...');\n      \n      try {\n        const result = await buildx.run('${integration.id}');\n        if (result.success) {\n           console.log('[buildx] ✅ Integration successful! Result:', result.data);\n           // 🔥 ADD YOUR CODE HERE for what happens after success!\n        } else {\n           console.error('[buildx] ❌ Integration failed:', result.error);\n        }\n      } catch (err) {\n        console.error('[buildx] ⚠️ System error in snippet:', err);\n      }\n    });\n    console.log('[buildx] ✅ Click listener attached to "${cleanSelector}"');\n  } else {\n    console.error('[buildx] ❌ Button with selector "${cleanSelector}" NOT FOUND. Check your HTML ID/Class!');\n  }\n})();`;
+                          snippet = `(function() {\n  // Trigger ${integration.name}\n  const btn = $('${cleanSelector}');\n  if (btn) {\n    btn.addEventListener('click', async (e) => {\n      if (e) e.preventDefault();\n      console.log('[buildx] 🖱️ Button clicked. Starting integration...');\n      \n      try {
+        const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+        if (result.success) {
+\n           console.log('[buildx] ✅ Integration successful! Result:', result.data);\n           // 🔥 ADD YOUR CODE HERE for what happens after success!\n        } else {\n           console.error('[buildx] ❌ Integration failed:', result.error);\n        }\n      } catch (err) {\n        console.error('[buildx] ⚠️ System error in snippet:', err);\n      }\n    });\n    console.log('[buildx] ✅ Click listener attached to "${cleanSelector}"');\n  } else {\n    console.error('[buildx] ❌ Button with selector "${cleanSelector}" NOT FOUND. Check your HTML ID/Class!');\n  }\n})();`;
                         }
                         navigator.clipboard.writeText(snippet);
                         toast.success(`Copied robust snippet for ${integration.name}`);
@@ -1544,7 +1608,7 @@ export function CustomComponentIntegrationModal({
       await new Promise(r => setTimeout(r, 50));
     }\n    console.log('[buildx] 🔄 Fetching data on load...');
     try {
-      const result = await buildx.run('${integration.id}');
+      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
       if (result.success && result.data) {
         console.log('[buildx] ✅ Data loaded successfully!', result.data);
         
@@ -1589,7 +1653,7 @@ export function CustomComponentIntegrationModal({
                                 const rawSelector = (elem as string).replace('formData.', '');
                                 // $ uses querySelector, so it needs # for IDs
                                 const selector = rawSelector.startsWith('#') || rawSelector.startsWith('.') ? rawSelector : `#${rawSelector}`;
-                                return `if ($('${selector}')) $('${selector}').value = row.${col} || '';`;
+                                return `const el_${col} = $('${selector}');\n        if (el_${col}) {\n          if (el_${col}.tagName === 'INPUT' || el_${col}.tagName === 'TEXTAREA' || el_${col}.tagName === 'SELECT') el_${col}.value = row.${col} || '';\n          else el_${col}.textContent = row.${col} || '';\n        }`;
                               }).join('\n        ');
 
                               // Handle empty mapping edge case
@@ -1605,7 +1669,7 @@ export function CustomComponentIntegrationModal({
     }
     console.log('[buildx] 🔄 Fetching data on load...');
     try {
-      const result = await buildx.run('${integration.id}');
+      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
       if (result.success && result.data && result.data.length > 0) {
         console.log('[buildx] ✅ Data loaded successfully!', result.data);
         
@@ -1633,7 +1697,7 @@ export function CustomComponentIntegrationModal({
       console.log('[buildx] 🖱️ Button clicked. Starting integration...');
       
       try {
-        const result = await buildx.run('${integration.id}');
+        const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
         if (result.success) {
            console.log('[buildx] ✅ Integration successful! Result:', result.data);
            // 🔥 ADD YOUR CODE HERE for what happens after success!
