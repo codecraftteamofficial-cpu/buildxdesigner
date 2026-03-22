@@ -79,8 +79,9 @@ const buildFileTree = (paths: string[]): FileNode[] => {
 
 export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, userConfig, fileOverrides = {}, customFiles = {}, onClose }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
-    const activePage = pages.find(p => p.id === activePageId) || pages[0];
-    return `app/views/${slugify(activePage.name)}.php`;
+    const activePage = pages?.find(p => p.id === activePageId) || pages?.[0];
+    const pageName = activePage?.name || "home";
+    return `app/views/${slugify(pageName)}.php`;
   }, [pages, activePageId]);
 
   const [selectedFile, setSelectedFile] = useState<string>(defaultFile);

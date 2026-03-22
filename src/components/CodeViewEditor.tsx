@@ -321,6 +321,8 @@ interface CodeExportModalProps {
     supabaseServiceKey?: string;
   };
   onClose: () => void;
+  fileOverrides?: Record<string, string>;
+  customFiles?: Record<string, string>;
 }
 
 function buildExportFileTree(paths: string[]): FileNode[] {
@@ -354,6 +356,8 @@ function CodeExportModal({
   effectiveFiles,
   userConfig,
   onClose,
+  fileOverrides = {},
+  customFiles = {},
 }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
     const activePage = pages.find((p) => p.id === activePageId) || pages[0];
@@ -411,7 +415,8 @@ function CodeExportModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${slugify(projectName)}_export.zip`;
+      const projectNameToUse = projectName || "buildx_project";
+      a.download = `${slugify(projectNameToUse)}_export.zip`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Project bundle downloaded!");
@@ -876,6 +881,7 @@ export function CodeViewEditor({
           activePageId={activePageId}
           effectiveFiles={effectiveFiles}
           userConfig={userConfig}
+          effectiveFiles={effectiveFiles}
           onClose={() => setShowExportModal(false)}
         />
       )}

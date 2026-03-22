@@ -15,11 +15,46 @@ const SCALE = {
 } as const;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-export const slugify = (value: string) =>
-  value
+export const slugify = (value: string | undefined) =>
+  (value || "page")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "") || "page";
+
+// Enhanced typo correction function for column names
+const correctColumnTypos = (columnString: string): string => {
+  const commonCorrections: Record<string, string> = {
+    'uername': 'username',
+    'usrname': 'username',
+    'usernm': 'username',
+    'user_name': 'username',
+    'user-id': 'user_id',
+    'userid': 'user_id',
+    'emailadress': 'email',
+    'email_address': 'email',
+    'fristname': 'firstname',
+    'firstname': 'first_name',
+    'lastname': 'last_name',
+    'createdat': 'created_at',
+    'updatedat': 'updated_at',
+    'phonenumber': 'phone_number',
+    'phno': 'phone_number'
+  };
+
+  // Handle comma-separated column lists
+  return columnString
+    .split(',')
+    .map(col => {
+      const trimmedCol = col.trim();
+      const corrected = commonCorrections[trimmedCol.toLowerCase()];
+      if (corrected) {
+        console.log(`[buildx] 🔧 Auto-corrected column "${trimmedCol}" to "${corrected}"`);
+        return corrected;
+      }
+      return trimmedCol;
+    })
+    .join(',');
+};
 
 const camelToKebab = (value: string): string =>
   value.replace(/([A-Z])/g, "-$1").toLowerCase();
@@ -898,7 +933,14 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
     const allPageComponents = collectAllComponents(pageComponents);
     const integrationsJson = JSON.stringify(
       allPageComponents.flatMap((c) =>
-        Array.isArray(c.props?.integrations) ? c.props.integrations : [],
+        (Array.isArray(c.props?.integrations) ? c.props.integrations : []).map(i => ({
+          ...i,
+          config: {
+            ...i.config,
+            // Enhanced typo correction for select columns
+            selectColumns: i.config?.selectColumns ? correctColumnTypos(i.config.selectColumns.replace(/\s+/g, '')) : '*'
+          }
+        }))
       ),
     );
     const htmlPath = `public/${fileName}.html`;
