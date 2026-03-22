@@ -23,9 +23,11 @@ export function SubdomainRouter({ children }: SubdomainRouterProps) {
             if (override) {
                 sub = override;
             }
-        } else if (parts.length > 2) {
             // e.g. "mysite.buildxdesigner.site" -> parts=["mysite", "buildxdesigner", "site"]
-            sub = parts[0];
+            const isVercel = hostname.endsWith(".vercel.app");
+            if (!isVercel) {
+                sub = parts[0];
+            }
         }
 
         if (sub && sub !== "www" && sub !== "app") {
