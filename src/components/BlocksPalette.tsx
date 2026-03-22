@@ -694,7 +694,7 @@ $tableColumns = [];
 $tableName = '{{SUPABASE_TABLE}}';
 if (!empty($tableName)) {
     $db = new Supabase();
-    $res = $db->fetch($tableName);
+    $res = $db->select($tableName);
     if (isset($res['status']) && $res['status'] >= 200 && $res['status'] < 300 && is_array($res['data'])) {
         $tableData = $res['data'];
         if (count($tableData) > 0) {
@@ -986,7 +986,7 @@ if (!class_exists('SupabaseSession')) {
     SupabaseSession::start();
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'logout') {
-    SupabaseSession::clearUser();
+    SupabaseSession::clear();
     header('Location: /');
     exit;
 }`,
