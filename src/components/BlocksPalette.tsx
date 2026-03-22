@@ -690,14 +690,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 .data-table tr:hover { background: #f9fafb; transition: background 0.15s; }`,
               php_backend: `require_once __DIR__ . '/../lib/supabase.php';
 $tableData = [];
-$tableColumns = [];
+$tableColumns = [{{TABLE_HEADERS_LIST}}];
 $tableName = '{{SUPABASE_TABLE}}';
+$autoColumns = {{TABLE_AUTO_COLUMNS}};
 if (!empty($tableName)) {
     $db = new Supabase();
-    $res = $db->select($tableName);
+    $res = $db->select($tableName, '{{SUPABASE_SELECT_COLUMNS}}');
     if (isset($res['status']) && $res['status'] >= 200 && $res['status'] < 300 && is_array($res['data'])) {
         $tableData = $res['data'];
-        if (count($tableData) > 0) {
+        if ($autoColumns && empty($tableColumns) && count($tableData) > 0) {
             $tableColumns = array_keys($tableData[0]);
         }
     }
