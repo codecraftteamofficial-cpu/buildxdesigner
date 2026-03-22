@@ -16,9 +16,13 @@ export async function initiateGoogleSignIn(redirectPath: string = '/dashboard'):
     const baseUrl = window.location.origin;
     console.log('[Auth Debug] Origin:', baseUrl);
 
-    // Explicitly force the production URL if we are on the production domain
+    // Only force production URL if we are actually on the production domain or the duckdns mirror
     let fullRedirectUrl = baseUrl + redirectPath;
-    if (baseUrl.includes('buildxdesigner.site') || baseUrl.includes('buildxdesigner.duckdns.org')) {
+    if (
+      window.location.hostname === 'buildxdesigner.site' || 
+      window.location.hostname.endsWith('.buildxdesigner.site') || 
+      window.location.hostname === 'buildxdesigner.duckdns.org'
+    ) {
         fullRedirectUrl = 'https://buildxdesigner.site' + redirectPath;
         console.log('[Auth Debug] Forcing Production URL');
     }
