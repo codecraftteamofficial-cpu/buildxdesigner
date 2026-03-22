@@ -193,7 +193,7 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
 
   if (props.html !== undefined || props.php !== undefined) {
     let htmlRaw = (props.html || "").replace(
-      /\\$elementId/g,
+      /\$elementId/g,
       compIdClass(component),
     );
 
@@ -1168,7 +1168,20 @@ ${allPageComponents.filter((c) => c.props?.php_backend).length === 0 ? '// Examp
           }
           if (c.type === "table") {
             const tname = c.props.supabaseTable || "";
-            rawPhp = rawPhp.replace(/\{\{SUPABASE_TABLE\}\}/g, tname);
+            const selectCols = c.props.supabaseSelectColumns || "*";
+            const headers = Array.isArray(c.props.headers) ? c.props.headers : [];
+            const headerKeys = headers.map((h: string) => {
+               const parts = h.split(':');
+               return parts.length > 1 ? parts[1] : h;
+            });
+            const headersList = headerKeys.length > 0 ? "'" + headerKeys.join("','") + "'" : "";
+            const autoColumns = c.props.headers === undefined ? "true" : "false";
+            
+            rawPhp = rawPhp
+              .replace(/\{\{SUPABASE_TABLE\}\}/g, tname)
+              .replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, selectCols)
+              .replace(/\{\{TABLE_HEADERS_LIST\}\}/g, headersList)
+              .replace(/\{\{TABLE_AUTO_COLUMNS\}\}/g, autoColumns);
           }
           if (c.type === "form") {
             const email = c.props.recipientEmail || "you@example.com";

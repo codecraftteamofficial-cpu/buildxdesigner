@@ -683,8 +683,9 @@ export function RenderableComponent({
         if (data && data.length > 0) {
           setTableData(data);
 
-          // If the user hasn't defined any headers yet, auto-detect them
-          if (!props.headers || props.headers.length === 0) {
+          // If the user hasn't defined any headers yet (undefined), auto-detect them.
+          // If they explicitly cleared them (empty array), respect that choice.
+          if (props.headers === undefined) {
             const autoHeaders = Object.keys(data[0]);
             setTableHeaders(autoHeaders);
 
