@@ -660,9 +660,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   <table class="data-table">
     <thead>
       <tr>
-        <?php if (!empty($tableColumns)): foreach($tableColumns as $col): ?>
-          <th><?php echo htmlspecialchars($col); ?></th>
-        <?php endforeach; else: ?>
+        <?php 
+        $headers = !empty($tableHeaders) ? $tableHeaders : (!empty($tableColumns) ? array_combine($tableColumns, $tableColumns) : []);
+        if (!empty($headers)): 
+          foreach($headers as $key => $label): ?>
+            <th><?php echo htmlspecialchars($label); ?></th>
+          <?php endforeach; 
+        else: ?>
           <th>Name</th><th>Role</th><th>Status</th>
         <?php endif; ?>
       </tr>
@@ -670,7 +674,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <tbody>
       <?php if (!empty($tableData)): foreach($tableData as $row): ?>
       <tr>
-        <?php foreach($tableColumns as $col): ?>
+        <?php 
+        $keys = !empty($headers) ? array_keys($headers) : (!empty($tableData[0]) ? array_keys($tableData[0]) : []);
+        foreach($keys as $col): ?>
           <td><?php echo htmlspecialchars($row[$col] ?? ''); ?></td>
         <?php endforeach; ?>
       </tr>
@@ -681,16 +687,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     </tbody>
   </table>
 </div>`,
-              css: `.data-table-container { width: 100%; overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 1rem 0; font-family: system-ui, sans-serif; }
-.data-table-container h3 { padding: 1rem; margin: 0; border-bottom: 1px solid #e5e7eb; color: #111827; }
-.data-table { width: 100%; border-collapse: collapse; text-align: left; }
-.data-table th, .data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; }
-.data-table th { background: #f9fafb; font-weight: 500; color: #374151; font-size: 0.875rem; text-transform: capitalize; letter-spacing: 0.05em; }
-.data-table td { color: #4b5563; font-size: 0.875rem; }
-.data-table tr:hover { background: #f9fafb; transition: background 0.15s; }`,
+              css: `#$elementId .data-table-container { width: 100%; overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 1rem 0; font-family: system-ui, -apple-system, sans-serif; }
+#$elementId .data-table-container h3 { padding: 1rem; margin: 0; border-bottom: 1px solid #e5e7eb; color: #111827; }
+#$elementId .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+#$elementId .data-table th, #$elementId .data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; }
+#$elementId .data-table th { background: #f9fafb; font-weight: 500; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+#$elementId .data-table td { color: #4b5563; font-size: 0.875rem; }
+#$elementId .data-table tr:hover { background: #f9fafb; transition: background 0.15s; }`,
               php_backend: `require_once __DIR__ . '/../lib/supabase.php';
 $tableData = [];
 $tableColumns = [{{TABLE_HEADERS_LIST}}];
+$tableHeaders = [{{TABLE_HEADERS_CONFIG}}];
 $tableName = '{{SUPABASE_TABLE}}';
 $autoColumns = {{TABLE_AUTO_COLUMNS}};
 if (!empty($tableName)) {
