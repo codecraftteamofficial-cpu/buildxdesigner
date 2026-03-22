@@ -1113,7 +1113,7 @@ curl_close($ch);
       .filter((c) => c.props?.css && c.type !== "custom-component")
       .map(
         (c) =>
-          `/* CSS from props for ${compIdClass(c)} */\n${c.props.css.replace(/\\$elementId/g, compIdClass(c))}`,
+          `/* CSS from props for ${compIdClass(c)} */\n${c.props.css.replace(/\$elementId/g, c.props.elementId || compIdClass(c))}`,
       );
 
     files[`public/assets/css/${fileName}.css`] = [
@@ -1174,13 +1174,21 @@ ${allPageComponents.filter((c) => c.props?.php_backend).length === 0 ? '// Examp
                const parts = h.split(':');
                return parts.length > 1 ? parts[1] : h;
             });
+            const phpHeaderEntries = headers.map((h: string) => {
+              const parts = h.split(':');
+              const label = parts[0];
+              const key = parts.length > 1 ? parts[1] : label;
+              return `'${key.replace(/'/g, "\\'")}' => '${label.replace(/'/g, "\\'")}'`;
+            });
             const headersList = headerKeys.length > 0 ? "'" + headerKeys.join("','") + "'" : "";
+            const headersConfig = phpHeaderEntries.length > 0 ? phpHeaderEntries.join(", ") : "";
             const autoColumns = c.props.headers === undefined ? "true" : "false";
             
             rawPhp = rawPhp
               .replace(/\{\{SUPABASE_TABLE\}\}/g, tname)
               .replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, selectCols)
               .replace(/\{\{TABLE_HEADERS_LIST\}\}/g, headersList)
+              .replace(/\{\{TABLE_HEADERS_CONFIG\}\}/g, headersConfig)
               .replace(/\{\{TABLE_AUTO_COLUMNS\}\}/g, autoColumns);
           }
           if (c.type === "form") {
