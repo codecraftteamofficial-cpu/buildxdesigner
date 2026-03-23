@@ -327,30 +327,6 @@ export function RenderableComponent({
           const element = contentRef.current;
           if (!element) return;
 
-          // Create a proxy for document to redirect body and other queries to the component
-          const proxyDocument = new Proxy(document, {
-            get(target, prop) {
-              if (prop === 'body' || prop === 'documentElement') return element;
-              if (prop === 'querySelector') return (s: string) => element.querySelector(s);
-              if (prop === 'querySelectorAll') return (s: string) => element.querySelectorAll(s);
-              if (prop === 'getElementById') return (id: string) => element.querySelector('#' + id);
-
-              const value = Reflect.get(target, prop);
-              return typeof value === 'function' ? value.bind(target) : value;
-            }
-          });
-
-          // Create a proxy for window to redirect document and handle global events if needed
-          const proxyWindow = new Proxy(window, {
-            get(target, prop) {
-              if (prop === 'document') return proxyDocument;
-              if (prop === 'window' || prop === 'self' || prop === 'globalThis') return proxyWindow;
-
-              const value = Reflect.get(target, prop);
-              return typeof value === 'function' ? value.bind(target) : value;
-            }
-          });
-
           const $ = (s: string) => element.querySelector(s);
           const $$ = (s: string) => element.querySelectorAll(s);
 
@@ -360,7 +336,7 @@ export function RenderableComponent({
             run: async (integrationId: string) => {
               console.log(`%c[buildx] 🚀 Running integration: ${integrationId}`, 'color: #3b82f6; font-weight: bold');
               const integration = props.integrations?.find((i: any) => i.id === integrationId);
-              
+
               if (!integration) {
                 console.error(`[buildx] ❌ Integration ${integrationId} not found. Available:`, props.integrations?.map((i: any) => i.id));
                 toast.error("Integration not found");
@@ -372,7 +348,7 @@ export function RenderableComponent({
                   const { table, data: mapping, filters, selectColumns } = integration.config;
                   const operation = integration.config.operation || 'insert';
                   console.log(`[buildx] 📂 Table: ${table}, Op: ${operation}`);
-                  
+
                   // 1. Collect data from DOM 
                   const payload: Record<string, any> = {};
                   if (mapping && typeof mapping === 'object' && (operation === 'insert' || operation === 'update')) {
@@ -416,7 +392,7 @@ export function RenderableComponent({
 
                   const tableName = (table as string).replace(/^public\./, '');
                   let query: any = client.from(tableName);
-                  
+
                   // Helper to resolve filter values from DOM
                   const resolveFilterValue = (val: any) => {
                     if (!val || typeof val !== 'string') return val;
@@ -444,7 +420,7 @@ export function RenderableComponent({
                       filters.forEach((f: any) => {
                         let val = resolveFilterValue(f.value);
                         console.log(`   - Filter: ${f.column} ${f.operator} ${val}`);
-                        switch(f.operator) {
+                        switch (f.operator) {
                           case 'eq': query = query.eq(f.column, val); break;
                           case 'neq': query = query.neq(f.column, val); break;
                           case 'gt': query = query.gt(f.column, val); break;
@@ -465,7 +441,7 @@ export function RenderableComponent({
                     filters.forEach((f: any) => {
                       let val = resolveFilterValue(f.value);
                       console.log(`   - Match: ${f.column} ${f.operator || 'eq'} ${val}`);
-                      switch(f.operator || 'eq') {
+                      switch (f.operator || 'eq') {
                         case 'eq': query = query.eq(f.column, val); break;
                         case 'neq': query = query.neq(f.column, val); break;
                         case 'gt': query = query.gt(f.column, val); break;
@@ -485,7 +461,7 @@ export function RenderableComponent({
                     filters.forEach((f: any) => {
                       let val = resolveFilterValue(f.value);
                       console.log(`   - Match: ${f.column} ${f.operator || 'eq'} ${val}`);
-                      switch(f.operator || 'eq') {
+                      switch (f.operator || 'eq') {
                         case 'eq': query = query.eq(f.column, val); break;
                         case 'neq': query = query.neq(f.column, val); break;
                         case 'gt': query = query.gt(f.column, val); break;
@@ -504,22 +480,22 @@ export function RenderableComponent({
                     console.error(`[buildx] ❌ Operation error:`, result.error);
                     throw result.error;
                   }
-                  
+
                   if (operation === 'update' || operation === 'delete') {
                     if (!result.data || result.data.length === 0) {
-                       console.warn(`[buildx] ⚠️ Operation successful but 0 rows were affected. Check if your filters match any data!`);
+                      console.warn(`[buildx] ⚠️ Operation successful but 0 rows were affected. Check if your filters match any data!`);
                     }
                   }
-                  
+
                   console.log(`[buildx] ✅ Success!`, result.data);
                   return { success: true, data: result.data };
 
-                } 
-                
+                }
+
                 if (integration.type === 'resend') {
                   console.log(`[buildx] 📧 Triggering Resend email...`);
                   const { to } = integration.config;
-                  
+
                   // Collect mapped data
                   let formData: Record<string, any> = {};
                   if (integration.config.data) {
@@ -529,7 +505,7 @@ export function RenderableComponent({
                         if (!id.startsWith('#')) id = '#' + id;
                         const el = element.querySelector(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
                         if (el) {
-                           formData[key] = el.type === 'checkbox' ? (el as HTMLInputElement).checked : el.value;
+                          formData[key] = el.type === 'checkbox' ? (el as HTMLInputElement).checked : el.value;
                         }
                       } else {
                         formData[key] = val;
@@ -582,15 +558,15 @@ export function RenderableComponent({
 
                   const resData = await res.json();
                   if (!res.ok) throw new Error(resData.error || 'Failed to send email');
-                  
+
                   toast.success("Test email sent via Preview!");
                   return { success: true, data: resData };
                 }
-                
+
                 if (integration.type === 'paymongo') {
                   console.log(`[buildx] 💳 Triggering PayMongo checkout...`);
                   const { amount, currency, description } = integration.config;
-                  
+
                   // Get current session for auth
                   const { data: { session } } = await supabase.auth.getSession();
                   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -608,16 +584,16 @@ export function RenderableComponent({
                       description: description || 'Test Payment'
                     })
                   });
-                  
+
                   const resData = await res.json();
                   if (!res.ok) throw new Error(resData.error || 'Payment creation failed');
-                  
+
                   if (resData.data?.attributes?.checkout_url) {
                     toast.success("Checkout link generated! Opening in new tab...");
                     window.open(resData.data.attributes.checkout_url, '_blank');
                     return { success: true, data: resData };
                   }
-                  
+
                   throw new Error('Checkout URL not found in response');
                 }
               } catch (err: any) {
@@ -627,18 +603,41 @@ export function RenderableComponent({
               }
             }
           };
-          
+
           buildx.runIntegration = buildx.run;
+
+          // Create a proxy for document to redirect body and other queries to the component
+          const proxyDocument = new Proxy(document, {
+            get(target, prop) {
+              if (prop === 'body' || prop === 'documentElement') return element;
+              if (prop === 'querySelector') return (s: string) => element.querySelector(s);
+              if (prop === 'querySelectorAll') return (s: string) => element.querySelectorAll(s);
+              if (prop === 'getElementById') return (id: string) => element.querySelector('#' + id);
+
+              const value = Reflect.get(target, prop);
+              return typeof value === 'function' ? value.bind(target) : value;
+            }
+          });
+
+          // Create a proxy for window to redirect document and handle global events if needed
+          const proxyWindow = new Proxy(window, {
+            get(target, prop) {
+              if (prop === 'document') return proxyDocument;
+              if (prop === 'window' || prop === 'self' || prop === 'globalThis') return proxyWindow;
+              if (prop === 'buildx') return buildx;
+              if (prop === '$') return $;
+              if (prop === '$$') return $$;
+
+              const value = Reflect.get(target, prop);
+              return typeof value === 'function' ? value.bind(target) : value;
+            }
+          });
 
           // Execute the JS with shadowed globals
           try {
-            const isolatedFunc = new Function('element', 'document', 'window', '$', '$$', 'buildx', 'antigravity', `
-              try {
-                ${props.js}
-              } catch (err) {
-                console.error('Error in component logic:', err);
-              }
-            `);
+            const isolatedFunc = new Function('element', 'document', 'window', '$', '$$', 'buildx', 'antigravity',
+              "try {\n" + (props.js || "") + "\n} catch (err) {\n  console.error('Error in component logic:', err);\n}"
+            );
             isolatedFunc(element, proxyDocument, proxyWindow, $, $$, buildx, buildx);
 
             // Fail-safe: Prevent any form inside the component from submitting normally and redirecting
@@ -3724,9 +3723,9 @@ export function RenderableComponent({
 
               {/* CardFooter ensures the button stays at the bottom of the Card */}
               <CardFooter className={`flex w-full pt-3 border-t shrink-0 ${props.submitButtonAlignment === "left" ? "justify-start" :
-                  props.submitButtonAlignment === "right" ? "justify-end" :
-                    props.submitButtonAlignment === "full" ? "justify-stretch" :
-                      "justify-center"
+                props.submitButtonAlignment === "right" ? "justify-end" :
+                  props.submitButtonAlignment === "full" ? "justify-stretch" :
+                    "justify-center"
                 }`}>
                 <Button
                   id={`${props.elementId || 'dynamic-form'}-submit`}

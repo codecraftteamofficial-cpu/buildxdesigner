@@ -105,15 +105,15 @@ interface SidebarProps {
     description: string,
     html: string,
     css: string,
-    js: string, php: string) => Promise<void>;
+    js: string
+  ) => Promise<void>;
   onUpdateCustomComponent?: (
     id: string,
     name: string,
     description: string,
     html: string,
     css: string,
-    js: string,
-    php: string
+    js: string
   ) => Promise<void>;
   onDeleteCustomComponent?: (id: string) => void;
   onExportComponent?: (component: any) => Promise<void>;
@@ -336,7 +336,7 @@ export function Sidebar({
             setIsModalOpen(false);
             setEditingComponent(null);
           }}
-          onSave={onSaveCustomComponent || (async (_n, _d, _h, _c, _j, _p) => {})}
+          onSave={onSaveCustomComponent || (async (_n, _d, _h, _c, _j) => {})}
           onUpdate={onUpdateCustomComponent}
           projectId={projectId}
         />
