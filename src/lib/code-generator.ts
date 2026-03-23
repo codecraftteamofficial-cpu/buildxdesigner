@@ -631,6 +631,7 @@ const generateHTMLWrapper = (
   fileName: string,
   bodyContent: string,
   integrationsJson: string = "[]",
+  projectName: string = "",
 ): string =>
   `<!DOCTYPE html>
 <html lang="en">
@@ -645,6 +646,7 @@ const generateHTMLWrapper = (
 ${bodyContent}
   <script>
     window.__BUILDX_INTEGRATIONS__ = ${integrationsJson};
+    window.__BUILDX_PROJECT_NAME__ = ${JSON.stringify(projectName)};
     window.__BUILDX_BASE_URL__ = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
   </script>
   <script src="assets/js/buildx-sdk.js"></script>
@@ -1144,6 +1146,56 @@ const BUILDX_SDK = `(function() {
         var parsedAmount = parseFloat(String(requestPayload.amount).replace(/[^0-9.]/g, ''));
         if (!isNaN(parsedAmount)) requestPayload.amount = parsedAmount;
       }
+      // For PayMongo: if amount still not in payload, use cfg.amount (static value set in UI)
+      // Also forward cfg.description and cfg.currency so server uses them
+      if (integration.type === 'paymongo') {
+        if (!requestPayload.amount && cfg.amount) requestPayload.amount = cfg.amount;
+        if (!requestPayload.description && cfg.description) requestPayload.description = cfg.description;
+        if (!requestPayload.currency && cfg.currency) requestPayload.currency = cfg.currency;
+        // Send current page as the redirect base so server can build success/cancel URLs
+        // cfg.successUrl and cfg.cancelUrl can override if set in integration config
+        requestPayload.successUrl = cfg.successUrl || window.location.href;
+        requestPayload.cancelUrl = cfg.cancelUrl || window.location.href;
+      }
+      // For Resend: build the email payload from cfg fields + resolved formData values
+      if (integration.type === 'resend') {
+        var emailBody = {};
+        // cfg.to is the recipient (static or dynamic)
+        emailBody.to = cfg.to || requestPayload.to || 'delivered@resend.dev';
+        emailBody.subject = cfg.subject || requestPayload.subject || 'New Message';
+        // Build HTML from all resolved cfg.data fields
+        var resolvedDataFields = collectFieldValues(cfg.data, cfg.fieldMap);
+        var dataKeys = Object.keys(resolvedDataFields);
+        var rowsHtml = '';
+        for (var rk = 0; rk < dataKeys.length; rk++) {
+          var labelText = dataKeys[rk].replace(/^(resend|form)/i, '').replace(/([A-Z])/g, ' $1').trim();
+          labelText = labelText.charAt(0).toUpperCase() + labelText.slice(1);
+          rowsHtml += '<tr><td style="padding:10px 16px;font-weight:600;color:#374151;background:#f9fafb;border-bottom:1px solid #e5e7eb;width:35%;vertical-align:top;">' + labelText + '</td><td style="padding:10px 16px;color:#111827;border-bottom:1px solid #e5e7eb;">' + resolvedDataFields[dataKeys[rk]] + '</td></tr>';
+        }
+        var projectName = window.__BUILDX_PROJECT_NAME__ || document.title || 'BuildX';
+        emailBody.html = dataKeys.length > 0
+          ? '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:ui-sans-serif,system-ui,sans-serif;">'
+            + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">'
+            + '<tr><td align="center">'
+            + '<table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">'
+            + '<tr><td style="background:#2563eb;padding:28px 32px;">'
+            + '<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">' + emailBody.subject + '</h1>'
+            + '<p style="margin:6px 0 0;color:#bfdbfe;font-size:13px;">Sent via ' + projectName + '</p>'
+            + '</td></tr>'
+            + '<tr><td style="padding:8px 0;">'
+            + '<table width="100%" cellpadding="0" cellspacing="0">' + rowsHtml + '</table>'
+            + '</td></tr>'
+            + '<tr><td style="padding:20px 32px;border-top:1px solid #e5e7eb;text-align:center;">'
+            + '<p style="margin:0;color:#9ca3af;font-size:12px;">This message was submitted through ' + projectName + '</p>'
+            + '</td></tr>'
+            + '</table>'
+            + '</td></tr></table>'
+            + '</body></html>'
+          : (requestPayload.html || '<p>No content</p>');
+        // Pass project name to server for the from field
+        emailBody.projectName = window.__BUILDX_PROJECT_NAME__ || document.title || 'BuildX';
+        requestPayload = emailBody;
+      }
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -1163,6 +1215,7 @@ const BUILDX_SDK = `(function() {
       // FIX 4: PayMongo — auto-redirect to the generated checkout link
       if (integration.type === 'paymongo') {
         var checkoutUrl = (result.data && result.data.attributes && result.data.attributes.checkout_url)
+          || (result.data && result.data.attributes && result.data.attributes.url)
           || (result.data && result.data.checkout_url)
           || (result.checkout_url);
         if (checkoutUrl) {
@@ -1321,7 +1374,12 @@ const server = http.createServer(async (req, res) => {
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + CONFIG.resendApiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'Acme <onboarding@resend.dev>', to: [data.to || 'delivered@resend.dev'], subject: data.subject || 'Test', html: data.html || '<p>Hello world</p>' })
+          body: JSON.stringify({
+            from: data.from || (data.projectName ? data.projectName + ' <onboarding@resend.dev>' : 'Acme <onboarding@resend.dev>'),
+            to: Array.isArray(data.to) ? data.to : [data.to || 'delivered@resend.dev'],
+            subject: data.subject || 'New Message',
+            html: data.html || '<p>No content</p>'
+          })
         });
         res.writeHead(response.status, { 'Content-Type': 'application/json' });
         res.end(await response.text());
@@ -1339,10 +1397,30 @@ const server = http.createServer(async (req, res) => {
      req.on('end', async () => {
        try {
          const data = JSON.parse(body) || {};
-         const response = await fetch('https://api.paymongo.com/v1/links', {
+         const amountInCentavos = Math.round((parseFloat(data.amount) || 100) * 100);
+         const lineItems = [{
+           amount: amountInCentavos,
+           currency: data.currency || 'PHP',
+           description: data.description || 'Payment',
+           name: data.description || 'Payment',
+           quantity: 1
+         }];
+         const sessionBody = {
+           data: {
+             attributes: {
+               billing: { name: '', email: '' },
+               line_items: lineItems,
+               payment_method_types: ['card', 'gcash', 'paymaya', 'grab_pay', 'billease', 'dob', 'brankas_bdo', 'brankas_landbank', 'brankas_metrobank'],
+               success_url: data.successUrl || 'http://localhost:5001',
+               cancel_url: data.cancelUrl || 'http://localhost:5001',
+               description: data.description || 'Payment'
+             }
+           }
+         };
+         const response = await fetch('https://api.paymongo.com/v1/checkout_sessions', {
            method: 'POST',
            headers: { 'accept': 'application/json', 'authorization': 'Basic ' + Buffer.from(CONFIG.paymongoSecretKey + ':').toString('base64'), 'content-type': 'application/json' },
-           body: JSON.stringify({ data: { attributes: { amount: (data.amount || 100) * 100, description: data.description || 'Payment', currency: data.currency || 'PHP' } } })
+           body: JSON.stringify(sessionBody)
          });
          res.writeHead(response.status, { 'Content-Type': 'application/json' });
          res.end(await response.text());
@@ -1405,6 +1483,7 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
       fileName,
       bodyContent,
       integrationsJson,
+      projectName,
     );
 
     const componentCssBlocks = allPageComponents
