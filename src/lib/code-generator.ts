@@ -1,5 +1,6 @@
 // lib/code-generator.ts
 import { ComponentData } from "../App";
+import { transpileHTML as _transpileHTML, transpileCSS, transpileJS, hasTranspiler } from "./block-transpiler";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DESIGN_WIDTH = 1920;
@@ -15,13 +16,22 @@ const SCALE = {
 } as const;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+// Enhanced typo correction function for column names
 export const slugify = (value: string | undefined) =>
   (value || "page")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_|_$/g, "") || "page";
 
-// Enhanced typo correction function for column names
+const scrubPHP = (content: string): string => {
+  if (!content) return "";
+  // Remove PHP tags and common PHP injection patterns
+  return content
+    .replace(/<\?php[\s\S]*?\?>/gi, "/* [PHP-BLOCKED] */")
+    .replace(/<\?php/gi, "/* [PHP-BLOCKED] */")
+    .replace(/\?>/gi, "/* [PHP-BLOCKED] */");
+};
+
 const correctColumnTypos = (columnString: string): string => {
   const commonCorrections: Record<string, string> = {
     'uername': 'username',
@@ -123,16 +133,14 @@ const buildResponsiveCss = (
   const desktopLines: string[] = [`  position: absolute;`];
 
   if (position) {
-    desktopLines.push(
-      `  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`,
-    );
+    desktopLines.push(`  left: ${Math.round(position.x)}px;`);
     desktopLines.push(`  top: ${Math.round(position.y)}px;`);
   }
 
   const rawW = parsePixelValue(style.width);
   const rawH = parsePixelValue(style.height);
   if (rawW !== null)
-    desktopLines.push(`  width: ${((rawW / DESIGN_WIDTH) * 100).toFixed(4)}%;`);
+    desktopLines.push(`  width: ${Math.round(rawW)}px;`);
   if (rawH !== null) desktopLines.push(`  height: ${rawH}px;`);
 
   for (const [key, value] of Object.entries(style)) {
@@ -148,8 +156,7 @@ const buildResponsiveCss = (
   let css = `${cls} {\n${desktopLines.join("\n")}\n}`;
 
   if (component.type === "navbar") {
-    css += `\n\n@media (max-width: ${BREAKPOINTS.tablet}px) {\n  ${cls} {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: center;\n  }\n  ${cls} .nav-toggle {\n    display: flex !important;\n  }\n  ${cls} .nav-links {\n    display: none;\n    width: 100%;\n    order: 3;\n  }\n  ${cls} .nav-links.open {\n    display: flex !important;\n  }\n}`;
-    css += `\n\n@media (max-width: ${BREAKPOINTS.mobile}px) {\n  ${cls} {\n    display: flex;\n    flex-wrap: wrap;\n    align-items: center;\n  }\n  ${cls} .nav-toggle {\n    display: flex !important;\n  }\n  ${cls} .nav-links {\n    display: none;\n    width: 100%;\n    order: 3;\n  }\n  ${cls} .nav-links.open {\n    display: flex !important;\n  }\n}`;
+    // Media queries now handled by Scoped Tailwind classes in block-transpiler.ts
   }
 
   for (const [bpName, bpMax] of Object.entries(BREAKPOINTS) as [
@@ -227,70 +234,20 @@ const renderComponentToHTML = (component: ComponentData, depth = 0): string => {
     .map((child) => renderComponentToHTML(child, depth + 1))
     .join("\n");
 
-  if (props.html !== undefined) {
+  // Auth block types have props.html from the palette template, but they should
+  // be handled by the block-transpiler (which generates the correct single-wrapper).
+  // Letting them fall through here would double-wrap them in an extra <div>.
+  const AUTH_TYPES = ['sign-in', 'sign-up', 'auth-block', 'profile'];
+  if (props.html !== undefined && !AUTH_TYPES.includes(component.type)) {
     let htmlRaw = (props.html || "").replace(
       /\$elementId/g,
       compIdClass(component),
     );
-    
+
     // Auth-related replacements
     if (props.redirectUrl || (component.type === 'sign-in' || component.type === 'sign-up' || component.type === 'auth-block')) {
       const redirect = props.redirectUrl || '/';
       htmlRaw = htmlRaw.replace(/\{\{REDIRECT_URL\}\}/g, redirect);
-    }
-
-    if (component.type === "dynamic-form") {
-      const title = esc(props.title || "Dynamic Form");
-      const submitText = esc(props.submitButtonText || "Submit");
-      const operation = esc(props.supabaseOperation || "insert");
-      const table = esc(props.supabaseTable || "your_table_name");
-      const fields = Array.isArray(props.fields) ? props.fields : [];
-      const fieldsHtml = fields
-        .map((f: any) => {
-          const type = esc(f.type || "text");
-          const name = esc(f.fieldName || f.label);
-          const req = f.required ? " required" : "";
-          const ph = esc(f.placeholder || "");
-          return `  <div class="form-group">\n    <label>${esc(f.label)}</label>\n    <input type="${type}" name="${name}" placeholder="${ph}"${req} />\n  </div>`;
-        })
-        .join("\n");
-      htmlRaw = `<form class="dynamic-form" id="${esc(props.elementId || compIdClass(component))}" data-action="${operation}" data-table="${table}">
-  <h3>${title}</h3>
-  <p class="form-msg" style="display:none;"></p>
-${fieldsHtml}
-  <button type="submit" class="dynamic-submit">${submitText}</button>
-</form>`;
-    } else if (component.type === "form") {
-      const title = esc(props.title || "Get In Touch");
-      const submitText = esc(props.submitText || "Submit");
-      const fields = Array.isArray(props.fields) ? props.fields : [];
-      const fieldsHtml = fields
-        .map((f: any) => {
-          const type = esc(f.type || "text");
-          const name = esc(
-            (f.label || "").toLowerCase().replace(/\s+/g, "_") || f.id,
-          );
-          const req = f.required ? " required" : "";
-          const ph = esc(f.placeholder || "");
-          if (type === "textarea") {
-            return `  <div class="form-group"><label>${esc(f.label)}</label><textarea name="${name}" placeholder="${ph}"${req}></textarea></div>`;
-          }
-          return `  <div class="form-group"><label>${esc(f.label)}</label><input type="${type}" name="${name}" placeholder="${ph}"${req}></div>`;
-        })
-        .join("\n");
-      htmlRaw = `<form class="contact-form" id="${esc(props.elementId || compIdClass(component))}" data-action="contact">
-  <h3>${title}</h3>
-  <p class="contact-msg" style="display:none;"></p>
-${fieldsHtml}
-  <button type="submit">${submitText}</button>
-</form>`;
-    } else if (component.type === "table") {
-      htmlRaw = htmlRaw.replace(
-        /\{\{TABLE_TITLE\}\}/g,
-        esc(props.tableName || "Data Table"),
-      );
-      // For vanilla JS, we'll use a placeholder tbody that JS will fill
-      htmlRaw = htmlRaw.replace(/<tbody>[\s\S]*?<\/tbody>/, '<tbody class="data-table-body"></tbody>');
     }
 
     return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${indent}  ${htmlRaw}\n${childOutput ? childOutput + "\n" : ""}${indent}</div>`;
@@ -371,7 +328,7 @@ ${fieldsHtml}
         .join("\n");
     case "card":
       return [
-        `${indent}<div${idAttr} class="${cls}">`,
+        `${indent}<div${idAttr} class="${cls} card">`,
         props.image
           ? `${indent}  <img src="${esc(props.image)}" alt="${esc(props.title)}" />`
           : "",
@@ -393,8 +350,6 @@ ${fieldsHtml}
       return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${childOutput || `${indent}  <!-- ${component.type} -->`}\n${indent}</div>`;
     case "grid":
       return `${indent}<div${idAttr} class="${cls}" data-component-type="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">\n${childOutput || `${indent}  <!-- grid -->`}\n${indent}</div>`;
-    case "form":
-      return `${indent}<form${idAttr} class="${cls}" data-component-type="form">\n${childOutput || `${indent}  <!-- form -->`}\n${indent}</form>`;
     case "video":
       return [
         `${indent}<div${idAttr} class="${cls}">`,
@@ -412,6 +367,10 @@ ${fieldsHtml}
       return `${indent}<div${idAttr} class="${cls}" data-component-type="custom-component">\n${indent}  ${html}\n${indent}</div>`;
     }
     default:
+      // Delegate to block-transpiler for blocks with dedicated transpilers
+      if (hasTranspiler(component.type)) {
+        return _transpileHTML(component, depth);
+      }
       return `${indent}<div${idAttr} class="${cls}">\n${childOutput || ""}\n${indent}</div>`;
   }
 };
@@ -456,49 +415,30 @@ const generatePageJS = (
     : "";
 
   const componentHandlers = allComponents
-    .filter((c) => c.props?.js_handler || (c as any).php_backend)
+    .filter((c) => c.props?.js_handler)
     .map((c) => {
       const id = compIdClass(c);
-      const handler = c.props?.js_handler || (c as any).php_backend || "";
-      if (handler.includes("<?php")) {
-        return `/* [CANVAS-INJECTION]: ${id} had PHP logic which cannot be injected into JS. */`;
-      }
-      const redirect = c.props?.redirectUrl || '/';
-      let processedHandler = handler
-        .replace(/\$elementId/g, id)
-        .replace(/\{\{REDIRECT_URL\}\}/g, redirect);
-      
-      if (c.type === 'table') {
-        const table = c.props?.supabaseTable || '';
-        const columns = c.props?.supabaseSelectColumns || c.props?.columnsToSelect || '*';
-        const headers = Array.isArray(c.props?.headers) ? c.props.headers : [];
-        const headerConfig = headers.map((h: any) => {
-          if (typeof h === 'string') {
-            const [label, key] = h.split(':');
-            const finalKey = key || label;
-            return `"${finalKey}": "${label}"`;
-          }
-          return `"${h.key}": "${h.label}"`;
-        }).join(', ');
+      let handler = (c.props?.js_handler || "").replace(/\$elementId/g, id);
 
-        processedHandler = processedHandler
-          .replace(/\{\{SUPABASE_TABLE\}\}/g, table)
-          .replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, columns)
-          .replace(/\{\{TABLE_HEADERS_CONFIG\}\}/g, headerConfig)
-          .replace(/\{\{TABLE_TITLE\}\}/g, c.props?.tableName || 'Data Table');
+      // Scrub PHP logic if present
+      if (handler.includes("<?php") || handler.includes("?>")) {
+        handler = scrubPHP(handler);
+        return `/* [CANVAS-INJECTION]: ${id} had PHP logic which was scrubbed. */\n${handler}`;
       }
 
-      const innerContent = `(function(elementId) {\n  const $elementId = elementId; \n${processedHandler}\n})("${id}");`;
-      const contentHash = Array.from(innerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
-      return `/* [CANVAS-INJECTION]: ${id} | hash:${contentHash} */\n${innerContent}\n/* [END-CANVAS-INJECTION]: ${id} */`;
+      return `/* [CANVAS-INJECTION]: ${id} */\n(function(element, $, $$){ \n  ${handler}\n})(document.getElementById("${id}"), (s)=>document.querySelector("#${id} "+s), (s)=>document.querySelectorAll("#${id} "+s));`;
     })
-    .join("\n\n  ");
+    .join("\n\n");
 
   const customScripts = allComponents
     .filter((c) => c.type === "custom-component" && c.props?.js)
     .map((c) => {
-      const id = compIdClass(c);
-      const innerContent = `(function() {\n  const element = document.getElementById("${id}");\n  if (!element) return;\n  try {\n    (function(element) {\n${c.props.js}\n    })(element);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
+      const id = c.props?.elementId || compIdClass(c);
+      let cjs = c.props.js;
+      if (cjs.includes("<?php") || cjs.includes("?>")) {
+        cjs = scrubPHP(cjs);
+      }
+      const innerContent = `(function() {\n  const element = document.getElementById("${id}");\n  if (!element) return;\n  const $ = (s) => element.querySelector(s);\n  const $$ = (s) => element.querySelectorAll(s);\n  try {\n    (function(element, $, $$) {\n${cjs}\n    })(element, $, $$);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
       const contentHash = Array.from(innerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
       return `/* [CANVAS-INJECTION]: ${id} | hash:${contentHash} */\n${innerContent}\n/* [END-CANVAS-INJECTION]: ${id} */`;
     })
@@ -525,7 +465,67 @@ ${customScripts ? `// Custom Component Scripts\n${customScripts}` : "// No custo
 // ─── Global responsive CSS reset ──────────────────────────────────────────────
 const GLOBAL_RESPONSIVE_CSS = `/* ── Responsive reset ── */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; overflow-x: hidden; }
+html, body { 
+  margin: 0; 
+  padding: 0; 
+  overflow-x: hidden; 
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #020817; /* shadcn foreground */
+  background-color: #ffffff; /* shadcn background */
+}
+
+/* Base element resets */
+h1, h2, h3, h4, h5, h6 { font-weight: 600; line-height: 1.25; margin: 0; }
+h1 { font-size: 2.25rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.875rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.5rem; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+/* ── Premade Block Base Styles ── */
+.hero-btn, .card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background-color 0.15s, opacity 0.15s;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+}
+.hero-btn {
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+.hero-btn:hover { background-color: #1d4ed8; }
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+.card h3 { padding: 1.5rem 1.5rem 0.5rem; margin: 0; }
+.card p { padding: 0 1.5rem 1.5rem; color: #64748b; font-size: 0.875rem; }
+.card-btn {
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  margin: 0 1.5rem 1.5rem;
+}
+.card-btn:hover { opacity: 0.9; }
 
 .canvas-container {
   position: relative;
@@ -725,6 +725,520 @@ function migrateToReadableIds(components: ComponentData[]): ComponentData[] {
   return components.map(migrate);
 }
 
+function sortComponentsByPosition(components: ComponentData[]): ComponentData[] {
+  return [...components]
+    .sort((a, b) => {
+      const yA = (a as any).position?.y || 0;
+      const yB = (b as any).position?.y || 0;
+      return yA - yB;
+    })
+    .map((c) => ({
+      ...c,
+      children: c.children ? sortComponentsByPosition(c.children) : undefined,
+    }));
+}
+
+// ─── buildx-sdk.js ────────────────────────────────────────────────────────────
+// FIX SUMMARY:
+// 1. INSERT: Added `collectFieldValues(config.fieldMap)` to read live input/select/textarea
+//    values from the DOM at click-time using the integration's fieldMap config.
+// 2. DELETE: Added `window.buildx.data.delete(table, id)` method and wired it in `buildx.run`.
+// 3. UPDATE: Added `window.buildx.data.update(table, id, payload)` method and wired it in `buildx.run`.
+// 4. PAYMONGO: After a successful link creation, the SDK now auto-redirects to the
+//    checkout_url from the PayMongo response instead of silently returning.
+const BUILDX_SDK = `(function() {
+  'use strict';
+  window.buildx = window.buildx || {};
+
+  // ── Config loader ──────────────────────────────────────────────────────────
+  let _config = null;
+  async function getConfig() {
+    if (_config) return _config;
+    try {
+      const res = await fetch('/config.json');
+      _config = await res.json();
+      return _config;
+    } catch (e) {
+      console.error('[buildx] Failed to load config.json');
+      return {};
+    }
+  }
+
+  // ── FIELD VALUE RESOLVER ───────────────────────────────────────────────────
+  // Resolves live DOM values at click-time from an integration config.
+  //
+  // Pattern A — cfg.data with "formData.X" values (generated by BuildX UI):
+  //   { "email": "formData.email", "username": "formData.name" }
+  //   Resolves by finding the nearest input/select/textarea with [name="X"] or #X
+  //
+  // Pattern B — cfg.fieldMap with CSS selectors (explicit override):
+  //   { "email": "#email-input" }
+  //   Bare strings without # are treated as IDs automatically.
+  //
+  // fieldMap always overrides cfg.data for the same key.
+  function collectFieldValues(dataConfig, fieldMap) {
+    var result = {};
+
+    // Pattern A: cfg.data "formData.X" references
+    if (dataConfig && typeof dataConfig === 'object') {
+      var keys = Object.keys(dataConfig);
+      for (var i = 0; i < keys.length; i++) {
+        var col = keys[i];
+        var ref = String(dataConfig[col] || '');
+        if (ref.indexOf('formData.') === 0) {
+          var nameOrSel = ref.slice('formData.'.length);
+          var el = null;
+          if (nameOrSel.charAt(0) === '#' || nameOrSel.charAt(0) === '.') {
+            el = document.querySelector(nameOrSel);
+          } else {
+            el = document.querySelector('[name="' + nameOrSel + '"]')
+              || document.getElementById(nameOrSel);
+          }
+          if (el && el.value !== undefined && el.value !== '') {
+            result[col] = el.value;
+          }
+        }
+      }
+    }
+
+    // Pattern B: cfg.fieldMap CSS selectors (overrides Pattern A for same key)
+    if (fieldMap && typeof fieldMap === 'object') {
+      var fKeys = Object.keys(fieldMap);
+      for (var j = 0; j < fKeys.length; j++) {
+        var fCol = fKeys[j];
+        var selector = String(fieldMap[fCol] || '');
+        if (!selector) continue;
+        var sel = (selector.charAt(0) === '#' || selector.charAt(0) === '.')
+          ? selector : '#' + selector;
+        var fEl = document.querySelector(sel);
+        if (fEl && fEl.value !== undefined) {
+          result[fCol] = fEl.value;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  window.buildx.auth = {
+    async signUp(email, password, metadata) {
+      metadata = metadata || {};
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const res = await fetch(supabaseUrl + '/auth/v1/signup', {
+          method: 'POST',
+          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: password, data: metadata })
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        return { data: data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+    async signIn(email, password) {
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const res = await fetch(supabaseUrl + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: password })
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        if (data.access_token) {
+          localStorage.setItem('supabase.auth.token', data.access_token);
+          localStorage.setItem('supabase.auth.user', JSON.stringify(data.user));
+        }
+        return { data: data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+    signOut() {
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase.auth.user');
+      window.location.reload();
+    },
+    getUser() {
+      const user = localStorage.getItem('supabase.auth.user');
+      return user ? JSON.parse(user) : null;
+    },
+    isLoggedIn() {
+      return !!localStorage.getItem('supabase.auth.token');
+    }
+  };
+
+  // ── Data (Supabase REST) ───────────────────────────────────────────────────
+  window.buildx.data = {
+    async select(table, columns, filters) {
+      columns = columns || '*';
+      filters = filters || {};
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const params = new URLSearchParams({ select: columns });
+        Object.entries(filters).forEach(function(entry) {
+          var col = entry[0]; var val = entry[1];
+          if (val !== undefined && val !== null && val !== '') {
+            params.append(col, 'eq.' + val);
+          }
+        });
+        const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
+        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?' + params.toString(), {
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: data };
+        return { data: data, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+
+    async insert(table, data) {
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
+        const res = await fetch(supabaseUrl + '/rest/v1/' + table, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (!res.ok) return { data: null, error: result };
+        return { data: result, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+
+    // ── FIX 2: DELETE ────────────────────────────────────────────────────────
+    // Requires a valid non-empty id. Supabase returns 400 when id is blank.
+    async delete(table, id) {
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        if (id === undefined || id === null || id === '') {
+          throw new Error('delete() requires a valid id — received empty value. Check that your fieldMap or filter correctly points to the id input.');
+        }
+        const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
+        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+          method: 'DELETE',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': 'Bearer ' + token,
+            'Prefer': 'return=representation'
+          }
+        });
+        // 204 No Content is a valid success for DELETE
+        if (res.status === 204) return { data: [], error: null };
+        const result = await res.json();
+        if (!res.ok) return { data: null, error: result };
+        return { data: result, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    },
+
+    // ── FIX 3: UPDATE ────────────────────────────────────────────────────────
+    // Requires a valid non-empty id. Merges payload into the matched row.
+    async update(table, id, data) {
+      try {
+        const { supabaseUrl, supabaseAnonKey } = await getConfig();
+        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
+        if (id === undefined || id === null || id === '') {
+          throw new Error('update() requires a valid id — received empty value. Check that your fieldMap or filter correctly points to the id input.');
+        }
+        const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
+        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(data)
+        });
+        // 204 No Content can also occur
+        if (res.status === 204) return { data: [], error: null };
+        const result = await res.json();
+        if (!res.ok) return { data: null, error: result };
+        return { data: result, error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    }
+  };
+
+  // ── Integration runner ─────────────────────────────────────────────────────
+  window.buildx.run = async function(id, data) {
+    data = data || {};
+    try {
+      const integrations = window.__BUILDX_INTEGRATIONS__ || [];
+      const integration = integrations.find(function(i) { return i.id === id; });
+      if (!integration) throw new Error('[buildx] Integration not found: ' + id);
+
+      // Ignore accidental DOM element passed as data
+      if (typeof HTMLElement !== 'undefined' && data instanceof HTMLElement) {
+        data = {};
+      }
+
+      const cfg = integration.config || {};
+      const operation = cfg.operation || 'select';
+
+      // ── Supabase integrations ────────────────────────────────────────────
+      if (integration.type === 'supabase') {
+        // FIX 1: Collect live field values from DOM using fieldMap, then merge
+        // with any data passed in programmatically. fieldMap wins for typed values.
+        var fieldValues = collectFieldValues(cfg.data, cfg.fieldMap);
+        var mergedPayload = Object.assign({}, data, fieldValues);
+
+        console.log('[buildx] 🖱️ Button clicked. Starting integration...');
+
+        if (operation === 'select') {
+          // Build filters: support both cfg.filters object and cfg.filterField/cfg.filterValue
+          var filters = {};
+          if (cfg.filters && typeof cfg.filters === 'object') {
+            filters = cfg.filters;
+          }
+          if (cfg.filterField && cfg.filterValue !== undefined) {
+            filters[cfg.filterField] = cfg.filterValue;
+          }
+          // Also allow dynamic filter from fieldMap (e.g. filter by id from an input)
+          if (cfg.filterField && fieldValues[cfg.filterField] !== undefined) {
+            filters[cfg.filterField] = fieldValues[cfg.filterField];
+          }
+          var selectResult = await window.buildx.data.select(cfg.table, cfg.selectColumns || '*', filters);
+          if (selectResult.error) {
+            console.error('[buildx] ❌ Integration failed:', selectResult.error);
+            return { success: false, data: null, error: selectResult.error };
+          }
+          console.log('[buildx] ✅ Integration successful! Result:', selectResult.data);
+          return { success: true, data: selectResult.data, error: null };
+
+        } else if (operation === 'insert') {
+          if (Object.keys(mergedPayload).length === 0) {
+            console.warn('[buildx] ⚠️ Insert called with no field values. Make sure your integration config has a "data" map with "formData.fieldName" values pointing to your input names.');
+          }
+          var insertResult = await window.buildx.data.insert(cfg.table, mergedPayload);
+          if (insertResult.error) {
+            console.error('[buildx] ❌ Integration failed:', insertResult.error);
+            return { success: false, data: null, error: insertResult.error };
+          }
+          console.log('[buildx] ✅ Integration successful! Result:', insertResult.data);
+          return { success: true, data: insertResult.data, error: null };
+
+        } else if (operation === 'delete') {
+          var idField = cfg.idField || 'id';
+          var deleteId = mergedPayload[idField] || cfg.deleteId || '';
+          // Resolve id from cfg.filterField string (legacy)
+          if (!deleteId && cfg.filterField) {
+            deleteId = fieldValues[cfg.filterField] || mergedPayload[cfg.filterField] || '';
+          }
+          // Resolve id from cfg.filters array — format used by BuildX UI
+          if (!deleteId && Array.isArray(cfg.filters)) {
+            for (var dfi = 0; dfi < cfg.filters.length; dfi++) {
+              var dFilterEntry = cfg.filters[dfi];
+              var dFilterVal = String(dFilterEntry.value || '');
+              var dResolvedVal = '';
+              if (dFilterVal.indexOf('formData.') === 0) {
+                var dFilterName = dFilterVal.slice('formData.'.length);
+                var dFilterEl = (dFilterName.charAt(0) === '#' || dFilterName.charAt(0) === '.')
+                  ? document.querySelector(dFilterName)
+                  : document.querySelector('[name="' + dFilterName + '"]') || document.getElementById(dFilterName);
+                dResolvedVal = dFilterEl ? (dFilterEl.value || '') : '';
+              } else {
+                dResolvedVal = dFilterVal;
+              }
+              if (dResolvedVal && (dFilterEntry.column === idField || dFilterEntry.column === 'id')) {
+                deleteId = dResolvedVal;
+                break;
+              }
+            }
+          }
+          var deleteResult = await window.buildx.data.delete(cfg.table, deleteId);
+          if (deleteResult.error) {
+            console.error('[buildx] ❌ Integration failed:', deleteResult.error);
+            return { success: false, data: null, error: deleteResult.error };
+          }
+          console.log('[buildx] ✅ Integration successful! Result:', deleteResult.data);
+          return { success: true, data: deleteResult.data, error: null };
+
+        } else if (operation === 'update') {
+          var updIdField = cfg.idField || 'id';
+          var updateId = mergedPayload[updIdField] || cfg.updateId || '';
+          // Resolve id from cfg.filterField string (legacy)
+          if (!updateId && cfg.filterField) {
+            updateId = fieldValues[cfg.filterField] || mergedPayload[cfg.filterField] || '';
+          }
+          // Resolve id from cfg.filters array — format used by BuildX UI:
+          // [{ column: "id", operator: "eq", value: "formData.updateid" }]
+          if (!updateId && Array.isArray(cfg.filters)) {
+            for (var fi = 0; fi < cfg.filters.length; fi++) {
+              var filterEntry = cfg.filters[fi];
+              var filterVal = String(filterEntry.value || '');
+              var resolvedFilterVal = '';
+              if (filterVal.indexOf('formData.') === 0) {
+                var filterNameOrSel = filterVal.slice('formData.'.length);
+                var filterEl = (filterNameOrSel.charAt(0) === '#' || filterNameOrSel.charAt(0) === '.')
+                  ? document.querySelector(filterNameOrSel)
+                  : document.querySelector('[name="' + filterNameOrSel + '"]') || document.getElementById(filterNameOrSel);
+                resolvedFilterVal = filterEl ? (filterEl.value || '') : '';
+              } else {
+                resolvedFilterVal = filterVal;
+              }
+              if (resolvedFilterVal && (filterEntry.column === updIdField || filterEntry.column === 'id')) {
+                updateId = resolvedFilterVal;
+                break;
+              }
+            }
+          }
+          var updateBody = Object.assign({}, mergedPayload);
+          delete updateBody[updIdField];
+          if (Object.keys(updateBody).length === 0) {
+            console.warn('[buildx] ⚠️ Update called with no fields to update. Make sure your integration config has a "data" map with "formData.fieldName" values.');
+          }
+          var updateResult = await window.buildx.data.update(cfg.table, updateId, updateBody);
+          if (updateResult.error) {
+            console.error('[buildx] ❌ Integration failed:', updateResult.error);
+            return { success: false, data: null, error: updateResult.error };
+          }
+          console.log('[buildx] ✅ Integration successful! Result:', updateResult.data);
+          return { success: true, data: updateResult.data, error: null };
+        }
+      }
+
+      // ── Resend / PayMongo (server-proxied) ───────────────────────────────
+      var baseUrl = window.__BUILDX_BASE_URL__ || '';
+      var isFileProtocol = window.location.protocol === 'file:';
+      var isLocalDev = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') && window.location.port !== '5001';
+      var isNullOrigin = baseUrl.startsWith('null/');
+
+      if ((!baseUrl || isNullOrigin) && (isFileProtocol || isLocalDev)) {
+        baseUrl = 'http://localhost:5001';
+      }
+
+      var endpoint = baseUrl + (integration.type === 'resend' ? '/api/resend' : '/api/paymongo');
+
+      // For PayMongo: collect amount/description from fieldMap if configured
+      // Resolve all cfg.data formData references + cfg.fieldMap selectors into the payload
+      var resolvedFields = collectFieldValues(cfg.data, cfg.fieldMap);
+      var requestPayload = Object.assign({}, data, resolvedFields);
+      // Ensure amount is a number (user may have typed it into an input)
+      if (requestPayload.amount !== undefined && requestPayload.amount !== '') {
+        var parsedAmount = parseFloat(String(requestPayload.amount).replace(/[^0-9.]/g, ''));
+        if (!isNaN(parsedAmount)) requestPayload.amount = parsedAmount;
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload)
+      }).catch(function(err) {
+        console.error('[buildx] Network Error: Failed to reach ' + endpoint + '. Make sure node server.js is running.');
+        throw err;
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        console.error('[buildx] ❌ Integration failed:', result);
+        return { success: false, data: null, error: result };
+      }
+
+      // FIX 4: PayMongo — auto-redirect to the generated checkout link
+      if (integration.type === 'paymongo') {
+        var checkoutUrl = (result.data && result.data.attributes && result.data.attributes.checkout_url)
+          || (result.data && result.data.checkout_url)
+          || (result.checkout_url);
+        if (checkoutUrl) {
+          console.log('[buildx] 💳 PayMongo link created. Redirecting to:', checkoutUrl);
+          window.location.href = checkoutUrl;
+          return { success: true, data: result, error: null };
+        } else {
+          console.warn('[buildx] ⚠️ PayMongo response did not contain a checkout_url. Full response:', result);
+        }
+      }
+
+      console.log('[buildx] ✅ Integration successful! Result:', result);
+      return { success: true, data: result, error: null };
+
+    } catch (err) {
+      console.error('[buildx] ❌ Integration runner error:', err);
+      return { success: false, data: null, error: err };
+    }
+  };
+
+  // ── Form submit handler ────────────────────────────────────────────────────
+  document.addEventListener('submit', async function(e) {
+    var form = e.target;
+    if (!form.classList.contains('auth-form') && !form.classList.contains('dynamic-form') && !form.dataset.action) return;
+    e.preventDefault();
+    var action = form.dataset.action;
+    var formData = new FormData(form);
+    var data = Object.fromEntries(formData.entries());
+    var msgEl = form.querySelector('.form-msg, .contact-msg, .auth-error, .auth-success');
+
+    try {
+      if (action === 'insert' || action === 'update') {
+        var table = form.dataset.table;
+        var res = await window.buildx.data.insert(table, data);
+        if (!res.error) {
+          if (msgEl) { msgEl.textContent = 'Success!'; msgEl.style.display = 'block'; }
+        } else if (msgEl) {
+          msgEl.textContent = 'Error: ' + (res.error.message || 'Submission failed');
+          msgEl.style.display = 'block';
+        }
+      } else if (action === 'signin') {
+        var authRes = await window.buildx.auth.signIn(data.email, data.password);
+        if (authRes.data && authRes.data.access_token) {
+          window.location.href = form.dataset.redirect || 'index.html';
+        } else if (msgEl) {
+          msgEl.textContent = (authRes.error && (authRes.error.message || authRes.error.error_description)) || 'Auth failed';
+          msgEl.style.display = 'block';
+        }
+      } else if (action === 'signup') {
+        var signupRes = await window.buildx.auth.signUp(data.email, data.password);
+        if (!signupRes.error) {
+          if (msgEl) { msgEl.textContent = 'Sign up successful! Check your email.'; msgEl.style.display = 'block'; }
+        } else if (msgEl) {
+          msgEl.textContent = signupRes.error.message || signupRes.error.error_description || 'Sign up failed';
+          msgEl.style.display = 'block';
+        }
+      } else if (action === 'contact') {
+        var integrations = window.__BUILDX_INTEGRATIONS__ || [];
+        var resend = integrations.find(function(i) { return i.type === 'resend'; });
+        if (resend) {
+          var mailResult = await window.buildx.run(resend.id, { to: 'you@example.com', subject: 'Contact Form', html: JSON.stringify(data) });
+          if (mailResult.success) {
+            if (msgEl) { msgEl.textContent = 'Message sent!'; msgEl.style.display = 'block'; }
+          } else if (msgEl) {
+            msgEl.textContent = 'Error: ' + (mailResult.error && mailResult.error.message || 'Failed to send');
+            msgEl.style.display = 'block';
+          }
+        }
+      }
+    } catch (err) {
+      if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.style.display = 'block'; }
+    }
+  });
+})();
+`;
+
 export const generateProjectFiles = (
   components: ComponentData[],
   pages: any[],
@@ -740,6 +1254,7 @@ export const generateProjectFiles = (
   fileOverrides: Record<string, string> = {},
 ): Record<string, string> => {
   const migratedComponents = migrateToReadableIds(components);
+  const sortedComponents = sortComponentsByPosition(migratedComponents);
   const defaultPage =
     pages && pages.length > 0 ? slugify(pages[0].name) : "home";
 
@@ -747,7 +1262,7 @@ export const generateProjectFiles = (
     "public/index.html": `<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=${defaultPage}.html"></head>\n<body>Redirecting to <a href="${defaultPage}.html">${defaultPage}</a></body>\n</html>`,
     "public/assets/css/global.css": GLOBAL_RESPONSIVE_CSS,
     "public/assets/css/styles.css": `/* Styles */\n@import "global.css";`,
-    "README.md": `# ${projectName}\n\nGenerated by BuildX Vanilla JS Builder.\n\n## How to Run Locally\n\nThis project includes a bundled Node.js server (\`server.js\`) that handles static files and backend integrations (Supabase, Resend, PayMongo).\n\n### Prerequisites\n- **Node.js** (Version 18 or higher is recommended)\n\n### Installation & Running\n1.  **Check Configuration**: Open \`config.json\` and ensure your API keys and Supabase credentials are correct.\n2.  **Start the Server**: Run the following command in your terminal:\n    \`\`\`bash\n    node server.js\n    \`\`\`\n3.  **Open in Browser**: Navigate to \`http://localhost:3000\`.\n\n## Project Structure\n- \`public/\`: Frontend assets (HTML, CSS, JS).\n- \`config.json\`: Project credentials and configuration.\n- \`server.js\`: Local development server and API proxy.\n`,
+    "README.md": `# ${projectName}\n\nGenerated by BuildX Vanilla JS Builder.\n\n## How to Run Locally\n\nThis project includes a bundled Node.js server (\`server.js\`) that handles static files and backend integrations (Supabase, Resend, PayMongo).\n\n### Prerequisites\n- **Node.js** (Version 18 or higher is recommended)\n\n### Installation & Running\n1.  **Check Configuration**: Open \`config.json\` and ensure your API keys and Supabase credentials are correct.\n2.  **Start the Server**: Run the following command in your terminal:\n    \`\`\`bash\n    node server.js\n    \`\`\`\n3.  **Open in Browser**: Navigate to \`http://localhost:5001\`.\n\n## Project Structure\n- \`public/\`: Frontend assets (HTML, CSS, JS).\n- \`config.json\`: Project credentials and configuration.\n- \`server.js\`: Local development server and API proxy.\n`,
     "config.json": JSON.stringify({
       supabaseUrl: userConfig?.supabaseUrl || "",
       supabaseAnonKey: userConfig?.supabaseKey || userConfig?.supabaseAnonKey || "",
@@ -758,10 +1273,22 @@ export const generateProjectFiles = (
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5001;
 const CONFIG = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 
 const server = http.createServer(async (req, res) => {
+  // Add permissive CORS for local development across different ports
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey');
+
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   const url = req.url.split('?')[0];
   
   if (url === '/config.json') {
@@ -789,14 +1316,19 @@ const server = http.createServer(async (req, res) => {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
-      const data = JSON.parse(body);
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + CONFIG.resendApiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Acme <onboarding@resend.dev>', to: [data.to], subject: data.subject, html: data.html })
-      });
-      res.writeHead(response.status, { 'Content-Type': 'application/json' });
-      res.end(await response.text());
+      try {
+        const data = JSON.parse(body) || {};
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + CONFIG.resendApiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: 'Acme <onboarding@resend.dev>', to: [data.to || 'delivered@resend.dev'], subject: data.subject || 'Test', html: data.html || '<p>Hello world</p>' })
+        });
+        res.writeHead(response.status, { 'Content-Type': 'application/json' });
+        res.end(await response.text());
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
     });
     return;
   }
@@ -805,14 +1337,19 @@ const server = http.createServer(async (req, res) => {
      let body = '';
      req.on('data', chunk => body += chunk);
      req.on('end', async () => {
-       const data = JSON.parse(body);
-       const response = await fetch('https://api.paymongo.com/v1/links', {
-         method: 'POST',
-         headers: { 'accept': 'application/json', 'authorization': 'Basic ' + Buffer.from(CONFIG.paymongoSecretKey + ':').toString('base64'), 'content-type': 'application/json' },
-         body: JSON.stringify({ data: { attributes: { amount: data.amount * 100, description: data.description, currency: data.currency } } })
-       });
-       res.writeHead(response.status, { 'Content-Type': 'application/json' });
-       res.end(await response.text());
+       try {
+         const data = JSON.parse(body) || {};
+         const response = await fetch('https://api.paymongo.com/v1/links', {
+           method: 'POST',
+           headers: { 'accept': 'application/json', 'authorization': 'Basic ' + Buffer.from(CONFIG.paymongoSecretKey + ':').toString('base64'), 'content-type': 'application/json' },
+           body: JSON.stringify({ data: { attributes: { amount: (data.amount || 100) * 100, description: data.description || 'Payment', currency: data.currency || 'PHP' } } })
+         });
+         res.writeHead(response.status, { 'Content-Type': 'application/json' });
+         res.end(await response.text());
+       } catch (err) {
+         res.writeHead(400, { 'Content-Type': 'application/json' });
+         res.end(JSON.stringify({ error: err.message }));
+       }
      });
      return;
   }
@@ -822,199 +1359,27 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));`,
-    "public/assets/js/buildx-sdk.js": `
-(function() {
-  window.buildx = window.buildx || {};
-  
-  let config = null;
-  async function getConfig() {
-    if (config) return config;
-    try {
-      const res = await fetch('/config.json');
-      config = await res.json();
-      return config;
-    } catch (e) {
-      console.error('[buildx] Failed to load config.json');
-      return {};
-    }
-  }
-
-  window.buildx.auth = {
-    async signUp(email, password, metadata = {}) {
-      try {
-        const { supabaseUrl, supabaseAnonKey } = await getConfig();
-        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
-        const res = await fetch(\`\${supabaseUrl}/auth/v1/signup\`, {
-          method: 'POST',
-          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, data: metadata })
-        });
-        const data = await res.json();
-        if (!res.ok) return { data: null, error: data };
-        return { data, error: null };
-      } catch (err) {
-        return { data: null, error: err };
-      }
-    },
-    async signIn(email, password) {
-      try {
-        const { supabaseUrl, supabaseAnonKey } = await getConfig();
-        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
-        const res = await fetch(\`\${supabaseUrl}/auth/v1/token?grant_type=password\`, {
-          method: 'POST',
-          headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (!res.ok) return { data: null, error: data };
-        
-        if (data.access_token) {
-          localStorage.setItem('supabase.auth.token', data.access_token);
-          localStorage.setItem('supabase.auth.user', JSON.stringify(data.user));
-        }
-        return { data, error: null };
-      } catch (err) {
-        return { data: null, error: err };
-      }
-    },
-    signOut() {
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('supabase.auth.user');
-      window.location.reload();
-    },
-    getUser() {
-      const user = localStorage.getItem('supabase.auth.user');
-      return user ? JSON.parse(user) : null;
-    },
-    isLoggedIn() {
-      return !!localStorage.getItem('supabase.auth.token');
-    }
-  };
-
-  window.buildx.data = {
-    async select(table, columns = '*', filters = {}) {
-      try {
-        const { supabaseUrl, supabaseAnonKey } = await getConfig();
-        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
-        const params = new URLSearchParams({ select: columns });
-        Object.entries(filters).forEach(([col, val]) => {
-          if (val !== undefined && val !== null) params.append(col, 'eq.' + val);
-        });
-        const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}?\${params.toString()}\`, {
-          headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey) }
-        });
-        const data = await res.json();
-        if (!res.ok) return { data: null, error: data };
-        return { data, error: null };
-      } catch (err) {
-        return { data: null, error: err };
-      }
-    },
-    async insert(table, data) {
-      try {
-        const { supabaseUrl, supabaseAnonKey } = await getConfig();
-        if (!supabaseUrl) throw new Error('Supabase URL is not configured');
-        const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}\`, {
-          method: 'POST',
-          headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-          body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        if (!res.ok) return { data: null, error: result };
-        return { data: result, error: null };
-      } catch (err) {
-        return { data: null, error: err };
-      }
-    }
-  };
-
-  window.buildx.run = async function(id, data = {}) {
-    try {
-      const integrations = window.__BUILDX_INTEGRATIONS__ || [];
-      const integration = integrations.find(i => i.id === id);
-      if (!integration) throw new Error('Integration not found');
-
-      const baseUrl = window.__BUILDX_BASE_URL__ || '';
-      const endpoint = baseUrl + (integration.type === 'resend' ? '/api/resend' : '/api/paymongo');
-      
-      const res = await fetch(endpoint, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data) 
-      });
-      const result = await res.json();
-      if (!res.ok) return { success: false, data: null, error: result };
-      return { success: true, data: result, error: null };
-    } catch (err) {
-      return { success: false, data: null, error: err };
-    }
-  };
-
-  document.addEventListener('submit', async (e) => {
-    const form = e.target;
-    if (form.classList.contains('auth-form') || form.classList.contains('dynamic-form') || form.dataset.action) {
-      e.preventDefault();
-      const action = form.dataset.action;
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
-      const msgEl = form.querySelector('.form-msg, .contact-msg, .auth-error, .auth-success');
-
-      try {
-        if (action === 'insert' || action === 'update') {
-          const table = form.dataset.table;
-          const { error } = await window.buildx.data.insert(table, data);
-          if (!error) {
-            if (msgEl) { msgEl.textContent = 'Success!'; msgEl.style.display = 'block'; }
-          } else if (msgEl) {
-            msgEl.textContent = 'Error: ' + (error.message || 'Submission failed');
-            msgEl.style.display = 'block';
-          }
-        } else if (action === 'signin') {
-          const { data: authData, error } = await window.buildx.auth.signIn(data.email, data.password);
-          if (authData && authData.access_token) window.location.href = form.dataset.redirect || 'index.html';
-          else if (msgEl) { 
-            msgEl.textContent = (error && (error.message || error.error_description)) || 'Auth failed'; 
-            msgEl.style.display = 'block'; 
-          }
-        } else if (action === 'signup') {
-          const { error } = await window.buildx.auth.signUp(data.email, data.password);
-          if (!error) { 
-            if (msgEl) { msgEl.textContent = 'Sign up successful! check your email.'; msgEl.style.display = 'block'; }
-          } else if (msgEl) {
-            msgEl.textContent = error.message || error.error_description || 'Sign up failed';
-            msgEl.style.display = 'block';
-          }
-        } else if (action === 'contact') {
-          const integrations = window.__BUILDX_INTEGRATIONS__ || [];
-          const resend = integrations.find(i => i.type === 'resend');
-          if (resend) {
-            const result = await window.buildx.run(resend.id, { to: 'you@example.com', subject: 'Contact Form', html: JSON.stringify(data) });
-            if (result.success) {
-              if (msgEl) { msgEl.textContent = 'Message sent!'; msgEl.style.display = 'block'; }
-            } else if (msgEl) {
-              msgEl.textContent = 'Error: ' + (result.error?.message || 'Failed to send');
-              msgEl.style.display = 'block';
-            }
-          }
-        }
-      } catch (err) {
-        if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.style.display = 'block'; }
-      }
-    }
-  });
-})();
-`,
+    // Use the fixed BUILDX_SDK constant
+    "public/assets/js/buildx-sdk.js": BUILDX_SDK,
     ".env.example": `SUPABASE_URL=\nSUPABASE_ANON_KEY=\n`,
   };
 
   pages.forEach((page, index) => {
     const fileName = slugify(page.name);
-    const pageComponents = migratedComponents.filter(
-      (c) =>
+    // Filter for components that belong to this page, are global, or fallback to home for unassigned components
+    const pageComponents = sortedComponents.filter((c) => {
+      // If component uses the new array format (e.g. from PropertiesPanel)
+      if (c.page_ids && Array.isArray(c.page_ids) && c.page_ids.length > 0) {
+        if (c.page_ids.includes("all")) return true;
+        return c.page_ids.includes(page.id) || (!page.id && c.page_ids.includes("home"));
+      }
+      // Fallback for older components using the string format
+      return (
         c.page_id === page.id ||
         c.page_id === "all" ||
-        (!c.page_id && (page.id === "home" || index === 0)),
-    );
+        (!c.page_id && (page.id === "home" || index === 0))
+      );
+    });
     const bodyContent =
       `<div class="canvas-container">\n` +
       (pageComponents.length > 0
@@ -1045,7 +1410,9 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
     const componentCssBlocks = allPageComponents
       .filter(
         (c) =>
-          (c.style && Object.keys(c.style).length > 0) || c.type === "navbar",
+          (c.style && Object.keys(c.style).length > 0) ||
+          (c as any).position != null ||
+          FULL_WIDTH_TYPES.has(c.type),
       )
       .map((c) => buildResponsiveCss(c, (c as any).position));
     const customComponentCss = allPageComponents
@@ -1058,12 +1425,33 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
           `/* CSS from props for ${compIdClass(c)} */\n${c.props.css.replace(/\$elementId/g, c.props.elementId || compIdClass(c))}`,
       );
 
+    // Collect CSS from block-transpiler for blocks that have dedicated transpilers
+    const transpilerCss = allPageComponents
+      .filter((c) => hasTranspiler(c.type) && !c.props?.css && c.type !== "custom-component")
+      .map((c) => transpileCSS(c))
+      .filter((css) => css && !css.startsWith("/*"));
+
+    // Collect JS from block-transpiler for interactive blocks (accordion, tabs, modal, etc.)
+    // Explicitly exclude custom-component — their JS runs inside the IIFE wrapper in generatePageJS
+    // and must NOT be re-emitted here without $/$$ context, which causes ReferenceError crashes.
+    const transpilerJs = allPageComponents
+      .filter((c) => hasTranspiler(c.type) && !c.props?.js_handler && c.type !== "custom-component")
+      .map((c) => {
+        let handler = transpileJS(c);
+        if (handler && (handler.includes("<?php") || handler.includes("?>"))) {
+          handler = scrubPHP(handler);
+        }
+        return handler;
+      })
+      .filter(Boolean);
+
     const cssPath = `public/assets/css/${fileName}.css`;
     files[cssPath] = fileOverrides[cssPath] || [
       `/* ${page.name} styles */`,
+      ...transpilerCss,
+      ...propsCss,
       ...componentCssBlocks,
       ...customComponentCss,
-      ...propsCss,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -1071,23 +1459,44 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
     const jsPath = `public/assets/js/${fileName}.js`;
     let jsContent = fileOverrides[jsPath] || generatePageJS(pageComponents, page.name);
 
+    // Inject transpiler JS for interactive blocks (accordion, tabs, modal, alert, carousel, etc.)
+    if (!fileOverrides[jsPath] && transpilerJs.length > 0) {
+      // Append transpiler JS inside the DOMContentLoaded wrapper
+      const closingTag = "});";
+      const lastIdx = jsContent.lastIndexOf(closingTag);
+      if (lastIdx !== -1) {
+        jsContent = jsContent.substring(0, lastIdx) + "\n\n  // Block transpiler scripts\n  " + transpilerJs.join("\n\n  ") + "\n" + closingTag;
+      } else {
+        jsContent += "\n\n" + transpilerJs.join("\n\n");
+      }
+    }
+
+
     if (fileOverrides[jsPath]) {
       allPageComponents.forEach((c) => {
         const compId = compIdClass(c);
         const openingMarker = `/* [CANVAS-INJECTION]: ${compId}`;
         const closingMarker = `/* [END-CANVAS-INJECTION]: ${compId} */`;
-        
-        const handler = c.props?.js_handler || (c as any).php_backend || "";
-        const cjs = c.type === "custom-component" ? c.props?.js : "";
-        
+
+        let handler = c.props?.js_handler || "";
+        let cjs = c.type === "custom-component" ? c.props?.js : "";
+
         if (!(handler || cjs)) return;
-        if (handler && handler.includes("<?php")) return;
+
+        // Scrub PHP from handler and cjs if present
+        if (handler.includes("<?php") || handler.includes("?>")) {
+          handler = scrubPHP(handler);
+        }
+        if (cjs && (cjs.includes("<?php") || cjs.includes("?>"))) {
+          cjs = scrubPHP(cjs);
+        }
 
         let newInnerContent = "";
+        const targetElementId = c.props?.elementId || compId;
         if (c.type === "custom-component" && cjs) {
-          newInnerContent = `(function() {\n  const element = document.getElementById("${compId}");\n  if (!element) return;\n  try {\n    (function(element) {\n${cjs}\n    })(element);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
+          newInnerContent = `(function() {\n  const element = document.getElementById("${targetElementId}");\n  if (!element) return;\n  const $ = (s) => element.querySelector(s);\n  const $$ = (s) => element.querySelectorAll(s);\n  try {\n    (function(element, $, $$) {\n${cjs}\n    })(element, $, $$);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
         } else {
-          newInnerContent = `(function(elementId) {\n  const $elementId = elementId;\n${handler.replace(/\$elementId/g, compId)}\n})("${compId}");`;
+          newInnerContent = `(function(elementId) {\n  const $elementId = elementId;\n${handler.replace(/\$elementId/g, targetElementId)}\n})("${targetElementId}");`;
         }
 
         // Simple hash for the content
@@ -1102,30 +1511,21 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
             const blockContent = jsContent.substring(startIdx, endIdx + closingMarker.length);
             const currentHashMatch = blockContent.match(/hash:([a-f0-9-]+)/);
             const currentHash = currentHashMatch ? currentHashMatch[1] : null;
-            
-            // Extract inner content to check if user changed it
+
             const innerStart = jsContent.indexOf("*/", startIdx) + 2;
             const currentInner = jsContent.substring(innerStart, endIdx).trim();
-            
-            // Check if "dirty"
-            // If we don't have a recorded hash, or if the current inner content matches the logic for the PREVIOUS hash...
-            // Actually, the simplest check: if currentInner doesn't match newInnerContent AND it doesn't match the "default" for its CURRENT hash, it's dirty.
-            // But we don't know the default for its current hash because that would require re-generating with OLD props.
-            
-            // "Assertive" logic: if the recorded hash matches the current inner content's hash, it's NOT dirty.
+
             const actualHash = Array.from(currentInner).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
-            
+
             if (currentHash === actualHash) {
-              // Not dirty! Can safely update to new version.
               if (currentHash !== contentHash) {
                 jsContent = jsContent.replace(blockContent, newInjection.trim());
               }
-            } else {
-              // User edited manually! Do nothing.
             }
+            // else: user edited manually, don't overwrite
           }
         } else {
-          // Missing - Assertive Insert
+          // Missing — assertive insert
           if (jsContent.includes("});")) {
             const parts = jsContent.split("});");
             const lastPart = parts.pop();

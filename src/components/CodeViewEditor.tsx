@@ -70,6 +70,7 @@ interface CodeViewEditorProps {
 
   customFiles?: Record<string, string>;
   onCustomFileUpdate?: (path: string, content: string) => void;
+  customComponents?: any[];
 }
 
 interface FileNode {
@@ -113,11 +114,11 @@ const FILE_TEMPLATES: Record<string, (name: string) => string> = {
 
 const FILE_TYPE_OPTIONS: FileTypeOption[] = [
   {
-    ext: "php",
-    label: "PHP Script",
-    icon: <span className="text-[10px] font-bold text-[#8892bf]">PHP</span>,
-    color: "text-[#8892bf]",
-    folder: "app/api",
+    ext: "html",
+    label: "HTML File",
+    icon: <span className="text-[10px] font-bold text-orange-400">HTML</span>,
+    color: "text-orange-400",
+    folder: "public",
   },
   {
     ext: "js",
@@ -127,18 +128,18 @@ const FILE_TYPE_OPTIONS: FileTypeOption[] = [
     folder: "public/assets/js",
   },
   {
-    ext: "json",
-    label: "JSON Config",
-    icon: <span className="text-[10px] font-bold text-[#f5a623]">JSON</span>,
-    color: "text-[#f5a623]",
-    folder: "app/config",
+    ext: "css",
+    label: "CSS Style",
+    icon: <span className="text-[10px] font-bold text-blue-400">CSS</span>,
+    color: "text-blue-400",
+    folder: "public/assets/css",
   },
   {
-    ext: "md",
-    label: "Markdown",
-    icon: <span className="text-[10px] font-bold text-[#aaa]">MD</span>,
-    color: "text-[#aaa]",
-    folder: "docs",
+    ext: "php",
+    label: "PHP Script",
+    icon: <span className="text-[10px] font-bold text-[#8892bf]">PHP</span>,
+    color: "text-[#8892bf]",
+    folder: "app/api",
   },
 ];
 
@@ -391,8 +392,10 @@ function CodeExportModal({
   const frameworkLabel = useMemo(() => {
     const ext = selectedFile.split(".").pop();
     switch (ext) {
+      case "html":
+        return { name: "HTML5 Engine", color: "text-orange-400" };
       case "php":
-        return { name: "PHP Engine", color: "text-[#8892bf]" };
+        return { name: "PHP Script", color: "text-[#8892bf]" };
       case "css":
         return { name: "CSS3 Styles", color: "text-[#38bdf8]" };
       case "js":
@@ -487,7 +490,7 @@ function CodeExportModal({
                 </>
               ) : (
                 <FileCode
-                  className={`w-4 h-4 ${node.path.endsWith(".php") ? "text-blue-400" : node.path.endsWith(".css") ? "text-blue-300" : "text-yellow-400"}`}
+                  className={`w-4 h-4 ${node.path.endsWith(".html") ? "text-orange-400" : node.path.endsWith(".css") ? "text-blue-300" : "text-yellow-400"}`}
                 />
               )}
               <span className="truncate">{node.name}</span>
@@ -572,7 +575,7 @@ function CodeExportModal({
             >
               <div className="flex items-center gap-2 min-w-0">
                 <FileCode
-                  className={`w-3.5 h-3.5 shrink-0 ${selectedFile.endsWith(".php") ? "text-blue-400" : "text-blue-300"}`}
+                  className={`w-3.5 h-3.5 shrink-0 ${selectedFile.endsWith(".html") ? "text-orange-400" : "text-blue-300"}`}
                 />
                 <span className="font-mono truncate">{selectedFile}</span>
               </div>
@@ -594,19 +597,19 @@ function CodeExportModal({
               <Editor
                 height="100%"
                 language={
-                  selectedFile.endsWith(".css")
-                    ? "css"
-                    : selectedFile.endsWith(".js")
-                      ? "javascript"
-                      : selectedFile.endsWith(".html")
-                        ? "html"
+                  selectedFile.endsWith(".html")
+                    ? "html"
+                    : selectedFile.endsWith(".css")
+                      ? "css"
+                      : selectedFile.endsWith(".js")
+                        ? "javascript"
                         : selectedFile.endsWith(".php")
                           ? "php"
                           : selectedFile.endsWith(".json")
                             ? "json"
                             : selectedFile.endsWith(".md")
                               ? "markdown"
-                              : "php"
+                              : "plaintext" // Default to plaintext if no match
                 }
                 value={effectiveFiles[selectedFile] || "// No content"}
                 theme="vs-dark"
@@ -703,7 +706,7 @@ const buildTreeFromPaths = (paths: string[]): FileNode[] => {
 // --- MAIN COMPONENT ---
 export function CodeViewEditor({
   components,
-  projectName = "php-builder",
+  projectName = "BuildX-Project",
   pages,
   activePageId,
   onCodeChange,
@@ -713,6 +716,7 @@ export function CodeViewEditor({
   onFileOverrideUpdate,
   customFiles = {},
   onCustomFileUpdate,
+  customComponents = [],
 }: CodeViewEditorProps) {
   // Remove diagnostic logs as we found the issue
   const [selectedFile, setSelectedFile] = useState("");
@@ -723,19 +727,29 @@ export function CodeViewEditor({
   const [draftContent, setDraftContent] = useState("");
   const [showFileCreator, setShowFileCreator] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false); // ← new
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [generatedFiles, setGeneratedFiles] = useState<Record<string, string>>({});
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Ensure the generated code uses the configuration
-  const generatedFiles = useMemo(() => {
-    return generateProjectFiles(
-      components,
-      pages,
-      projectName,
-      userConfig,
-      fileOverrides,
-    );
-  }, [components, pages, projectName, userConfig, fileOverrides]);
+  // Ensure the generated code uses the configuration asynchronously
+  useEffect(() => {
+    setIsGenerating(true);
+    
+    const timer = setTimeout(() => {
+      const files = generateProjectFiles(
+        components,
+        pages,
+        projectName,
+        userConfig,
+        fileOverrides,
+      );
+      setGeneratedFiles(files);
+      setIsGenerating(false);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [components, pages, projectName, userConfig, fileOverrides, customComponents]);
 
   const effectiveFiles = useMemo<Record<string, string>>(
     () => ({ ...fileOverrides, ...generatedFiles, ...customFiles }),
@@ -881,7 +895,6 @@ export function CodeViewEditor({
           activePageId={activePageId}
           effectiveFiles={effectiveFiles}
           userConfig={userConfig}
-          effectiveFiles={effectiveFiles}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -905,7 +918,15 @@ export function CodeViewEditor({
       </div>
 
       {/* Main Editor */}
-      <div className="flex-1 rounded-sm overflow-hidden flex flex-col bg-[#272727] shadow-xl">
+      <div className="flex-1 rounded-sm overflow-hidden flex flex-col bg-[#272727] shadow-xl relative">
+        {isGenerating && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#1e1e1e]/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+              <p className="text-sm text-blue-400 font-medium animate-pulse">Synchronizing Custom Components & Generating Code...</p>
+            </div>
+          </div>
+        )}
         {/* Toolbar */}
         <div className="px-4 py-2 bg-[#252526] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -1024,19 +1045,19 @@ export function CodeViewEditor({
           <Editor
             height="100%"
             language={
-              selectedFile.endsWith(".css")
-                ? "css"
-                : selectedFile.endsWith(".js")
-                  ? "javascript"
-                  : selectedFile.endsWith(".html")
-                    ? "html"
+              selectedFile.endsWith(".html")
+                ? "html"
+                : selectedFile.endsWith(".css")
+                  ? "css"
+                  : selectedFile.endsWith(".js")
+                    ? "javascript"
                     : selectedFile.endsWith(".php")
                       ? "php"
                       : selectedFile.endsWith(".json")
                         ? "json"
                         : selectedFile.endsWith(".md")
                           ? "markdown"
-                          : "php"
+                          : "plaintext" // Default to plaintext if no match
             }
             value={
               isEditing

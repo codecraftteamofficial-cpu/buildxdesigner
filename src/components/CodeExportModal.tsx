@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,7 @@ interface CodeExportModalProps {
   }
   fileOverrides?: Record<string, string>
   customFiles?: Record<string, string>
+  customComponents?: any[]
   onClose: () => void
 }
 
@@ -77,24 +78,33 @@ const buildFileTree = (paths: string[]): FileNode[] => {
   return root
 }
 
-export function CodeExportModal({ components, projectName = "leumar", pages, activePageId, userConfig, fileOverrides = {}, customFiles = {}, onClose }: CodeExportModalProps) {
+export function CodeExportModal({ components, projectName = "BuildX-Project", pages, activePageId, userConfig, fileOverrides = {}, customFiles = {}, customComponents = [], onClose }: CodeExportModalProps) {
   const defaultFile = useMemo(() => {
     const activePage = pages?.find(p => p.id === activePageId) || pages?.[0];
     const pageName = activePage?.name || "home";
-    return `app/views/${slugify(pageName)}.php`;
+    return `public/${slugify(pageName)}.html`;
   }, [pages, activePageId]);
 
   const [selectedFile, setSelectedFile] = useState<string>(defaultFile);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["app", "app/views", "public", "public/assets", "public/assets/css"]))
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["public", "public/assets", "public/assets/css", "public/assets/js"]))
   const [resolvedComponents] = useState<ComponentData[]>(() => {
     return components;
   });
 
-  // Use the shared generator ONLY - do not redeclare this variable later
-  const getFiles = useMemo(() => {
-    const generated = generateProjectFiles(components, pages, projectName, userConfig, fileOverrides);
-    return { ...generated, ...customFiles };
-  }, [components, pages, projectName, userConfig, fileOverrides, customFiles]);
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [getFiles, setGetFiles] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setIsGenerating(true);
+
+    const timer = setTimeout(() => {
+      const generated = generateProjectFiles(components, pages, projectName, userConfig, fileOverrides);
+      setGetFiles({ ...generated, ...customFiles });
+      setIsGenerating(false);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [components, pages, projectName, userConfig, fileOverrides, customFiles, customComponents]);
 
   const downloadAll = async () => {
     try {
@@ -133,11 +143,15 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
   const frameworkLabel = useMemo(() => {
     const ext = selectedFile.split('.').pop()
     switch (ext) {
-      case 'php': return { name: 'PHP Engine', color: 'text-[#8892bf]' }
+      case "php":
+        return { name: "PHP Script", color: "text-[#8892bf]" };
+      case "html":
+        return { name: "HTML5 Engine", color: "text-orange-400" };
       case 'css': return { name: 'CSS3 Styles', color: 'text-[#38bdf8]' }
       case 'js': return { name: 'JavaScript ES6', color: 'text-[#facc15]' }
       case 'sql': return { name: 'PostgreSQL', color: 'text-[#336791]' }
-      default: return { name: 'Plain Text', color: 'text-white/60' }
+      default:
+        return { name: "Vanilla JS Engine", color: "text-yellow-400" };
     }
   }, [selectedFile])
 
@@ -207,7 +221,15 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
           </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
+        <div className="flex-1 flex overflow-hidden relative" style={{ backgroundColor: "#1e1e1e" }}>
+          {isGenerating && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#1e1e1e]/80 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                <p className="text-sm text-blue-400 font-medium animate-pulse">Synchronizing Custom Components & Generating Code...</p>
+              </div>
+            </div>
+          )}
           <div className="w-64 border-r border-[#333] bg-[#181818] flex flex-col shrink-0 overflow-y-auto" style={{ backgroundColor: "#181818" }}>
             <div className="px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 mb-2">Explorer</div>
             <div className="flex-1 px-1">{renderTree(fileTree)}</div>
@@ -216,7 +238,7 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
           <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
             <div className="flex items-center gap-2 px-4 py-2 bg-[#2d2d2d] text-xs text-gray-300 border-b border-[#1e1e1e] justify-between" style={{ backgroundColor: "#2d2d2d" }}>
               <div className="flex items-center gap-2">
-                <FileCode className={`w-3.5 h-3.5 ${selectedFile.endsWith('.php') ? 'text-blue-400' : 'text-blue-300'}`} />
+                <FileCode className={`w-3.5 h-3.5 ${selectedFile.endsWith('.html') ? 'text-orange-400' : selectedFile.endsWith('.css') ? 'text-blue-300' : 'text-yellow-400'}`} />
                 <span className="font-mono">{selectedFile}</span>
               </div>
               <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-white/10" onClick={() => { navigator.clipboard.writeText(getFiles[selectedFile]); toast.success("File copied!"); }}>
@@ -226,7 +248,7 @@ export function CodeExportModal({ components, projectName = "leumar", pages, act
 
             <div className="flex-1 overflow-auto" style={{ backgroundColor: "#1e1e1e" }}>
               <SyntaxHighlighter
-                language={selectedFile.endsWith('.css') ? 'css' : selectedFile.endsWith('.js') ? 'javascript' : selectedFile.endsWith('.sql') ? 'sql' : 'php'}
+                language={selectedFile.endsWith('.css') ? 'css' : selectedFile.endsWith('.js') ? 'javascript' : selectedFile.endsWith('.html') ? 'html' : 'javascript'}
                 style={okaidia}
                 showLineNumbers
                 customStyle={{
