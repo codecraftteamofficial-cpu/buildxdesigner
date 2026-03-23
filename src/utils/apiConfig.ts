@@ -8,14 +8,15 @@ export const getApiBaseUrl = (): string => {
     return "https://build-x-designer-api.vercel.app";
   }
 
-  // Explicitly handle production backend URL (including subdomains)
+  // Handle all environment hostnames (including Vercel previews)
   if (
+    hostname.endsWith(".vercel.app") ||
     hostname === "buildxdesigner.site" ||
-    hostname.endsWith(".buildxdesigner.site") ||
-    hostname === "buildxdesigner-fork.vercel.app"
+    hostname.endsWith(".buildxdesigner.site")
   ) {
     return "https://build-x-designer-api.vercel.app";
   }
 
-  return "";
+  // Fallback to production API for any external hosted domain
+  return "https://build-x-designer-api.vercel.app";
 };

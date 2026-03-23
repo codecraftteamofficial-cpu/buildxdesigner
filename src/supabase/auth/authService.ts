@@ -14,16 +14,25 @@ interface AuthOperationResult {
 export async function initiateGoogleSignIn(redirectPath: string = '/dashboard'): Promise<AuthOperationResult> {
 
     const baseUrl = window.location.origin;
-    console.log('[Auth Debug] Origin:', baseUrl);
+    console.log('[Auth Debug] Current Origin:', baseUrl);
+    console.log('[Auth Debug] Hostname:', window.location.hostname);
 
-    // Explicitly force the production URL if we are on the production domain
+    // Only force production URL if we are actually on the production domain or the duckdns mirror
     let fullRedirectUrl = baseUrl + redirectPath;
-    if (baseUrl.includes('buildxdesigner.site') || baseUrl.includes('buildxdesigner.duckdns.org')) {
+    
+    const isProductionHost = 
+      window.location.hostname === 'buildxdesigner.site' || 
+      window.location.hostname.endsWith('.buildxdesigner.site') || 
+      window.location.hostname === 'buildxdesigner.duckdns.org';
+
+    if (isProductionHost) {
         fullRedirectUrl = 'https://buildxdesigner.site' + redirectPath;
-        console.log('[Auth Debug] Forcing Production URL');
+        console.log('[Auth Debug] MATCHED Production Host - Forcing buildxdesigner.site');
+    } else {
+        console.log('[Auth Debug] NOT Production Host - Using current origin:', fullRedirectUrl);
     }
 
-    console.log('[Auth Debug] Final Redirect URL:', fullRedirectUrl);
+    console.log('[Auth Debug] Final Redirect URL being sent to Supabase:', fullRedirectUrl);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google' as SupabaseProvider,

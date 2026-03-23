@@ -413,7 +413,7 @@ export function BlocksPalette({
               ],
               html: `<form class="contact-form" id="$elementId" method="POST" action="">
   <h3>{{FORM_TITLE}}</h3>
-  <?php if (!empty($contactMsg)): ?><p class="contact-msg"><?php echo htmlspecialchars($contactMsg); ?></p><?php endif; ?>
+  <p class="contact-msg" style="display:none;"></p>
   <input type="hidden" name="action" value="contact">
   <div class="form-group"><label>Name</label><input type="text" name="name" required placeholder="Enter your name"></div>
   <div class="form-group"><label>Email</label><input type="email" name="email" required placeholder="Enter your email"></div>
@@ -422,19 +422,40 @@ export function BlocksPalette({
 </form>`,
               css: `.contact-form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
 .contact-form h3 { margin-top: 0; color: #111827; }
-.contact-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; }
+.contact-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; margin-bottom: 1rem; }
 .contact-form .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .contact-form .form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
 .contact-form input, .contact-form textarea { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; outline: none; font-family: inherit; }
 .contact-form input:focus, .contact-form textarea:focus { border-color: #3b82f6; }
 .contact-form button { padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 .contact-form button:hover { background: #2563eb; }`,
-              php_backend: `$contactMsg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'contact') {
-    $to = '{{RECIPIENT_EMAIL}}';
-    $name = htmlspecialchars($_POST['name'] ?? '');
-    $contactMsg = "Thank you $name, your message has been " . (!empty($to) ? "sent successfully!" : "received!");
-}`,
+              js_handler: `const form = document.getElementById('$elementId');
+if (form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msgEl = form.querySelector('.contact-msg');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    msgEl.textContent = 'Sending...';
+    msgEl.style.display = 'block';
+    
+    const result = await window.buildx.apiCall('/api/resend', {
+      to: '{{RECIPIENT_EMAIL}}',
+      subject: 'New Contact Form Submission',
+      html: '<table>' + Object.entries(data).map(([k, v]) => '<tr><td><b>' + k + '</b></td><td>' + v + '</td></tr>').join('') + '</table>'
+    });
+    
+    if (result.success) {
+      msgEl.textContent = 'Thank you ' + (data.name || '') + ', your message has been sent successfully!';
+      form.reset();
+    } else {
+      msgEl.textContent = 'Error: ' + (result.error || 'Failed to send message.');
+      msgEl.style.background = '#fee2e2';
+      msgEl.style.color = '#991b1b';
+    }
+  });
+}`
             },
             style: {},
           },
@@ -483,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               ],
               html: `<form class="dynamic-form" id="$elementId" method="POST" action="">
   <h3>Dynamic Form</h3>
-  <?php if (!empty($formMsg)): ?><p class="form-msg"><?php echo htmlspecialchars($formMsg); ?></p><?php endif; ?>
+  <p class="form-msg" style="display:none;"></p>
   <input type="hidden" name="action" value="insert">
   <input type="hidden" name="table" value="your_table_name">
   <div class="form-group">
@@ -498,13 +519,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 </form>`,
               css: `.dynamic-form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
 .dynamic-form h3 { margin-top: 0; color: #111827; }
-.form-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; }
+.form-msg { padding: 10px; background: #e0f2fe; color: #1e40af; border-radius: 4px; font-size: 0.875rem; margin-bottom: 1rem; }
 .dynamic-form .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .dynamic-form .form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
 .dynamic-form input { padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; outline: none; }
 .dynamic-form input:focus { border-color: #3b82f6; }
 .dynamic-form .dynamic-submit { padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
 .dynamic-form .dynamic-submit:hover { background: #2563eb; }`,
+              js_handler: `const form = document.getElementById('$elementId');
+if (form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msgEl = form.querySelector('.form-msg');
+    const table = form.querySelector('input[name="table"]').value;
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    delete data.action;
+    delete data.table;
+
+    msgEl.textContent = 'Submitting...';
+    msgEl.style.display = 'block';
+
+    const result = await window.buildx.data.insert(table, data);
+    if (!result.error) {
+      msgEl.textContent = 'Success! Your information has been submitted.';
+      form.reset();
+    } else {
+      msgEl.textContent = 'Error: ' + (result.error.message || 'Submission failed.');
+      msgEl.style.background = '#fee2e2';
+      msgEl.style.color = '#991b1b';
+    }
+  });
+}
+`,
               php_backend: `require_once __DIR__ . '/../lib/supabase.php';
 $formMsg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'insert') {
@@ -659,31 +706,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
   <h3>{{TABLE_TITLE}}</h3>
   <table class="data-table">
     <thead>
-      <tr>
-        <?php 
-        $headers = !empty($tableHeaders) ? $tableHeaders : (!empty($tableColumns) ? array_combine($tableColumns, $tableColumns) : []);
-        if (!empty($headers)): 
-          foreach($headers as $key => $label): ?>
-            <th><?php echo htmlspecialchars($label); ?></th>
-          <?php endforeach; 
-        else: ?>
-          <th>Name</th><th>Role</th><th>Status</th>
-        <?php endif; ?>
+      <tr class="header-row">
+        <!-- Headers will be injected here -->
       </tr>
     </thead>
-    <tbody>
-      <?php if (!empty($tableData)): foreach($tableData as $row): ?>
-      <tr>
-        <?php 
-        $keys = !empty($headers) ? array_keys($headers) : (!empty($tableData[0]) ? array_keys($tableData[0]) : []);
-        foreach($keys as $col): ?>
-          <td><?php echo htmlspecialchars($row[$col] ?? ''); ?></td>
-        <?php endforeach; ?>
-      </tr>
-      <?php endforeach; else: ?>
-      <tr><td>John Doe</td><td>Admin</td><td>Active</td></tr>
-      <tr><td>Jane Smith</td><td>User</td><td>Pending</td></tr>
-      <?php endif; ?>
+    <tbody class="body-rows">
+      <!-- Data will be injected here -->
+      <tr><td colspan="100%">Loading data...</td></tr>
     </tbody>
   </table>
 </div>`,
@@ -694,22 +723,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 #$elementId .data-table th { background: #f9fafb; font-weight: 500; color: #374151; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
 #$elementId .data-table td { color: #4b5563; font-size: 0.875rem; }
 #$elementId .data-table tr:hover { background: #f9fafb; transition: background 0.15s; }`,
-              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
-$tableData = [];
-$tableColumns = [{{TABLE_HEADERS_LIST}}];
-$tableHeaders = [{{TABLE_HEADERS_CONFIG}}];
-$tableName = '{{SUPABASE_TABLE}}';
-$autoColumns = {{TABLE_AUTO_COLUMNS}};
-if (!empty($tableName)) {
-    $db = new Supabase();
-    $res = $db->select($tableName, '{{SUPABASE_SELECT_COLUMNS}}');
-    if (isset($res['status']) && $res['status'] >= 200 && $res['status'] < 300 && is_array($res['data'])) {
-        $tableData = $res['data'];
-        if ($autoColumns && empty($tableColumns) && count($tableData) > 0) {
-            $tableColumns = array_keys($tableData[0]);
-        }
+              js_handler: `const container = document.getElementById('$elementId');
+if (container) {
+  const table = '{{SUPABASE_TABLE}}';
+  const columns = '{{SUPABASE_SELECT_COLUMNS}}' || '*';
+  const headerConfig = [{{TABLE_HEADERS_CONFIG}}]; // Expected format: 'key' => 'label' (PHP style) -> needs manual fix or use object
+  
+  const loadData = async () => {
+    if (!table) return;
+    const { data, error } = await window.buildx.data.select(table, columns);
+    if (error) {
+      console.error('Table load error:', error);
+      return;
     }
-}`,
+    
+    const tbody = container.querySelector('.body-rows');
+    const theadRow = container.querySelector('.header-row');
+    
+    if (data && data.length > 0) {
+      const keys = Object.keys(data[0]);
+      
+      // Build Headers
+      theadRow.innerHTML = keys.map(k => '<th>' + k + '</th>').join('');
+      
+      // Build Rows
+      tbody.innerHTML = data.map(row => '<tr>' + keys.map(k => '<td>' + (row[k] || '') + '</td>').join('') + '</tr>').join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="100%">No data found.</td></tr>';
+    }
+  };
+  loadData();
+}`
             },
             style: {
               width: "100%",
@@ -739,12 +783,11 @@ if (!empty($tableName)) {
               redirectUrl: "/",
               switchToSignUpText: "Sign Up",
               switchToSignUpUrl: "/sign-up",
-              html: `<div class="auth-container" id="$elementId">
+              html: `<div class="auth-container" id="$elementId" data-component-type="sign-in">
   <h2>Sign In</h2>
   <p>Enter your email and password to access your account.</p>
-  <?php if (!empty($signInError)): ?><p class="auth-error"><?php echo htmlspecialchars($signInError); ?></p><?php endif; ?>
-  <form class="auth-form" method="POST" action="">
-    <input type="hidden" name="action" value="signin">
+  <p class="auth-error" style="display:none;"></p>
+  <form class="auth-form" data-action="signin" data-redirect="/">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -756,7 +799,7 @@ if (!empty($tableName)) {
     <button type="submit" class="auth-button">Sign In</button>
   </form>
   <div class="auth-links">
-    <p>Don't have an account? <a href="/sign-up">Sign Up</a></p>
+    <p>Don't have an account? <a href="sign-up.html">Sign Up</a></p>
   </div>
 </div>`,
               css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
@@ -773,19 +816,25 @@ if (!empty($tableName)) {
 .auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
 .auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
 .auth-links a:hover { text-decoration: underline; }`,
-              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
-SupabaseSession::start();
-$signInError = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'signin') {
-    $db = new Supabase();
-    $res = $db->signIn($_POST['email'] ?? '', $_POST['password'] ?? '');
-    if (isset($res['status']) && $res['status'] === 200) {
-        SupabaseSession::setUser($res['data']);
-        header('Location: /dashboard');
-        exit;
+              js_handler: `const form = document.getElementById('$elementId')?.querySelector('form');
+if (form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = form.parentElement.querySelector('.auth-error');
+    const email = form.querySelector('input[name="email"]').value;
+    const password = form.querySelector('input[name="password"]').value;
+    const redirect = form.getAttribute('data-redirect') || '/';
+    
+    errorEl.style.display = 'none';
+    
+    const { error } = await window.buildx.auth.signIn(email, password);
+    if (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
     } else {
-        $signInError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign in failed.';
+      window.location.href = redirect;
     }
+  });
 }`
             },
             style: {
@@ -821,9 +870,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               html: `<div class="auth-container" id="$elementId">
   <h2>Sign In / Sign Up</h2>
   <p>Please authenticate to continue.</p>
-  <?php if (!empty($authError)): ?><p class="auth-error"><?php echo htmlspecialchars($authError); ?></p><?php endif; ?>
-  <form class="auth-form" method="POST" action="">
-    <input type="hidden" name="action" value="signin">
+  <p class="auth-error" style="display:none;"></p>
+  <form class="auth-form" data-action="signin">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -846,28 +894,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 .form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
 .auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
 .auth-button:hover { background-color: #2563eb; }`,
-              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
-SupabaseSession::start();
-$authError = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    $db = new Supabase();
-    if ($_POST['action'] === 'signin') {
-        $res = $db->signIn($_POST['email'] ?? '', $_POST['password'] ?? '');
-        if (isset($res['status']) && $res['status'] === 200) {
-            SupabaseSession::setUser($res['data']);
-            header('Location: /dashboard');
-            exit;
-        } else {
-            $authError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign in failed.';
-        }
-    } else if ($_POST['action'] === 'signup') {
-        $res = $db->signUp($_POST['email'] ?? '', $_POST['password'] ?? '');
-        if (isset($res['status']) && $res['status'] === 200) {
-            $authError = 'Sign up successful. You can now verify or login.';
-        } else {
-            $authError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign up failed.';
-        }
+              js_handler: `const container = document.getElementById('$elementId');
+if (container) {
+  const form = container.querySelector('form');
+  const errorEl = container.querySelector('.auth-error');
+  
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = form.querySelector('input[name="email"]').value;
+    const password = form.querySelector('input[name="password"]').value;
+    const action = form.getAttribute('data-action');
+    const redirect = '/';
+    
+    errorEl.style.display = 'none';
+    
+    let result;
+    if (action === 'signup') {
+      result = await window.buildx.auth.signUp(email, password);
+    } else {
+      result = await window.buildx.auth.signIn(email, password);
     }
+    
+    if (result.error) {
+      errorEl.textContent = result.error.message;
+      errorEl.style.display = 'block';
+    } else {
+      window.location.href = redirect;
+    }
+  });
 }`
             },
             style: {
@@ -900,10 +954,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
               html: `<div class="auth-container" id="$elementId">
   <h2>Sign Up</h2>
   <p>Create a new account by filling out the form below.</p>
-  <?php if (!empty($signUpError)): ?><p class="auth-error"><?php echo htmlspecialchars($signUpError); ?></p><?php endif; ?>
-  <?php if (!empty($signUpSuccess)): ?><p class="auth-success">Sign up successful! Please check your email.</p><?php endif; ?>
-  <form class="auth-form" method="POST" action="">
-    <input type="hidden" name="action" value="signup">
+  <p class="auth-error" style="display:none;"></p>
+  <p class="auth-success" style="display:none;">Sign up successful! Please check your email.</p>
+  <form class="auth-form" data-action="signup">
     <div class="form-group">
       <label>Email</label>
       <input type="email" name="email" required placeholder="you@example.com">
@@ -915,7 +968,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <button type="submit" class="auth-button">Sign Up</button>
   </form>
   <div class="auth-links">
-    <p>Already have an account? <a href="/sign-in">Sign In</a></p>
+    <p>Already have an account? <a href="sign-in.html">Sign In</a></p>
   </div>
 </div>`,
               css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
@@ -933,17 +986,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 .auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
 .auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
 .auth-links a:hover { text-decoration: underline; }`,
-              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
-$signUpError = '';
-$signUpSuccess = false;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'signup') {
-    $db = new Supabase();
-    $res = $db->signUp($_POST['email'] ?? '', $_POST['password'] ?? '');
-    if (isset($res['status']) && $res['status'] === 200) {
-        $signUpSuccess = true;
+              js_handler: `const container = document.getElementById('$elementId');
+if (container) {
+  const form = container.querySelector('form');
+  const errorEl = container.querySelector('.auth-error');
+  const successEl = container.querySelector('.auth-success');
+  
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = form.querySelector('input[name="email"]').value;
+    const password = form.querySelector('input[name="password"]').value;
+    const redirect = form.getAttribute('data-redirect') || '/';
+    
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+    
+    const { error } = await window.buildx.auth.signUp(email, password);
+    if (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
     } else {
-        $signUpError = $res['error']['error_description'] ?? $res['error']['message'] ?? 'Sign up failed.';
+      successEl.style.display = 'block';
+      form.reset();
+      setTimeout(() => {
+        window.location.href = redirect;
+      }, 2000);
     }
+  });
 }`
             },
             style: {
@@ -969,16 +1038,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               html: `<div class="profile-dropdown" id="$elementId">
   <button class="profile-btn"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></button>
   <div class="dropdown-menu">
-    <?php if (class_exists('SupabaseSession') && SupabaseSession::getUser()): ?>
-      <a href="/settings">Settings</a>
-      <hr>
-      <form method="POST" action="" style="margin:0;">
-        <input type="hidden" name="action" value="logout">
-        <button type="submit" style="width:100%; text-align:left; background:none; border:none; padding:0.75rem 1rem; cursor:pointer;" class="dropdown-item">Logout</button>
-      </form>
-    <?php else: ?>
-      <a href="/sign-in">Sign In</a>
-    <?php endif; ?>
+    <div id="profile-links">
+      <a href="sign-in.html">Sign In</a>
+    </div>
   </div>
 </div>`,
               css: `.profile-dropdown { position: relative; display: inline-block; font-family: system-ui, sans-serif; }
@@ -989,15 +1051,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 .dropdown-menu a, .dropdown-item { display: block; padding: 0.75rem 1rem; text-decoration: none; color: #374151; font-size: 0.875rem; transition: background 0.15s; font-family: inherit; }
 .dropdown-menu a:hover, .dropdown-item:hover { background: #f9fafb; }
 .dropdown-menu hr { border: 0; border-top: 1px solid #e5e7eb; margin: 0; }`,
-              php_backend: `require_once __DIR__ . '/../lib/supabase.php';
-if (!class_exists('SupabaseSession')) {
-    SupabaseSession::start();
-}
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'logout') {
-    SupabaseSession::clear();
-    header('Location: /');
-    exit;
-}`,
+              js_handler: `const container = document.getElementById('$elementId');
+if (container) {
+  const linksContainer = container.querySelector('#profile-links');
+  const btn = container.querySelector('.profile-btn');
+  const menu = container.querySelector('.dropdown-menu');
+  
+  // Toggle menu
+  btn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  });
+  
+  // Close menu on outside click
+  document.addEventListener('click', () => {
+    if (menu) menu.style.display = 'none';
+  });
+
+  // Check auth state
+  const checkAuth = async () => {
+    const { data: { user } } = await window.buildx.auth.getUser();
+    if (user && linksContainer) {
+      linksContainer.innerHTML = \`
+        <div class="dropdown-item" style="font-weight:600; border-bottom: 1px solid #eee;">\${user.email}</div>
+        <a href="profile.html">My Profile</a>
+        <a href="#" id="sign-out-link">Sign Out</a>
+      \`;
+      
+      document.getElementById('sign-out-link')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await window.buildx.auth.signOut();
+        window.location.reload();
+      });
+    }
+  };
+  checkAuth();
+}`
             },
             style: {
               width: "50px",
@@ -1026,7 +1115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
               currency: "PHP",
               variant: "default",
               size: "default",
-              html: `<button type="button" class="paymongo-btn" id="$elementId" onclick="window.location.href='/api/paymongo.php'">Buy Now (PHP 100)</button>`,
+              html: `<button type="button" class="paymongo-btn" id="$elementId" data-action="paymongo" data-amount="100">Buy Now (PHP 100)</button>`,
               css: `.paymongo-btn { background-color: #3b82f6; color: #fff; font-weight: 500; padding: 0.625rem 1.25rem; border-radius: 0.375rem; border: none; cursor: pointer; transition: background-color 0.15s; font-family: system-ui, sans-serif; }
 .paymongo-btn:hover { background-color: #2563eb; }`,
             },

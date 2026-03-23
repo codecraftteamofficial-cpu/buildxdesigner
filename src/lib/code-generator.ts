@@ -207,15 +207,16 @@ const buildResponsiveCss = (
   return css;
 };
 
-// ─── PHP renderer ─────────────────────────────────────────────────────────────
+// ─── HTML renderer ─────────────────────────────────────────────────────────────
 const esc = (s: any): string =>
   String(s ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
+const renderComponentToHTML = (component: ComponentData, depth = 0): string => {
   const indent = "  ".repeat(depth);
   const props = component.props ?? {};
   const cls = compClass(component);
@@ -223,10 +224,10 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
   const btnId =
     component.type === "button" ? ` id="btn-${compIdClass(component)}"` : "";
   const childOutput = (component.children ?? [])
-    .map((child) => renderComponentToPHP(child, depth + 1))
+    .map((child) => renderComponentToHTML(child, depth + 1))
     .join("\n");
 
-  if (props.html !== undefined || props.php !== undefined) {
+  if (props.html !== undefined) {
     let htmlRaw = (props.html || "").replace(
       /\$elementId/g,
       compIdClass(component),
@@ -247,11 +248,9 @@ const renderComponentToPHP = (component: ComponentData, depth = 0): string => {
           return `  <div class="form-group">\n    <label>${esc(f.label)}</label>\n    <input type="${type}" name="${name}" placeholder="${ph}"${req} />\n  </div>`;
         })
         .join("\n");
-      htmlRaw = `<form class="dynamic-form" id="${esc(props.elementId || compIdClass(component))}" method="POST" action="">
+      htmlRaw = `<form class="dynamic-form" id="${esc(props.elementId || compIdClass(component))}" data-action="${operation}" data-table="${table}">
   <h3>${title}</h3>
-  <?php if (!empty($formMsg)): ?><p class="form-msg"><?php echo htmlspecialchars($formMsg); ?></p><?php endif; ?>
-  <input type="hidden" name="action" value="${operation}">
-  <input type="hidden" name="table" value="${table}">
+  <p class="form-msg" style="display:none;"></p>
 ${fieldsHtml}
   <button type="submit" class="dynamic-submit">${submitText}</button>
 </form>`;
@@ -263,7 +262,7 @@ ${fieldsHtml}
         .map((f: any) => {
           const type = esc(f.type || "text");
           const name = esc(
-            (f.label || "").toLowerCase().replace(/\\s+/g, "_") || f.id,
+            (f.label || "").toLowerCase().replace(/\s+/g, "_") || f.id,
           );
           const req = f.required ? " required" : "";
           const ph = esc(f.placeholder || "");
@@ -273,10 +272,9 @@ ${fieldsHtml}
           return `  <div class="form-group"><label>${esc(f.label)}</label><input type="${type}" name="${name}" placeholder="${ph}"${req}></div>`;
         })
         .join("\n");
-      htmlRaw = `<form class="contact-form" id="${esc(props.elementId || compIdClass(component))}" method="POST" action="">
+      htmlRaw = `<form class="contact-form" id="${esc(props.elementId || compIdClass(component))}" data-action="contact">
   <h3>${title}</h3>
-  <?php if (!empty($contactMsg)): ?><p class="contact-msg"><?php echo htmlspecialchars($contactMsg); ?></p><?php endif; ?>
-  <input type="hidden" name="action" value="contact">
+  <p class="contact-msg" style="display:none;"></p>
 ${fieldsHtml}
   <button type="submit">${submitText}</button>
 </form>`;
@@ -285,13 +283,11 @@ ${fieldsHtml}
         /\{\{TABLE_TITLE\}\}/g,
         esc(props.tableName || "Data Table"),
       );
+      // For vanilla JS, we'll use a placeholder tbody that JS will fill
+      htmlRaw = htmlRaw.replace(/<tbody>[\s\S]*?<\/tbody>/, '<tbody class="data-table-body"></tbody>');
     }
 
-    const phpRaw = props.php || "";
-    const innerOutput = phpRaw
-      ? `<?php\n${indent}${phpRaw}\n${indent}?>\n${indent}${htmlRaw}`
-      : htmlRaw;
-    return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${indent}  ${innerOutput}\n${childOutput ? childOutput + "\n" : ""}${indent}</div>`;
+    return `${indent}<div${idAttr} class="${cls}" data-component-type="${component.type}">\n${indent}  ${htmlRaw}\n${childOutput ? childOutput + "\n" : ""}${indent}</div>`;
   }
 
   switch (component.type) {
@@ -407,11 +403,7 @@ ${fieldsHtml}
         .join("\n");
     case "custom-component": {
       const html = props.html || "";
-      const php = props.php || "";
-      const innerOutput = php
-        ? `<?php\n${indent}${php}\n${indent}?>\n${indent}${html}`
-        : html;
-      return `${indent}<div${idAttr} class="${cls}" data-component-type="custom-component">\n${indent}  ${innerOutput}\n${indent}</div>`;
+      return `${indent}<div${idAttr} class="${cls}" data-component-type="custom-component">\n${indent}  ${html}\n${indent}</div>`;
     }
     default:
       return `${indent}<div${idAttr} class="${cls}">\n${childOutput || ""}\n${indent}</div>`;
@@ -425,6 +417,8 @@ const generatePageJS = (
 ): string => {
   const hasNavbar = components.some((c) => c.type === "navbar");
   const buttons = components.filter((c) => c.type === "button");
+  const allComponents = collectAllComponents(components);
+
   const listeners = buttons
     .map((btn) => {
       const id = `btn-${compIdClass(btn)}`;
@@ -455,58 +449,36 @@ const generatePageJS = (
   });`
     : "";
 
-  const allComponents = collectAllComponents(components);
+  const componentHandlers = allComponents
+    .filter((c) => c.props?.js_handler || (c as any).php_backend)
+    .map((c) => {
+      const id = compIdClass(c);
+      const handler = c.props?.js_handler || (c as any).php_backend || "";
+      if (handler.includes("<?php")) {
+        return `/* [CANVAS-INJECTION]: ${id} had PHP logic which cannot be injected into JS. */`;
+      }
+      const innerContent = `(function(elementId) {\n  const $elementId = elementId; \n${handler.replace(/\$elementId/g, id)}\n})("${id}");`;
+      const contentHash = Array.from(innerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
+      return `/* [CANVAS-INJECTION]: ${id} | hash:${contentHash} */\n${innerContent}\n/* [END-CANVAS-INJECTION]: ${id} */`;
+    })
+    .join("\n\n  ");
+
   const customScripts = allComponents
     .filter((c) => c.type === "custom-component" && c.props?.js)
     .map((c) => {
       const id = compIdClass(c);
-      return `// Custom JS for ${c.id}
-(function() {
-  const element = document.getElementById("${id}");
-  if (!element) {
-    console.error('Custom component element not found: ${id}');
-    return;
-  }
-  
-  try {
-    (function(element) {
-      const $ = (selector) => {
-        let found = element.querySelector(selector);
-        if (!found) found = document.querySelector(selector);
-        return found;
-      };
-      
-      const $$ = (selector) => {
-        let found = element.querySelectorAll(selector);
-        if (found.length === 0) found = document.querySelectorAll(selector);
-        return found;
-      };
-      
-      const querySelector = $;
-      const querySelectorAll = $$;
-      
-      console.log('Executing JS for custom component: ${id}');
-      
-${c.props.js}
-      
-      console.log('Custom component JS execution completed: ${id}');
-    })(element);
-  } catch (err) {
-    console.error('Error in custom component [${c.id}] JS:', err);
-    const outputEl = element.querySelector('#output, .output, .error-display');
-    if (outputEl) {
-      outputEl.textContent = 'JavaScript Error: ' + err.message;
-      outputEl.style.color = 'red';
-    }
-  }
-})();`;
+      const innerContent = `(function() {\n  const element = document.getElementById("${id}");\n  if (!element) return;\n  try {\n    (function(element) {\n${c.props.js}\n    })(element);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
+      const contentHash = Array.from(innerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
+      return `/* [CANVAS-INJECTION]: ${id} | hash:${contentHash} */\n${innerContent}\n/* [END-CANVAS-INJECTION]: ${id} */`;
     })
     .join("\n\n");
 
   return `document.addEventListener("DOMContentLoaded", () => {
   console.log("${pageName} page loaded");
 ${navScript}
-  ${listeners || "// No interactive components."}
+  ${listeners || "// No basic listeners."}
+
+  ${componentHandlers || "// No component-specific logic."}
 
   // Execute custom component scripts with delay to ensure DOM is ready
   setTimeout(() => {
@@ -629,18 +601,12 @@ const generateHTMLWrapper = (
   bodyContent: string,
   integrationsJson: string = "[]",
 ): string =>
-  `<?php
-$backendFile = __DIR__ . '/../api/' . basename(__FILE__);
-if (file_exists($backendFile)) {
-    require_once $backendFile;
-}
-?>
-<!DOCTYPE html>
+  `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title><?php echo htmlspecialchars($pageTitle ?? "${pageName}"); ?></title>
+  <title>${pageName}</title>
   <link rel="stylesheet" href="assets/css/global.css" />
   <link rel="stylesheet" href="assets/css/${fileName}.css" />
 </head>
@@ -648,7 +614,7 @@ if (file_exists($backendFile)) {
 ${bodyContent}
   <script>
     window.__BUILDX_INTEGRATIONS__ = ${integrationsJson};
-    window.__BUILDX_BASE_URL__ = "<?php echo rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\\\'); ?>";
+    window.__BUILDX_BASE_URL__ = window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/');
   </script>
   <script src="assets/js/buildx-sdk.js"></script>
   <script src="assets/js/${fileName}.js"></script>
@@ -747,496 +713,207 @@ export const generateProjectFiles = (
     pages && pages.length > 0 ? slugify(pages[0].name) : "home";
 
   const files: Record<string, string> = {
-    "public/index.php": `<?php
-session_start();
-$url = isset($_GET['url']) ? rtrim($_GET['url'], '/') : '';
-$url = filter_var($url, FILTER_SANITIZE_URL);
-if (empty($url) || $url === 'index.php') { $url = '${defaultPage}'; }
-if (strpos($url, 'api/') === 0) {
-    $apiFile = __DIR__ . '/../app/' . $url . '.php';
-    if (file_exists($apiFile)) { require_once $apiFile; exit; }
-    else { http_response_code(404); echo json_encode(['error' => 'API endpoint not found']); exit; }
-}
-$viewFile = __DIR__ . '/../app/views/' . $url . '.php';
-if (file_exists($viewFile)) { require_once $viewFile; }
-else { http_response_code(404); echo "<h1>404 Not Found</h1>"; }
-?>`,
-    "app/views/layout.php": `<?php // Global Layout ?>`,
+    "public/index.html": `<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="UTF-8"><meta http-equiv="refresh" content="0; url=${defaultPage}.html"></head>\n<body>Redirecting to <a href="${defaultPage}.html">${defaultPage}</a></body>\n</html>`,
     "public/assets/css/global.css": GLOBAL_RESPONSIVE_CSS,
     "public/assets/css/styles.css": `/* Styles */\n@import "global.css";`,
-    "config/database.php": `<?php\nreturn [\n    "db_host" => "db.supabase.co",\n    "db_name" => "postgres",\n];`,
-    "README.md": `# ${projectName}\nGenerated by PHP Builder.`,
-    "config/supabase.php": `<?php
-define('SUPABASE_URL', '${userConfig?.supabaseUrl || "https://your-project.supabase.co"}');
-define('SUPABASE_ANON_KEY', '${userConfig?.supabaseKey || userConfig?.supabaseAnonKey || "your-anon-key"}');
-define('SUPABASE_SERVICE_KEY', '${userConfig?.supabaseServiceKey || "your-service-role-key"}');
-`,
-    "config/paymongo.php": `<?php\ndefine('PAYMONGO_SECRET_KEY', '${userConfig?.paymongoKey || ""}');\ndefine('PAYMONGO_PUBLIC_KEY', '');\n`,
-    "config/resend.php": `<?php\ndefine('RESEND_API_KEY', '${userConfig?.resendApiKey || ""}');\n`,
-    "app/lib/supabase.php": `<?php
-require_once __DIR__ . '/../../config/supabase.php';
+    "README.md": `# ${projectName}\n\nGenerated by BuildX Vanilla JS Builder.\n\n## How to Run Locally\n\nThis project includes a bundled Node.js server (\`server.js\`) that handles static files and backend integrations (Supabase, Resend, PayMongo).\n\n### Prerequisites\n- **Node.js** (Version 18 or higher is recommended)\n\n### Installation & Running\n1.  **Check Configuration**: Open \`config.json\` and ensure your API keys and Supabase credentials are correct.\n2.  **Start the Server**: Run the following command in your terminal:\n    \`\`\`bash\n    node server.js\n    \`\`\`\n3.  **Open in Browser**: Navigate to \`http://localhost:3000\`.\n\n## Project Structure\n- \`public/\`: Frontend assets (HTML, CSS, JS).\n- \`config.json\`: Project credentials and configuration.\n- \`server.js\`: Local development server and API proxy.\n`,
+    "config.json": JSON.stringify({
+      supabaseUrl: userConfig?.supabaseUrl || "",
+      supabaseAnonKey: userConfig?.supabaseKey || userConfig?.supabaseAnonKey || "",
+      paymongoSecretKey: userConfig?.paymongoKey || "",
+      resendApiKey: userConfig?.resendApiKey || ""
+    }, null, 2),
+    "server.js": `const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
-class Supabase {
-  private string $url;
-  private string $key;
+const PORT = process.env.PORT || 3000;
+const CONFIG = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 
-  public function __construct(bool $useServiceKey = false) {
-    $this->url = rtrim(SUPABASE_URL, '/');
-    $this->key = $useServiceKey ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY;
-  }
-
-  private function request(string $method, string $endpoint, array $body = [], array $query = [], array $headers = []): array {
-    $url = $this->url . '/rest/v1/' . ltrim($endpoint, '/');
-    if (!empty($query)) {
-        $qParts = [];
-        foreach ($query as $k => $v) {
-            if (is_array($v)) {
-                foreach ($v as $subV) $qParts[] = rawurlencode($k) . '=' . rawurlencode($subV);
-            } else {
-                $qParts[] = rawurlencode($k) . '=' . rawurlencode($v);
-            }
-        }
-        $url .= '?' . implode('&', $qParts);
-    }
-    $ch = curl_init($url);
-    $defaultHeaders = ['apikey: ' . $this->key, 'Authorization: Bearer ' . $this->key, 'Content-Type: application/json', 'Prefer: return=representation'];
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_CUSTOMREQUEST => strtoupper($method), CURLOPT_HTTPHEADER => array_merge($defaultHeaders, $headers)]);
-    if (!empty($body)) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-    $response = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $decoded = json_decode($response, true);
-    return ['data' => $decoded, 'status' => $status, 'error' => ($status >= 400 || !$response) ? ($decoded ?: ['message' => 'CURL Request Failed']) : null];
-  }
-
-  public function signUp(string $email, string $password, array $metadata = []): array {
-    $ch = curl_init($this->url . '/auth/v1/signup');
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode(['email' => $email, 'password' => $password, 'data' => $metadata]), CURLOPT_HTTPHEADER => ['apikey: ' . $this->key, 'Content-Type: application/json']]);
-    $response = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $res = json_decode($response, true);
-    return ['data' => $res, 'status' => $status, 'error' => $status >= 400 ? $res : null];
-  }
-
-  public function signIn(string $email, string $password): array {
-    $ch = curl_init($this->url . '/auth/v1/token?grant_type=password');
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode(['email' => $email, 'password' => $password]), CURLOPT_HTTPHEADER => ['apikey: ' . $this->key, 'Content-Type: application/json']]);
-    $response = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $res = json_decode($response, true);
-    return ['data' => $res, 'status' => $status, 'error' => $status >= 400 ? $res : null];
-  }
-
-  public function signOut(string $accessToken): array {
-    $ch = curl_init($this->url . '/auth/v1/logout');
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_POST => true, CURLOPT_HTTPHEADER => ['apikey: ' . $this->key, 'Authorization: Bearer ' . $accessToken, 'Content-Type: application/json']]);
-    curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return ['status' => $status];
-  }
-
-  public function getUser(string $accessToken): array {
-    $ch = curl_init($this->url . '/auth/v1/user');
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_HTTPHEADER => ['apikey: ' . $this->key, 'Authorization: Bearer ' . $accessToken]]);
-    $response = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $res = json_decode($response, true);
-    return ['data' => $res, 'status' => $status, 'error' => $status >= 400 ? $res : null];
-  }
-
-  private function buildQuery(array $filters): array {
-    $query = [];
-    foreach ($filters as $col => $val) {
-      if (is_array($val) && isset($val['column'], $val['operator'], $val['value'])) {
-        $column = $val['column'];
-        $op = $val['operator'];
-        $value = $val['value'];
-        if ($value === null || $value === '') continue;
-        $query[$column] = $op . '.' . $value;
-      } else if (is_array($val)) {
-        // Handle multiple same filters if they come as simple array of op.val
-        foreach ($val as $v) {
-          if ($v === null || $v === '') continue;
-          if (!isset($query[$col])) $query[$col] = $v;
-          else {
-              if (is_array($query[$col])) $query[$col][] = $v;
-              else $query[$col] = [$query[$col], $v];
-          }
-        }
-      } else if (!is_array($val)) {
-        if ($val === null || $val === '') continue;
-        if (is_string($val) && strpos($val, '.') !== false) { $query[$col] = $val; }
-        else { $query[$col] = 'eq.' . $val; }
-      }
-    }
-    return $query;
-  }
-
-  public function select(string $table, string $columns = '*', array $filters = [], ?int $limit = null, ?int $offset = null, ?string $order = null): array {
-    $query = $this->buildQuery($filters);
-    $query['select'] = $columns;
-    if ($limit !== null) $query['limit'] = $limit;
-    if ($offset !== null) $query['offset'] = $offset;
-    if ($order !== null) $query['order'] = $order;
-    return $this->request('GET', $table, [], $query);
-  }
-
-  public function insert(string $table, array $data): array { return $this->request('POST', $table, $data); }
-
-  public function update(string $table, array $data, array $filters = []): array {
-    $query = $this->buildQuery($filters);
-    return $this->request('PATCH', $table, $data, $query);
-  }
-
-  public function delete(string $table, array $filters = []): array {
-    $query = $this->buildQuery($filters);
-    return $this->request('DELETE', $table, [], $query);
-  }
-
-  public function rpc(string $functionName, array $params = []): array {
-    $ch = curl_init($this->url . '/rest/v1/rpc/' . $functionName);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($params), CURLOPT_HTTPHEADER => ['apikey: ' . $this->key, 'Authorization: Bearer ' . $this->key, 'Content-Type: application/json']]);
-    $response = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    $res = json_decode($response, true);
-    return ['data' => $res, 'status' => $status, 'error' => $status >= 400 ? $res : null];
-  }
-}
-
-class SupabaseSession {
-  public static function start(): void { if (session_status() === PHP_SESSION_NONE) session_start(); }
-  public static function setUser(array $authData): void { self::start(); $_SESSION['supabase_access_token'] = $authData['access_token'] ?? ''; $_SESSION['supabase_user'] = $authData['user'] ?? []; }
-  public static function getUser(): ?array { self::start(); return $_SESSION['supabase_user'] ?? null; }
-  public static function getAccessToken(): ?string { self::start(); return $_SESSION['supabase_access_token'] ?? null; }
-  public static function isLoggedIn(): bool { self::start(); return !empty($_SESSION['supabase_access_token']); }
-  public static function clear(): void { self::start(); unset($_SESSION['supabase_access_token'], $_SESSION['supabase_user']); }
-  public static function requireAuth(string $redirectTo = '/login'): void { if (!self::isLoggedIn()) { header('Location: ' . $redirectTo); exit; } }
-}
-`,
-    "app/api/auth.php": `<?php
-require_once __DIR__ . '/../lib/supabase.php';
-header('Content-Type: application/json');
-SupabaseSession::start();
-$body = json_decode(file_get_contents('php://input'), true) ?? [];
-$action = $body['action'] ?? '';
-$db = new Supabase();
-$res = null;
-switch ($action) {
-  case 'signup': $res = $db->signUp($body['email'] ?? '', $body['password'] ?? '', $body['metadata'] ?? []); break;
-  case 'signin':
-    $res = $db->signIn($body['email'] ?? '', $body['password'] ?? '');
-    if ($res['status'] === 200) SupabaseSession::setUser($res['data']);
-    break;
-  case 'signout': SupabaseSession::clear(); $res = ['status' => 200, 'data' => ['message' => 'Signed out']]; break;
-  default: http_response_code(400); echo json_encode(['error' => 'Unknown action']); exit;
-}
-if ($res) { http_response_code($res['status'] ?? 200); echo json_encode($res); }
-`,
-    "app/api/data.php": `<?php
-require_once __DIR__ . '/../lib/supabase.php';
-header('Content-Type: application/json');
-$db = new Supabase();
-
-// Enhanced typo correction function for backend
-function correctColumnTypos($columnString) {
-  $commonCorrections = [
-    'uername' => 'username',
-    'usrname' => 'username', 
-    'usernm' => 'username',
-    'user_name' => 'username',
-    'user-id' => 'user_id',
-    'userid' => 'user_id',
-    'emailadress' => 'email',
-    'email_address' => 'email',
-    'fristname' => 'firstname',
-    'firstname' => 'first_name',
-    'lastname' => 'last_name',
-    'createdat' => 'created_at',
-    'updatedat' => 'updated_at',
-    'phonenumber' => 'phone_number',
-    'phno' => 'phone_number'
-  ];
+const server = http.createServer(async (req, res) => {
+  const url = req.url.split('?')[0];
   
-  // Handle comma-separated column lists
-  $columns = explode(',', $columnString);
-  $corrected = [];
-  foreach ($columns as $col) {
-    $trimmedCol = trim($col);
-    $lowerCol = strtolower($trimmedCol);
-    if (isset($commonCorrections[$lowerCol])) {
-      error_log("[buildx] 🔧 Backend auto-corrected column '$trimmedCol' to '{$commonCorrections[$lowerCol]}'");
-      $corrected[] = $commonCorrections[$lowerCol];
-    } else {
-      $corrected[] = $trimmedCol;
-    }
+  // Static file server
+  let filePath = path.join(__dirname, 'public', url === '/' ? 'index.html' : url);
+  if (!path.extname(filePath)) filePath += '.html';
+
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const ext = path.extname(filePath);
+    const mimeTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpg', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
+    res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+    return fs.createReadStream(filePath).pipe(res);
   }
-  return implode(',', $corrected);
-}
-$method = $_SERVER['REQUEST_METHOD'];
-if ($method === 'GET') {
-  $table = $_GET['table'] ?? '';
-  $columns = str_replace(' ', '', $_GET['select'] ?? '*');
-  // Apply typo correction to select columns
-  $columns = correctColumnTypos($columns);
-  $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
-  $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : null;
-  $order = $_GET['order'] ?? null;
-  $reserved = ['table','select','limit','offset','order','url'];
-  
-  // Custom filter parsing for duplicate keys (age=gt.18&age=lt.30)
-  $filters = [];
-  $queryStr = $_SERVER['QUERY_STRING'] ?? '';
-  if ($queryStr) {
-    foreach (explode('&', $queryStr) as $pair) {
-      if (strpos($pair, '=') === false) continue;
-      list($k, $v) = explode('=', $pair, 2);
-      $k = urldecode($k);
-      if (in_array($k, $reserved)) continue;
-      $v = urldecode($v);
-      
-      // Apply typo correction to filter columns
-      $correctedK = correctColumnTypos($k);
-      
-      if (!isset($filters[$correctedK])) $filters[$correctedK] = $v;
-      else if (is_array($filters[$correctedK])) $filters[$correctedK][] = $v;
-      else $filters[$correctedK] = [$filters[$correctedK], $v];
-    }
+
+  // API Endpoints
+  if (req.url.startsWith('/api/resend') && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      const data = JSON.parse(body);
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + CONFIG.resendApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Acme <onboarding@resend.dev>', to: [data.to], subject: data.subject, html: data.html })
+      });
+      res.writeHead(response.status, { 'Content-Type': 'application/json' });
+      res.end(await response.text());
+    });
+    return;
   }
-  
-  $res = $db->select($table, $columns, $filters, $limit, $offset, $order);
-  http_response_code($res['status'] ?? 200);
-  echo json_encode($res);
-  exit;
-}
-$body = json_decode(file_get_contents('php://input'), true) ?? [];
-$table = $body['table'] ?? '';
-$action = $body['action'] ?? $method;
-$data = $body['data'] ?? [];
-$filters = $body['filters'] ?? [];
-$res = null;
-switch (strtolower($action)) {
-  case 'insert': case 'post': $res = $db->insert($table, $data); break;
-  case 'update': case 'patch': $res = $db->update($table, $data, $filters); break;
-  case 'delete': $res = $db->delete($table, $filters); break;
-  default: http_response_code(400); echo json_encode(['error' => 'Unknown action']); exit;
-}
-if ($res) { http_response_code($res['status'] ?? 200); echo json_encode($res); }
-`,
-    "app/api/resend.php": `<?php
-require_once __DIR__ . '/../../config/resend.php';
-header('Content-Type: application/json');
-$body = json_decode(file_get_contents('php://input'), true);
-$ch = curl_init('https://api.resend.com/emails');
-curl_setopt_array($ch, [
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_SSL_VERIFYPEER => false,
-  CURLOPT_POST => true,
-  CURLOPT_POSTFIELDS => json_encode(['from' => 'Acme <onboarding@resend.dev>', 'to' => [$body['to']], 'subject' => $body['subject'], 'html' => $body['html']]),
-  CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . RESEND_API_KEY, 'Content-Type: application/json'],
-]);
-echo curl_exec($ch);
-curl_close($ch);
-`,
-    "app/api/paymongo.php": `<?php
-require_once __DIR__ . '/../../config/paymongo.php';
-header('Content-Type: application/json');
-$body = json_decode(file_get_contents('php://input'), true);
-$ch = curl_init('https://api.paymongo.com/v1/links');
-curl_setopt_array($ch, [
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_SSL_VERIFYPEER => false,
-  CURLOPT_POST => true,
-  CURLOPT_POSTFIELDS => json_encode(['data' => ['attributes' => ['amount' => $body['amount'] * 100, 'description' => $body['description'], 'currency' => $body['currency']]]]),
-  CURLOPT_HTTPHEADER => ['accept: application/json', 'authorization: Basic ' . base64_encode(PAYMONGO_SECRET_KEY . ':'), 'content-type: application/json'],
-]);
-echo curl_exec($ch);
-curl_close($ch);
-`,
+
+  if (req.url.startsWith('/api/paymongo') && req.method === 'POST') {
+     let body = '';
+     req.on('data', chunk => body += chunk);
+     req.on('end', async () => {
+       const data = JSON.parse(body);
+       const response = await fetch('https://api.paymongo.com/v1/links', {
+         method: 'POST',
+         headers: { 'accept': 'application/json', 'authorization': 'Basic ' + Buffer.from(CONFIG.paymongoSecretKey + ':').toString('base64'), 'content-type': 'application/json' },
+         body: JSON.stringify({ data: { attributes: { amount: data.amount * 100, description: data.description, currency: data.currency } } })
+       });
+       res.writeHead(response.status, { 'Content-Type': 'application/json' });
+       res.end(await response.text());
+     });
+     return;
+  }
+
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
+server.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));`,
     "public/assets/js/buildx-sdk.js": `
 (function() {
   window.buildx = window.buildx || {};
   
-  // Enhanced typo correction function for column names
-  const correctColumnTypos = (columnString) => {
-    const commonCorrections = {
-      'uername': 'username',
-      'usrname': 'username',
-      'usernm': 'username',
-      'user_name': 'username',
-      'user-id': 'user_id',
-      'userid': 'user_id',
-      'emailadress': 'email',
-      'email_address': 'email',
-      'fristname': 'firstname',
-      'firstname': 'first_name',
-      'lastname': 'last_name',
-      'createdat': 'created_at',
-      'updatedat': 'updated_at',
-      'phonenumber': 'phone_number',
-      'phno': 'phone_number'
-    };
-
-    return columnString
-      .split(',')
-      .map(col => {
-        const trimmedCol = col.trim();
-        const corrected = commonCorrections[trimmedCol.toLowerCase()];
-        if (corrected) {
-          console.log('[buildx] 🔧 Auto-corrected column "' + trimmedCol + '" to "' + corrected + '"');
-          return corrected;
-        }
-        return trimmedCol;
-      })
-      .join(',');
-  };
-
-  function renderTemplate(template, data) {
-    return template.replace(/\\{\\{formData\\.([^}]+)\\}\\}/g, (match, key) => data[key] || '');
+  let config = null;
+  async function getConfig() {
+    if (config) return config;
+    try {
+      const res = await fetch('/config.json');
+      config = await res.json();
+      return config;
+    } catch (e) {
+      console.error('[buildx] Failed to load config.json');
+      return {};
+    }
   }
 
-  window.buildx.run = async function(integrationId, context) {
-    const integrations = window.__BUILDX_INTEGRATIONS__ || [];
-    const config = integrations.find(i => i.id === integrationId);
-    
-    if (!config) {
-      console.error('[buildx] Integration not found:', integrationId);
-      return { success: false, error: 'Integration not found' };
-    }
-
-    try {
-      if (config.type === 'supabase') {
-        const table = config.config.table || '';
-        const operation = config.config.operation || 'select';
-        
-        let formData = {};
-        if (config.config.data) {
-          Object.entries(config.config.data).forEach(([key, val]) => {
-            if (typeof val === 'string' && val.startsWith('formData.')) {
-              let id = val.replace('formData.', '');
-              if (!id.startsWith('#')) id = '#' + id;
-              const el = (context && context.querySelector) ? context.querySelector(id) : document.querySelector(id);
-              if (el) {
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                  formData[key] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) || 0 : el.value);
-                } else {
-                  formData[key] = el.innerText.trim();
-                }
-              } else { formData[key] = ''; }
-            } else { formData[key] = val; }
-          });
-        }
-        
-        let resolvedFilters = (config.config.filters || []).map(f => {
-          let val = f.value;
-          if (typeof val === 'string' && val.startsWith('formData.')) {
-            let id = val.replace('formData.', '');
-            if (!id.startsWith('#')) id = '#' + id;
-            const el = (context && context.querySelector) ? context.querySelector(id) : document.querySelector(id);
-            if (el) {
-              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                val = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? parseFloat(el.value) : el.value);
-              } else { val = el.innerText; }
-            } else { val = ''; }
-          }
-          return { ...f, value: val };
-        });
-
-        const baseUrl = window.__BUILDX_BASE_URL__ || '';
-        if (operation === 'select') {
-          const params = new URLSearchParams();
-          params.append('table', table);
-          // PostgREST select should not have spaces
-          // PostgREST select should not have spaces
-          let cleanSelect = (config.config.selectColumns || '*').replace(/\s+/g, '');
-          
-          // Enhanced typo correction for select columns
-          cleanSelect = correctColumnTypos(cleanSelect);
-          
-          console.log('[buildx] 📋 Select columns after correction:', cleanSelect);
-          params.append('select', cleanSelect);
-          
-          // Apply typo correction to filters as well
-          resolvedFilters = resolvedFilters.map(f => ({
-            ...f,
-            column: correctColumnTypos(f.column)
-          }));
-          resolvedFilters.forEach(f => {
-            if (f.column && f.operator && f.value !== '' && f.value !== null) {
-              // Always include operator for PostgREST
-              const op = f.operator + '.';
-              params.append(f.column, op + f.value);
-            }
-          });
-
-          const res = await fetch(baseUrl + '/api/data?' + params.toString());
-          const data = await res.json();
-          return { success: res.ok, data: data.data !== undefined ? data.data : data };
-        } else {
-          const payload = { table, action: operation, data: formData, filters: resolvedFilters };
-          const res = await fetch(baseUrl + '/api/data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          const data = await res.json();
-          return { success: res.ok, data: data.data !== undefined ? data.data : data };
-        }
-      } 
-      else if (config.type === 'resend') {
-        let formData = {};
-        if (config.config.data) {
-          Object.entries(config.config.data).forEach(([key, val]) => {
-            if (typeof val === 'string' && val.startsWith('formData.')) {
-              let id = val.replace('formData.', '');
-              if (!id.startsWith('#')) id = '#' + id;
-              const el = document.querySelector(id);
-              if (el) formData[key] = el.type === 'checkbox' ? el.checked : el.value;
-            } else { formData[key] = val; }
-          });
-        }
-        const emailRows = Object.entries(formData).map(([label, value]) => '<tr><td>' + label + '</td><td>' + value + '</td></tr>').join('');
-        const html = '<table>' + emailRows + '</table>';
-        const to = config.config.to || 'test@example.com';
-        const subject = 'New Submission';
-        const baseUrl = window.__BUILDX_BASE_URL__ || '';
-        const res = await fetch(baseUrl + '/api/resend', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to, subject, html })
-        });
-        const data = await res.json();
-        return { success: res.ok, data };
+  window.buildx.auth = {
+    async signUp(email, password, metadata = {}) {
+      const { supabaseUrl, supabaseAnonKey } = await getConfig();
+      const res = await fetch(\`\${supabaseUrl}/auth/v1/signup\`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, data: metadata })
+      });
+      return await res.json();
+    },
+    async signIn(email, password) {
+      const { supabaseUrl, supabaseAnonKey } = await getConfig();
+      const res = await fetch(\`\${supabaseUrl}/auth/v1/token?grant_type=password\`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseAnonKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.access_token) {
+        localStorage.setItem('supabase.auth.token', data.access_token);
+        localStorage.setItem('supabase.auth.user', JSON.stringify(data.user));
       }
-      else if (config.type === 'paymongo') {
-        const baseUrl = window.__BUILDX_BASE_URL__ || '';
-        const res = await fetch(baseUrl + '/api/paymongo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: config.config.amount || 100, currency: config.config.currency || 'PHP', description: config.config.description || 'Payment' })
-        });
-        const data = await res.json();
-        if (res.ok && data.data && data.data.attributes && data.data.attributes.checkout_url) {
-           window.location.href = data.data.attributes.checkout_url;
-           return { success: true, data };
-        }
-        return { success: false, error: 'Checkout URL not created' };
-      }
-      return { success: false, error: 'Unknown integration' };
-    } catch (e) {
-      console.error('[buildx] Error:', e);
-      return { success: false, error: e.message };
+      return data;
+    },
+    signOut() {
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('supabase.auth.user');
+      window.location.reload();
+    },
+    getUser() {
+      const user = localStorage.getItem('supabase.auth.user');
+      return user ? JSON.parse(user) : null;
+    },
+    isLoggedIn() {
+      return !!localStorage.getItem('supabase.auth.token');
     }
   };
+
+  window.buildx.data = {
+    async select(table, columns = '*', filters = {}) {
+      const { supabaseUrl, supabaseAnonKey } = await getConfig();
+      const params = new URLSearchParams({ select: columns });
+      Object.entries(filters).forEach(([col, val]) => {
+        if (val !== undefined && val !== null) params.append(col, 'eq.' + val);
+      });
+      const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}?\${params.toString()}\`, {
+        headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey) }
+      });
+      return await res.json();
+    },
+    async insert(table, data) {
+      const { supabaseUrl, supabaseAnonKey } = await getConfig();
+      const res = await fetch(\`\${supabaseUrl}/rest/v1/\${table}\`, {
+        method: 'POST',
+        headers: { 'apikey': supabaseAnonKey, 'Authorization': 'Bearer ' + (localStorage.getItem('supabase.auth.token') || supabaseAnonKey), 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+        body: JSON.stringify(data)
+      });
+      return await res.json();
+    }
+  };
+
+  window.buildx.run = async function(id, data = {}) {
+    const integrations = window.__BUILDX_INTEGRATIONS__ || [];
+    const integration = integrations.find(i => i.id === id);
+    if (!integration) return { success: false, error: 'Integration not found' };
+
+    const baseUrl = window.__BUILDX_BASE_URL__ || '';
+    if (integration.type === 'resend') {
+       const res = await fetch(baseUrl + '/api/resend', { method: 'POST', body: JSON.stringify(data) });
+       return await res.json();
+    }
+    if (integration.type === 'paymongo') {
+       const res = await fetch(baseUrl + '/api/paymongo', { method: 'POST', body: JSON.stringify(data) });
+       return await res.json();
+    }
+    return { success: false, error: 'Unsupported integration type' };
+  };
+
+  document.addEventListener('submit', async (e) => {
+    const form = e.target;
+    if (form.classList.contains('auth-form') || form.classList.contains('dynamic-form') || form.dataset.action) {
+      e.preventDefault();
+      const action = form.dataset.action;
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      const msgEl = form.querySelector('.form-msg, .contact-msg, .auth-error, .auth-success');
+
+      try {
+        if (action === 'insert' || action === 'update') {
+          const table = form.dataset.table;
+          await window.buildx.data.insert(table, data);
+          if (msgEl) { msgEl.textContent = 'Success!'; msgEl.style.display = 'block'; }
+        } else if (action === 'signin') {
+          const res = await window.buildx.auth.signIn(data.email, data.password);
+          if (res.access_token) window.location.href = form.dataset.redirect || 'index.html';
+          else if (msgEl) { msgEl.textContent = res.error_description || 'Auth failed'; msgEl.style.display = 'block'; }
+        } else if (action === 'signup') {
+          const res = await window.buildx.auth.signUp(data.email, data.password);
+          if (msgEl) { msgEl.textContent = 'Sign up successful! check your email.'; msgEl.style.display = 'block'; }
+        } else if (action === 'contact') {
+          const integrations = window.__BUILDX_INTEGRATIONS__ || [];
+          const resend = integrations.find(i => i.type === 'resend');
+          if (resend) {
+            await window.buildx.run(resend.id, { to: 'you@example.com', subject: 'Contact Form', html: JSON.stringify(data) });
+            if (msgEl) { msgEl.textContent = 'Message sent!'; msgEl.style.display = 'block'; }
+          }
+        }
+      } catch (err) {
+        if (msgEl) { msgEl.textContent = 'Error: ' + err.message; msgEl.style.display = 'block'; }
+      }
+    }
+  });
 })();
 `,
     ".env.example": `SUPABASE_URL=\nSUPABASE_ANON_KEY=\n`,
-    ".htaccess": `Options +FollowSymLinks\nRewriteEngine On\nRewriteRule ^$ public/index.php [L]\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteCond %{REQUEST_URI} !/public/\nRewriteRule ^(.*)$ public/$1 [L]`,
-    "public/.htaccess": `Options +FollowSymLinks\nRewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^(.*)$ index.php?url=$1 [QSA,L]`,
   };
 
   pages.forEach((page, index) => {
@@ -1250,7 +927,7 @@ curl_close($ch);
     const bodyContent =
       `<div class="canvas-container">\n` +
       (pageComponents.length > 0
-        ? pageComponents.map((c) => renderComponentToPHP(c, 1)).join("\n")
+        ? pageComponents.map((c) => renderComponentToHTML(c, 1)).join("\n")
         : "  <!-- No components -->") +
       `\n</div>`;
     const allPageComponents = collectAllComponents(pageComponents);
@@ -1266,12 +943,14 @@ curl_close($ch);
         }))
       ),
     );
-    files[`app/views/${fileName}.php`] = generateHTMLWrapper(
+    const htmlPath = `public/${fileName}.html`;
+    files[htmlPath] = fileOverrides[htmlPath] || generateHTMLWrapper(
       page.name,
       fileName,
       bodyContent,
       integrationsJson,
     );
+
     const componentCssBlocks = allPageComponents
       .filter(
         (c) =>
@@ -1288,7 +967,8 @@ curl_close($ch);
           `/* CSS from props for ${compIdClass(c)} */\n${c.props.css.replace(/\$elementId/g, c.props.elementId || compIdClass(c))}`,
       );
 
-    files[`public/assets/css/${fileName}.css`] = [
+    const cssPath = `public/assets/css/${fileName}.css`;
+    files[cssPath] = fileOverrides[cssPath] || [
       `/* ${page.name} styles */`,
       ...componentCssBlocks,
       ...customComponentCss,
@@ -1296,106 +976,76 @@ curl_close($ch);
     ]
       .filter(Boolean)
       .join("\n\n");
-    files[`public/assets/js/${fileName}.js`] = generatePageJS(
-      pageComponents,
-      page.name,
-    );
 
-    // Generate the backend API file if it doesn't conflict with global API files
-    const globalApis = ["auth", "data", "paymongo", "resend"];
-    if (!globalApis.includes(fileName)) {
-      const filePath = `app/api/${fileName}.php`;
-      const overrideContent = fileOverrides[filePath];
-      let mergedContent = overrideContent || `<?php
-// Backend logic for ${page.name}
-// This file is automatically generated whenever you create a new page.
-// You can add your custom PHP logic here. 
-// It is imported at the top of app/views/${fileName}.php
+    const jsPath = `public/assets/js/${fileName}.js`;
+    let jsContent = fileOverrides[jsPath] || generatePageJS(pageComponents, page.name);
 
-${allPageComponents.filter((c) => c.props?.php_backend).length === 0 ? '// Example:\n// $pageTitle = "' + page.name + ' - My Site";' : ''}
-?>`;
-      const componentBlocks = allPageComponents
-        .filter((c) => c.props?.php_backend)
-        .map((c) => {
-          let rawPhp = c.props.php_backend;
-          const compId = compIdClass(c);
+    if (fileOverrides[jsPath]) {
+      allPageComponents.forEach((c) => {
+        const compId = compIdClass(c);
+        const openingMarker = `/* [CANVAS-INJECTION]: ${compId}`;
+        const closingMarker = `/* [END-CANVAS-INJECTION]: ${compId} */`;
+        
+        const handler = c.props?.js_handler || (c as any).php_backend || "";
+        const cjs = c.type === "custom-component" ? c.props?.js : "";
+        
+        if (!(handler || cjs)) return;
+        if (handler && handler.includes("<?php")) return;
 
-          if (c.props?.redirectUrl) {
-            let target = c.props.redirectUrl;
-            if (!target.startsWith("/") && !target.startsWith("http")) {
-              target = "/" + target;
-            }
-            rawPhp = rawPhp.replace(
-              /header\('Location:\s*\/dashboard'\);/g,
-              `header('Location: ${target}');`,
-            );
-          }
-          if (c.type === "dynamic-form") {
-            const op = c.props.supabaseOperation || "insert";
-            const table = c.props.supabaseTable || "your_table_name";
-            rawPhp = rawPhp
-              .replace(/'insert'/g, `'${op}'`)
-              .replace(/\$db->insert\(/g, `$db->${op}(`)
-              .replace(/'your_table_name'/g, `'${table}'`);
-          }
-          if (c.type === "table") {
-            const tname = c.props.supabaseTable || "";
-            const selectCols = c.props.supabaseSelectColumns || "*";
-            const headers = Array.isArray(c.props.headers) ? c.props.headers : [];
-            const headerKeys = headers.map((h: string) => {
-               const parts = h.split(':');
-               return parts.length > 1 ? parts[1] : h;
-            });
-            const phpHeaderEntries = headers.map((h: string) => {
-              const parts = h.split(':');
-              const label = parts[0];
-              const key = parts.length > 1 ? parts[1] : label;
-              return `'${key.replace(/'/g, "\\'")}' => '${label.replace(/'/g, "\\'")}'`;
-            });
-            const headersList = headerKeys.length > 0 ? "'" + headerKeys.join("','") + "'" : "";
-            const headersConfig = phpHeaderEntries.length > 0 ? phpHeaderEntries.join(", ") : "";
-            const autoColumns = c.props.headers === undefined ? "true" : "false";
+        let newInnerContent = "";
+        if (c.type === "custom-component" && cjs) {
+          newInnerContent = `(function() {\n  const element = document.getElementById("${compId}");\n  if (!element) return;\n  try {\n    (function(element) {\n${cjs}\n    })(element);\n  } catch (err) {\n    console.error('Error in custom component [${c.id}] JS:', err);\n  }\n})();`;
+        } else {
+          newInnerContent = `(function(elementId) {\n  const $elementId = elementId;\n${handler.replace(/\$elementId/g, compId)}\n})("${compId}");`;
+        }
+
+        // Simple hash for the content
+        const contentHash = Array.from(newInnerContent).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
+        const fullOpeningMarker = `${openingMarker} | hash:${contentHash} */`;
+        const newInjection = `\n${fullOpeningMarker}\n${newInnerContent}\n${closingMarker}\n`;
+
+        const startIdx = jsContent.indexOf(openingMarker);
+        if (startIdx !== -1) {
+          const endIdx = jsContent.indexOf(closingMarker, startIdx);
+          if (endIdx !== -1) {
+            const blockContent = jsContent.substring(startIdx, endIdx + closingMarker.length);
+            const currentHashMatch = blockContent.match(/hash:([a-f0-9-]+)/);
+            const currentHash = currentHashMatch ? currentHashMatch[1] : null;
             
-            rawPhp = rawPhp
-              .replace(/\{\{SUPABASE_TABLE\}\}/g, tname)
-              .replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, selectCols)
-              .replace(/\{\{TABLE_HEADERS_LIST\}\}/g, headersList)
-              .replace(/\{\{TABLE_HEADERS_CONFIG\}\}/g, headersConfig)
-              .replace(/\{\{TABLE_AUTO_COLUMNS\}\}/g, autoColumns);
+            // Extract inner content to check if user changed it
+            const innerStart = jsContent.indexOf("*/", startIdx) + 2;
+            const currentInner = jsContent.substring(innerStart, endIdx).trim();
+            
+            // Check if "dirty"
+            // If we don't have a recorded hash, or if the current inner content matches the logic for the PREVIOUS hash...
+            // Actually, the simplest check: if currentInner doesn't match newInnerContent AND it doesn't match the "default" for its CURRENT hash, it's dirty.
+            // But we don't know the default for its current hash because that would require re-generating with OLD props.
+            
+            // "Assertive" logic: if the recorded hash matches the current inner content's hash, it's NOT dirty.
+            const actualHash = Array.from(currentInner).reduce((s, c) => Math.imul(31, s) + c.charCodeAt(0) | 0, 0).toString(16);
+            
+            if (currentHash === actualHash) {
+              // Not dirty! Can safely update to new version.
+              if (currentHash !== contentHash) {
+                jsContent = jsContent.replace(blockContent, newInjection.trim());
+              }
+            } else {
+              // User edited manually! Do nothing.
+            }
           }
-          if (c.type === "form") {
-            const email = c.props.recipientEmail || "you@example.com";
-            rawPhp = rawPhp.replace(/\{\{RECIPIENT_EMAIL\}\}/g, email);
-          }
-
-          const cleanedPhp = rawPhp
-            .replace(/^<\?php\s*/, "")
-            .replace(/\?>$/, "")
-            .trim();
-
-          return {
-            id: compId,
-            content: cleanedPhp,
-          };
-        });
-
-      // 1. Accumulate new injections
-      componentBlocks.forEach((block) => {
-        const marker = `// [CANVAS-INJECTION]: ${block.id}`;
-        if (!mergedContent.includes(marker)) {
-          const injection = `\n${marker}\n${block.content}\n`;
-          
-          // Inject before the closing tag if it exists, otherwise append
-          if (mergedContent.includes("?>")) {
-            mergedContent = mergedContent.replace("?>", `${injection}?>`);
+        } else {
+          // Missing - Assertive Insert
+          if (jsContent.includes("});")) {
+            const parts = jsContent.split("});");
+            const lastPart = parts.pop();
+            jsContent = parts.join("});") + newInjection + "});" + lastPart;
           } else {
-            mergedContent += injection;
+            jsContent += newInjection;
           }
         }
       });
-
-      files[filePath] = mergedContent;
     }
+    files[jsPath] = jsContent;
   });
 
   return files;
