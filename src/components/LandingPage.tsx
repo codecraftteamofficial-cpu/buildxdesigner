@@ -903,17 +903,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
               </div>
 
               {/* CTA */}
-              <div className="pt-6">
-                <p className="text-gray-600 mb-4">Ready to start building?</p>
-                <Button
-                  size="lg"
-                  onClick={onEnterEditor}
-                  className="w-full group bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  Try BuildX Designer Now
-                  <ChevronRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </div>
+              
             </motion.div>
 
             {/* Contact Form */}
