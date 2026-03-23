@@ -261,9 +261,7 @@ export function SiteRenderer({
                                     {component.props?.enableCustomCss && component.props?.customCss && (
                                         <style>{component.props.customCss}</style>
                                     )}
-                                    {component.props?.enableCustomJs && component.props?.customJs && (
-                                        <script dangerouslySetInnerHTML={{ __html: component.props.customJs }} />
-                                    )}
+                                    {/* Custom JS handled in RenderableComponent */}
                                     <RenderableComponent
                                     component={component}
                                     projectId={projectId}
@@ -301,9 +299,7 @@ export function SiteRenderer({
                         {(component.props?.enableCustomCss || component.props?.css) && (
                             <style>{component.props.customCss || component.props.css}</style>
                         )}
-                        {(component.props?.enableCustomJs || component.props?.js) && (
-                            <script dangerouslySetInnerHTML={{ __html: component.props.customJs || component.props.js }} />
-                        )}
+                        {/* Custom JS is now handled in RenderableComponent sandbox */}
                         <RenderableComponent
                             component={component}
                             projectId={projectId}

@@ -1858,7 +1858,6 @@ export function useEditorState() {
     html: string,
     css: string,
     js: string,
-    php: string,
   ) => {
     if (!state.currentProjectId) return;
     const componentData = {
@@ -1867,7 +1866,6 @@ export function useEditorState() {
         html,
         css,
         js,
-        php,
         name,
         description,
       },
@@ -1906,7 +1904,6 @@ export function useEditorState() {
     html: string,
     css: string,
     js: string,
-    php: string,
   ) => {
     const componentData = {
       type: "custom-component",
@@ -1914,7 +1911,6 @@ export function useEditorState() {
         html,
         css,
         js,
-        php,
         name,
         description,
       },

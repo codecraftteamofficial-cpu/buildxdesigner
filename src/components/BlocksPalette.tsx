@@ -784,39 +784,30 @@ if (container) {
               redirectUrl: "/",
               switchToSignUpText: "Sign Up",
               switchToSignUpUrl: "/sign-up",
-              html: `<div class="auth-container" id="$elementId" data-component-type="sign-in">
-  <h2>Sign In</h2>
-  <p>Enter your email and password to access your account.</p>
-  <p class="auth-error" style="display:none;"></p>
-  <form class="auth-form" data-action="signin" data-redirect="{{REDIRECT_URL}}">
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" name="email" required placeholder="you@example.com">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" name="password" required placeholder="••••••••">
-    </div>
-    <button type="submit" class="auth-button">Sign In</button>
-  </form>
-  <div class="auth-links">
-    <p>Don't have an account? <a href="sign-up.html">Sign Up</a></p>
+              html: `<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full" id="$elementId" data-component-type="sign-in">
+  <div class="p-6 flex flex-col gap-1.5 shrink-0">
+    <h2 class="m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">Sign In</h2>
+    <p class="m-0 text-slate-500 text-sm">Enter your email and password to access your account.</p>
   </div>
+  <p class="auth-error mx-6 mb-6 text-red-600 bg-red-50 p-3 rounded-md text-sm shrink-0" style="display:none;"></p>
+  <form class="auth-form flex-1 flex flex-col overflow-hidden" data-action="signin" data-redirect="{{REDIRECT_URL}}">
+    <div class="px-6 flex-1 flex flex-col gap-4 overflow-y-auto min-h-0">
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Email</label>
+        <input type="email" name="email" required placeholder="you@example.com" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Password</label>
+        <input type="password" name="password" required placeholder="your password" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
+    </div>
+    <div class="p-6 flex flex-col gap-4 shrink-0">
+      <button type="submit" class="auth-button inline-flex items-center justify-center rounded-md text-sm font-medium h-10 bg-blue-600 text-white hover:bg-blue-700 transition-colors w-full cursor-pointer">Sign In</button>
+      <div class="text-center"><p class="m-0 text-sm text-slate-500">Don't have an account? <a href="sign-up.html" class="text-blue-600 hover:underline font-medium">Sign Up</a></p></div>
+    </div>
+  </form>
 </div>`,
-              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
-.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
-.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
-.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
-.auth-form { display: flex; flex-direction: column; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
-.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
-.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
-.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
-.auth-button:hover { background-color: #2563eb; }
-.auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
-.auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
-.auth-links a:hover { text-decoration: underline; }`,
+              css: `/* Styled via Scoped Tailwind */`,
               js_handler: `const form = document.getElementById('$elementId')?.querySelector('form');
 if (form) {
   form.addEventListener('submit', async (e) => {
@@ -868,44 +859,63 @@ if (form) {
               signUpButtonText: "Sign Up",
               redirectUrl: "/",
               extraFields: [],
-              html: `<div class="auth-container" id="$elementId">
-  <h2>Sign In / Sign Up</h2>
-  <p>Please authenticate to continue.</p>
-  <p class="auth-error" style="display:none;"></p>
-  <form class="auth-form" data-action="signin" data-redirect="{{REDIRECT_URL}}">
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" name="email" required placeholder="you@example.com">
+              html: `<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full" id="$elementId">
+  <div class="p-6 flex flex-col gap-1.5 shrink-0">
+    <h2 class="auth-title m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">Sign In / Sign Up</h2>
+    <p class="auth-description m-0 text-slate-500 text-sm">Please authenticate to continue.</p>
+  </div>
+  <p class="auth-error mx-6 mb-6 text-red-600 bg-red-50 p-3 rounded-md text-sm shrink-0" style="display:none;"></p>
+  <form class="auth-form flex-1 flex flex-col overflow-hidden" data-action="signin" data-redirect="{{REDIRECT_URL}}">
+    <div class="px-6 flex-1 flex flex-col gap-4 overflow-y-auto min-h-0">
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Email</label>
+        <input type="email" name="email" required placeholder="you@example.com" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Password</label>
+        <input type="password" name="password" required placeholder="your password" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
     </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" name="password" required placeholder="••••••••">
+    <div class="p-6 flex flex-col gap-4 shrink-0">
+      <button type="submit" class="auth-button inline-flex items-center justify-center rounded-md text-sm font-medium h-10 bg-blue-600 text-white hover:bg-blue-700 transition-colors w-full cursor-pointer">Continue</button>
+      <div class="text-center"><p class="m-0 text-sm text-slate-500"><span class="auth-switch-text">Don't have an account?</span> <button type="button" class="auth-switch-btn text-blue-600 hover:underline font-medium bg-transparent border-none p-0 cursor-pointer">Sign Up</button></p></div>
     </div>
-    <button type="submit" class="auth-button">Continue</button>
   </form>
 </div>`,
-              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
-.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
-.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
-.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
-.auth-form { display: flex; flex-direction: column; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
-.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
-.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
-.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
-.auth-button:hover { background-color: #2563eb; }`,
+              css: `/* Styled via Scoped Tailwind */`,
               js_handler: `const container = document.getElementById('$elementId');
 if (container) {
   const form = container.querySelector('form');
   const errorEl = container.querySelector('.auth-error');
+  const switchBtn = container.querySelector('.auth-switch-btn');
+  const switchText = container.querySelector('.auth-switch-text');
+  const titleEl = container.querySelector('h2');
+  const submitBtn = container.querySelector('.auth-button');
+
+  switchBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const currentAction = form.getAttribute('data-action');
+    if (currentAction === 'signin') {
+      form.setAttribute('data-action', 'signup');
+      if (titleEl) titleEl.textContent = 'Sign Up';
+      if (submitBtn) submitBtn.textContent = 'Sign Up';
+      if (switchText) switchText.textContent = 'Already have an account?';
+      switchBtn.textContent = 'Sign In';
+    } else {
+      form.setAttribute('data-action', 'signin');
+      if (titleEl) titleEl.textContent = 'Sign In';
+      if (submitBtn) submitBtn.textContent = 'Sign In';
+      if (switchText) switchText.textContent = 'Don\\'t have an account?';
+      switchBtn.textContent = 'Sign Up';
+    }
+  });
   
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = form.querySelector('input[name="email"]').value;
     const password = form.querySelector('input[name="password"]').value;
     const action = form.getAttribute('data-action');
-    const redirect = '{{REDIRECT_URL}}';
+    const redirect = form.getAttribute('data-redirect') || '{{REDIRECT_URL}}';
     
     errorEl.style.display = 'none';
     
@@ -952,41 +962,31 @@ if (container) {
               extraFields: [],
               switchToSignInText: "Sign In",
               switchToSignInUrl: "/sign-in",
-              html: `<div class="auth-container" id="$elementId">
-  <h2>Sign Up</h2>
-  <p>Create a new account by filling out the form below.</p>
-  <p class="auth-error" style="display:none;"></p>
-  <p class="auth-success" style="display:none;">Sign up successful! Please check your email.</p>
-  <form class="auth-form" data-action="signup" data-redirect="{{REDIRECT_URL}}">
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" name="email" required placeholder="you@example.com">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" name="password" required placeholder="••••••••">
-    </div>
-    <button type="submit" class="auth-button">Sign Up</button>
-  </form>
-  <div class="auth-links">
-    <p>Already have an account? <a href="sign-in.html">Sign In</a></p>
+              html: `<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full" id="$elementId">
+  <div class="p-6 flex flex-col gap-1.5 shrink-0">
+    <h2 class="auth-title m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">Sign Up</h2>
+    <p class="auth-description m-0 text-slate-500 text-sm">Create a new account by filling out the form below.</p>
   </div>
+  <p class="auth-error mx-6 mb-6 text-red-600 bg-red-50 p-3 rounded-md text-sm shrink-0" style="display:none;"></p>
+  <p class="auth-success mx-6 mb-6 text-green-600 bg-green-50 p-3 rounded-md text-sm shrink-0" style="display:none;">Sign up successful!</p>
+  <form class="auth-form flex-1 flex flex-col overflow-hidden" data-action="signup" data-redirect="{{REDIRECT_URL}}">
+    <div class="px-6 flex-1 flex flex-col gap-4 overflow-y-auto min-h-0">
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Email</label>
+        <input type="email" name="email" required placeholder="you@example.com" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-medium text-slate-950 line-height-1">Password</label>
+        <input type="password" name="password" required placeholder="your password" class="flex h-9 w-full rounded-md border border-slate-200 bg-transparent px-3 py-1 text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-slate-950">
+      </div>
+    </div>
+    <div class="p-6 flex flex-col gap-4 shrink-0">
+      <button type="submit" class="auth-button inline-flex items-center justify-center rounded-md text-sm font-medium h-10 bg-blue-600 text-white hover:bg-blue-700 transition-colors w-full cursor-pointer">Sign Up</button>
+      <div class="text-center"><p class="m-0 text-sm text-slate-500">Already have an account? <a href="sign-in.html" class="text-blue-600 hover:underline font-medium">Sign In</a></p></div>
+    </div>
+  </form>
 </div>`,
-              css: `.auth-container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: system-ui, sans-serif; }
-.auth-container h2 { margin-top: 0; margin-bottom: 0.5rem; color: #111827; }
-.auth-container > p { color: #4b5563; font-size: 0.875rem; margin-bottom: 1.5rem; }
-.auth-error { color: #dc2626; background: #fee2e2; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
-.auth-success { color: #16a34a; background: #dcfce7; padding: 0.5rem; border-radius: 0.375rem; font-size: 0.875rem; margin-bottom: 1rem; }
-.auth-form { display: flex; flex-direction: column; gap: 1rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
-.form-group label { font-size: 0.875rem; font-weight: 500; color: #374151; }
-.form-group input { padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
-.form-group input:focus { border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-.auth-button { background-color: #3b82f6; color: white; padding: 0.625rem; border: none; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s; margin-top: 0.5rem; }
-.auth-button:hover { background-color: #2563eb; }
-.auth-links { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; color: #4b5563; }
-.auth-links a { color: #3b82f6; text-decoration: none; font-weight: 500; }
-.auth-links a:hover { text-decoration: underline; }`,
+              css: `/* Styled via Scoped Tailwind */`,
               js_handler: `const container = document.getElementById('$elementId');
 if (container) {
   const form = container.querySelector('form');

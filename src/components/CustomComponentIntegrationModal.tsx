@@ -1510,7 +1510,7 @@ export function CustomComponentIntegrationModal({
                   <div className="flex flex-col">
                     <span className="font-medium text-muted-foreground">{integration.name}</span>
                     <code className="text-[10px] text-primary mt-1 font-mono">
-                      (function() &#123; ... buildx.run('{integration.id}') &#125;)();
+                      (function() &#123; ... window.buildx.run('{integration.id}') &#125;)();
                     </code>
                   </div>
                   <div className="flex gap-2">
@@ -1540,7 +1540,7 @@ export function CustomComponentIntegrationModal({
                             // Strip # for getElementById
                             const containerIdClean = containerId.startsWith('#') ? containerId.substring(1) : containerId;
 
-                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {\n      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);\n      if (result.success && result.data) {\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const container = document.getElementById('${containerIdClean}');\n        if (container) {\n          container.innerHTML = '';\n          \n          // Ensure data is an array before looping\n          const items = Array.isArray(result.data) ? result.data : (result.data.data && Array.isArray(result.data.data) ? result.data.data : []);\n          \n          if (items.length === 0) {\n            container.innerHTML = '<tr><td colspan="3">No data found</td></tr>';\n            return;\n          }\n\n          items.forEach(row => {\n            const item = document.createElement('tr');\n            item.innerHTML = \`\n              <td>\${row.id || Object.values(row)[0] || 'N/A'}</td>\n              <td>\${Object.values(row)[1] || 'N/A'}</td>\n              <td>\${Object.values(row)[2] || 'N/A'}</td>\n            \`;\n            container.appendChild(item);\n          });\n        } else {\n          console.warn('[buildx] ⚠️ Container #${containerIdClean} not found.');\n        }\n      } else {\n        console.error('[buildx] ❌ Failed to fetch data:', result.error || result.data?.message || 'Unknown error');\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
+                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof window.buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {\n      const result = await window.buildx.run('${integration.id}', {});\n      if (result.success && result.data) {\n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const container = document.getElementById('${containerIdClean}');\n        if (container) {\n          container.innerHTML = '';\n          \n          // Ensure data is an array before looping\n          const items = Array.isArray(result.data) ? result.data : (result.data.data && Array.isArray(result.data.data) ? result.data.data : []);\n          \n          if (items.length === 0) {\n            container.innerHTML = '<tr><td colspan="3">No data found</td></tr>';\n            return;\n          }\n\n          items.forEach(row => {\n            const item = document.createElement('tr');\n            item.innerHTML = \`\n              <td>\${row.id || Object.values(row)[0] || 'N/A'}</td>\n              <td>\${Object.values(row)[1] || 'N/A'}</td>\n              <td>\${Object.values(row)[2] || 'N/A'}</td>\n            \`;\n            container.appendChild(item);\n          });\n        } else {\n          console.warn('[buildx] ⚠️ Container #${containerIdClean} not found.');\n        }\n      } else {\n        console.error('[buildx] ❌ Failed to fetch data:', result.error || result.data?.message || 'Unknown error');\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
                           } else {
                             // --- SINGLE INPUTS / ELEMENTS TARGET SNIPPET ---
                             const mappingsList = Object.entries(mappingsObj).map(([col, elem]) => {
@@ -1555,8 +1555,8 @@ export function CustomComponentIntegrationModal({
                               ? mappingsList
                               : `// No columns mapped yet. Add Data Mappings in the integration settings!\n        // Example: if (document.getElementById('name_input')) document.getElementById('name_input').value = row.fullname || '';`;
 
-                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {
-      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+                            snippet = `(function() {\n  (async () => {\n    console.log('[buildx] 🔄 Waiting for engine...');\n    while (typeof window.buildx === 'undefined') {\n      await new Promise(r => setTimeout(r, 50));\n    }\n    console.log('[buildx] 🔄 Fetching data on load...');\n    try {
+      const result = await window.buildx.run('${integration.id}', {});
       if (result.success && result.data && result.data.length > 0) {
 \n        console.log('[buildx] ✅ Data loaded successfully!', result.data);\n        \n        const row = result.data[0];\n        // 🔥 AUTO-FILL MAPPED INPUTS 🔥\n        ${mappingCodeBlock}\n      } else {\n        console.warn('[buildx] ⚠️ No data found or failed to fetch:', result.error);\n      }\n    } catch (err) {\n      console.error('[buildx] ⚠️ System error:', err);\n    }\n  })();\n})();`;
                           }
@@ -1564,7 +1564,7 @@ export function CustomComponentIntegrationModal({
                           // $ uses querySelector
                           const cleanSelector = triggerSelector.startsWith('#') || triggerSelector.startsWith('.') ? triggerSelector : `#${triggerSelector}`;
                           snippet = `(function() {\n  // Trigger ${integration.name}\n  const btn = $('${cleanSelector}');\n  if (btn) {\n    btn.addEventListener('click', async (e) => {\n      if (e) e.preventDefault();\n      console.log('[buildx] 🖱️ Button clicked. Starting integration...');\n      \n      try {
-        const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+        const result = await window.buildx.run('${integration.id}', {});
         if (result.success) {
 \n           console.log('[buildx] ✅ Integration successful! Result:', result.data);\n           // 🔥 ADD YOUR CODE HERE for what happens after success!\n        } else {\n           console.error('[buildx] ❌ Integration failed:', result.error);\n        }\n      } catch (err) {\n        console.error('[buildx] ⚠️ System error in snippet:', err);\n      }\n    });\n    console.log('[buildx] ✅ Click listener attached to "${cleanSelector}"');\n  } else {\n    console.error('[buildx] ❌ Button with selector "${cleanSelector}" NOT FOUND. Check your HTML ID/Class!');\n  }\n})();`;
                         }
@@ -1604,11 +1604,11 @@ export function CustomComponentIntegrationModal({
                               snippet = `(function() {
   (async () => {
     console.log('[buildx] 🔄 Waiting for engine...');
-    while (typeof buildx === 'undefined') {
+    while (typeof window.buildx === 'undefined') {
       await new Promise(r => setTimeout(r, 50));
     }\n    console.log('[buildx] 🔄 Fetching data on load...');
     try {
-      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+      const result = await window.buildx.run('${integration.id}', {});
       if (result.success && result.data) {
         console.log('[buildx] ✅ Data loaded successfully!', result.data);
         
@@ -1664,12 +1664,12 @@ export function CustomComponentIntegrationModal({
                               snippet = `(function() {
   (async () => {
     console.log('[buildx] 🔄 Waiting for engine...');
-    while (typeof buildx === 'undefined') {
+    while (typeof window.buildx === 'undefined') {
       await new Promise(r => setTimeout(r, 50));
     }
     console.log('[buildx] 🔄 Fetching data on load...');
     try {
-      const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+      const result = await window.buildx.run('${integration.id}', {});
       if (result.success && result.data && result.data.length > 0) {
         console.log('[buildx] ✅ Data loaded successfully!', result.data);
         
@@ -1697,7 +1697,7 @@ export function CustomComponentIntegrationModal({
       console.log('[buildx] 🖱️ Button clicked. Starting integration...');
       
       try {
-        const result = await buildx.run('${integration.id}', typeof element !== 'undefined' ? element : null);
+        const result = await window.buildx.run('${integration.id}', {});
         if (result.success) {
            console.log('[buildx] ✅ Integration successful! Result:', result.data);
            // 🔥 ADD YOUR CODE HERE for what happens after success!

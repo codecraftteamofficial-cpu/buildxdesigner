@@ -350,6 +350,7 @@ export function EditorLayout({
                     <div className="flex-1 flex flex-col h-full overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
                       <CodeViewEditor
                         components={state.components}
+                        customComponents={state.customComponents || []}
                         projectName={state.projectName}
                         pages={state.pages}
                         userConfig={{
@@ -674,6 +675,7 @@ export function EditorLayout({
           {showCodeExportModal && (
             <CodeExportModal
               components={state.components}
+              customComponents={state.customComponents || []}
               projectName={state.projectName}
               pages={state.pages}
               activePageId={state.activePageId}

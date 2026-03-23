@@ -35,6 +35,7 @@ import {
   Code2,
   User,
   Library,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -283,19 +284,19 @@ const normalizeProjectLikeRows = (raw: any) => {
 const resolveTemplateProjectId = (item: any, fallback: string) =>
   String(
     item?.project_id ??
-      item?.projectId ??
-      item?.project?.projects_id ??
-      item?.project?.project_id ??
-      item?.project?.id ??
-      item?.projects_id ??
-      item?.projects?.projects_id ??
-      item?.projects?.project_id ??
-      item?.projects?.id ??
-      item?.template_id ??
-      item?.templateId ??
-      item?.id ??
-      item?._id ??
-      fallback,
+    item?.projectId ??
+    item?.project?.projects_id ??
+    item?.project?.project_id ??
+    item?.project?.id ??
+    item?.projects_id ??
+    item?.projects?.projects_id ??
+    item?.projects?.project_id ??
+    item?.projects?.id ??
+    item?.template_id ??
+    item?.templateId ??
+    item?.id ??
+    item?._id ??
+    fallback,
   ).trim();
 
 // Mock recent projects with different statuses
@@ -521,40 +522,40 @@ export function Dashboard({
       projectId: resolvedProjectId,
       name: String(
         item?.name ??
-          item?.title ??
-          item?.project_name ??
-          item?.project?.project_name ??
-          item?.projects?.project_name ??
-          "Untitled Template",
+        item?.title ??
+        item?.project_name ??
+        item?.project?.project_name ??
+        item?.projects?.project_name ??
+        "Untitled Template",
       ),
       description: String(
         item?.description ??
-          item?.template_description ??
-          item?.project_description ??
-          item?.summary ??
-          item?.project?.description ??
-          item?.project?.project_description ??
-          item?.projects?.description ??
-          item?.projects?.project_description ??
-          "No description available",
+        item?.template_description ??
+        item?.project_description ??
+        item?.summary ??
+        item?.project?.description ??
+        item?.project?.project_description ??
+        item?.projects?.description ??
+        item?.projects?.project_description ??
+        "No description available",
       ),
       thumbnail: String(
         item?.thumbnail ??
-          item?.thumbnailUrl ??
-          item?.image ??
-          item?.project?.thumbnail ??
-          item?.projects?.thumbnail ??
-          "/placeholder.svg",
+        item?.thumbnailUrl ??
+        item?.image ??
+        item?.project?.thumbnail ??
+        item?.projects?.thumbnail ??
+        "/placeholder.svg",
       ),
       category: String(
         item?.category ??
-          item?.template_category ??
-          item?.project_category ??
-          item?.project?.category ??
-          item?.project?.project_category ??
-          item?.projects?.category ??
-          item?.projects?.project_category ??
-          "Business",
+        item?.template_category ??
+        item?.project_category ??
+        item?.project?.category ??
+        item?.project?.project_category ??
+        item?.projects?.category ??
+        item?.projects?.project_category ??
+        "Business",
       ),
       premium: Boolean(
         item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
@@ -585,12 +586,12 @@ export function Dashboard({
       ),
       favorites: Number(
         item?.favorites ??
-          item?.like_count ??
-          item?.likeCount ??
-          item?.likes ??
-          item?.project?.likes ??
-          item?.projects?.likes ??
-          0,
+        item?.like_count ??
+        item?.likeCount ??
+        item?.likes ??
+        item?.project?.likes ??
+        item?.projects?.likes ??
+        0,
       ),
     };
   };
@@ -599,7 +600,7 @@ export function Dashboard({
     try {
       setMarketplaceLoading(true);
       const apiBases = getApiBaseCandidates();
-      
+
       for (const base of apiBases) {
         try {
           const res = await fetch(`${backendUrl}/api/marketplace/components`);
@@ -702,11 +703,11 @@ export function Dashboard({
 
             const parsedLikeCount = Number(
               item?.like_count ??
-                item?.likeCount ??
-                item?.favorites ??
-                item?.likes ??
-                item?.project?.likes ??
-                item?.projects?.likes,
+              item?.likeCount ??
+              item?.favorites ??
+              item?.likes ??
+              item?.project?.likes ??
+              item?.projects?.likes,
             );
 
             if (Number.isFinite(parsedLikeCount) && parsedLikeCount >= 0) {
@@ -921,8 +922,8 @@ export function Dashboard({
 
     const intervalId = isApiReachable
       ? window.setInterval(() => {
-          fetchAndSetProjectLikes();
-        }, 15000)
+        fetchAndSetProjectLikes();
+      }, 15000)
       : null;
 
     const handleVisibilityChange = () => {
@@ -2410,31 +2411,31 @@ export function Dashboard({
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredPublishedTemplates = normalizedSearchQuery
     ? publishedTemplates.filter((template) =>
-        [
-          template.projects?.project_name,
-          template.projects?.description,
-          template.projects?.category,
-          template.profiles?.full_name,
-        ]
-          .filter(Boolean)
-          .some((value) =>
-            String(value).toLowerCase().includes(normalizedSearchQuery),
-          ),
-      )
+      [
+        template.projects?.project_name,
+        template.projects?.description,
+        template.projects?.category,
+        template.profiles?.full_name,
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(normalizedSearchQuery),
+        ),
+    )
     : publishedTemplates;
   const filteredSharedProjects = normalizedSearchQuery
     ? sharedProjects.filter((sharedProject) =>
-        [
-          sharedProject.projects?.project_name,
-          sharedProject.projects?.description,
-          sharedProject.projects?.owner_profile?.full_name,
-          sharedProject.role,
-        ]
-          .filter(Boolean)
-          .some((value) =>
-            String(value).toLowerCase().includes(normalizedSearchQuery),
-          ),
-      )
+      [
+        sharedProject.projects?.project_name,
+        sharedProject.projects?.description,
+        sharedProject.projects?.owner_profile?.full_name,
+        sharedProject.role,
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(normalizedSearchQuery),
+        ),
+    )
     : sharedProjects;
   const allProjectsPreview = filteredProjects.slice(0, 10);
   const isDeployedValue = (value: unknown) =>
@@ -2579,8 +2580,8 @@ export function Dashboard({
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
-             </DropdownMenu>
-          
+          </DropdownMenu>
+
           {(profileData.isConnected === 1 || isSupabaseConnected) && (
             <div className="mt-3 px-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-500 ring-1 ring-inset ring-emerald-500/20">
@@ -2609,11 +2610,10 @@ export function Dashboard({
           <nav className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "new-chat"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>Dashboard</span>
@@ -2622,24 +2622,22 @@ export function Dashboard({
             {/* Marketplace */}
             <button
               onClick={() => setActiveSection("marketplace")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "marketplace"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
-              <Store className="w-4 h-4" />
-              <span>Marketplace</span>
+              <BookOpen className="w-4 h-4" />
+              <span>Components Library</span>
             </button>
 
             {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "all"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Layout className="w-4 h-4" />
               <span>All projects</span>
@@ -2648,11 +2646,10 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "drafts"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Folder className="w-4 h-4" />
               <span>Drafts</span>
@@ -2666,11 +2663,10 @@ export function Dashboard({
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "trash"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Trash2 className="w-4 h-4" />
               <span>Trash</span>
@@ -2867,21 +2863,19 @@ export function Dashboard({
                                         }
                                         disabled={
                                           likingTemplateIds[
-                                            getTemplateLikeKey(template)
+                                          getTemplateLikeKey(template)
                                           ]
                                         }
-                                        className={`flex items-center gap-1 transition-colors ${
-                                          isTemplateLiked(template)
-                                            ? "text-red-500"
-                                            : "text-muted-foreground hover:text-red-500"
-                                        }`}
+                                        className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                          ? "text-red-500"
+                                          : "text-muted-foreground hover:text-red-500"
+                                          }`}
                                       >
                                         <Heart
-                                          className={`w-4 h-4 ${
-                                            isTemplateLiked(template)
-                                              ? "fill-red-500 text-red-500"
-                                              : ""
-                                          }`}
+                                          className={`w-4 h-4 ${isTemplateLiked(template)
+                                            ? "fill-red-500 text-red-500"
+                                            : ""
+                                            }`}
                                         />
                                         <span className="text-xs">
                                           {getTemplateLikeCount(template)}
@@ -2981,21 +2975,19 @@ export function Dashboard({
                                     }
                                     disabled={
                                       likingTemplateIds[
-                                        getTemplateLikeKey(template)
+                                      getTemplateLikeKey(template)
                                       ]
                                     }
-                                    className={`flex items-center gap-1 transition-colors ${
-                                      isTemplateLiked(template)
-                                        ? "text-red-500"
-                                        : "text-muted-foreground hover:text-red-500"
-                                    }`}
+                                    className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                      ? "text-red-500"
+                                      : "text-muted-foreground hover:text-red-500"
+                                      }`}
                                   >
                                     <Heart
-                                      className={`w-4 h-4 ${
-                                        isTemplateLiked(template)
-                                          ? "fill-red-500 text-red-500"
-                                          : ""
-                                      }`}
+                                      className={`w-4 h-4 ${isTemplateLiked(template)
+                                        ? "fill-red-500 text-red-500"
+                                        : ""
+                                        }`}
                                     />
                                     <span className="text-xs">
                                       {getTemplateLikeCount(template)}
@@ -3036,8 +3028,8 @@ export function Dashboard({
                       <div className="mb-6">
                         <div className="flex items-center justify-between mb-4">
                           <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-                            <Store className="w-6 h-6 text-primary" />
-                            Components Marketplace
+                            <BookOpen className="w-6 h-6 text-primary" />
+                            Components Library
                           </h2>
                         </div>
 
@@ -3295,31 +3287,28 @@ export function Dashboard({
                     <div className="flex items-center gap-2 mb-6">
                       <button
                         onClick={() => setProjectsFilter("all")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "all"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "all"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         All
                       </button>
                       <button
                         onClick={() => setProjectsFilter("published")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "published"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "published"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         Published Templates
                       </button>
                       <button
                         onClick={() => setProjectsFilter("shared")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "shared"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "shared"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         Shared
                       </button>
@@ -3834,8 +3823,8 @@ export function Dashboard({
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
                           {activeSection === "drafts" ||
-                          activeSection === "all" ||
-                          activeSection === "trash" ? (
+                            activeSection === "all" ||
+                            activeSection === "trash" ? (
                             <CardContent className="p-3">
                               <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
                                 <img
@@ -4362,7 +4351,7 @@ export function Dashboard({
           setSelectedTemplateId(templateId);
           prefetchTemplateLayout(templateId);
         }}
-        onTrackSearch={() => {}}
+        onTrackSearch={() => { }}
         recommendedTemplates={visibleRecommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
       />
@@ -4381,8 +4370,8 @@ export function Dashboard({
 
           const projectId = String(
             selectedReportTemplate?.projectId ??
-              selectedReportTemplate?.id ??
-              "",
+            selectedReportTemplate?.id ??
+            "",
           ).trim();
 
           if (!projectId) {
@@ -4513,8 +4502,8 @@ export function Dashboard({
           <DialogHeader>
             <DialogTitle>My Components</DialogTitle>
             <DialogDescription>
-              Manage your personal component library 
-              
+              Manage your personal component library
+
             </DialogDescription>
           </DialogHeader>
 
