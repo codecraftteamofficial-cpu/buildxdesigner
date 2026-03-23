@@ -246,8 +246,8 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
                     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                       <div className={`px-4 py-3 text-sm shadow-sm rounded-2xl overflow-hidden ${
                         isUser 
-                          ? "bg-muted text-foreground border border-border rounded-br-sm" 
-                          : "bg-violet-600 text-white rounded-bl-sm border-0 shadow-md font-medium"
+                          ? "bg-violet-600 text-white rounded-br-sm border-0 shadow-md font-medium" 
+                          : "bg-muted text-foreground border border-border rounded-bl-sm"
                       }`}>
                         {isUser ? (
                           <div className="whitespace-pre-wrap leading-relaxed">
@@ -299,12 +299,12 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
                     <img src="https://media.giphy.com/media/0JD7et5Wyv8m0mah8z/giphy.gif" alt="AI Avatar" className="w-8 h-8 rounded-full object-cover shadow-md border-0" />
                   </div>
                   <div className="flex flex-col items-start mb-5">
-                    <div className="px-5 py-4 text-sm shadow-sm rounded-2xl overflow-hidden bg-violet-600 text-white rounded-tl-sm border-0 shadow-md font-medium flex items-center gap-2 w-[245px]">
+                      <div className="px-5 py-4 text-sm shadow-sm rounded-2xl overflow-hidden bg-muted text-foreground rounded-tl-sm border border-border flex items-center gap-2 w-[245px]">
                       <span className="font-bold">{thinkingPhrases[thinkingIndex]}</span>
                       <div className="flex gap-1 items-center mt-1 ml-auto">
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                        <div className="w-1.5 h-1.5 bg-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                        <div className="w-1.5 h-1.5 bg-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                        <div className="w-1.5 h-1.5 bg-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
                       </div>
                     </div>
                   </div>

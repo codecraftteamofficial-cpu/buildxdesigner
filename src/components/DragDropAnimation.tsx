@@ -383,7 +383,7 @@ export const DragDropAnimation: React.FC = () => {
               </div>
               <div className="flex-1 px-3 py-2 text-xs text-slate-500 text-center flex items-center justify-center space-x-1">
                 <Wand2 className="w-3 h-3" />
-                <span>AI Assistant</span>
+                <span>AI Mentor</span>
               </div>
             </div>
 
@@ -401,7 +401,7 @@ export const DragDropAnimation: React.FC = () => {
                   <div className="w-6 h-6 bg-linear-to-br from-violet-500 to-blue-500 rounded-full flex items-center justify-center">
                     <Wand2 className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs text-violet-200">AI Design Assistant</span>
+                  <span className="text-xs text-violet-200">AI Mentor</span>
                 </div>
                 <p className="text-xs text-violet-400/70">Get smart suggestions as you build</p>
               </div>
