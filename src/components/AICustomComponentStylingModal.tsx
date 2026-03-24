@@ -69,11 +69,16 @@ const generateStylingWithGemini = async (
             JS: ${currentJs}
             ---
 
+            ${AI_COMMON_RULES}
+
+            ${AI_JAVASCRIPT_RULES}
+
             IMPORTANT STYLING RULES:
             - Focus ONLY on CSS and JavaScript modifications
             - Do not change the HTML structure unless specifically requested for styling purposes
+            - Use ONLY standard CSS for styling. No Tailwind.
             - Always return all 3 blocks (html, css, javascript) even if some are empty.
-            - STRICTLY NO PHP CODE. ONLY HTML, CSS, AND JAVASCRIPT.
+            - MANDATORY: The JavaScript block MUST be wrapped in: (function() { ... })();
             - Use markdown code blocks for each language: \`\`\`html, \`\`\`css, \`\`\`javascript.
             - No explanations. Only code blocks.
             - Use the existing CSS classes and selectors from the current code
@@ -83,30 +88,16 @@ const generateStylingWithGemini = async (
             - Include comments explaining major changes
             - Ensure responsive design considerations
             - Use modern CSS features when appropriate
-            
-            ${AI_JAVASCRIPT_RULES}
-
-            ${AI_COMMON_RULES}
-
-            RESPONSE FORMAT:
-            Return the complete updated CSS and JavaScript code in the following format:
-
-            === CSS ===
-            [Your updated CSS code here]
-
-            === JAVASCRIPT ===
-            [Your updated JavaScript code here, or "No changes" if no JS modifications needed]
-            IMPORTANT: If you provide JavaScript, it MUST be wrapped exactly in: (function() { ... })();
-
-            If only CSS changes are needed, return "No changes" for the JavaScript section.
-            `
+            - STRICTLY NO PHP CODE. ONLY HTML, CSS, AND JAVASCRIPT.`
           },
-          ...history,
+          ...history.map(({ role, content }) => ({ role, content })),
           {
             role: 'user',
             content: prompt
           }
         ],
+        max_tokens: 2500,
+        temperature: 0.2,
       }),
     });
 
@@ -237,9 +228,10 @@ export function AICustomComponentStylingModal({
     abortControllerRef.current = controller;
 
     try {
+      const currentPromptText = currentPrompt;
       const currentHtml = component.props?.html || '';
       const response = await generateStylingWithGemini(
-        currentPrompt,
+        currentPromptText,
         currentHtml,
         cssCode,
         jsCode,
@@ -247,29 +239,39 @@ export function AICustomComponentStylingModal({
         controller.signal
       );
 
-      // Parse the response
-      const cssMatch = response.match(/=== CSS ===\s*([\s\S]*?)(?=\n=== |\n$|$)/);
-      const jsMatch = response.match(/=== JAVASCRIPT ===\s*([\s\S]*?)(?=\n=== |\n$|$)/);
+      // Parse the response using markdown code blocks
+      const htmlMatch = response.match(/```html\n([\s\S]*?)\n```/);
+      const cssMatch = response.match(/```css\n([\s\S]*?)\n```/);
+      const jsMatch = response.match(/```javascript\n([\s\S]*?)\n```/);
 
       if (cssMatch) {
         const newCss = cssMatch[1].trim();
         setCssCode(newCss);
       }
 
-      if (jsMatch && jsMatch[1].trim() !== 'No changes') {
+      if (jsMatch) {
         const newJs = jsMatch[1].trim();
-        setJsCode(newJs);
+        if (newJs !== 'No changes') {
+          setJsCode(newJs);
+        }
       }
 
       // Add to message history
-      const newMessage: AiMessage = {
-        id: Date.now().toString(),
+      const userMessage: AiMessage = {
+        id: Date.now().toString() + '-user',
+        role: 'user',
+        content: currentPromptText,
+        timestamp: new Date()
+      };
+
+      const assistantMessage: AiMessage = {
+        id: Date.now().toString() + '-assistant',
         role: 'assistant',
         content: response,
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, newMessage]);
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
       toast.success("Styling generated successfully!");
 
     } catch (error) {
