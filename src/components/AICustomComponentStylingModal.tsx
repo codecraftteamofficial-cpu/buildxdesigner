@@ -132,18 +132,18 @@ interface AiMessage {
 const validateJsCode = (js: string): { isValid: boolean; error?: string } => {
   const trimmed = js.trim();
   if (!trimmed || trimmed === 'No changes') return { isValid: true };
-  
+
   // Check for IIFE wrapper
   const startsWithIIFE = trimmed.startsWith('(function() {') || trimmed.startsWith('(function () {');
   const endsWithIIFE = trimmed.endsWith('})();');
-  
+
   if (!startsWithIIFE || !endsWithIIFE) {
-    return { 
-      isValid: false, 
-      error: 'MANDATORY: JavaScript must be wrapped exactly in: (function() { ... })();' 
+    return {
+      isValid: false,
+      error: 'MANDATORY: JavaScript must be wrapped exactly in: (function() { ... })();'
     };
   }
-  
+
   return { isValid: true };
 };
 
@@ -166,6 +166,37 @@ export function AICustomComponentStylingModal({
   const editorRef = useRef<any>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
+  // --- FIX: Refs that always reflect the latest state values.
+  // React state captured inside an async closure can be stale in production
+  // (concurrent rendering, stricter batching). Refs give us a live pointer
+  // that is always up-to-date regardless of when the closure was created.
+  const cssRef = useRef('');
+  const jsRef = useRef('');
+  const messagesRef = useRef<AiMessage[]>([]);
+
+  // Sync helpers — always update the ref AND the state together.
+  const updateCss = useCallback((value: string) => {
+    cssRef.current = value;
+    setCssCode(value);
+  }, []);
+
+  const updateJs = useCallback((value: string) => {
+    jsRef.current = value;
+    setJsCode(value);
+  }, []);
+
+  const addMessages = useCallback((newMsgs: AiMessage[]) => {
+    const updated = [...messagesRef.current, ...newMsgs];
+    messagesRef.current = updated;
+    setMessages(updated);
+  }, []);
+
+  const resetMessages = useCallback(() => {
+    messagesRef.current = [];
+    setMessages([]);
+  }, []);
+  // --- END FIX
+
   // Debounced preview update function
   const debouncedUpdatePreview = useMemo(
     () => debounce(() => {
@@ -186,11 +217,18 @@ export function AICustomComponentStylingModal({
     if (isOpen && component) {
       const css = component.props?.css || '';
       const js = component.props?.js || '';
+
+      // FIX: initialise refs alongside state so the first async call
+      // always reads the correct starting values.
+      cssRef.current = css;
+      jsRef.current = js;
+      messagesRef.current = [];
+
       setCssCode(css);
       setJsCode(js);
       setCurrentPrompt('');
       setMessages([]);
-      setPreviewKey(prev => prev + 1); // Force preview refresh
+      setPreviewKey(prev => prev + 1);
       setIsPreviewUpdating(false);
     }
   }, [isOpen, component]);
@@ -202,10 +240,10 @@ export function AICustomComponentStylingModal({
       setProgress(0);
       interval = setInterval(() => {
         setProgress(prev => {
-          if (prev < 30) return prev + 2; // Fast at first
-          if (prev < 70) return prev + 0.8; // Moderate
-          if (prev < 95) return prev + 0.2; // Slow down
-          return prev; // Stay at 95 until done
+          if (prev < 30) return prev + 2;
+          if (prev < 70) return prev + 0.8;
+          if (prev < 95) return prev + 0.2;
+          return prev;
         });
       }, 100);
     } else {
@@ -223,19 +261,21 @@ export function AICustomComponentStylingModal({
 
     setIsGenerating(true);
 
-    // Create new AbortController
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     try {
       const currentPromptText = currentPrompt;
       const currentHtml = component.props?.html || '';
+
+      // FIX: read from refs instead of state to guarantee we have the
+      // latest values even if React hasn't flushed the last render yet.
       const response = await generateStylingWithGemini(
         currentPromptText,
         currentHtml,
-        cssCode,
-        jsCode,
-        messages.slice(-10), // Include last 10 messages for context
+        cssRef.current,
+        jsRef.current,
+        messagesRef.current.slice(-10),
         controller.signal
       );
 
@@ -245,18 +285,18 @@ export function AICustomComponentStylingModal({
       const jsMatch = response.match(/```javascript\n([\s\S]*?)\n```/);
 
       if (cssMatch) {
-        const newCss = cssMatch[1].trim();
-        setCssCode(newCss);
+        // FIX: use updateCss so both the ref and state stay in sync.
+        updateCss(cssMatch[1].trim());
       }
 
       if (jsMatch) {
         const newJs = jsMatch[1].trim();
         if (newJs !== 'No changes') {
-          setJsCode(newJs);
+          // FIX: use updateJs so both the ref and state stay in sync.
+          updateJs(newJs);
         }
       }
 
-      // Add to message history
       const userMessage: AiMessage = {
         id: Date.now().toString() + '-user',
         role: 'user',
@@ -271,7 +311,8 @@ export function AICustomComponentStylingModal({
         timestamp: new Date()
       };
 
-      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      // FIX: use addMessages so both the ref and state stay in sync.
+      addMessages([userMessage, assistantMessage]);
       toast.success("Styling generated successfully!");
 
     } catch (error) {
@@ -319,6 +360,12 @@ export function AICustomComponentStylingModal({
 
     const originalCss = component.props?.css || '';
     const originalJs = component.props?.js || '';
+
+    // FIX: reset refs alongside state.
+    cssRef.current = originalCss;
+    jsRef.current = originalJs;
+    messagesRef.current = [];
+
     setCssCode(originalCss);
     setJsCode(originalJs);
     setMessages([]);
@@ -383,7 +430,7 @@ export function AICustomComponentStylingModal({
               AI Styling Assistant
             </DialogTitle>
             <DialogDescription className="text-xs">Describe the styling changes you want to make to this component using AI.</DialogDescription>
-            
+
             {/* Integration Status */}
             {component?.props?.integrations && component.props.integrations.length > 0 && (
               <div className="bg-muted/10 rounded-lg p-2 border border-border/60 mt-2">
@@ -393,14 +440,13 @@ export function AICustomComponentStylingModal({
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {component.props.integrations.map((integration: any) => (
-                    <Badge 
-                      key={integration.id} 
-                      variant="outline" 
-                      className={`text-[8px] h-4 px-1 ${
-                        integration.type === 'supabase' ? 'bg-green-50 text-green-700 border-green-200' :
+                    <Badge
+                      key={integration.id}
+                      variant="outline"
+                      className={`text-[8px] h-4 px-1 ${integration.type === 'supabase' ? 'bg-green-50 text-green-700 border-green-200' :
                         integration.type === 'resend' ? 'bg-violet-50 text-violet-700 border-violet-200' :
-                        'bg-blue-50 text-blue-700 border-blue-200'
-                      }`}
+                          'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
                     >
                       <div className="flex items-center gap-1">
                         {integration.type === 'supabase' && <Database className="w-2.5 h-2.5" />}
@@ -485,7 +531,8 @@ export function AICustomComponentStylingModal({
                       theme="vs-dark"
                       value={cssCode}
                       onChange={(value) => {
-                        setCssCode(value || '');
+                        // FIX: use updateCss to keep ref in sync with manual edits too.
+                        updateCss(value || '');
                         triggerPreviewUpdate();
                       }}
                       options={{
@@ -510,7 +557,8 @@ export function AICustomComponentStylingModal({
                       theme="vs-dark"
                       value={jsCode}
                       onChange={(value) => {
-                        setJsCode(value || '');
+                        // FIX: use updateJs to keep ref in sync with manual edits too.
+                        updateJs(value || '');
                         triggerPreviewUpdate();
                       }}
                       options={{
