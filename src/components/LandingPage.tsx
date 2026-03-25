@@ -13,6 +13,7 @@ import logoIcon from '../assets/3783c8fc9c2bbb9005e59c39e377b8d4ab7a0e4b.png';
 import aboutImage from '../assets/6ee6af225d3c66afa5aee3a1718a22ba31c70978.png';
 import { getSupabaseSession } from '../supabase/auth/authService';
 import { createLandingPageReview, fetchLandingPageReviews, LandingPageReview } from '../supabase/data/landingReviews';
+import { fetchLandingStats } from '../supabase/data/landingStats';
 import { sendEmail, emailResponse } from './services/email.service';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -38,7 +39,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+   const [activeCreatorsCount, setActiveCreatorsCount] = useState<number | null>(null);
+  const [websitesBuiltCount, setWebsitesBuiltCount] = useState<number | null>(null);
   const handleAuth = (type: 'login' | 'signup') => {
+    
     setAuthType(type);
     setShowAuthModal(true);
   };
@@ -55,24 +59,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
 
    useEffect(() => {
         setHasSubmittedReview(sessionStorage.getItem(LANDING_PAGE_REVIEW_SUBMITTED_KEY) === 'true');
-    const loadReviews = async () => {
+     const loadLandingPageData = async () => {
       setReviewsLoading(true);
 
-      const { data, error } = await fetchLandingPageReviews();
+       const [{ data: reviewData, error: reviewError }, { data: statsData, error: statsError }] = await Promise.all([
+        fetchLandingPageReviews(),
+        fetchLandingStats(),
+      ]);
 
-      if (error) {
-        console.error('Error loading landing page reviews:', error);
+       if (reviewError) {
+        console.error('Error loading landing page reviews:', reviewError);
         setReviews([]);
         setReviewsError('Reviews will appear here after the Supabase reviews table is created.');
       } else {
-        setReviews(data ?? []);
+        setReviews(reviewData ?? []);
         setReviewsError('');
+      }
+
+       if (statsError) {
+        console.error('Error loading landing page stats:', statsError);
+      } else {
+        setActiveCreatorsCount(statsData?.activeCreators ?? 0);
+        setWebsitesBuiltCount(statsData?.websitesBuilt ?? 0);
       }
 
       setReviewsLoading(false);
     };
 
-    loadReviews();
+     loadLandingPageData();
   }, []);
 
   const handleStartBuilding = async () => {
@@ -128,8 +142,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
   ];
 
   const stats = [
-    { icon: Users, number: '100+', label: 'Active Creators' },
-    { icon: Globe, number: '20+', label: 'Websites Built' },
+     { icon: Users, number: activeCreatorsCount !== null ? activeCreatorsCount.toLocaleString() : '100+', label: 'Active Creators' },
+    { icon: Globe, number: websitesBuiltCount !== null ? websitesBuiltCount.toLocaleString() : '20+', label: 'Websites Built' },
     { icon: Star, number: '4.5/5', label: 'User Rating' },
     { icon: BarChart3, number: '90%', label: 'Uptime' }
   ];
@@ -705,7 +719,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
                           <span className="text-xs text-gray-500 whitespace-nowrap">{formatReviewDate(review.created_at)}</span>
 
                         </div>
-                        <span className="text-xs text-gray-500 whitespace-nowrap">{formatReviewDate(review.created_at)}</span>
+                       
                       <p className="text-gray-600 mb-6 leading-relaxed">"{review.comment}"</p>
                         <div>
                           <div className="font-semibold text-gray-900">{review.reviewer_name || 'Anonymous'}</div>
@@ -716,14 +730,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
                   </motion.div>
                 ))}
               </motion.div>
-              {shouldShowSeeAllReviews && (
+               {(shouldShowSeeAllReviews || showAllReviews) && (
                 <div className="mt-10 text-center">
                   <button
                     type="button"
-                    onClick={() => setShowAllReviews(true)}
+                   onClick={() => setShowAllReviews((prev) => !prev)}
                     className="text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700 hover:underline"
                   >
-                    See all reviews
+                      {showAllReviews ? 'Cancel' : 'See all reviews'}
                   </button>
                 </div>
               )}
