@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
-import { Search, Download, Code2, Loader2 } from 'lucide-react';
+import { Search, Download, Code2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchPublishedComponents, importPublishedComponent } from '../supabase/data/publishedComponentService';
 import { fetchCustomComponents } from '../supabase/data/customComponentService';
@@ -28,6 +28,9 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('marketplace');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [libraryPage, setLibraryPage] = useState(1);
+  const [marketplacePage, setMarketplacePage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
 
   useEffect(() => {
     if (isOpen) {
@@ -41,9 +44,14 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
     }
   }, [isOpen, currentUserId]);
 
+  useEffect(() => {
+    setLibraryPage(1);
+    setMarketplacePage(1);
+  }, [searchTerm, activeTab]);
+
   const loadCustomComponents = async () => {
     if (!currentUserId) return;
-    
+
     setIsLoadingCustom(true);
     try {
       // Get all user's projects
@@ -83,8 +91,8 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
       const importedComponents = (allComponents || []).filter((comp: any) => {
         const componentData = comp.component_json;
         return componentData?.props?.importedFrom === true ||
-               componentData?.props?.marketplaceId ||
-               componentData?.props?.original_creator_id !== currentUserId;
+          componentData?.props?.marketplaceId ||
+          componentData?.props?.original_creator_id !== currentUserId;
       });
 
       setCustomComponents(importedComponents);
@@ -99,9 +107,9 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
   };
 
   const isComponentImported = (componentId: string) => {
-    return customComponents.some(cc => 
+    return customComponents.some(cc =>
       cc.component_json?.props?.marketplaceId === componentId ||
-      cc.component_json?.props?.importedFrom === true && 
+      cc.component_json?.props?.importedFrom === true &&
       cc.component_json?.props?.marketplaceId === componentId
     );
   };
@@ -168,12 +176,24 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
 
   const filtered = components.filter(c =>
     (c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.description?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      c.description?.toLowerCase().includes(searchTerm.toLowerCase())) &&
     !isComponentImported(c.id)
   );
 
   const filteredCustom = customComponents.filter(c =>
     c.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredCustom.length / ITEMS_PER_PAGE);
+  const paginatedCustom = filteredCustom.slice(
+    (libraryPage - 1) * ITEMS_PER_PAGE,
+    libraryPage * ITEMS_PER_PAGE
+  );
+
+  const totalMarketplacePages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedMarketplace = filtered.slice(
+    (marketplacePage - 1) * ITEMS_PER_PAGE,
+    marketplacePage * ITEMS_PER_PAGE
   );
 
   return (
@@ -184,13 +204,13 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
             <Download className="w-5 h-5 text-primary" />
             Import Components
           </DialogTitle>
-          <DialogDescription className="text-xs">Browse marketplace components or manage your imported components.</DialogDescription>
+          <DialogDescription className="text-xs">Browse components library or manage your imported components.</DialogDescription>
         </DialogHeader>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-2 mx-4 mt-3 h-9">
-            <TabsTrigger value="marketplace" className="text-xs">Marketplace</TabsTrigger>
+            <TabsTrigger value="marketplace" className="text-xs">Components Library</TabsTrigger>
             <TabsTrigger value="library" className="text-xs">Your Library</TabsTrigger>
           </TabsList>
 
@@ -227,41 +247,72 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
                     </p>
                   </div>
                 ) : (
-                  filtered.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors group"
-                    >
-                      <div className="p-2 bg-primary/10 rounded-md shrink-0">
-                        <Code2 className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-medium truncate">{comp.name}</h4>
-                          <Badge variant="secondary" className="text-[10px] shrink-0">Community</Badge>
-                        </div>
-                        {comp.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{comp.description}</p>
-                        )}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleImport(comp)}
-                        disabled={importingId === comp.id || isComponentImported(comp.id)}
+                  <>
+                    {paginatedMarketplace.map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors group"
                       >
-                        {importingId === comp.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : isComponentImported(comp.id) ? (
-                          <Download className="w-3 h-3" />
-                        ) : (
-                          <Download className="w-3 h-3" />
-                        )}
-                        {isComponentImported(comp.id) ? 'Imported' : 'Import'}
-                      </Button>
-                    </div>
-                  ))
+                        <div className="p-2 bg-primary/10 rounded-md shrink-0">
+                          <Code2 className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-medium truncate">{comp.name}</h4>
+                            <Badge variant="secondary" className="text-[10px] shrink-0">Community</Badge>
+                          </div>
+                          {comp.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{comp.description}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleImport(comp)}
+                          disabled={importingId === comp.id || isComponentImported(comp.id)}
+                        >
+                          {importingId === comp.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : isComponentImported(comp.id) ? (
+                            <Download className="w-3 h-3" />
+                          ) : (
+                            <Download className="w-3 h-3" />
+                          )}
+                          {isComponentImported(comp.id) ? 'Imported' : 'Import'}
+                        </Button>
+                      </div>
+                    ))}
+
+                    {/* Pagination Controls */}
+                    {totalMarketplacePages > 1 && (
+                      <div className="flex items-center justify-between pt-4 pb-2 px-1 border-t mt-4">
+                        <p className="text-[11px] text-muted-foreground">
+                          Page {marketplacePage} of {totalMarketplacePages}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setMarketplacePage(p => Math.max(1, p - 1))}
+                            disabled={marketplacePage === 1}
+                          >
+                            <ChevronLeft className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setMarketplacePage(p => Math.min(totalMarketplacePages, p + 1))}
+                            disabled={marketplacePage === totalMarketplacePages}
+                          >
+                            <ChevronRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </ScrollArea>
@@ -287,27 +338,58 @@ export function ImportComponentModal({ isOpen, onClose, projectId, onImported }:
                     </p>
                   </div>
                 ) : (
-                  filteredCustom.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors group"
-                    >
-                      <div className="p-2 bg-green-500/10 rounded-md shrink-0">
-                        <Code2 className="w-4 h-4 text-green-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-medium truncate">{comp.name}</h4>
-                          <Badge variant="default" className="text-[10px] shrink-0 bg-green-100 text-green-800 border-green-200">
-                            Imported
-                          </Badge>
+                  <>
+                    {paginatedCustom.map((comp) => (
+                      <div
+                        key={comp.id}
+                        className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors group"
+                      >
+                        <div className="p-2 bg-green-500/10 rounded-md shrink-0">
+                          <Code2 className="w-4 h-4 text-green-600" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Imported {new Date(comp.created_at).toLocaleDateString()}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-medium truncate">{comp.name}</h4>
+                            <Badge variant="default" className="text-[10px] shrink-0 bg-green-100 text-green-800 border-green-200">
+                              Imported
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Imported {new Date(comp.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between pt-4 pb-2 px-1 border-t mt-4">
+                        <p className="text-[11px] text-muted-foreground">
+                          Page {libraryPage} of {totalPages}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setLibraryPage(p => Math.max(1, p - 1))}
+                            disabled={libraryPage === 1}
+                          >
+                            <ChevronLeft className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setLibraryPage(p => Math.min(totalPages, p + 1))}
+                            disabled={libraryPage === totalPages}
+                          >
+                            <ChevronRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </ScrollArea>
