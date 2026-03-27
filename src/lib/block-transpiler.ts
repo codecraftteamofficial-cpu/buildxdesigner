@@ -402,7 +402,14 @@ register("form", {
 .contact-form input:focus, .contact-form textarea:focus { border-color:#3b82f6; }
 .contact-form button { padding:10px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:500; }
 .contact-form button:hover { background:#2563eb; }`,
-  js: (c) => c.props?.js_handler ? c.props.js_handler.replace(/\$elementId/g, elId(c)) : "",
+  js: (c) => {
+    if (!c.props?.js_handler) return "";
+    const p = c.props ?? {};
+    return c.props.js_handler
+      .replace(/\$elementId/g, elId(c))
+      .replace(/\{\{RESEND_INTEGRATION_ID\}\}/g, p.resendIntegrationId || '')
+      .replace(/\{\{RECIPIENT_EMAIL\}\}/g, p.recipientEmail || '');
+  },
 });
 
 register("dynamic-form", {
@@ -683,7 +690,57 @@ register("table", {
 #${elId(c)} .data-table th { background:#f9fafb; font-weight:500; color:#374151; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em; }
 #${elId(c)} .data-table td { color:#4b5563; font-size:0.875rem; }
 #${elId(c)} .data-table tr:hover { background:#f9fafb; }`,
-  js: (c) => c.props?.js_handler ? c.props.js_handler.replace(/\$elementId/g, elId(c)) : "",
+  js: (c) => {
+    const p = c.props ?? {};
+    const id = elId(c);
+    const supabaseTable = p.supabaseTable || '';
+    // Build header config from the headers prop
+    const headers: string[] = Array.isArray(p.headers) ? p.headers : [];
+    const headerConfigEntries = headers.map((h: string) => `"${h}": "${h}"`).join(', ');
+    const columns = headers.length > 0 ? headers.join(',') : '*';
+
+    if (!supabaseTable) {
+      // No supabase table configured — omit the load logic
+      return `(function() {
+  var container = document.getElementById('${id}');
+  if (!container) return;
+  var tbody = container.querySelector('.body-rows');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="100%">No data source configured.</td></tr>';
+})();`;
+    }
+
+    return `(function() {
+  var container = document.getElementById('${id}');
+  if (container) {
+    var table = '${supabaseTable}';
+    var columns = '${columns}';
+    var headerConfig = { ${headerConfigEntries} };
+
+    var loadData = async function() {
+      if (!table) return;
+      var result = await window.buildx.data.select(table, columns);
+      var data = result.data;
+      var error = result.error;
+      if (error) { console.error('Table load error:', error); return; }
+
+      var tbody = container.querySelector('.body-rows');
+      var theadRow = container.querySelector('.header-row');
+
+      if (data && data.length > 0) {
+        var configKeys = Object.keys(headerConfig);
+        var keys = configKeys.length > 0 ? configKeys : Object.keys(data[0]);
+        theadRow.innerHTML = keys.map(function(k) { return '<th>' + (headerConfig[k] || k) + '</th>'; }).join('');
+        tbody.innerHTML = data.map(function(row) {
+          return '<tr>' + keys.map(function(k) { return '<td>' + (row[k] || '') + '</td>'; }).join('') + '</tr>';
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="100%">No data found.</td></tr>';
+      }
+    };
+    loadData();
+  }
+})();`;
+  },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -237,8 +237,11 @@ const renderComponentToHTML = (component: ComponentData, depth = 0): string => {
   // Auth block types have props.html from the palette template, but they should
   // be handled by the block-transpiler (which generates the correct single-wrapper).
   // Letting them fall through here would double-wrap them in an extra <div>.
+  // Form/table types also have props.html templates with {{PLACEHOLDERS}} that
+  // must NOT be used directly — their block-transpiler generates clean HTML from props.
   const AUTH_TYPES = ['sign-in', 'sign-up', 'auth-block', 'profile'];
-  if (props.html !== undefined && !AUTH_TYPES.includes(component.type)) {
+  const TRANSPILER_ONLY_TYPES = ['form', 'dynamic-form', 'table'];
+  if (props.html !== undefined && !AUTH_TYPES.includes(component.type) && !TRANSPILER_ONLY_TYPES.includes(component.type)) {
     let htmlRaw = (props.html || "").replace(
       /\$elementId/g,
       compIdClass(component),

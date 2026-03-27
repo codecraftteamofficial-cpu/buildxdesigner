@@ -1811,17 +1811,6 @@ export function EditorTopBar({
           </Button>
         )}
 
-        {onExport && (
-          <Button
-            data-tour="download-project"
-            variant="ghost"
-            size="sm"
-            onClick={onExport}
-            className="h-9 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-        )}
 
         <Button
           data-tour="database-integration"
