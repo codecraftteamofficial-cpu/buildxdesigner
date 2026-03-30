@@ -77,7 +77,7 @@ import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { GettingStartedModal } from "./GettingStartedModal";
+import { GettingStartedGuideContent } from "./GettingStartedModal";
 import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
@@ -356,7 +356,7 @@ export function Dashboard({
   ); // Updated to string | null
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
-  const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
+ 
   const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
     useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
@@ -485,25 +485,7 @@ export function Dashboard({
     }
   }, []);
 
-  useEffect(() => {
-    const shouldShow =
-      localStorage.getItem("buildx-show-getting-started") === "1";
-    if (!shouldShow) return;
-
-    localStorage.removeItem("buildx-show-getting-started");
-    setShowGettingStartedModal(true);
-  }, []);
-
-  useEffect(() => {
-    const introDone = localStorage.getItem("buildx-tutorial-intro") === "1";
-    const hasShownOnce =
-      localStorage.getItem("buildx-tutorial-getting-started-shown") === "1";
-
-    if (!introDone && !hasShownOnce) {
-      setShowGettingStartedModal(true);
-      localStorage.setItem("buildx-tutorial-getting-started-shown", "1");
-    }
-  }, []);
+ 
 
   // --- NEW STATES FOR REDESIGNED PROMPT SECTION ---
   const [selectedTemplateCategory, setSelectedTemplateCategory] =
@@ -755,41 +737,9 @@ export function Dashboard({
     };
   }, [currentUserId]);
 
-  const visibleRecommendedTemplates = (() => {
-    // Try to find an existing "getting started" template from the backend
-    const existingGuide =
-      publishedTemplateCards.find(
-        (t) => t.id === "getting-started-guide" || t.id === "getting-started",
-      ) ?? null;
-
-    // If backend did not provide one, create a synthetic guide card
-    const guideTemplate: TemplateCardData = existingGuide ?? {
-      id: "getting-started-guide",
-      projectId: "",
-      name: "Getting Started Guide",
-      category: "Starter",
-      thumbnail:
-        "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=400&h=300&fit=crop",
-      description:
-        "Start here to learn the basics of BuildX Designer with an interactive tour.",
-      creator: "BuildX Designer",
-      creatorAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Builder",
-      views: 0,
-      favorites: 0,
-      premium: false,
-      tags: ["guide", "tutorial", "getting-started"],
-    };
-
-    const base = publishedTemplateCards;
-
-    // Remove potential duplicate of the guide from base by id
-    const withoutGuide = base.filter(
-      (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
-    );
-
-    // Always place the guide card at the front
-    return [guideTemplate, ...withoutGuide];
-  })();
+   const visibleRecommendedTemplates = publishedTemplateCards.filter(
+    (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
+  );
 
   const getTemplateLikeKey = (template: TemplateCardData) =>
     String(template.projectId ?? "").trim();
@@ -1574,14 +1524,7 @@ export function Dashboard({
   };
 
   const handleQuickTemplateClick = (template: TemplateCardData) => {
-    // special case: open tutorial modal instead of creating from template
-    if (
-      template.id === "getting-started-guide" ||
-      template.id === "getting-started"
-    ) {
-      setShowGettingStartedModal(true);
-      return;
-    }
+    
 
     setSelectedTemplateId(template.id);
     setShowTemplateBrowser(false);
@@ -2907,6 +2850,38 @@ export function Dashboard({
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+                 <div className="w-full max-w-6xl mx-auto mt-10">
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-semibold text-foreground">
+                        Getting Started Guide
+                      </h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Complete the tutorials in order to unlock the next step.
+                    </p>
+                    <GettingStartedGuideContent
+                      onStartBuildXIntroduction={() => {
+                        setShowBuildXIntroductionTour(false);
+                        setActiveSection("new-chat");
+                        setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+                      }}
+                      onStartWebsiteCreation={() => {
+                        localStorage.setItem("buildx-pending-editor-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      onStartPublishingBasics={() => {
+                        localStorage.setItem(
+                          "buildx-pending-publishing-basics-tour",
+                          "1",
+                        );
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="w-full max-w-6xl mx-auto mt-10">
@@ -4401,28 +4376,7 @@ export function Dashboard({
         }}
       />
 
-      <GettingStartedModal
-        isOpen={showGettingStartedModal}
-        onClose={() => setShowGettingStartedModal(false)}
-        onStartBuildXIntroduction={() => {
-          // Ensure the DOM contains the elements the tour targets.
-          setShowBuildXIntroductionTour(false);
-          setActiveSection("new-chat");
-          setTimeout(() => setShowBuildXIntroductionTour(true), 50);
-        }}
-        onStartWebsiteCreation={() => {
-          localStorage.setItem("buildx-pending-editor-tour", "1");
-          setSelectedTemplateId("blank");
-          setShowCreateTemplateModal(true);
-        }}
-        onStartPublishingBasics={() => {
-          // Publishing Basics tour targets editor-only UI. Ensure we create/open a project first,
-          // then start the tour once the editor route is mounted.
-          localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
-          setSelectedTemplateId("blank");
-          setShowCreateTemplateModal(true);
-        }}
-      />
+
 
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
@@ -4431,7 +4385,7 @@ export function Dashboard({
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-          setShowGettingStartedModal(true);
+         
         }}
       />
 
@@ -4440,7 +4394,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
-          setShowGettingStartedModal(true);
+         
         }}
       />
 
@@ -4449,7 +4403,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
-          setShowGettingStartedModal(true);
+         
         }}
       />
 
@@ -4746,4 +4700,4 @@ export function Dashboard({
       </Dialog>
     </div>
   );
-}
+} 
