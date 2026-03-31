@@ -483,7 +483,7 @@ export function EditorLayout({
                           }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        AI Assistant
+                        AI Mentor
                       </button>
                     </div>
                   </div>
