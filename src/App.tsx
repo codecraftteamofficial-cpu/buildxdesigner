@@ -579,6 +579,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
               onOpenProject={openProjectAndRoute}
               onLogout={goToLanding}
               theme={state.theme}
+                 onThemeChange={handleThemeChange}
               isSupabaseConnected={state.isSupabaseConnected}
               onLoadTemplate={(components) => {
                 const centerX = 500;

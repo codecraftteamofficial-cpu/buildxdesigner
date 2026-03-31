@@ -166,6 +166,7 @@ interface TemplateCardData {
   name: string;
   category: string;
   thumbnail: string;
+   projectLayout?: any[];
   description: string;
   creator?: string;
   creatorAvatar?: string;
@@ -174,6 +175,149 @@ interface TemplateCardData {
   premium: boolean;
   tags: string[];
 }
+
+const thumbnailComponentTypes = new Set([
+  "heading",
+  "text",
+  "button",
+  "image",
+  "container",
+  "card",
+  "hero",
+  "section",
+  "navbar",
+]);
+
+const normalizeCanvasValue = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const extractLayoutBounds = (components: any[]) => {
+  if (!components.length) {
+    return { minX: 0, minY: 0, maxX: 1200, maxY: 720 };
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  components.forEach((component) => {
+    const x = normalizeCanvasValue(component?.position?.x, 0);
+    const y = normalizeCanvasValue(component?.position?.y, 0);
+    const width = normalizeCanvasValue(component?.style?.width, 320);
+    const height = normalizeCanvasValue(component?.style?.height, 160);
+
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + Math.max(width, 1));
+    maxY = Math.max(maxY, y + Math.max(height, 1));
+  });
+
+  return {
+    minX: Number.isFinite(minX) ? minX : 0,
+    minY: Number.isFinite(minY) ? minY : 0,
+    maxX: Number.isFinite(maxX) ? maxX : 1200,
+    maxY: Number.isFinite(maxY) ? maxY : 720,
+  };
+};
+
+const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => {
+  const layout = Array.isArray(template.projectLayout)
+    ? template.projectLayout.filter(
+      (component) =>
+        component &&
+        typeof component === "object" &&
+        thumbnailComponentTypes.has(String(component.type || "").toLowerCase()),
+    )
+    : [];
+
+  if (!layout.length) {
+    return (
+      <img
+        src={template.thumbnail || "/placeholder.svg"}
+        alt={template.name}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      />
+    );
+  }
+
+  const bounds = extractLayoutBounds(layout);
+  const width = Math.max(bounds.maxX - bounds.minX, 1);
+  const height = Math.max(bounds.maxY - bounds.minY, 1);
+  const scale = Math.min(320 / width, 180 / height);
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 0.2;
+
+  return (
+    <div className="w-full h-full overflow-hidden bg-white dark:bg-neutral-900">
+      <div
+        className="origin-top-left"
+        style={{
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `scale(${safeScale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {layout.map((component, index) => {
+          const componentStyle = (component?.style || {}) as Record<string, any>;
+          const x = normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
+          const y = normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
+          const widthValue = normalizeCanvasValue(componentStyle.width, 320);
+          const heightValue = normalizeCanvasValue(componentStyle.height, 140);
+          const type = String(component?.type || "").toLowerCase();
+          const content = String(
+            component?.props?.text ??
+            component?.props?.content ??
+            component?.props?.title ??
+            component?.props?.label ??
+            "",
+          );
+
+          return (
+            <div
+              key={component.id || `${template.id}-${index}`}
+              className="absolute overflow-hidden"
+              style={{
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${Math.max(widthValue, 1)}px`,
+                height: `${Math.max(heightValue, 1)}px`,
+                borderRadius: componentStyle.borderRadius ?? 8,
+                background: componentStyle.background || componentStyle.backgroundColor || (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
+                border: componentStyle.border || "1px solid rgba(148,163,184,0.35)",
+                color: componentStyle.color || (type === "button" ? "#ffffff" : "#0f172a"),
+                fontSize: componentStyle.fontSize || (type === "heading" ? "22px" : "14px"),
+                fontWeight: componentStyle.fontWeight || (type === "heading" ? 700 : 500),
+                padding: componentStyle.padding || "8px 10px",
+                display: "flex",
+                alignItems: componentStyle.alignItems || "center",
+                justifyContent: componentStyle.justifyContent || "center",
+                textAlign: componentStyle.textAlign || "center",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {type === "image" && component?.props?.src ? (
+                <img
+                  src={component.props.src}
+                  alt={component?.props?.alt || template.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="line-clamp-3">{content || type}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 interface PublishedTemplate {
   project_id: string;
@@ -529,6 +673,17 @@ export function Dashboard({
         item?.projects?.thumbnail ??
         "/placeholder.svg",
       ),
+
+       projectLayout: Array.isArray(
+        item?.project_layout ??
+        item?.project?.project_layout ??
+        item?.projects?.project_layout,
+      )
+        ? (item?.project_layout ??
+          item?.project?.project_layout ??
+          item?.projects?.project_layout)
+        : [],
+        
       category: String(
         item?.category ??
         item?.template_category ??
@@ -2903,10 +3058,7 @@ export function Dashboard({
                             onClick={() => handleQuickTemplateClick(template)}
                           >
                             <div className="aspect-video bg-muted relative overflow-hidden">
-                              <img
-                                src={template.thumbnail || "/placeholder.svg"}
-                                alt={template.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                <CanvasLayoutThumbnail template={template} 
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                             </div>
