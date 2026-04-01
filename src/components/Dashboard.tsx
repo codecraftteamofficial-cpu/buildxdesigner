@@ -3465,15 +3465,17 @@ export function Dashboard({
                               }
                             >
                               <CardContent className="p-3">
-                                <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                  <img
-                                    src={
-                                      project.thumbnail || "/placeholder.svg"
-                                    }
-                                    alt={project.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
-                                </div>
+                                {viewMode === "grid" ? (
+                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                    <img
+                                      src={
+                                        project.thumbnail || "/placeholder.svg"
+                                      }
+                                      alt={project.name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
@@ -3630,16 +3632,17 @@ export function Dashboard({
                                 }
                               >
                                 <CardContent className="p-3">
+                                    {viewMode === "grid" ? (
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
                                     <img
                                       src={
-                                        template.projects.thumbnail ||
-                                        "/placeholder.svg"
+                                        project.thumbnail || "/placeholder.svg"
                                       }
-                                      alt={template.projects.project_name}
+                                      alt={project.name}
                                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     />
                                   </div>
+                                ) : null}
 
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2 min-w-0">
@@ -3939,7 +3942,7 @@ export function Dashboard({
                     </div>
                   ) : filteredProjects.length > 0 ? (
                     <div
-                      className={`grid ${activeSection === "drafts" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
+                      className={`grid ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
                     >
                       {filteredProjects.map((project) => (
                         <Card
@@ -3950,16 +3953,18 @@ export function Dashboard({
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
                           {activeSection === "drafts" ||
-                            activeSection === "all" ||
-                            activeSection === "trash" ? (
+                             activeSection === "all" ||
+                          activeSection === "trash" ? (
                             <CardContent className="p-3">
-                              <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                <img
-                                  src={project.thumbnail || "/placeholder.svg"}
-                                  alt={project.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              </div>
+                             {viewMode === "grid" && (
+                                <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                  <img
+                                    src={project.thumbnail || "/placeholder.svg"}
+                                    alt={project.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+                              )}
 
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
