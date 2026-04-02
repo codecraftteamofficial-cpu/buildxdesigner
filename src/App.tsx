@@ -133,6 +133,7 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   const [showAITour, setShowAITour] = useState(false);
   const [showCodeTour, setShowCodeTour] = useState(false);
   const [showCollabTour, setShowCollabTour] = useState(false);
+  const [showAllDoneModal, setShowAllDoneModal] = useState(false);
 
   //Ito is ihohold niya muna yung tutorial to create a project, and then kapag nakacreate na siya ng project, dun na magcocontinue yung tutorial
 useEffect(() => {
@@ -534,6 +535,7 @@ useEffect(() => {
   }
 
   return (
+    <>
     <Routes>
       <Route
         path="/"
@@ -677,7 +679,7 @@ useEffect(() => {
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                   setShowPublishingBasicsTour(false);
-                  // Last step — all done!
+                  setTimeout(() => setShowAllDoneModal(true), 300);
                 }}
               />
               <CanvasArea
@@ -746,7 +748,7 @@ useEffect(() => {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                // Last step — all done!
+                setTimeout(() => setShowAllDoneModal(true), 300);
               }}
             />
             <CanvasArea
@@ -814,7 +816,7 @@ useEffect(() => {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                // Last step — all done!
+                setTimeout(() => setShowAllDoneModal(true), 300);
               }}
             />
             <CanvasArea
@@ -861,8 +863,43 @@ useEffect(() => {
         }
       />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+<Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+
+    {/* All Tutorials Complete Modal */}
+    {showAllDoneModal && (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="bg-card border border-border rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-6xl">🎉</div>
+          <h2 className="text-2xl font-bold text-foreground text-center">
+            You've completed all tutorials!
+          </h2>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed">
+            Great job! You now know how to use BuildX from top to bottom —
+            from creating a project to publishing your site. Time to build
+            something awesome.
+          </p>
+          <div className="flex gap-3 w-full mt-2">
+            <button
+              onClick={() => {
+                setShowAllDoneModal(false);
+                goToDashboardAndRoute();
+              }}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-muted transition-colors"
+            >
+              Go to Dashboard
+            </button>
+            <button
+              onClick={() => setShowAllDoneModal(false)}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+            >
+              Keep Building
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
