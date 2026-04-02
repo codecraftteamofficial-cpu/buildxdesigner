@@ -10,6 +10,8 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
   useEffect(() => {
     if (!showOnMount) return;
 
+    let completedAllSteps = false;
+
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
@@ -86,7 +88,7 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           popover: {
             title: "Viewport preview",
             description:
-              "Use the viewport toggle in the toolbar to preview your layout at different screen sizes — desktop, tablet, or mobile. Click an empty area of the canvas to deselect everything.",
+              "Use the viewport toggle in the toolbar to preview your layout at different screen sizes — desktop, tablet, or mobile.",
             side: "bottom",
             align: "center",
           },
@@ -95,13 +97,19 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           popover: {
             title: "Canvas Area — done! ✅",
             description:
-              "You now know how to select, move, resize, reorder, and delete components. Next up: the Properties Panel — where you control every visual detail of your components.",
+              "You now know how to select, move, resize, reorder, and delete components. Next up: the Properties Panel.",
+          },
+          // Mark complete when the final step is reached
+          onHighlightStarted: () => {
+            completedAllSteps = true;
           },
         },
       ],
       onDestroyStarted: () => {
         driverObj.destroy();
-        localStorage.setItem("buildx-tutorial-canvas", "1");
+        if (completedAllSteps) {
+          localStorage.setItem("buildx-tutorial-canvas", "1");
+        }
         onComplete?.();
       },
     });

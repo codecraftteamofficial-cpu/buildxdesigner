@@ -38,6 +38,8 @@ export function MultiStepTour({
   const startAttemptRef = useRef(0);
   const startTimerRef = useRef<number | null>(null);
   const onCompleteRef = useRef<(() => void) | undefined>(onComplete);
+  // Track whether the tour is actively running so section changes don't restart it
+  const tourActiveRef = useRef(false);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -58,6 +60,7 @@ export function MultiStepTour({
         driverRef.current = null;
       }
       hasStartedRef.current = false;
+      tourActiveRef.current = false;
       startAttemptRef.current = 0;
     };
 
@@ -66,10 +69,12 @@ export function MultiStepTour({
       return;
     }
 
-    if (hasStartedRef.current) return;
+    // If the tour is already running, don't restart it even if showOnMount
+    // stays true through a re-render caused by section navigation
+    if (hasStartedRef.current || tourActiveRef.current) return;
 
     const tryStart = () => {
-      if (!showOnMount || hasStartedRef.current) return;
+      if (!showOnMount || hasStartedRef.current || tourActiveRef.current) return;
 
       const firstTarget = steps[0]?.element;
       if (firstTarget && !document.querySelector(firstTarget)) {
@@ -78,9 +83,11 @@ export function MultiStepTour({
           startTimerRef.current = window.setTimeout(tryStart, 50);
           return;
         }
+        // Gave up waiting — start anyway without element targeting for step 0
       }
 
       hasStartedRef.current = true;
+      tourActiveRef.current = true;
 
       const driverSteps = steps.map((step) => ({
         element: step.element,
@@ -111,10 +118,15 @@ export function MultiStepTour({
     tryStart();
 
     return () => {
-      destroyDriver();
+      // Only destroy on true unmount, not on re-renders from section changes.
+      // We detect true unmount by checking if showOnMount is still true —
+      // if it is, we're just re-rendering, so leave the tour alone.
+      // The parent sets showOnMount=false to actually stop the tour.
+      if (!showOnMount) {
+        destroyDriver();
+      }
     };
   }, [showOnMount, steps, showProgress]);
 
   return null;
 }
-

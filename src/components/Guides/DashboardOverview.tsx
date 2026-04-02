@@ -6,11 +6,15 @@ import { MultiStepTour } from "./MultiStepTour";
 interface DashboardOverviewProps {
   showOnMount?: boolean;
   onComplete?: () => void;
+  onNavigateToAllProjects?: () => void;  // ADD THIS
+  onNavigateToDashboard?: () => void;    // ADD THIS
 }
 
 export function DashboardOverview({
   showOnMount = false,
   onComplete,
+  onNavigateToAllProjects,   // ADD THIS
+  onNavigateToDashboard,     // ADD THIS
 }: DashboardOverviewProps) {
   const steps = useMemo(
     () => [
@@ -60,20 +64,26 @@ export function DashboardOverview({
         align: "end" as const,
       },
       {
-        element: '[data-tour="recommended-template-card"]',
+        onHighlightStarted: () => {
+          onNavigateToAllProjects?.();
+        },
+        element: '[data-tour="project-card"]',
         title: "Draft vs. Published Status",
         description:
-          "Project cards show a status badge — green 'Deployed' means your site is live, red 'Undeployed' means it's saved but not yet published.",
-        side: "top" as const,
-        align: "center" as const,
+          "Project cards show a status badge — green 'Deployed' means your site is live, red 'Undeployed' means it's saved but not yet published. Use the ••• menu to edit, duplicate, or move projects.",
+        side: "bottom" as const,
+        align: "start" as const,
       },
       {
+        onHighlightStarted: () => {
+          onNavigateToDashboard?.();
+        },
         title: "You're Ready!",
         description:
           "That covers the Dashboard. You know how to navigate sections, search projects, manage your account, and switch themes. Next step: the Components Palette inside the editor.",
       },
     ],
-    [],
+    [onNavigateToAllProjects, onNavigateToDashboard],
   );
 
   return (

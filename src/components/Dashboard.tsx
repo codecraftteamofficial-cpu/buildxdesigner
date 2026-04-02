@@ -368,6 +368,10 @@ export function Dashboard({
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
+  const [tourCompletionKey, setTourCompletionKey] = useState(0);
+  const handleTourComplete = () => {
+    setTourCompletionKey(prev => prev + 1);
+  };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showCanvasTour, setShowCanvasTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
@@ -2878,6 +2882,7 @@ export function Dashboard({
                       Complete the tutorials in order to unlock the next step.
                     </p>
                     <GettingStartedGuideContent
+                    key={tourCompletionKey}
                       onStartBuildXIntroduction={() => {
                         setShowBuildXIntroductionTour(false);
                         setActiveSection("new-chat");
@@ -3091,7 +3096,7 @@ export function Dashboard({
                                 key={i}
                                 className="rounded-xl border border-border bg-card overflow-hidden"
                               >
-                                <Skeleton className="aspect-[4/3] w-full" />
+                                <Skeleton className="aspect-4/3 w-full" />
                                 <div className="p-4">
                                   <Skeleton width="70%" height={18} />
                                   <Skeleton
@@ -3143,7 +3148,7 @@ export function Dashboard({
                                     className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                                   >
                                     {/* PREVIEW BOX: Using zoom to force content to fit */}
-                                    <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                                    <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                                       <style>
                                         {`
                                     .preview-container-${comp.id} {
@@ -4245,7 +4250,7 @@ export function Dashboard({
                 placeholder="Describe your website (optional)..."
                 value={editProjectDescription}
                 onChange={(e) => setEditProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
 
@@ -4322,7 +4327,7 @@ export function Dashboard({
                 placeholder="Describe what kind of website you want to create..."
                 value={newProjectDescription}
                 onChange={(e) => setNewProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
           </div>
@@ -4424,7 +4429,6 @@ export function Dashboard({
       />
 
 
-
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
         onComplete={() => {
@@ -4432,7 +4436,7 @@ export function Dashboard({
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-         
+          handleTourComplete();
         }}
       />
 
@@ -4441,7 +4445,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
-         
+          handleTourComplete();
         }}
       />
 
@@ -4450,14 +4454,18 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
-         
+          handleTourComplete();
         }}
       />
+
       <DashboardOverview
         showOnMount={showDashboardTour}
+        onNavigateToAllProjects={() => setActiveSection("all")}
+        onNavigateToDashboard={() => setActiveSection("new-chat")}
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-dashboard", "1");
           setShowDashboardTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4466,6 +4474,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-canvas", "1");
           setShowCanvasTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4474,6 +4483,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-properties", "1");
           setShowPropertiesPanelTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4482,6 +4492,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-ai", "1");
           setShowAIAssistantTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4490,6 +4501,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-code", "1");
           setShowCodeEditorTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4498,6 +4510,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-collab", "1");
           setShowSavingCollabTour(false);
+          handleTourComplete();
         }}
       />
 
@@ -4586,7 +4599,7 @@ export function Dashboard({
                           className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                         >
                           {/* Preview */}
-                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                             <style>
                               {`
                                 .preview-container-${comp.id} {
@@ -4678,7 +4691,7 @@ export function Dashboard({
                           className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                         >
                           {/* Preview */}
-                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                             <style>
                               {`
                                 .preview-container-${comp.id} {
