@@ -31,22 +31,15 @@ export function DashboardOverview({
         element: '[data-tour="sidebar-nav"]',
         title: "Sidebar Navigation",
         description:
-          "The left sidebar is your main navigation. Switch between Dashboard (home), Components Library, All Projects, Drafts, and Trash — each section organizes your work differently.",
+          "The left sidebar is your main navigation. Switch between Dashboard, Components Library, All Projects, Drafts, and Trash — each section organizes your work differently.",
         side: "right" as const,
         align: "start" as const,
-        onHighlightStarted: () => {
-          // Try to highlight the sidebar nav area if the element exists
-          const el = document.querySelector(
-            '[data-tour="sidebar-nav"]',
-          ) as HTMLElement | null;
-          el?.scrollIntoView({ block: "center", inline: "nearest" });
-        },
       },
       {
         element: '[data-tour="sidebar-search"]',
         title: "Search Your Projects",
         description:
-          "Use the search bar at the top of the sidebar to quickly find any project by name or description. Results update as you type.",
+          "Use the search bar to quickly find any project by name or description. Results update as you type.",
         side: "right" as const,
         align: "start" as const,
       },
@@ -54,7 +47,7 @@ export function DashboardOverview({
         element: '[data-tour="sidebar-profile"]',
         title: "Account & Settings",
         description:
-          "Click your avatar or name in the sidebar to open Account Settings or log out. You can update your profile, manage integrations, and change your plan here.",
+          "Click your avatar or name to open Account Settings or log out. Update your profile, manage integrations, and change your plan here.",
         side: "right" as const,
         align: "start" as const,
       },
@@ -62,15 +55,15 @@ export function DashboardOverview({
         element: '[data-tour="theme-switcher"]',
         title: "Theme Switcher",
         description:
-          "Click the theme button in the top-right corner to switch between Light, Dark, and System modes. The change applies across the entire app immediately.",
+          "Switch between Light, Dark, and System modes. The change applies across the entire app immediately.",
         side: "bottom" as const,
         align: "end" as const,
       },
       {
-        element: '[data-tour="recommended-templates"]',
+        element: '[data-tour="recommended-template-card"]',
         title: "Draft vs. Published Status",
         description:
-          "Project cards show a status badge — green 'Deployed' means your site is live, red 'Undeployed' means it's saved but not yet published. Use the All Projects section to manage both.",
+          "Project cards show a status badge — green 'Deployed' means your site is live, red 'Undeployed' means it's saved but not yet published.",
         side: "top" as const,
         align: "center" as const,
       },

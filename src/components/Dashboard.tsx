@@ -2504,6 +2504,7 @@ export function Dashboard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+              data-tour="sidebar-profile" 
                 className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 disabled={authLoading}
               >
@@ -2553,6 +2554,7 @@ export function Dashboard({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
+            data-tour="sidebar-search" 
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -2563,7 +2565,7 @@ export function Dashboard({
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2">
-          <nav className="space-y-1">
+          <nav data-tour="sidebar-nav" className="space-y-1"> 
             <button
               onClick={() => setActiveSection("new-chat")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
@@ -2659,7 +2661,7 @@ export function Dashboard({
           {/* Theme Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 ml-auto">
+              <Button data-tour="theme-switcher" variant="ghost" size="sm" className="gap-2 ml-auto">
                 <ThemeIcon className="w-4 h-4" />
                 <span className="text-sm capitalize">{theme}</span>
                 <ChevronDown className="w-3 h-3" />
