@@ -55,6 +55,11 @@ import { WebsiteCreation } from "./components/Guides/WebsiteCreation";
 import { PublishingBasics } from "./components/Guides/PublishingBasics";
 import { GettingStartedModal } from "./components/GettingStartedModal";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { CanvasArea } from "./components/Guides/CanvasArea";
+import { PropertiesPanel } from "./components/Guides/PropertiesPanel";
+import { AIAssistant } from "./components/Guides/AIAssistant";
+import { CodeEditorTour } from "./components/Guides/CodeEditorTour";
+import { SavingCollaboration } from "./components/Guides/SavingCollaboration";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -123,26 +128,33 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
+  const [showCanvasTour, setShowCanvasTour] = useState(false);
+  const [showPropertiesT, setShowPropertiesT] = useState(false);
+  const [showAITour, setShowAITour] = useState(false);
+  const [showCodeTour, setShowCodeTour] = useState(false);
+  const [showCollabTour, setShowCollabTour] = useState(false);
 
   //Ito is ihohold niya muna yung tutorial to create a project, and then kapag nakacreate na siya ng project, dun na magcocontinue yung tutorial
-  useEffect(() => {
-    if (!location.pathname.startsWith("/editor")) return;
+useEffect(() => {
+  if (!location.pathname.startsWith("/editor")) return;
 
-    const shouldStartWebsiteCreationTour =
-      localStorage.getItem("buildx-pending-editor-tour") === "1";
-    const shouldStartPublishingBasicsTour =
-      localStorage.getItem("buildx-pending-publishing-basics-tour") === "1";
+  const checks = [
+    { key: "buildx-pending-editor-tour",            setter: setShowEditorTour },
+    { key: "buildx-pending-publishing-basics-tour", setter: setShowPublishingBasicsTour },
+    { key: "buildx-pending-canvas-tour",            setter: setShowCanvasTour },
+    { key: "buildx-pending-properties-tour",        setter: setShowPropertiesT },
+    { key: "buildx-pending-ai-tour",                setter: setShowAITour },
+    { key: "buildx-pending-code-tour",              setter: setShowCodeTour },
+    { key: "buildx-pending-collab-tour",            setter: setShowCollabTour },
+  ];
 
-    if (shouldStartWebsiteCreationTour) {
-      localStorage.removeItem("buildx-pending-editor-tour");
-      setShowEditorTour(true);
+  checks.forEach(({ key, setter }) => {
+    if (localStorage.getItem(key) === "1") {
+      localStorage.removeItem(key);
+      setter(true);
     }
-
-    if (shouldStartPublishingBasicsTour) {
-      localStorage.removeItem("buildx-pending-publishing-basics-tour");
-      setShowPublishingBasicsTour(true);
-    }
-  }, [location.pathname]);
+  });
+}, [location.pathname]);
 
   const {
     state,
@@ -682,6 +694,26 @@ function AppRoutes({ editor }: { editor: EditorController }) {
                   setShowGettingStartedModal(false);
                   setShowPublishingBasicsTour(true);
                 }}
+              />
+              <CanvasArea
+                showOnMount={showCanvasTour}
+                onComplete={() => { localStorage.setItem("buildx-tutorial-canvas", "1"); setShowCanvasTour(false); }}
+              />
+              <PropertiesPanel
+                showOnMount={showPropertiesT}
+                onComplete={() => { localStorage.setItem("buildx-tutorial-properties", "1"); setShowPropertiesT(false); }}
+              />
+              <AIAssistant
+                showOnMount={showAITour}
+                onComplete={() => { localStorage.setItem("buildx-tutorial-ai", "1"); setShowAITour(false); }}
+              />
+              <CodeEditorTour
+                showOnMount={showCodeTour}
+                onComplete={() => { localStorage.setItem("buildx-tutorial-code", "1"); setShowCodeTour(false); }}
+              />
+              <SavingCollaboration
+                showOnMount={showCollabTour}
+                onComplete={() => { localStorage.setItem("buildx-tutorial-collab", "1"); setShowCollabTour(false); }}
               />
             </>
           )

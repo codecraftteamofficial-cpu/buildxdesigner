@@ -81,6 +81,12 @@ import { GettingStartedGuideContent } from "./GettingStartedModal";
 import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
+import { DashboardOverview } from "./Guides/DashboardOverview";
+import { CanvasArea } from "./Guides/CanvasArea";
+import { PropertiesPanel } from "./Guides/PropertiesPanel";
+import { AIAssistant } from "./Guides/AIAssistant";
+import { CodeEditorTour } from "./Guides/CodeEditorTour";
+import { SavingCollaboration } from "./Guides/SavingCollaboration";
 import {
   fetchDraftProjectsFromApi,
   fetchTrendingTemplatesFromApi,
@@ -362,6 +368,13 @@ export function Dashboard({
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
+  const [showDashboardTour, setShowDashboardTour] = useState(false);
+  const [showCanvasTour, setShowCanvasTour] = useState(false);
+  const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
+  const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
+  const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
+  const [showComponentsLibraryTour, setShowComponentsLibraryTour] = useState(false);
+  const [showSavingCollabTour, setShowSavingCollabTour] = useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -2874,10 +2887,42 @@ export function Dashboard({
                         setShowCreateTemplateModal(true);
                       }}
                       onStartPublishingBasics={() => {
-                        localStorage.setItem(
-                          "buildx-pending-publishing-basics-tour",
-                          "1",
-                        );
+                        localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      // ADD THESE:
+                      onStartDashboardOverview={() => {
+                        setShowDashboardTour(false);
+                        setTimeout(() => setShowDashboardTour(true), 50);
+                      }}
+                      onStartCanvasArea={() => {
+                        localStorage.setItem("buildx-pending-canvas-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      onStartPropertiesPanel={() => {
+                        localStorage.setItem("buildx-pending-properties-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      onStartAIAssistant={() => {
+                        localStorage.setItem("buildx-pending-ai-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      onStartCodeEditor={() => {
+                        localStorage.setItem("buildx-pending-code-tour", "1");
+                        setSelectedTemplateId("blank");
+                        setShowCreateTemplateModal(true);
+                      }}
+                      onStartComponentsLibrary={() => {
+                        setActiveSection("marketplace");
+                        setShowComponentsLibraryTour(false);
+                        setTimeout(() => setShowComponentsLibraryTour(true), 50);
+                      }}
+                      onStartSavingCollaboration={() => {
+                        localStorage.setItem("buildx-pending-collab-tour", "1");
                         setSelectedTemplateId("blank");
                         setShowCreateTemplateModal(true);
                       }}
@@ -4404,6 +4449,53 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
          
+        }}
+      />
+      <DashboardOverview
+        showOnMount={showDashboardTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-dashboard", "1");
+          setShowDashboardTour(false);
+        }}
+      />
+
+      <CanvasArea
+        showOnMount={showCanvasTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-canvas", "1");
+          setShowCanvasTour(false);
+        }}
+      />
+
+      <PropertiesPanel
+        showOnMount={showPropertiesPanel}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-properties", "1");
+          setShowPropertiesPanelTour(false);
+        }}
+      />
+
+      <AIAssistant
+        showOnMount={showAIAssistantTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-ai", "1");
+          setShowAIAssistantTour(false);
+        }}
+      />
+
+      <CodeEditorTour
+        showOnMount={showCodeEditorTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-code", "1");
+          setShowCodeEditorTour(false);
+        }}
+      />
+
+      <SavingCollaboration
+        showOnMount={showSavingCollabTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-collab", "1");
+          setShowSavingCollabTour(false);
         }}
       />
 
