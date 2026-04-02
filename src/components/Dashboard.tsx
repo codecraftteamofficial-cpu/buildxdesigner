@@ -1114,6 +1114,32 @@ export function Dashboard({
     prefetchTemplateLayout(selectedTemplateId);
   }, [showCreateTemplateModal, selectedTemplateId]);
 
+  // Add this useEffect near your other useEffects
+  useEffect(() => {
+    if (!showCreateTemplateModal) {
+      // Check for any pending tours that need to fire when the modal closes
+      if (localStorage.getItem("buildx-pending-canvas-tour") === "1") {
+        localStorage.removeItem("buildx-pending-canvas-tour");
+        setTimeout(() => setShowCanvasTour(true), 100);
+      } else if (localStorage.getItem("buildx-pending-properties-tour") === "1") {
+        localStorage.removeItem("buildx-pending-properties-tour");
+        setTimeout(() => setShowPropertiesPanelTour(true), 100);
+      } else if (localStorage.getItem("buildx-pending-ai-tour") === "1") {
+        localStorage.removeItem("buildx-pending-ai-tour");
+        setTimeout(() => setShowAIAssistantTour(true), 100);
+      } else if (localStorage.getItem("buildx-pending-code-tour") === "1") {
+        localStorage.removeItem("buildx-pending-code-tour");
+        setTimeout(() => setShowCodeEditorTour(true), 100);
+      } else if (localStorage.getItem("buildx-pending-collab-tour") === "1") {
+        localStorage.removeItem("buildx-pending-collab-tour");
+        setTimeout(() => setShowSavingCollabTour(true), 100);
+      } else if (localStorage.getItem("buildx-pending-publishing-basics-tour") === "1") {
+        localStorage.removeItem("buildx-pending-publishing-basics-tour");
+        setTimeout(() => setShowPublishingBasicsTour(true), 100);
+      }
+    }
+  }, [showCreateTemplateModal]);
+
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
     let mounted = true;
@@ -2889,7 +2915,9 @@ export function Dashboard({
                         setTimeout(() => setShowBuildXIntroductionTour(true), 50);
                       }}
                       onStartWebsiteCreation={() => {
-                        localStorage.setItem("buildx-pending-editor-tour", "1");
+                        if (!localStorage.getItem("buildx-tutorial-website-creation")) {
+                          localStorage.setItem("buildx-pending-editor-tour", "1");
+                        }
                         setSelectedTemplateId("blank");
                         setShowCreateTemplateModal(true);
                       }}
@@ -4428,7 +4456,6 @@ export function Dashboard({
         }}
       />
 
-
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
         onComplete={() => {
@@ -4437,6 +4464,12 @@ export function Dashboard({
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
           handleTourComplete();
+          // Auto-start Step 3: Website creation
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-editor-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 
@@ -4446,6 +4479,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
           handleTourComplete();
+          // Auto-start Step 4: Canvas area
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-canvas-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 
@@ -4455,6 +4494,7 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
           handleTourComplete();
+          // Last step — all done!
         }}
       />
 
@@ -4466,6 +4506,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-dashboard", "1");
           setShowDashboardTour(false);
           handleTourComplete();
+          // Auto-start Step 2: Components palette
+          setTimeout(() => {
+            setShowBuildXIntroductionTour(false);
+            setActiveSection("new-chat");
+            setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+          }, 300);
         }}
       />
 
@@ -4475,6 +4521,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-canvas", "1");
           setShowCanvasTour(false);
           handleTourComplete();
+          // Auto-start Step 5: Properties panel
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-properties-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 
@@ -4484,6 +4536,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-properties", "1");
           setShowPropertiesPanelTour(false);
           handleTourComplete();
+          // Auto-start Step 6: AI assistant
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-ai-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 
@@ -4493,6 +4551,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-ai", "1");
           setShowAIAssistantTour(false);
           handleTourComplete();
+          // Auto-start Step 7: Code editor
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-code-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 
@@ -4502,6 +4566,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-code", "1");
           setShowCodeEditorTour(false);
           handleTourComplete();
+          // Auto-start Step 8: Components library
+          setTimeout(() => {
+            setActiveSection("marketplace");
+            setShowComponentsLibraryTour(false);
+            setTimeout(() => setShowComponentsLibraryTour(true), 50);
+          }, 300);
         }}
       />
 
@@ -4511,6 +4581,12 @@ export function Dashboard({
           localStorage.setItem("buildx-tutorial-collab", "1");
           setShowSavingCollabTour(false);
           handleTourComplete();
+          // Auto-start Step 10: Publishing basics
+          setTimeout(() => {
+            localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }, 300);
         }}
       />
 

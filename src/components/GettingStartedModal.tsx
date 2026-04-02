@@ -74,22 +74,22 @@ export function GettingStartedGuideContent({
       action: onStartBuildXIntroduction,
     },
     {
-      id: "canvas", phase: "building", badge: "Step 3",
+      id: "website", phase: "building", badge: "Step 3",       // ← moved up
+      title: "Website creation",
+      desc: "Build a complete page from a template or from scratch.",
+      action: onStartWebsiteCreation,
+    },
+    {
+      id: "canvas", phase: "building", badge: "Step 4",        // ← was Step 3
       title: "Canvas area",
       desc: "Drop, arrange, resize, and reorder components on your canvas.",
       action: onStartCanvasArea,
     },
     {
-      id: "properties", phase: "building", badge: "Step 4",
+      id: "properties", phase: "building", badge: "Step 5",    // ← was Step 4
       title: "Properties panel",
       desc: "Edit colors, text, spacing, and more for any selected component.",
       action: onStartPropertiesPanel,
-    },
-    {
-      id: "website", phase: "building", badge: "Step 5",
-      title: "Website creation",
-      desc: "Build a complete page from a template or from scratch.",
-      action: onStartWebsiteCreation,
     },
     {
       id: "ai", phase: "customizing", badge: "Step 6",

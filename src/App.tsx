@@ -151,7 +151,7 @@ useEffect(() => {
   checks.forEach(({ key, setter }) => {
     if (localStorage.getItem(key) === "1") {
       localStorage.removeItem(key);
-      setter(true);
+      setTimeout(() => setter(true), 100); // ← added setTimeout
     }
   });
 }, [location.pathname]);
@@ -669,51 +669,56 @@ useEffect(() => {
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-website-creation", "1");
                   setShowEditorTour(false);
-                  setShowGettingStartedModal(true);
+                  setTimeout(() => setShowCanvasTour(true), 300);
                 }}
               />
               <PublishingBasics
                 showOnMount={showPublishingBasicsTour}
                 onComplete={() => {
-                  localStorage.setItem(
-                    "buildx-tutorial-publishing-basics",
-                    "1",
-                  );
+                  localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                   setShowPublishingBasicsTour(false);
-                  setShowGettingStartedModal(true);
-                }}
-              />
-              <GettingStartedModal
-                isOpen={showGettingStartedModal}
-                onClose={() => setShowGettingStartedModal(false)}
-                onStartWebsiteCreation={() => {
-                  setShowGettingStartedModal(false);
-                  setShowEditorTour(true);
-                }}
-                onStartPublishingBasics={() => {
-                  setShowGettingStartedModal(false);
-                  setShowPublishingBasicsTour(true);
+                  // Last step — all done!
                 }}
               />
               <CanvasArea
                 showOnMount={showCanvasTour}
-                onComplete={() => { localStorage.setItem("buildx-tutorial-canvas", "1"); setShowCanvasTour(false); }}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-canvas", "1");
+                  setShowCanvasTour(false);
+                  setTimeout(() => setShowPropertiesT(true), 300);
+                }}
               />
               <PropertiesPanel
                 showOnMount={showPropertiesT}
-                onComplete={() => { localStorage.setItem("buildx-tutorial-properties", "1"); setShowPropertiesT(false); }}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-properties", "1");
+                  setShowPropertiesT(false);
+                  setTimeout(() => setShowAITour(true), 300);
+                }}
               />
               <AIAssistant
                 showOnMount={showAITour}
-                onComplete={() => { localStorage.setItem("buildx-tutorial-ai", "1"); setShowAITour(false); }}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-ai", "1");
+                  setShowAITour(false);
+                  setTimeout(() => setShowCodeTour(true), 300);
+                }}
               />
               <CodeEditorTour
                 showOnMount={showCodeTour}
-                onComplete={() => { localStorage.setItem("buildx-tutorial-code", "1"); setShowCodeTour(false); }}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-code", "1");
+                  setShowCodeTour(false);
+                  setTimeout(() => setShowCollabTour(true), 300);
+                }}
               />
               <SavingCollaboration
                 showOnMount={showCollabTour}
-                onComplete={() => { localStorage.setItem("buildx-tutorial-collab", "1"); setShowCollabTour(false); }}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-collab", "1");
+                  setShowCollabTour(false);
+                  setTimeout(() => setShowPublishingBasicsTour(true), 300);
+                }}
               />
             </>
           )
@@ -728,12 +733,12 @@ useEffect(() => {
               onStartTour={() => setShowEditorTour(true)}
               onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
             />
-            <WebsiteCreation
+              <WebsiteCreation
               showOnMount={showEditorTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-website-creation", "1");
                 setShowEditorTour(false);
-                setShowGettingStartedModal(true);
+                setTimeout(() => setShowCanvasTour(true), 300);
               }}
             />
             <PublishingBasics
@@ -741,19 +746,47 @@ useEffect(() => {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                setShowGettingStartedModal(true);
+                // Last step — all done!
               }}
             />
-            <GettingStartedModal
-              isOpen={showGettingStartedModal}
-              onClose={() => setShowGettingStartedModal(false)}
-              onStartWebsiteCreation={() => {
-                setShowGettingStartedModal(false);
-                setShowEditorTour(true);
+            <CanvasArea
+              showOnMount={showCanvasTour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-canvas", "1");
+                setShowCanvasTour(false);
+                setTimeout(() => setShowPropertiesT(true), 300);
               }}
-              onStartPublishingBasics={() => {
-                setShowGettingStartedModal(false);
-                setShowPublishingBasicsTour(true);
+            />
+            <PropertiesPanel
+              showOnMount={showPropertiesT}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-properties", "1");
+                setShowPropertiesT(false);
+                setTimeout(() => setShowAITour(true), 300);
+              }}
+            />
+            <AIAssistant
+              showOnMount={showAITour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-ai", "1");
+                setShowAITour(false);
+                setTimeout(() => setShowCodeTour(true), 300);
+              }}
+            />
+            <CodeEditorTour
+              showOnMount={showCodeTour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-code", "1");
+                setShowCodeTour(false);
+                setTimeout(() => setShowCollabTour(true), 300);
+              }}
+            />
+            <SavingCollaboration
+              showOnMount={showCollabTour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-collab", "1");
+                setShowCollabTour(false);
+                setTimeout(() => setShowPublishingBasicsTour(true), 300);
               }}
             />
           </>
@@ -773,7 +806,7 @@ useEffect(() => {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-website-creation", "1");
                 setShowEditorTour(false);
-                setShowGettingStartedModal(true);
+                setTimeout(() => setShowCanvasTour(true), 300);
               }}
             />
             <PublishingBasics
@@ -781,19 +814,47 @@ useEffect(() => {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                setShowGettingStartedModal(true);
+                // Last step — all done!
               }}
             />
-            <GettingStartedModal
-              isOpen={showGettingStartedModal}
-              onClose={() => setShowGettingStartedModal(false)}
-              onStartWebsiteCreation={() => {
-                setShowGettingStartedModal(false);
-                setShowEditorTour(true);
+            <CanvasArea
+              showOnMount={showCanvasTour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-canvas", "1");
+                setShowCanvasTour(false);
+                setTimeout(() => setShowPropertiesT(true), 300);
               }}
-              onStartPublishingBasics={() => {
-                setShowGettingStartedModal(false);
-                setShowPublishingBasicsTour(true);
+            />
+            <PropertiesPanel
+              showOnMount={showPropertiesT}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-properties", "1");
+                setShowPropertiesT(false);
+                setTimeout(() => setShowAITour(true), 300);
+              }}
+            />
+            <AIAssistant
+              showOnMount={showAITour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-ai", "1");
+                setShowAITour(false);
+                setTimeout(() => setShowCodeTour(true), 300);
+              }}
+            />
+            <CodeEditorTour
+              showOnMount={showCodeTour}
+              onComplete={() => {
+                localStorage.setItem("buildx-tutorial-code", "1");
+                setShowCodeTour(false);
+                setTimeout(() => setShowCollabTour(true), 300);
+              }}
+            />
+            <SavingCollaboration
+                          showOnMount={showCollabTour}
+                          onComplete={() => {
+                localStorage.setItem("buildx-tutorial-collab", "1");
+                setShowCollabTour(false);
+                setTimeout(() => setShowPublishingBasicsTour(true), 300);
               }}
             />
           </>
