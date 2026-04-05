@@ -2,7 +2,7 @@
 import { getBackendUrl } from "../utils/backendConfig";
 
 import type React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -380,8 +380,6 @@ export function Dashboard({
     setShowCreateTemplateModal(false);
     setSelectedTemplateId(null);
     setActiveSection("new-chat");
-    // Notify the editor (if open) that a step was completed
-    window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
   };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
@@ -471,7 +469,12 @@ export function Dashboard({
 
   const ALL_STEP_KEYS = ["dashboard", "palette", "website", "canvas", "properties", "ai", "code", "library", "collab", "publishing"];
 
-  const completeTutorialStep = async (stepKey: string) => {
+  const currentUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  const completeTutorialStep = useCallback(async (stepKey: string) => {
     if (currentUserId) {
       try {
         await markStepComplete(currentUserId, stepKey);
@@ -506,7 +509,54 @@ export function Dashboard({
     }
 
     handleTourCompletedShowGuide();
+  }, [currentUserId]); 
+
+  // Listen for step completions fired from the editor (App.tsx)
+useEffect(() => {
+  const handleEditorStepCompleted = async (e: Event) => {
+    const stepKey = (e as CustomEvent).detail?.stepKey;
+    if (!stepKey) return;
+
+    const userId = currentUserIdRef.current; // ← stable, always current
+
+    if (userId) {
+      try {
+        await markStepComplete(userId, stepKey);
+      } catch (err) {
+        console.error(`Failed to save tutorial step ${stepKey}:`, err);
+      }
+      try {
+        const { fetchTutorialProgress } = await import(
+          "../supabase/data/tutorialProgressService"
+        );
+        const rows = await fetchTutorialProgress(userId);
+        const completedKeys = new Set(
+          rows.filter((r) => r.completed).map((r) => r.step_key)
+        );
+        if (ALL_STEP_KEYS.every((key) => completedKeys.has(key))) {
+          window.dispatchEvent(new Event("buildx-tutorial-completed"));
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch tutorial progress:", err);
+      }
+    } else {
+      localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
+    }
+
+    handleTourCompletedShowGuide();
   };
+
+  window.addEventListener(
+    "buildx-tutorial-step-completed",
+    handleEditorStepCompleted
+  );
+  return () =>
+    window.removeEventListener(
+      "buildx-tutorial-step-completed",
+      handleEditorStepCompleted
+    );
+}, []); // empty deps — reads userId via ref, never stale
 
   useEffect(() => {
     const handleTutorialComplete = () => {

@@ -59,6 +59,7 @@ import { PropertiesPanel } from "./components/Guides/PropertiesPanel";
 import { AIAssistant } from "./components/Guides/AIAssistant";
 import { CodeEditorTour } from "./components/Guides/CodeEditorTour";
 import { SavingCollaboration } from "./components/Guides/SavingCollaboration";
+import { markStepComplete } from "./supabase/data/tutorialProgressService";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -175,6 +176,31 @@ const {
     showOnboarding,
     setShowOnboarding,
   } = editor;
+
+const currentUserRef = useRef<string | null>(null);
+useEffect(() => {
+  currentUserRef.current = currentUser?.id ?? null;
+}, [currentUser?.id]);
+
+useEffect(() => {
+  const handleStepCompleted = async (e: Event) => {
+    const stepKey = (e as CustomEvent).detail?.stepKey;
+    if (!stepKey) return;
+
+    const userId = currentUserRef.current;
+    if (!userId) return;
+
+    try {
+      await markStepComplete(userId, stepKey);
+    } catch (err) {
+      console.error(`[App] Failed to save tutorial step ${stepKey}:`, err);
+    }
+  };
+
+  window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+  return () =>
+    window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+}, []);
 
   const handleAuthenticatedSession = async (session?: {
     user?: {
@@ -673,56 +699,56 @@ const {
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-website-creation", "1");
                   setShowEditorTour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
+                }}
               />
               <PublishingBasics
                 showOnMount={showPublishingBasicsTour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                   setShowPublishingBasicsTour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
+                }}
               />
               <CanvasArea
                 showOnMount={showCanvasTour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-canvas", "1");
                   setShowCanvasTour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
+                }}
               />
               <PropertiesPanel
                 showOnMount={showPropertiesT}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-properties", "1");
                   setShowPropertiesT(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+                }}
               />
               <AIAssistant
                 showOnMount={showAITour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-ai", "1");
                   setShowAITour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
+                }}
               />
               <CodeEditorTour
                 showOnMount={showCodeTour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-code", "1");
                   setShowCodeTour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
+                }}
               />
               <SavingCollaboration
                 showOnMount={showCollabTour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-collab", "1");
                   setShowCollabTour(false);
-                  window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                                  }}
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+                }}
               />
             </>
           )
@@ -743,56 +769,56 @@ const {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-website-creation", "1");
                 setShowEditorTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
+              }}
             />
             <PublishingBasics
               showOnMount={showPublishingBasicsTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
+              }}
             />
             <CanvasArea
               showOnMount={showCanvasTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-canvas", "1");
                 setShowCanvasTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
+              }}
             />
             <PropertiesPanel
               showOnMount={showPropertiesT}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-properties", "1");
                 setShowPropertiesT(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+              }}
             />
             <AIAssistant
               showOnMount={showAITour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-ai", "1");
                 setShowAITour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
+              }}
             />
             <CodeEditorTour
               showOnMount={showCodeTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-code", "1");
                 setShowCodeTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
+              }}
             />
             <SavingCollaboration
               showOnMount={showCollabTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-collab", "1");
                 setShowCollabTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+              }}
             />
           </>
         }
@@ -812,39 +838,39 @@ const {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-website-creation", "1");
                 setShowEditorTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
+              }}
             />
             <PublishingBasics
               showOnMount={showPublishingBasicsTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                 setShowPublishingBasicsTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
+              }}
             />
             <CanvasArea
               showOnMount={showCanvasTour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-canvas", "1");
                 setShowCanvasTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
+              }}
             />
             <PropertiesPanel
               showOnMount={showPropertiesT}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-properties", "1");
                 setShowPropertiesT(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-                              }}
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+              }}
             />
             <AIAssistant
               showOnMount={showAITour}
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-ai", "1");
                 setShowAITour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
               }}
             />
             <CodeEditorTour
@@ -852,16 +878,16 @@ const {
               onComplete={() => {
                 localStorage.setItem("buildx-tutorial-code", "1");
                 setShowCodeTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
               }}
             />
             <SavingCollaboration
-                          showOnMount={showCollabTour}
-                          onComplete={() => {
-                localStorage.setItem("buildx-tutorial-collab", "1");
-                setShowCollabTour(false);
-                window.dispatchEvent(new Event("buildx-tutorial-completed"));
-              }}
+            showOnMount={showCollabTour}
+            onComplete={() => {
+              localStorage.setItem("buildx-tutorial-collab", "1");
+              setShowCollabTour(false);
+              window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+            }}
             />
           </>
         }

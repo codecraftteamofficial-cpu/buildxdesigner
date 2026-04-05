@@ -118,7 +118,6 @@ export function EditorLayout({
     return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
   }, []);
 
-  // Add alongside the existing buildx-tutorial-completed listener
   useEffect(() => {
     const handleStepCompleted = () => {
       setTimeout(() => {
@@ -128,6 +127,8 @@ export function EditorLayout({
     window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
     return () => window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
   }, []);
+
+  // Add alongside the existing buildx-tutorial-completed listener
 
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
