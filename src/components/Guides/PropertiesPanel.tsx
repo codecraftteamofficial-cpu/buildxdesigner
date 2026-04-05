@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { driver } from "driver.js";
 
 interface PropertiesPanelProps {
@@ -7,6 +7,11 @@ interface PropertiesPanelProps {
 }
 
 export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProps) {
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     if (!showOnMount) return;
 
@@ -106,12 +111,16 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
       onDestroyStarted: () => {
         driverObj.destroy();
         localStorage.setItem("buildx-tutorial-properties", "1");
-        onComplete?.();
+        onCompleteRef.current?.();
       },
     });
 
     driverObj.drive();
-  }, [showOnMount, onComplete]);
+
+    return () => {
+      driverObj.destroy();
+    };
+  }, [showOnMount]); // ← onComplete intentionally excluded; accessed via ref
 
   return null;
 }
