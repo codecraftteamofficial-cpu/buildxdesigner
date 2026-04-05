@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -52,10 +51,9 @@ export function GettingStartedGuideContent({
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoading, setProgressLoading] = useState(false);
   
-    useEffect(() => {
+  useEffect(() => {
     const loadProgress = async () => {
       if (!userId) {
-        // No user logged in — use localStorage only
         setCompleted(readLocalProgress());
         return;
       }
@@ -65,22 +63,18 @@ export function GettingStartedGuideContent({
         const rows = await fetchTutorialProgress(userId);
 
         if (rows.length > 0) {
-          // DB has records — use as source of truth
           const dbCompleted = Object.fromEntries(
             rows.map((r) => [r.step_key, r.completed])
           );
-          // Sync DB → localStorage so offline still works
           writeLocalProgress(dbCompleted);
           setCompleted(dbCompleted);
         } else {
-          // First time on new device — migrate localStorage → DB
           const localCompleted = readLocalProgress();
           setCompleted(localCompleted);
           await migrateLocalProgressToDB(userId, localCompleted);
         }
       } catch (err) {
         console.error("Failed to load tutorial progress:", err);
-        // Fallback to localStorage on error
         setCompleted(readLocalProgress());
       } finally {
         setProgressLoading(false);
@@ -91,7 +85,7 @@ export function GettingStartedGuideContent({
   }, [userId, refreshKey]);
 
   const doneCount = Object.values(completed).filter(Boolean).length;
-  const totalCount = 10;
+  const totalCount = 9; // ← updated from 10
 
   const STEPS = [
     {
@@ -107,19 +101,19 @@ export function GettingStartedGuideContent({
       action: onStartBuildXIntroduction,
     },
     {
-      id: "website", phase: "building", badge: "Step 3",       // ← moved up
+      id: "website", phase: "building", badge: "Step 3",
       title: "Website creation",
       desc: "Build a complete page from a template or from scratch.",
       action: onStartWebsiteCreation,
     },
     {
-      id: "canvas", phase: "building", badge: "Step 4",        // ← was Step 3
+      id: "canvas", phase: "building", badge: "Step 4",
       title: "Canvas area",
       desc: "Drop, arrange, resize, and reorder components on your canvas.",
       action: onStartCanvasArea,
     },
     {
-      id: "properties", phase: "building", badge: "Step 5",    // ← was Step 4
+      id: "properties", phase: "building", badge: "Step 5",
       title: "Properties panel",
       desc: "Edit colors, text, spacing, and more for any selected component.",
       action: onStartPropertiesPanel,
@@ -137,19 +131,13 @@ export function GettingStartedGuideContent({
       action: onStartCodeEditor,
     },
     {
-      id: "library", phase: "customizing", badge: "Step 8",
-      title: "Components library",
-      desc: "Browse, import, and publish reusable components.",
-      action: onStartComponentsLibrary,
-    },
-    {
-      id: "collab", phase: "publishing", badge: "Step 9",
+      id: "collab", phase: "publishing", badge: "Step 8",
       title: "Saving & collaboration",
       desc: "Save your work, share with teammates, and manage access.",
       action: onStartSavingCollaboration,
     },
     {
-      id: "publishing", phase: "publishing", badge: "Step 10",
+      id: "publishing", phase: "publishing", badge: "Step 9",
       title: "Publishing basics",
       desc: "Publish your site live and share templates with the community.",
       action: onStartPublishingBasics,

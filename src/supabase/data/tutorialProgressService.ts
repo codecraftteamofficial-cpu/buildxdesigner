@@ -8,7 +8,6 @@ const STEP_LS_KEY_MAP: Record<string, string> = {
   website:     "buildx-tutorial-website-creation",
   ai:          "buildx-tutorial-ai",
   code:        "buildx-tutorial-code",
-  library:     "buildx-tutorial-library",
   collab:      "buildx-tutorial-collab",
   publishing:  "buildx-tutorial-publishing-basics",
 };

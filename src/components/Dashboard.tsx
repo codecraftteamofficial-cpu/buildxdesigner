@@ -467,7 +467,7 @@ export function Dashboard({
     useState<any>(null);
   const [showCongratsPopup, setShowCongratsPopup] = useState(false);
 
-  const ALL_STEP_KEYS = ["dashboard", "palette", "website", "canvas", "properties", "ai", "code", "library", "collab", "publishing"];
+  const ALL_STEP_KEYS = ["dashboard", "palette", "website", "canvas", "properties", "ai", "code", "collab", "publishing"];
 
   const currentUserIdRef = useRef<string | null>(null);
   useEffect(() => {
