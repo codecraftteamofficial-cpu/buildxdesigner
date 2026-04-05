@@ -48,6 +48,10 @@ interface EditorLayoutProps {
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
   onStartCanvasArea?: () => void;
+  onStartPropertiesPanel?: () => void;  // ← ADD
+  onStartAIAssistant?: () => void;       // ← ADD
+  onStartCodeEditor?: () => void;        // ← ADD
+  onStartSavingCollaboration?: () => void; // ← ADD
 }
 
 export function EditorLayout({
@@ -55,6 +59,10 @@ export function EditorLayout({
   onStartTour,
   onStartPublishingBasics,
   onStartCanvasArea,
+  onStartPropertiesPanel,
+  onStartAIAssistant,
+  onStartCodeEditor,
+  onStartSavingCollaboration,
 }: EditorLayoutProps) {
   console.log("[EditorLayout] Render state.userProjectConfig:", editor?.state?.userProjectConfig);
   const {
@@ -725,7 +733,7 @@ export function EditorLayout({
           <GettingStartedGuideDialog
             open={showGettingStartedGuideDialog}
             onOpenChange={setShowGettingStartedGuideDialog}
-            userId={state.currentUser?.id} 
+            userId={state.currentUser?.id}
             onStartBuildXIntroduction={() => {
               setShowGettingStartedGuideDialog(false);
               onStartTour?.();
@@ -745,20 +753,22 @@ export function EditorLayout({
               setShowGettingStartedGuideDialog(false);
               onStartCanvasArea?.();
             }}
+            // ↓ CHANGED: these now actually trigger the tours
             onStartPropertiesPanel={() => {
               setShowGettingStartedGuideDialog(false);
+              onStartPropertiesPanel?.();        // ← use the actual prop
             }}
             onStartAIAssistant={() => {
               setShowGettingStartedGuideDialog(false);
+              onStartAIAssistant?.();            // ← use the actual prop
             }}
             onStartCodeEditor={() => {
               setShowGettingStartedGuideDialog(false);
-            }}
-            onStartComponentsLibrary={() => {
-              setShowGettingStartedGuideDialog(false);
+              onStartCodeEditor?.();             // ← use the actual prop
             }}
             onStartSavingCollaboration={() => {
               setShowGettingStartedGuideDialog(false);
+              onStartSavingCollaboration?.();    // ← use the actual prop
             }}
           />
 

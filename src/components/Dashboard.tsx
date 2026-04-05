@@ -517,7 +517,7 @@ useEffect(() => {
     const stepKey = (e as CustomEvent).detail?.stepKey;
     if (!stepKey) return;
 
-    const userId = currentUserIdRef.current; // ← stable, always current
+    const userId = currentUserIdRef.current;
 
     if (userId) {
       try {
@@ -544,19 +544,14 @@ useEffect(() => {
       localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
     }
 
-    handleTourCompletedShowGuide();
+    // ← CHANGED: only refresh the key, don't close modals or redirect
+    handleTourComplete();
   };
 
-  window.addEventListener(
-    "buildx-tutorial-step-completed",
-    handleEditorStepCompleted
-  );
+  window.addEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
   return () =>
-    window.removeEventListener(
-      "buildx-tutorial-step-completed",
-      handleEditorStepCompleted
-    );
-}, []); // empty deps — reads userId via ref, never stale
+    window.removeEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
+}, []);
 
   useEffect(() => {
     const handleTutorialComplete = () => {

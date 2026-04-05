@@ -689,10 +689,12 @@ useEffect(() => {
               <EditorLayout
                 editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
                 onStartTour={() => setShowEditorTour(true)}
-                onStartPublishingBasics={() =>
-                  setShowPublishingBasicsTour(true)
-                }
+                onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
                 onStartCanvasArea={() => setShowCanvasTour(true)}
+                onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+                onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+                onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+                onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
               />
               <WebsiteCreation
                 showOnMount={showEditorTour}
@@ -763,6 +765,10 @@ useEffect(() => {
               onStartTour={() => setShowEditorTour(true)}
               onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
               onStartCanvasArea={() => setShowCanvasTour(true)}
+              onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+              onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+              onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+              onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
             />
               <WebsiteCreation
               showOnMount={showEditorTour}
@@ -832,6 +838,10 @@ useEffect(() => {
               onStartTour={() => setShowEditorTour(true)}
               onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
               onStartCanvasArea={() => setShowCanvasTour(true)}
+              onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+              onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+              onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+              onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
             />
             <WebsiteCreation
               showOnMount={showEditorTour}
