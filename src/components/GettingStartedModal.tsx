@@ -11,8 +11,16 @@ import {
 } from "./ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import {
+  fetchTutorialProgress,
+  readLocalProgress,
+  writeLocalProgress,
+  migrateLocalProgressToDB,
+} from "../supabase/data/tutorialProgressService";
 
 interface GettingStartedGuideContentProps {
+  userId?: string | null;  
+  refreshKey?: number; 
   onStartBuildXIntroduction?: () => void;
   onStartWebsiteCreation?: () => void;
   onStartPublishingBasics?: () => void;
@@ -27,6 +35,8 @@ interface GettingStartedGuideContentProps {
 }
 
 export function GettingStartedGuideContent({
+  userId,
+  refreshKey, 
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -40,21 +50,45 @@ export function GettingStartedGuideContent({
 }: GettingStartedGuideContentProps) {
   const [activePhase, setActivePhase] = useState("all");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  const [progressLoading, setProgressLoading] = useState(false);
+  
+    useEffect(() => {
+    const loadProgress = async () => {
+      if (!userId) {
+        // No user logged in — use localStorage only
+        setCompleted(readLocalProgress());
+        return;
+      }
 
-  useEffect(() => {
-    setCompleted({
-      "dashboard":   localStorage.getItem("buildx-tutorial-dashboard") === "1",
-      "palette":     localStorage.getItem("buildx-tutorial-intro") === "1",
-      "canvas":      localStorage.getItem("buildx-tutorial-canvas") === "1",
-      "properties":  localStorage.getItem("buildx-tutorial-properties") === "1",
-      "website":     localStorage.getItem("buildx-tutorial-website-creation") === "1",
-      "ai":          localStorage.getItem("buildx-tutorial-ai") === "1",
-      "code":        localStorage.getItem("buildx-tutorial-code") === "1",
-      "library":     localStorage.getItem("buildx-tutorial-library") === "1",
-      "collab":      localStorage.getItem("buildx-tutorial-collab") === "1",
-      "publishing":  localStorage.getItem("buildx-tutorial-publishing-basics") === "1",
-    });
-  }, []);
+      try {
+        setProgressLoading(true);
+        const rows = await fetchTutorialProgress(userId);
+
+        if (rows.length > 0) {
+          // DB has records — use as source of truth
+          const dbCompleted = Object.fromEntries(
+            rows.map((r) => [r.step_key, r.completed])
+          );
+          // Sync DB → localStorage so offline still works
+          writeLocalProgress(dbCompleted);
+          setCompleted(dbCompleted);
+        } else {
+          // First time on new device — migrate localStorage → DB
+          const localCompleted = readLocalProgress();
+          setCompleted(localCompleted);
+          await migrateLocalProgressToDB(userId, localCompleted);
+        }
+      } catch (err) {
+        console.error("Failed to load tutorial progress:", err);
+        // Fallback to localStorage on error
+        setCompleted(readLocalProgress());
+      } finally {
+        setProgressLoading(false);
+      }
+    };
+
+    loadProgress();
+  }, [userId, refreshKey]);
 
   const doneCount = Object.values(completed).filter(Boolean).length;
   const totalCount = 10;

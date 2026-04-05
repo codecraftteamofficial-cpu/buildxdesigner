@@ -98,6 +98,7 @@ import { toast } from "sonner";
 import { importPublishedComponent } from "../supabase/data/publishedComponentService";
 import { deleteCustomComponent, updateCustomComponentPublicStatus, deletePublishedComponent } from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
+import { markStepComplete } from "../supabase/data/tutorialProgressService";
 
 type DashboardSection =
   | "new-chat"
@@ -465,6 +466,20 @@ export function Dashboard({
     useState(false);
   const [pendingDeleteComponent, setPendingDeleteComponent] =
     useState<any>(null);
+
+  const completeTutorialStep = async (stepKey: string) => {
+    if (currentUserId) {
+      try {
+        await markStepComplete(currentUserId, stepKey);
+      } catch (err) {
+        console.error(`Failed to save tutorial step ${stepKey}:`, err);
+      }
+    } else {
+      // Fallback — localStorage only
+      localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
+    }
+    handleTourCompletedShowGuide();
+  };  
 
   useEffect(() => {
     if (activeSection === "marketplace") {
@@ -2989,7 +3004,8 @@ export function Dashboard({
                       Complete the tutorials in order to unlock the next step.
                     </p>
                     <GettingStartedGuideContent
-                    key={tourCompletionKey}
+                      userId={currentUserId}
+                      refreshKey={tourCompletionKey}
                       onStartBuildXIntroduction={() => {
                         setShowBuildXIntroductionTour(false);
                         setActiveSection("new-chat");
@@ -4544,11 +4560,10 @@ export function Dashboard({
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-intro", "1");
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("palette");
         }}
       />
 
@@ -4559,18 +4574,16 @@ export function Dashboard({
           setShowCreateTemplateModal(true);
         }}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("website");
         }}
       />
 
       <PublishingBasics
         showOnMount={showPublishingBasicsTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("publishing");
         }}
       />
 
@@ -4579,54 +4592,48 @@ export function Dashboard({
         onNavigateToAllProjects={() => setActiveSection("all")}
         onNavigateToDashboard={() => setActiveSection("new-chat")}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-dashboard", "1");
           setShowDashboardTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("dashboard");
         }}
       />
 
       <PropertiesPanel
         showOnMount={showPropertiesPanel}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-properties", "1");
           setShowPropertiesPanelTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("properties");
         }}
       />
 
       <AIAssistant
         showOnMount={showAIAssistantTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-ai", "1");
           setShowAIAssistantTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("ai");
         }}
       />
 
       <CodeEditorTour
         showOnMount={showCodeEditorTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-code", "1");
           setShowCodeEditorTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("code");
         }}
       />
 
       <ComponentsLibrary
         showOnMount={showComponentsLibraryTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-library", "1");
           setShowComponentsLibraryTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("library");
         }}
       />
 
       <SavingCollaboration
         showOnMount={showSavingCollabTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-collab", "1");
           setShowSavingCollabTour(false);
-          handleTourCompletedShowGuide();
+          completeTutorialStep("collab");
         }}
       />
 
