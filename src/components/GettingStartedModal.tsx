@@ -334,11 +334,13 @@ export function GettingStartedModal({
 interface GettingStartedGuideDialogProps extends GettingStartedGuideContentProps {
   open: boolean;
   onOpenChange?: (open: boolean) => void;
+  userId?: string | null; 
 }
 
 export function GettingStartedGuideDialog({
   open,
   onOpenChange,
+  userId,  
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -361,6 +363,7 @@ export function GettingStartedGuideDialog({
         </DialogHeader>
 
         <GettingStartedGuideContent
+          userId={userId}  
           onStartBuildXIntroduction={onStartBuildXIntroduction}
           onStartWebsiteCreation={onStartWebsiteCreation}
           onStartPublishingBasics={onStartPublishingBasics}

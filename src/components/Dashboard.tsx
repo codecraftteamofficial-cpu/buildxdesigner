@@ -380,6 +380,8 @@ export function Dashboard({
     setShowCreateTemplateModal(false);
     setSelectedTemplateId(null);
     setActiveSection("new-chat");
+    // Notify the editor (if open) that a step was completed
+    window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
   };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);

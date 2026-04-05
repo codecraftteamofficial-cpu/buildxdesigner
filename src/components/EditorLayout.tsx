@@ -118,6 +118,17 @@ export function EditorLayout({
     return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
   }, []);
 
+  // Add alongside the existing buildx-tutorial-completed listener
+  useEffect(() => {
+    const handleStepCompleted = () => {
+      setTimeout(() => {
+        setShowGettingStartedGuideDialog(true);
+      }, 400);
+    };
+    window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+    return () => window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+  }, []);
+
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
     setShowExportConfirmDialog(true);
@@ -713,6 +724,7 @@ export function EditorLayout({
           <GettingStartedGuideDialog
             open={showGettingStartedGuideDialog}
             onOpenChange={setShowGettingStartedGuideDialog}
+            userId={state.currentUser?.id} 
             onStartBuildXIntroduction={() => {
               setShowGettingStartedGuideDialog(false);
               onStartTour?.();
