@@ -188,7 +188,7 @@ export function GettingStartedGuideContent({
       </div>
 
       {/* Step cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
         {visible.map(step => {
           const done = completed[step.id];
           const stepIndex = STEPS.findIndex((s) => s.id === step.id);
@@ -224,8 +224,8 @@ export function GettingStartedGuideContent({
                 disabled={locked}
                 className={`text-white mt-1 w-full ${
                   locked
-                    ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted"
-                    : "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                    ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted whitespace-normal h-auto py-2 text-xs"
+                    : "bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
                 }`}
                 onClick={() => {
                   if (locked) return;
@@ -271,7 +271,7 @@ export function GettingStartedModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-216 max-w-[95vw] sm:max-w-7xl border-0 shadow-xl">
+      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-7xl border-0 shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tutorial</DialogTitle>
           <DialogDescription>
@@ -318,7 +318,7 @@ export function GettingStartedGuideDialog({
 }: GettingStartedGuideDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
-      <DialogContent className="w-full max-w-[95vw] sm:max-w-3xl border-0 shadow-2xl">
+      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-6xl border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Getting Started Guide</DialogTitle>
           <DialogDescription>
