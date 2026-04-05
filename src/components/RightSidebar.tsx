@@ -484,7 +484,10 @@ export function RightSidebar({
   }
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden relative sidebar-right bg-card">
+    <div
+      data-tour="ai-mentor-chat"
+      className="w-full h-full flex flex-col overflow-hidden relative sidebar-right bg-card"
+    >
       {aiAssistantVisible && (
         <div className="flex flex-col h-full bg-background w-full">
           <div className="p-4 border-b">

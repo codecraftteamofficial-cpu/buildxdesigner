@@ -13,6 +13,10 @@ export function SavingCollaboration({ showOnMount, onComplete }: SavingCollabora
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
+      allowClose: false,
+      overlayClickBehavior: "close",
+      allowKeyboardControl: false,
+      disableActiveInteraction: false,
       steps: [
         {
           popover: {
@@ -62,7 +66,7 @@ export function SavingCollaboration({ showOnMount, onComplete }: SavingCollabora
           },
         },
         {
-          element: "#toolbar-top",
+          element: "[data-tour='toolbar-top']",
           popover: {
             title: "Accessing shared projects",
             description:
@@ -87,7 +91,7 @@ export function SavingCollaboration({ showOnMount, onComplete }: SavingCollabora
     });
 
     driverObj.drive();
-  }, [showOnMount]);
+  }, [showOnMount, onComplete]);
 
   return null;
 }

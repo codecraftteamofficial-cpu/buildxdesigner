@@ -82,10 +82,10 @@ import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
 import { DashboardOverview } from "./Guides/DashboardOverview";
-import { CanvasArea } from "./Guides/CanvasArea";
 import { PropertiesPanel } from "./Guides/PropertiesPanel";
 import { AIAssistant } from "./Guides/AIAssistant";
 import { CodeEditorTour } from "./Guides/CodeEditorTour";
+import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { SavingCollaboration } from "./Guides/SavingCollaboration";
 import {
   fetchDraftProjectsFromApi,
@@ -369,11 +369,19 @@ export function Dashboard({
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
   const [tourCompletionKey, setTourCompletionKey] = useState(0);
+  const [showGettingStartedPopup, setShowGettingStartedPopup] = useState(false);
+  const [pendingGuidePopup, setPendingGuidePopup] = useState(false);
   const handleTourComplete = () => {
     setTourCompletionKey(prev => prev + 1);
   };
+  const handleTourCompletedShowGuide = () => {
+    handleTourComplete();
+    setShowCreateTemplateModal(false);
+    setSelectedTemplateId(null);
+    setActiveSection("new-chat");
+    setPendingGuidePopup(true);
+  };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
-  const [showCanvasTour, setShowCanvasTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
   const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
   const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
@@ -1114,14 +1122,21 @@ export function Dashboard({
     prefetchTemplateLayout(selectedTemplateId);
   }, [showCreateTemplateModal, selectedTemplateId]);
 
+  useEffect(() => {
+    if (!showCreateTemplateModal) return;
+    if (localStorage.getItem("buildx-pending-editor-tour") === "1") {
+      localStorage.removeItem("buildx-pending-editor-tour");
+      const id = window.setTimeout(() => setShowWebsiteCreationTour(true), 250);
+      return () => window.clearTimeout(id);
+    }
+  }, [showCreateTemplateModal]);
+
   // Add this useEffect near your other useEffects
   useEffect(() => {
     if (!showCreateTemplateModal) {
       // Check for any pending tours that need to fire when the modal closes
-      if (localStorage.getItem("buildx-pending-canvas-tour") === "1") {
-        localStorage.removeItem("buildx-pending-canvas-tour");
-        setTimeout(() => setShowCanvasTour(true), 100);
-      } else if (localStorage.getItem("buildx-pending-properties-tour") === "1") {
+      // Canvas tour targets editor-only DOM; App.tsx consumes buildx-pending-canvas-tour on /editor.
+      if (localStorage.getItem("buildx-pending-properties-tour") === "1") {
         localStorage.removeItem("buildx-pending-properties-tour");
         setTimeout(() => setShowPropertiesPanelTour(true), 100);
       } else if (localStorage.getItem("buildx-pending-ai-tour") === "1") {
@@ -1139,6 +1154,71 @@ export function Dashboard({
       }
     }
   }, [showCreateTemplateModal]);
+
+  useEffect(() => {
+    if (!pendingGuidePopup) return;
+
+    const hasActiveTour =
+      showBuildXIntroductionTour ||
+      showWebsiteCreationTour ||
+      showPublishingBasicsTour ||
+      showDashboardTour ||
+      showPropertiesPanel ||
+      showAIAssistantTour ||
+      showCodeEditorTour ||
+      showComponentsLibraryTour ||
+      showSavingCollabTour;
+
+    if (hasActiveTour || showCreateTemplateModal) return;
+
+    setShowGettingStartedPopup(true);
+    setPendingGuidePopup(false);
+  }, [
+    pendingGuidePopup,
+    showBuildXIntroductionTour,
+    showWebsiteCreationTour,
+    showPublishingBasicsTour,
+    showDashboardTour,
+    showPropertiesPanel,
+    showAIAssistantTour,
+    showCodeEditorTour,
+    showComponentsLibraryTour,
+    showSavingCollabTour,
+    showCreateTemplateModal,
+  ]);
+
+  useEffect(() => {
+    if (localStorage.getItem("buildx-guide-resume-from-editor-intro") === "1") {
+      localStorage.removeItem("buildx-guide-resume-from-editor-intro");
+      setActiveSection("new-chat");
+      setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+      return;
+    }
+    if (localStorage.getItem("buildx-guide-resume-from-editor-dashboard") === "1") {
+      localStorage.removeItem("buildx-guide-resume-from-editor-dashboard");
+      setTimeout(() => setShowDashboardTour(true), 50);
+      return;
+    }
+    if (localStorage.getItem("buildx-guide-resume-from-editor-library") === "1") {
+      localStorage.removeItem("buildx-guide-resume-from-editor-library");
+      setActiveSection("marketplace");
+      setTimeout(() => setShowComponentsLibraryTour(true), 50);
+      return;
+    }
+    if (localStorage.getItem("buildx-guide-resume-from-editor-website") === "1") {
+      localStorage.removeItem("buildx-guide-resume-from-editor-website");
+      setSelectedTemplateId("blank");
+      setShowCreateTemplateModal(true);
+      localStorage.setItem("buildx-pending-editor-tour", "1");
+      return;
+    }
+    if (localStorage.getItem("buildx-guide-resume-from-editor-publishing") === "1") {
+      localStorage.removeItem("buildx-guide-resume-from-editor-publishing");
+      setSelectedTemplateId("blank");
+      setShowCreateTemplateModal(true);
+      localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+    }
+  }, []);
 
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
@@ -2610,6 +2690,7 @@ export function Dashboard({
             {/* Marketplace */}
             <button
               onClick={() => setActiveSection("marketplace")}
+              data-tour="sidebar-components-library"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
                 ? "text-blue-500 bg-blue-500/10"
                 : "text-muted-foreground hover:bg-muted"
@@ -2915,11 +2996,11 @@ export function Dashboard({
                         setTimeout(() => setShowBuildXIntroductionTour(true), 50);
                       }}
                       onStartWebsiteCreation={() => {
-                        if (!localStorage.getItem("buildx-tutorial-website-creation")) {
-                          localStorage.setItem("buildx-pending-editor-tour", "1");
-                        }
+                        setShowWebsiteCreationTour(false);
+                        setActiveSection("new-chat");
                         setSelectedTemplateId("blank");
                         setShowCreateTemplateModal(true);
+                        setTimeout(() => setShowWebsiteCreationTour(true), 280);
                       }}
                       onStartPublishingBasics={() => {
                         localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
@@ -3092,6 +3173,7 @@ export function Dashboard({
                           <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                             <Input
+                              data-tour="components-library-search"
                               placeholder="Search components..."
                               value={marketplaceSearch}
                               onChange={(e) =>
@@ -3102,6 +3184,7 @@ export function Dashboard({
                           </div>
                           <div className="ml-auto">
                             <Button
+                              data-tour="components-library-my-components"
                               variant="outline"
                               size="sm"
                               className="gap-2"
@@ -3173,6 +3256,7 @@ export function Dashboard({
                                 {filtered.map((comp) => (
                                   <div
                                     key={comp.id}
+                                    data-tour="components-library-card"
                                     className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                                   >
                                     {/* PREVIEW BOX: Using zoom to force content to fit */}
@@ -3227,6 +3311,7 @@ export function Dashboard({
                                             </div>
                                           ) : (
                                             <button
+                                              data-tour="components-library-import"
                                               className="p-1.5 hover:bg-primary/10 rounded-full transition-colors group/import"
                                               onClick={(e) => {
                                                 e.stopPropagation();
@@ -4463,28 +4548,20 @@ export function Dashboard({
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-          handleTourComplete();
-          // Auto-start Step 3: Website creation
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-editor-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
 
       <WebsiteCreation
         showOnMount={showWebsiteCreationTour}
+        onEnsureCreateWebsiteModalOpen={() => {
+          setSelectedTemplateId("blank");
+          setShowCreateTemplateModal(true);
+        }}
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
-          handleTourComplete();
-          // Auto-start Step 4: Canvas area
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-canvas-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4493,8 +4570,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
-          handleTourComplete();
-          // Last step — all done!
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4505,28 +4581,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-dashboard", "1");
           setShowDashboardTour(false);
-          handleTourComplete();
-          // Auto-start Step 2: Components palette
-          setTimeout(() => {
-            setShowBuildXIntroductionTour(false);
-            setActiveSection("new-chat");
-            setTimeout(() => setShowBuildXIntroductionTour(true), 50);
-          }, 300);
-        }}
-      />
-
-      <CanvasArea
-        showOnMount={showCanvasTour}
-        onComplete={() => {
-          localStorage.setItem("buildx-tutorial-canvas", "1");
-          setShowCanvasTour(false);
-          handleTourComplete();
-          // Auto-start Step 5: Properties panel
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-properties-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4535,13 +4590,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-properties", "1");
           setShowPropertiesPanelTour(false);
-          handleTourComplete();
-          // Auto-start Step 6: AI assistant
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-ai-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4550,13 +4599,7 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-ai", "1");
           setShowAIAssistantTour(false);
-          handleTourComplete();
-          // Auto-start Step 7: Code editor
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-code-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4565,13 +4608,16 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-code", "1");
           setShowCodeEditorTour(false);
-          handleTourComplete();
-          // Auto-start Step 8: Components library
-          setTimeout(() => {
-            setActiveSection("marketplace");
-            setShowComponentsLibraryTour(false);
-            setTimeout(() => setShowComponentsLibraryTour(true), 50);
-          }, 300);
+          handleTourCompletedShowGuide();
+        }}
+      />
+
+      <ComponentsLibrary
+        showOnMount={showComponentsLibraryTour}
+        onComplete={() => {
+          localStorage.setItem("buildx-tutorial-library", "1");
+          setShowComponentsLibraryTour(false);
+          handleTourCompletedShowGuide();
         }}
       />
 
@@ -4580,15 +4626,10 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-collab", "1");
           setShowSavingCollabTour(false);
-          handleTourComplete();
-          // Auto-start Step 10: Publishing basics
-          setTimeout(() => {
-            localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-          }, 300);
+          handleTourCompletedShowGuide();
         }}
       />
+
 
       {/* Import Component Confirmation Dialog */}
       <Dialog

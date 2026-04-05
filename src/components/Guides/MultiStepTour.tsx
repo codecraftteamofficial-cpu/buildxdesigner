@@ -104,8 +104,10 @@ export function MultiStepTour({
         showProgress,
         showButtons,
         steps: driverSteps,
-        disableActiveInteraction: true,
+        disableActiveInteraction: false,
         allowClose: false,
+        overlayClickBehavior: "close",
+        allowKeyboardControl: false,
         onDestroyStarted: () => {
           destroyDriver();
           onCompleteRef.current?.();

@@ -18,6 +18,10 @@ export function CodeEditorTour({
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
+      allowClose: false,
+      overlayClickBehavior: "close",
+      allowKeyboardControl: false,
+      disableActiveInteraction: false,
       steps: [
         {
           popover: {
@@ -27,7 +31,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#toolbar-top",
+          element: "[data-tour='toolbar-top']",
           popover: {
             title: "Switch to Code view",
             description:
@@ -40,7 +44,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#code-editor-files",
+          element: "[data-tour='code-editor-files']",
           popover: {
             title: "File Explorer",
             description:
@@ -53,7 +57,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#code-editor-content",
+          element: "[data-tour='code-editor-content']",
           popover: {
             title: "Edit HTML directly",
             description:
@@ -63,7 +67,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#code-editor-content",
+          element: "[data-tour='code-editor-content']",
           popover: {
             title: "Add custom CSS",
             description:
@@ -73,7 +77,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#code-editor-content",
+          element: "[data-tour='code-editor-content']",
           popover: {
             title: "Paste AI-generated snippets",
             description:
@@ -83,7 +87,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#code-editor-content",
+          element: "[data-tour='code-editor-content']",
           popover: {
             title: "Undo code changes",
             description:
@@ -93,7 +97,7 @@ export function CodeEditorTour({
           },
         },
         {
-          element: "#toolbar-top",
+          element: "[data-tour='toolbar-top']",
           popover: {
             title: "Switch back to Design view",
             description:
@@ -122,7 +126,7 @@ export function CodeEditorTour({
     });
 
     driverObj.drive();
-  }, [showOnMount]);
+  }, [showOnMount, onComplete]);
 
   return null;
 }

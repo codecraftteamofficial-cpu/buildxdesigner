@@ -13,6 +13,10 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
+      allowClose: false,
+      overlayClickBehavior: "close",
+      allowKeyboardControl: false,
+      disableActiveInteraction: false,
       steps: [
         {
           popover: {
@@ -22,7 +26,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Select a component first",
             description:
@@ -32,7 +36,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Edit text content",
             description:
@@ -42,7 +46,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Change colors",
             description:
@@ -52,7 +56,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Adjust spacing",
             description:
@@ -72,7 +76,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Borders & shadows",
             description:
@@ -82,7 +86,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
           },
         },
         {
-          element: '[data-tour="properties-panel"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Responsive breakpoints",
             description:
@@ -107,7 +111,7 @@ export function PropertiesPanel({ showOnMount, onComplete }: PropertiesPanelProp
     });
 
     driverObj.drive();
-  }, [showOnMount]);
+  }, [showOnMount, onComplete]);
 
   return null;
 }

@@ -20,6 +20,10 @@ export function AIAssistant({
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
+      allowClose: false,
+      overlayClickBehavior: "close",
+      allowKeyboardControl: false,
+      disableActiveInteraction: false,
       steps: [
         {
           popover: {
@@ -29,11 +33,11 @@ export function AIAssistant({
           },
         },
         {
-          element: "#ai-assistant-chat",
+          element: "[data-tour='ai-mentor-toolbar']",
           popover: {
-            title: "Open the AI Assistant",
+            title: "Open the AI Mentor",
             description:
-              "Click the chat icon in the toolbar to open the AI panel. It slides in from the side so you can use it alongside your canvas without losing your place.",
+              "Click the chat icon in the toolbar to open the AI Mentorpanel. It slides in from the side so you can use it alongside your canvas without losing your place.",
             side: "top",
             align: "center",
           },
@@ -44,17 +48,17 @@ export function AIAssistant({
           },
         },
         {
-          element: "#ai-assistant-chat",
+          element: "[data-tour='ai-mentor-chat']",
           popover: {
             title: "Ask for design help",
             description:
-              'Type a request in plain English. For example: "Make the hero section more modern" or "Change the background to dark navy and increase the heading font size". The AI applies the changes or guides you through them.',
+              'Type a request in plain English. For example: "Recommend a color scheme for a website". The AI guides you through them.',
             side: "top",
             align: "center",
           },
         },
         {
-          element: "#ai-assistant-chat",
+          element: "[data-tour='ai-mentor-chat']",
           popover: {
             title: "Generate content",
             description:
@@ -64,7 +68,7 @@ export function AIAssistant({
           },
         },
         {
-          element: "#ai-assistant-chat",
+          element: "[data-tour='ai-mentor-chat']",
           popover: {
             title: "Get code snippets",
             description:
@@ -74,7 +78,7 @@ export function AIAssistant({
           },
         },
         {
-          element: "#ai-assistant-chat",
+          element: "[data-tour='ai-mentor-chat']",
           popover: {
             title: "Be specific for best results",
             description:
@@ -84,11 +88,11 @@ export function AIAssistant({
           },
         },
         {
-          element: "#toolbar-top",
+          element: "[data-tour='properties-toolbar']",
           popover: {
-            title: "Close the AI panel",
+            title: "Close the AI Mentor panel",
             description:
-              "Click the AI chat icon in the toolbar again to close the panel and return to the full canvas view. Your conversation is saved so you can pick it up later.",
+              "Click the Properties panel to check out the properties of the component you are working on. Your conversation is saved so you can pick it up later, just click AI Mentor in the toolbar to open it again.",
             side: "bottom",
             align: "center",
           },
@@ -100,9 +104,9 @@ export function AIAssistant({
         },
         {
           popover: {
-            title: "AI Assistant — done! ✅",
+            title: "AI Mentor — done! ✅",
             description:
-              "You know how to use the AI to speed up your design and content work. Next up: the Code Editor — fine-tune your design at the HTML and CSS level.",
+              "You know how to use the AI Mentor to speed up your design and content work. Next up: the Code Editor — fine-tune your design at the HTML and CSS level.",
           },
         },
       ],
@@ -114,7 +118,7 @@ export function AIAssistant({
     });
 
     driverObj.drive();
-  }, [showOnMount]);
+  }, [showOnMount, onComplete]);
 
   return null;
 }

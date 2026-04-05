@@ -18,6 +18,7 @@ import { Canvas } from "./Canvas";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { MobilePropertiesModal } from "./MobilePropertiesModal";
 import { PreviewModal } from "./PreviewModal";
+import { GettingStartedGuideDialog } from "./GettingStartedModal";
 
 import { TemplateModal } from "./TemplateModal";
 import { PublishModal } from "./PublishModal";
@@ -46,12 +47,14 @@ interface EditorLayoutProps {
   editor: ReturnType<typeof useEditorState>;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
+  onStartCanvasArea?: () => void;
 }
 
 export function EditorLayout({
   editor,
   onStartTour,
   onStartPublishingBasics,
+  onStartCanvasArea,
 }: EditorLayoutProps) {
   console.log("[EditorLayout] Render state.userProjectConfig:", editor?.state?.userProjectConfig);
   const {
@@ -101,6 +104,26 @@ export function EditorLayout({
   const [showExportConfirmDialog, setShowExportConfirmDialog] = useState(false);
   const [pendingExportComponent, setPendingExportComponent] = useState<any>(null);
   const [showCodeExportModal, setShowCodeExportModal] = useState(false);
+  const [showGettingStartedGuideDialog, setShowGettingStartedGuideDialog] = useState(false);
+
+  // Auto-show guide dialog when tutorial steps complete
+  useEffect(() => {
+  const handleTutorialComplete = () => {
+    console.log("Tutorial completed event received");
+
+    // Wait for Driver.js to fully clean up
+    setTimeout(() => {
+      console.log("Opening Getting Started dialog");
+      setShowGettingStartedGuideDialog(true);
+    }, 400);
+  };
+
+  window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
+
+  return () => {
+    window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
+  };
+}, []);
 
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
@@ -232,7 +255,7 @@ export function EditorLayout({
             }}
           />
 
-          <div className="flex-1 overflow-hidden flex min-h-0 relative">
+          <div data-tour="canvas-area-dnd" className="flex-1 overflow-hidden flex min-h-0 relative">
             {!state.isLeftSidebarVisible && (
               <button
                 onClick={() =>
@@ -462,6 +485,7 @@ export function EditorLayout({
                             rightSidebarTab: "properties",
                           }))
                         }
+                        data-tour="properties-toolbar"
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
                             ? "bg-card text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground"
@@ -477,6 +501,7 @@ export function EditorLayout({
                             rightSidebarTab: "ai-assistant",
                           }))
                         }
+                        data-tour="ai-mentor-toolbar"
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
                             ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
                             : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
@@ -691,6 +716,45 @@ export function EditorLayout({
               onClose={() => setShowCodeExportModal(false)}
             />
           )}
+
+          <GettingStartedGuideDialog
+            open={showGettingStartedGuideDialog}
+            onOpenChange={setShowGettingStartedGuideDialog}
+            onStartBuildXIntroduction={() => {
+              setShowGettingStartedGuideDialog(false);
+              onStartTour?.();
+            }}
+            onStartWebsiteCreation={() => {
+              setShowGettingStartedGuideDialog(false);
+              onStartTour?.();
+            }}
+            onStartPublishingBasics={() => {
+              setShowGettingStartedGuideDialog(false);
+              onStartPublishingBasics?.();
+            }}
+            onStartDashboardOverview={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+            onStartCanvasArea={() => {
+              setShowGettingStartedGuideDialog(false);
+              onStartCanvasArea?.();
+            }}
+            onStartPropertiesPanel={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+            onStartAIAssistant={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+            onStartCodeEditor={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+            onStartComponentsLibrary={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+            onStartSavingCollaboration={() => {
+              setShowGettingStartedGuideDialog(false);
+            }}
+          />
 
           <Toaster />
         </div>

@@ -31,7 +31,6 @@ export function GettingStartedGuideContent({
   onStartWebsiteCreation,
   onStartPublishingBasics,
   onStartDashboardOverview,
-  onStartComponentsPalette,
   onStartCanvasArea,
   onStartPropertiesPanel,
   onStartAIAssistant,
@@ -63,14 +62,14 @@ export function GettingStartedGuideContent({
   const STEPS = [
     {
       id: "dashboard", phase: "orientation", badge: "Step 1",
-      title: "Dashboard overview",
+      title: "Dashboard Overview",
       desc: "Get familiar with the sidebar, project sections, and theme switcher.",
       action: onStartDashboardOverview,
     },
     {
       id: "palette", phase: "orientation", badge: "Step 2",
-      title: "Components palette",
-      desc: "Find and drag components from your toolbox onto the canvas.",
+      title: "Templates",
+      desc: "Explore and create templates to reuse across your projects.",
       action: onStartBuildXIntroduction,
     },
     {
@@ -192,26 +191,48 @@ export function GettingStartedGuideContent({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {visible.map(step => {
           const done = completed[step.id];
+          const stepIndex = STEPS.findIndex((s) => s.id === step.id);
+          const prevStepId = stepIndex > 0 ? STEPS[stepIndex - 1]?.id : undefined;
+          const locked = !done && stepIndex > 0 ? !completed[prevStepId ?? ""] : false;
+
           const colors = phaseColorMap[step.phase];
+          const borderColorClass = done
+            ? "border-blue-500"
+            : locked
+              ? "border-black dark:border-black"
+              : "border-white dark:border-white";
+
           return (
             <div
               key={step.id}
-              className={`flex flex-col border-2 rounded-xl p-4 gap-2 transition-all bg-card ${colors.border} ${done ? "opacity-60" : ""}`}
+              className={`flex flex-col border-2 rounded-xl p-4 gap-2 transition-all bg-card ${borderColorClass} ${locked ? "opacity-70" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-semibold ${colors.badge}`}>{step.badge}</span>
-                <span className={`text-xs font-medium ${done ? "text-emerald-500" : "text-muted-foreground"}`}>
-                  {done ? "✓ Completed" : "To do"}
+                <span
+                  className={`text-xs font-medium ${
+                    done ? "text-blue-500" : locked ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {done ? "✓ Completed" : locked ? "Locked" : "Unlocked"}
                 </span>
               </div>
               <p className="font-semibold text-sm text-foreground">{step.title}</p>
               <p className="text-xs text-muted-foreground flex-1">{step.desc}</p>
               <Button
                 size="sm"
-                className={`text-white mt-1 w-full ${colors.btn}`}
-                onClick={() => step.action?.()}
+                disabled={locked}
+                className={`text-white mt-1 w-full ${
+                  locked
+                    ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted"
+                    : "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                }`}
+                onClick={() => {
+                  if (locked) return;
+                  step.action?.();
+                }}
               >
-                {done ? "Review" : "Start Tutorial"}
+                {done ? "Review" : locked ? "Complete previous step to unlock" : "Start Tutorial"}
               </Button>
             </div>
           );
@@ -271,6 +292,52 @@ export function GettingStartedModal({
           onStartSavingCollaboration={() => { onClose(); onStartSavingCollaboration?.(); }}
         />
 
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface GettingStartedGuideDialogProps extends GettingStartedGuideContentProps {
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function GettingStartedGuideDialog({
+  open,
+  onOpenChange,
+  onStartBuildXIntroduction,
+  onStartWebsiteCreation,
+  onStartPublishingBasics,
+  onStartDashboardOverview,
+  onStartCanvasArea,
+  onStartPropertiesPanel,
+  onStartAIAssistant,
+  onStartCodeEditor,
+  onStartComponentsLibrary,
+  onStartSavingCollaboration,
+}: GettingStartedGuideDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-3xl border-0 shadow-2xl">
+        <DialogHeader>
+          <DialogTitle>Getting Started Guide</DialogTitle>
+          <DialogDescription>
+            Complete the tutorials in order to unlock the next step.
+          </DialogDescription>
+        </DialogHeader>
+
+        <GettingStartedGuideContent
+          onStartBuildXIntroduction={onStartBuildXIntroduction}
+          onStartWebsiteCreation={onStartWebsiteCreation}
+          onStartPublishingBasics={onStartPublishingBasics}
+          onStartDashboardOverview={onStartDashboardOverview}
+          onStartCanvasArea={onStartCanvasArea}
+          onStartPropertiesPanel={onStartPropertiesPanel}
+          onStartAIAssistant={onStartAIAssistant}
+          onStartCodeEditor={onStartCodeEditor}
+          onStartComponentsLibrary={onStartComponentsLibrary}
+          onStartSavingCollaboration={onStartSavingCollaboration}
+        />
       </DialogContent>
     </Dialog>
   );
