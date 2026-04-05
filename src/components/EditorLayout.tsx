@@ -105,25 +105,18 @@ export function EditorLayout({
   const [pendingExportComponent, setPendingExportComponent] = useState<any>(null);
   const [showCodeExportModal, setShowCodeExportModal] = useState(false);
   const [showGettingStartedGuideDialog, setShowGettingStartedGuideDialog] = useState(false);
+  const [showCongratsModal, setShowCongratsModal] = useState(false);
 
   // Auto-show guide dialog when tutorial steps complete
   useEffect(() => {
-  const handleTutorialComplete = () => {
-    console.log("Tutorial completed event received");
-
-    // Wait for Driver.js to fully clean up
-    setTimeout(() => {
-      console.log("Opening Getting Started dialog");
-      setShowGettingStartedGuideDialog(true);
-    }, 400);
-  };
-
-  window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
-
-  return () => {
-    window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
-  };
-}, []);
+    const handleTutorialComplete = () => {
+      setTimeout(() => {
+        setShowCongratsModal(true);
+      }, 400);
+    };
+    window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
+    return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
+  }, []);
 
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
@@ -756,6 +749,26 @@ export function EditorLayout({
             }}
           />
 
+          {showCongratsModal && (
+            <Dialog open={showCongratsModal} onOpenChange={setShowCongratsModal}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>🎉 Congratulations!</DialogTitle>
+                  <DialogDescription>
+                    You've completed all 10 tutorial steps. You're now ready to build amazing websites with BuildX!
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    className="w-full bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                    onClick={() => setShowCongratsModal(false)}
+                  >
+                    Start Building
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
           <Toaster />
         </div>
       </TooltipProvider>

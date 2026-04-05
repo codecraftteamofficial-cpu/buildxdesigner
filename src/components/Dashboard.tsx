@@ -380,7 +380,6 @@ export function Dashboard({
     setShowCreateTemplateModal(false);
     setSelectedTemplateId(null);
     setActiveSection("new-chat");
-    setPendingGuidePopup(true);
   };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
@@ -466,6 +465,9 @@ export function Dashboard({
     useState(false);
   const [pendingDeleteComponent, setPendingDeleteComponent] =
     useState<any>(null);
+  const [showCongratsPopup, setShowCongratsPopup] = useState(false);
+
+  const ALL_STEP_KEYS = ["dashboard", "palette", "website", "canvas", "properties", "ai", "code", "library", "collab", "publishing"];
 
   const completeTutorialStep = async (stepKey: string) => {
     if (currentUserId) {
@@ -474,12 +476,43 @@ export function Dashboard({
       } catch (err) {
         console.error(`Failed to save tutorial step ${stepKey}:`, err);
       }
+
+      // Fetch real progress from DB to check if all done
+      try {
+        const { fetchTutorialProgress } = await import("../supabase/data/tutorialProgressService");
+        const rows = await fetchTutorialProgress(currentUserId);
+        const completedKeys = new Set(rows.filter(r => r.completed).map(r => r.step_key));
+        
+        const allDone = ALL_STEP_KEYS.every(key => completedKeys.has(key));
+        if (allDone) {
+          window.dispatchEvent(new Event("buildx-tutorial-completed"));
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch tutorial progress:", err);
+      }
     } else {
-      // Fallback — localStorage only
+      // localStorage-only path (no user logged in)
       localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
+      const allDone = ALL_STEP_KEYS.every(
+        key => key === stepKey || localStorage.getItem(`buildx-tutorial-${key}`) === "1"
+      );
+      if (allDone) {
+        window.dispatchEvent(new Event("buildx-tutorial-completed"));
+        return;
+      }
     }
+
     handleTourCompletedShowGuide();
-  };  
+  };
+
+  useEffect(() => {
+    const handleTutorialComplete = () => {
+      setTimeout(() => setShowCongratsPopup(true), 400);
+    };
+    window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
+    return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
+  }, []);
 
   useEffect(() => {
     if (activeSection === "marketplace") {
@@ -4636,6 +4669,28 @@ export function Dashboard({
           completeTutorialStep("collab");
         }}
       />
+
+      {/* Congratulations Modal - shows after all 10 steps completed */}
+      {showCongratsPopup && (
+        <Dialog open={showCongratsPopup} onOpenChange={setShowCongratsPopup}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>🎉 Congratulations!</DialogTitle>
+              <DialogDescription>
+                You've completed all 10 tutorial steps. You're now ready to build amazing websites with BuildX!
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                className="w-full bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                onClick={() => setShowCongratsPopup(false)}
+              >
+                Start Building
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
 
       {/* Import Component Confirmation Dialog */}
