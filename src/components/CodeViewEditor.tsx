@@ -900,7 +900,10 @@ export function CodeViewEditor({
       )}
 
       {/* Explorer */}
-      <div className="w-64 rounded-sm flex flex-col bg-[#252526] overflow-hidden shrink-0 shadow-xl">
+      <div
+        data-tour="code-editor-files"
+        className="w-64 rounded-sm flex flex-col bg-[#252526] overflow-hidden shrink-0 shadow-xl"
+      >
         <div className="px-4 py-3 flex items-center justify-between bg-[#252526]">
           <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
             Filesystem
@@ -918,7 +921,10 @@ export function CodeViewEditor({
       </div>
 
       {/* Main Editor */}
-      <div className="flex-1 rounded-sm overflow-hidden flex flex-col bg-[#272727] shadow-xl relative">
+      <div
+        data-tour="code-editor-content"
+        className="flex-1 rounded-sm overflow-hidden flex flex-col bg-[#272727] shadow-xl relative"
+      >
         {isGenerating && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#1e1e1e]/80 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3">

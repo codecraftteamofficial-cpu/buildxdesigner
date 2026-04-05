@@ -673,7 +673,10 @@ export function CreateNewWebsiteModal({
                 </TabsList>
               </div>
 
-              <ScrollArea className="flex-1 px-6 py-4 overflow-visible">
+              <ScrollArea
+                data-tour="create-website-templates"
+                className="flex-1 px-6 py-4 overflow-visible"
+              >
                 {selectedCategory === "All" && !searchQuery && (
                   <div className="mb-8">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">

@@ -1,5 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { driver } from "driver.js";
+
+const RESUME_STEP_KEY = "buildx-canvas-tour-active-step";
+/** Only resume across quick remounts (e.g. /editor/id → /editor/id/private), not stale sessions. */
+const RESUME_MAX_AGE_MS = 12_000;
 
 interface CanvasAreaProps {
   showOnMount?: boolean;
@@ -7,14 +11,22 @@ interface CanvasAreaProps {
 }
 
 export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
+  const intentionalFinishRef = useRef(false);
+
   useEffect(() => {
     if (!showOnMount) return;
+
+    intentionalFinishRef.current = false;
 
     let completedAllSteps = false;
 
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
+      allowClose: false,
+      overlayClickBehavior: "close",
+      allowKeyboardControl: false,
+      disableActiveInteraction: false,
       steps: [
         {
           popover: {
@@ -24,7 +36,7 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           },
         },
         {
-          element: '[data-tour="canvas-area"]',
+          element: '[data-tour="sidebar-palette"]',
           popover: {
             title: "Select a component",
             description:
@@ -34,7 +46,7 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           },
         },
         {
-          element: '[data-tour="canvas-area"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Move components",
             description:
@@ -54,7 +66,7 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           },
         },
         {
-          element: '[data-tour="canvas-area"]',
+          element: '[data-tour="canvas-area-dnd"]',
           popover: {
             title: "Reorder sections",
             description:
@@ -106,6 +118,12 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
         },
       ],
       onDestroyStarted: () => {
+        intentionalFinishRef.current = true;
+        try {
+          sessionStorage.removeItem(RESUME_STEP_KEY);
+        } catch {
+          /* ignore */
+        }
         driverObj.destroy();
         if (completedAllSteps) {
           localStorage.setItem("buildx-tutorial-canvas", "1");
@@ -114,7 +132,54 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
       },
     });
 
-    driverObj.drive();
+    // Resume step index when the component remounts (e.g. React Router switches
+    // between /editor/:id and /editor/:id/private) so the tour does not restart.
+    let startIndex = 0;
+    try {
+      const raw = sessionStorage.getItem(RESUME_STEP_KEY);
+      if (raw !== null) {
+        sessionStorage.removeItem(RESUME_STEP_KEY);
+        const data = JSON.parse(raw) as { i?: unknown; t?: unknown };
+        const i = typeof data.i === "number" ? data.i : Number(data.i);
+        const t = typeof data.t === "number" ? data.t : Number(data.t);
+        if (
+          Number.isFinite(i) &&
+          i >= 0 &&
+          Number.isFinite(t) &&
+          Date.now() - t < RESUME_MAX_AGE_MS
+        ) {
+          startIndex = i;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    driverObj.drive(startIndex);
+
+    return () => {
+      try {
+        if (
+          !intentionalFinishRef.current &&
+          typeof driverObj.getActiveIndex === "function"
+        ) {
+          const idx = driverObj.getActiveIndex();
+          if (typeof idx === "number" && idx >= 0) {
+            try {
+              sessionStorage.setItem(
+                RESUME_STEP_KEY,
+                JSON.stringify({ i: idx, t: Date.now() }),
+              );
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        driverObj.destroy();
+      } catch {
+        /* ignore */
+      }
+    };
   }, [showOnMount]);
 
   return null;

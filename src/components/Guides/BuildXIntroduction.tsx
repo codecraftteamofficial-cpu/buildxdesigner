@@ -14,6 +14,11 @@ import { MultiStepTour } from "./MultiStepTour";
  }: BuildXIntroductionProps) {
    const steps = useMemo(
      () => [
+      {
+        title: "Templates",
+        description:
+          "Learn how to explore and create templates that you can reuse across your projects.",
+      },
        {
          element: '[data-tour="recommended-templates"]',
          title: "Recommended templates",

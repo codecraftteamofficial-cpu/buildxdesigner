@@ -1,17 +1,25 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { MultiStepTour } from "./MultiStepTour";
 
 interface WebsiteCreationProps {
   showOnMount?: boolean;
   onComplete?: () => void;
+  /** Ensures Create New Website modal is open so template tour targets exist in the DOM */
+  onEnsureCreateWebsiteModalOpen?: () => void;
 }
 
 export function WebsiteCreation({
   showOnMount = false,
   onComplete,
+  onEnsureCreateWebsiteModalOpen,
 }: WebsiteCreationProps) {
+  const ensureModalRef = useRef(onEnsureCreateWebsiteModalOpen);
+  useEffect(() => {
+    ensureModalRef.current = onEnsureCreateWebsiteModalOpen;
+  }, [onEnsureCreateWebsiteModalOpen]);
+
   const steps = useMemo(
     () => [
       {
@@ -20,15 +28,18 @@ export function WebsiteCreation({
           "In this step you'll learn how to start a new project — from picking a template to opening your first blank canvas. The later guides will go deep on each tool.",
       },
       {
-        element: '[data-tour="recommended-templates"]',
+        element: '[data-tour="create-website-templates"]',
         title: "Start from a template",
         description:
-          "The dashboard shows recommended templates. Click any card to preview it — pick one that matches your goal or start blank if you want full control.",
+          "This Create New Website dialog shows recommended templates. Pick one that matches your goal or start blank if you want full control.",
         side: "top" as const,
         align: "center" as const,
+        onHighlightStarted: () => {
+          ensureModalRef.current?.();
+        },
       },
       {
-        element: '[data-tour="recommended-template-card"]',
+        element: '[data-tour="template-details-dialog"]',
         title: "Pick your template",
         description:
           "Click a template card to select it. You'll be asked to name your project before it opens in the editor.",
@@ -63,6 +74,7 @@ export function WebsiteCreation({
         title: "Website Creation — done! ✅",
         description:
           "You know how to start a project and open the editor. The next guides will go step-by-step through the Canvas, Properties Panel, AI Assistant, Code Editor, and more.",
+          
       },
     ],
     []
