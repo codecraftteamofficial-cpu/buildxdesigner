@@ -37,20 +37,54 @@ export function LayerPanel({
   selectedId, 
   onSelect, 
   onDelete, 
+   onReorder,
   onMoveLayer 
 }: LayerPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
+    const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
+  const [dragOverLayerId, setDragOverLayerId] = useState<string | null>(null);
 
   const getComponentName = (comp: ComponentData) => {
     return comp.props?.content || comp.props?.text || comp.props?.title || comp.type;
   };
 
-  // FIXED: No longer reverse() — components array order now reflects PHP document
-  // order (top of file = index 0 = top of layer list). This keeps the layer panel
-  // in sync with the order components appear in the PHP source after a sync.
+ 
   const filteredLayers = components.filter((comp) =>
     getComponentName(comp).toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const displayLayers = [...filteredLayers].reverse();
+
+  const componentIndexMap = new Map(
+    components.map((component, index) => [component.id, index]),
+  );
+
+  const moveLayerToDisplayIndex = (layerId: string, displayIndex: number) => {
+    const currentIndex = components.findIndex((c) => c.id === layerId);
+    if (currentIndex === -1) return;
+
+    const desiredUnderlyingIndex = components.length - 1 - displayIndex;
+    const clampedIndex = Math.max(
+      0,
+      Math.min(desiredUnderlyingIndex, components.length - 1),
+    );
+
+    if (currentIndex === clampedIndex) return;
+
+    const remaining = components.filter((c) => c.id !== layerId);
+    if (clampedIndex <= 0) {
+      onReorder(layerId, "back");
+      return;
+    }
+    if (clampedIndex >= remaining.length) {
+      onReorder(layerId, "front");
+      return;
+    }
+
+    const target = remaining[clampedIndex];
+    if (target) onReorder(layerId, target.id);
+  };
+
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -78,21 +112,42 @@ export function LayerPanel({
 
       {/* Layer List Area */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {filteredLayers.length === 0 ? (
+         {displayLayers.length === 0 ? (
           <div className="p-8 text-center text-xs text-muted-foreground italic">
             {searchQuery ? "No matching layers found." : "No layers yet."}
           </div>
         ) : (
           <div className="p-2 space-y-0.5">
-            {filteredLayers.map((comp) => {
+              {displayLayers.map((comp, displayIndex) => {
               const isSelected = selectedId === comp.id;
+                 const underlyingIndex = componentIndexMap.get(comp.id) ?? -1;
+              const canMoveUp = underlyingIndex >= 0 && underlyingIndex < components.length - 1;
+              const canMoveDown = underlyingIndex > 0;
               return (
                 <div
                   key={comp.id}
+                   draggable={!searchQuery}
+                  onDragStart={() => setDraggedLayerId(comp.id)}
+                  onDragOver={(e) => {
+                    if (!draggedLayerId || searchQuery) return;
+                    e.preventDefault();
+                    setDragOverLayerId(comp.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggedLayerId || searchQuery) return;
+                    moveLayerToDisplayIndex(draggedLayerId, displayIndex);
+                    setDraggedLayerId(null);
+                    setDragOverLayerId(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedLayerId(null);
+                    setDragOverLayerId(null);
+                  }}
                   onClick={() => onSelect(comp.id)}
                   className={`group flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-all ${
                     isSelected ? "bg-purple-500/10 text-purple-600 shadow-sm" : "hover:bg-accent text-muted-foreground"
-                  }`}
+                  } ${dragOverLayerId === comp.id ? "ring-1 ring-purple-400 bg-purple-500/10" : ""}`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <span className="shrink-0 opacity-70">{getLayerIcon(comp.type)}</span>
@@ -104,13 +159,15 @@ export function LayerPanel({
                   <div className={`flex items-center gap-0.5 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveLayer(comp.id, 'forward'); }}
-                      className="p-1 hover:bg-background rounded" title="Move Up in Document"
+                       disabled={!canMoveUp}
+                      className="p-1 hover:bg-background rounded disabled:opacity-40 disabled:cursor-not-allowed" title="Move Up (towards front)"
                     >
                       <ChevronUp className="w-3 h-3" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onMoveLayer(comp.id, 'backward'); }}
-                      className="p-1 hover:bg-background rounded" title="Move Down in Document"
+                      disabled={!canMoveDown}
+                      className="p-1 hover:bg-background rounded disabled:opacity-40 disabled:cursor-not-allowed" title="Move Down (towards back)"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>

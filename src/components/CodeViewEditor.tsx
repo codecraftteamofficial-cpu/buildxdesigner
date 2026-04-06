@@ -34,7 +34,7 @@ import {
   AlignLeft,
   Files,
   Cpu,
-  ExternalLink,
+  
 } from "lucide-react";
 import { toast } from "sonner";
 import Editor from "@monaco-editor/react";
@@ -198,7 +198,7 @@ function FileCreatorModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-[420px] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-[min(92vw,540px)] max-w-fit min-w-[340px] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-6 pt-6 pb-4">
           <h2 className="text-white text-lg font-semibold">
             Create Backend File
@@ -208,11 +208,11 @@ function FileCreatorModal({
           </p>
         </div>
         <div className="px-6 pb-4 grid gap-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-xs text-muted-foreground">
+         <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4">
+            <Label className="text-xs text-muted-foreground">
               Type
             </Label>
-            <div className="col-span-3 flex gap-2">
+                <div className="flex flex-wrap gap-2">
               {FILE_TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.ext}
@@ -221,7 +221,7 @@ function FileCreatorModal({
                     setError("");
                     if (!useCustomFolder) setCustomFolder("");
                   }}
-                  className={`flex-1 flex flex-col items-center gap-1.5 py-2 rounded-lg border text-xs transition-all ${
+                 className={`min-w-[74px] h-10 px-3 flex items-center justify-center rounded-lg border text-xs transition-all ${
                     selectedType.ext === opt.ext
                       ? "border-blue-500 bg-blue-500/10 text-blue-400"
                       : "border-[#333] bg-[#222] hover:bg-[#2a2a2a] text-muted-foreground"
@@ -235,11 +235,11 @@ function FileCreatorModal({
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right text-xs text-muted-foreground">
+              <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4">
+            <Label className="text-xs text-muted-foreground">
               Name
             </Label>
-            <div className="col-span-3 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Input
                 ref={inputRef}
                 value={fileName}
@@ -256,8 +256,8 @@ function FileCreatorModal({
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <div className="text-right flex flex-col items-end">
+               <div className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-4">
+            <div className="flex flex-col">
               <Label className="text-xs text-muted-foreground">Path</Label>
               <button
                 onClick={() => {
@@ -269,7 +269,7 @@ function FileCreatorModal({
                 {useCustomFolder ? "Reset" : "Change"}
               </button>
             </div>
-            <div className="col-span-3">
+           <div>
               <Input
                 value={folder}
                 onChange={(e) => setCustomFolder(e.target.value)}
@@ -279,7 +279,7 @@ function FileCreatorModal({
             </div>
           </div>
           {error && (
-            <p className="text-[10px] text-red-400 col-start-2 col-span-3">
+                       <p className="text-[10px] text-red-400 pl-[80px]">
               {error}
             </p>
           )}
@@ -726,7 +726,7 @@ export function CodeViewEditor({
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState("");
   const [showFileCreator, setShowFileCreator] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false); // ← new
+ 
   const [isGenerating, setIsGenerating] = useState(true);
   const [generatedFiles, setGeneratedFiles] = useState<Record<string, string>>({});
 
@@ -820,6 +820,33 @@ export function CodeViewEditor({
     [onCustomFileUpdate],
   );
 
+  const handleExportZip = useCallback(async () => {
+    if (isGenerating) {
+      toast.info("Please wait until files finish generating.");
+      return;
+    }
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      Object.entries(effectiveFiles).forEach(([path, content]) => {
+        zip.file(path, content);
+      });
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slugify(projectName || "BuildX-Project")}_export.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Project bundle downloaded!");
+    } catch (error) {
+      console.error("zip export failed", error);
+      toast.error("Failed to create zip");
+    }
+  }, [effectiveFiles, isGenerating, projectName]);
+
+
   const handleEditorWillMount = (monaco: any) => {
     monaco.editor.defineTheme("builder-dark", {
       base: "vs-dark",
@@ -887,18 +914,7 @@ export function CodeViewEditor({
           onCreateFile={handleCreateFile}
         />
       )}
-      {showExportModal && (
-        <CodeExportModal
-          components={components}
-          projectName={projectName}
-          pages={pages}
-          activePageId={activePageId}
-          effectiveFiles={effectiveFiles}
-          userConfig={userConfig}
-          onClose={() => setShowExportModal(false)}
-        />
-      )}
-
+    
       {/* Explorer */}
       <div className="w-64 rounded-sm flex flex-col bg-[#252526] overflow-hidden shrink-0 shadow-xl">
         <div className="px-4 py-3 flex items-center justify-between bg-[#252526]">
@@ -985,14 +1001,14 @@ export function CodeViewEditor({
                   </Button>
                 )}
 
-                {/* Export button — opens the full CodeExportModal */}
+              
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setShowExportModal(true)}
+                   onClick={handleExportZip}
                   className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white border-none gap-1.5 transition-all shadow-lg active:scale-95"
                 >
-                  <ExternalLink className="w-3 h-3 text-white/90" /> Export
+                    <Download className="w-3 h-3 text-white/90" /> Download Zip
                 </Button>
               </>
             ) : (
