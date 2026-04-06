@@ -166,7 +166,7 @@ interface TemplateCardData {
   name: string;
   category: string;
   thumbnail: string;
-   projectLayout?: any[];
+  projectLayout?: any[];
   description: string;
   creator?: string;
   creatorAvatar?: string;
@@ -176,18 +176,6 @@ interface TemplateCardData {
   tags: string[];
 }
 
-const thumbnailComponentTypes = new Set([
-  "heading",
-  "text",
-  "button",
-  "image",
-  "container",
-  "card",
-  "hero",
-  "section",
-  "navbar",
-]);
-
 const normalizeCanvasValue = (value: unknown, fallback: number) => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -195,6 +183,25 @@ const normalizeCanvasValue = (value: unknown, fallback: number) => {
     if (Number.isFinite(parsed)) return parsed;
   }
   return fallback;
+};
+
+const collectPreviewComponents = (layout: any[]): any[] => {
+  const collected: any[] = [];
+
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    collected.push(node);
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+    if (Array.isArray(node.components)) {
+      node.components.forEach(visit);
+    }
+  };
+
+  layout.forEach(visit);
+  return collected;
 };
 
 const extractLayoutBounds = (components: any[]) => {
@@ -227,44 +234,55 @@ const extractLayoutBounds = (components: any[]) => {
   };
 };
 
-const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => {
-  const layout = Array.isArray(template.projectLayout)
-    ? template.projectLayout.filter(
-      (component) =>
-        component &&
-        typeof component === "object" &&
-        thumbnailComponentTypes.has(String(component.type || "").toLowerCase()),
-    )
+const CanvasLayoutPreview = ({
+  layout,
+  name,
+  className = "w-full h-full",
+  viewportWidth = 320,
+  viewportHeight = 180,
+}: {
+  layout?: any[];
+  name: string;
+  className?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+}) => {
+  const normalizedLayout = Array.isArray(layout)
+    ? collectPreviewComponents(layout).filter(
+        (component) => component && typeof component === "object",
+      )
     : [];
-
-  if (!layout.length) {
+  if (!normalizedLayout.length) {
     return (
-      <img
-        src={template.thumbnail || "/placeholder.svg"}
-        alt={template.name}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-      />
+         <div
+        className={`${className} flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-500 dark:from-neutral-900 dark:to-neutral-800 dark:text-slate-400`}
+      >
+        <Layout className="h-5 w-5 opacity-70" />
+        <span className="text-[10px] font-medium">Empty canvas</span>
+      </div>
     );
   }
 
-  const bounds = extractLayoutBounds(layout);
+  const bounds = extractLayoutBounds(normalizedLayout);
   const width = Math.max(bounds.maxX - bounds.minX, 1);
   const height = Math.max(bounds.maxY - bounds.minY, 1);
-  const scale = Math.min(320 / width, 180 / height);
+  const scale = Math.min(viewportWidth / width, viewportHeight / height);
   const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 0.2;
 
   return (
-    <div className="w-full h-full overflow-hidden bg-white dark:bg-neutral-900">
+   <div
+      className={`${className} overflow-hidden rounded-md bg-[linear-gradient(45deg,rgba(148,163,184,0.12)_25%,transparent_25%,transparent_50%,rgba(148,163,184,0.12)_50%,rgba(148,163,184,0.12)_75%,transparent_75%,transparent)] bg-[length:12px_12px] bg-white dark:bg-neutral-900`}
+    >
       <div
         className="origin-top-left"
         style={{
           width: `${width}px`,
           height: `${height}px`,
-          transform: `scale(${safeScale})`,
+           transform: `translate(${Math.max((viewportWidth - width * safeScale) / 2, 0)}px, ${Math.max((viewportHeight - height * safeScale) / 2, 0)}px) scale(${safeScale})`,
           transformOrigin: "top left",
         }}
       >
-        {layout.map((component, index) => {
+              {normalizedLayout.map((component, index) => {
           const componentStyle = (component?.style || {}) as Record<string, any>;
           const x = normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
           const y = normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
@@ -274,14 +292,17 @@ const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => 
           const content = String(
             component?.props?.text ??
             component?.props?.content ??
+              component?.props?.children ??
             component?.props?.title ??
             component?.props?.label ??
+              component?.props?.placeholder ??
+            component?.name ??
             "",
           );
 
           return (
             <div
-              key={component.id || `${template.id}-${index}`}
+              key={component.id || `${name}-${index}`}
               className="absolute overflow-hidden"
               style={{
                 left: `${x}px`,
@@ -300,12 +321,13 @@ const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => 
                 justifyContent: componentStyle.justifyContent || "center",
                 textAlign: componentStyle.textAlign || "center",
                 whiteSpace: "pre-wrap",
+                 boxShadow: componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
               }}
             >
               {type === "image" && component?.props?.src ? (
                 <img
                   src={component.props.src}
-                  alt={component?.props?.alt || template.name}
+                     alt={component?.props?.alt || name}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -318,6 +340,10 @@ const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => 
     </div>
   );
 };
+
+const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => (
+  <CanvasLayoutPreview layout={template.projectLayout} name={template.name} />
+);
 
 interface PublishedTemplate {
   project_id: string;
@@ -334,6 +360,7 @@ interface PublishedTemplate {
     projects_id: string;
     is_published: boolean;
     project_name: string;
+       project_layout?: any[];
   };
 }
 
@@ -348,6 +375,7 @@ interface SharedProject {
     projects_id: string;
     project_name: string;
     is_published?: boolean;
+        project_layout?: any[];
     owner_profile: {
       user_id: string;
       full_name: string;
@@ -443,6 +471,49 @@ const resolveTemplateProjectId = (item: any, fallback: string) =>
     fallback,
   ).trim();
 
+const resolveFirstPageLayout = (layout: any[]): any[] => {
+  if (!Array.isArray(layout) || layout.length === 0) return [];
+
+  const firstNode = layout[0];
+  if (firstNode && typeof firstNode === "object") {
+    if (Array.isArray(firstNode.components)) {
+      return firstNode.components;
+    }
+    if (Array.isArray(firstNode.project_layout)) {
+      return firstNode.project_layout;
+    }
+  }
+
+  return layout;
+};
+
+const extractLayoutCandidate = (item: any): any[] => {
+  const directLayout =
+    item?.project_layout ??
+    item?.published_layout ??
+    item?.layout ??
+    item?.components ??
+    item?.project?.project_layout ??
+    item?.project?.published_layout ??
+    item?.projects?.project_layout ??
+    item?.projects?.published_layout;
+
+  if (Array.isArray(directLayout)) {
+    return resolveFirstPageLayout(directLayout);
+  }
+
+  const pageLayout =
+    item?.page?.project_layout ??
+    item?.page?.components ??
+    item?.project?.pages?.[0]?.components ??
+    item?.project?.pages?.[0]?.project_layout ??
+    item?.projects?.pages?.[0]?.components ??
+    item?.projects?.pages?.[0]?.project_layout ??
+    item?.pages?.[0]?.components ??
+    item?.pages?.[0]?.project_layout;
+
+  return Array.isArray(pageLayout) ? resolveFirstPageLayout(pageLayout) : [];
+};
 // Mock recent projects with different statuses
 
 export function Dashboard({
@@ -674,15 +745,7 @@ export function Dashboard({
         "/placeholder.svg",
       ),
 
-       projectLayout: Array.isArray(
-        item?.project_layout ??
-        item?.project?.project_layout ??
-        item?.projects?.project_layout,
-      )
-        ? (item?.project_layout ??
-          item?.project?.project_layout ??
-          item?.projects?.project_layout)
-        : [],
+            projectLayout: extractLayoutCandidate(item),
         
       category: String(
         item?.category ??
@@ -1231,10 +1294,11 @@ export function Dashboard({
     setPrefetchingTemplateIds((prev) => ({ ...prev, [projectId]: true }));
     try {
       const layout = await fetchTemplateLayoutByProjectId(projectId);
-      if (layout.length > 0) {
+       const firstPageLayout = resolveFirstPageLayout(layout);
+      if (firstPageLayout.length > 0) {
         setPrefetchedTemplateLayouts((prev) => ({
           ...prev,
-          [projectId]: layout,
+            [projectId]: firstPageLayout,
         }));
       }
     } catch (error) {
@@ -1251,6 +1315,18 @@ export function Dashboard({
     if (!showCreateTemplateModal || !selectedTemplateId) return;
     prefetchTemplateLayout(selectedTemplateId);
   }, [showCreateTemplateModal, selectedTemplateId]);
+
+  useEffect(() => {
+    const templatesToPrefetch = [...visibleRecommendedTemplates, ...trendingTemplates];
+    templatesToPrefetch.forEach((template) => {
+      const projectId = String(template.projectId ?? template.id ?? "").trim();
+      const hasLayout = Array.isArray(template.projectLayout) && template.projectLayout.length > 0;
+      if (!hasLayout && projectId) {
+        prefetchTemplateLayout(projectId);
+      }
+    });
+  }, [visibleRecommendedTemplates, trendingTemplates, prefetchedTemplateLayouts, prefetchingTemplateIds]);
+
 
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
@@ -2904,7 +2980,12 @@ export function Dashboard({
                           {recommendationsLoading ? (
                             renderRecommendedTemplateSkeletons()
                           ) : filteredRecommendedTemplates.length > 0 ? (
-                            filteredRecommendedTemplates.map((template) => (
+                                filteredRecommendedTemplates.map((template) => {
+                              const resolvedLayout =
+                                (Array.isArray(template.projectLayout) && template.projectLayout.length > 0)
+                                  ? resolveFirstPageLayout(template.projectLayout)
+                                  : resolveFirstPageLayout(prefetchedTemplateLayouts[template.projectId || template.id] || []);
+                              return (
                               <div
                                 key={template.id}
                                 data-tour="recommended-template-card"
@@ -2914,13 +2995,8 @@ export function Dashboard({
                                 }
                               >
                                 <div className="aspect-video bg-muted relative overflow-hidden">
-                                  <img
-                                    src={
-                                      template.thumbnail || "/placeholder.svg"
-                                    }
-                                    alt={template.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
+                                    <CanvasLayoutThumbnail
+                                    template={{ ...template, projectLayout: resolvedLayout }} />
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                 </div>
                                 <div className="p-4">
@@ -2996,7 +3072,7 @@ export function Dashboard({
                                   </div>
                                 </div>
                               </div>
-                            ))
+                              )})
                           ) : (
                             <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                               No recommended templates available.
@@ -3051,15 +3127,22 @@ export function Dashboard({
                       {trendingLoading ? (
                         renderRecommendedTemplateSkeletons()
                       ) : trendingTemplates.length > 0 ? (
-                        trendingTemplates.map((template) => (
+                          trendingTemplates.map((template) => {
+                          const resolvedLayout =
+                            (Array.isArray(template.projectLayout) && template.projectLayout.length > 0)
+                              ? resolveFirstPageLayout(template.projectLayout)
+                              : resolveFirstPageLayout(prefetchedTemplateLayouts[template.projectId || template.id] || []);
+                          return (
                           <div
                             key={template.id}
                             className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
                             onClick={() => handleQuickTemplateClick(template)}
                           >
                             <div className="aspect-video bg-muted relative overflow-hidden">
-                                <CanvasLayoutThumbnail template={template} 
-                              />
+                                     <CanvasLayoutThumbnail
+                                  template={{ ...template, projectLayout: resolvedLayout }}
+                                
+                                />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                             </div>
 
@@ -3137,7 +3220,7 @@ export function Dashboard({
                               </div>
                             </div>
                           </div>
-                        ))
+                             )})
                       ) : (
                         <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                           No trending templates available.
@@ -3467,12 +3550,11 @@ export function Dashboard({
                               <CardContent className="p-3">
                                 {viewMode === "grid" ? (
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                    <img
-                                      src={
-                                        project.thumbnail || "/placeholder.svg"
-                                      }
-                                      alt={project.name}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                         <CanvasLayoutPreview
+                                      layout={extractLayoutCandidate(project)}
+                                      name={project.name}
+                                      viewportWidth={240}
+                                      viewportHeight={96}
                                     />
                                   </div>
                                 ) : null}
@@ -3634,12 +3716,11 @@ export function Dashboard({
                                 <CardContent className="p-3">
                                     {viewMode === "grid" ? (
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                    <img
-                                      src={
-                                        project.thumbnail || "/placeholder.svg"
-                                      }
-                                      alt={project.name}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                   <CanvasLayoutPreview
+                                      layout={template.projects.project_layout}
+                                      name={template.projects.project_name}
+                                      viewportWidth={240}
+                                      viewportHeight={96}
                                     />
                                   </div>
                                 ) : null}
@@ -3718,13 +3799,11 @@ export function Dashboard({
                               >
                                 <CardContent className="p-3">
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                    <img
-                                      src={
-                                        sharedProject.projects.thumbnail ||
-                                        "/placeholder.svg"
-                                      }
-                                      alt={sharedProject.projects.project_name}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        <CanvasLayoutPreview
+                                      layout={sharedProject.projects.project_layout}
+                                      name={sharedProject.projects.project_name}
+                                      viewportWidth={240}
+                                      viewportHeight={96}
                                     />
                                   </div>
 
@@ -3801,13 +3880,11 @@ export function Dashboard({
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                              <img
-                                src={
-                                  template.projects.thumbnail ||
-                                  "/placeholder.svg"
-                                }
-                                alt={template.projects.project_name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                <CanvasLayoutPreview
+                                layout={template.projects.project_layout}
+                                name={template.projects.project_name}
+                                viewportWidth={240}
+                                viewportHeight={96}
                               />
                             </div>
 
@@ -3878,13 +3955,11 @@ export function Dashboard({
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                              <img
-                                src={
-                                  sharedProject.projects.thumbnail ||
-                                  "/placeholder.svg"
-                                }
-                                alt={sharedProject.projects.project_name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                               <CanvasLayoutPreview
+                                layout={sharedProject.projects.project_layout}
+                                name={sharedProject.projects.project_name}
+                                viewportWidth={240}
+                                viewportHeight={96}
                               />
                             </div>
 
@@ -3958,10 +4033,11 @@ export function Dashboard({
                             <CardContent className="p-3">
                              {viewMode === "grid" && (
                                 <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                  <img
-                                    src={project.thumbnail || "/placeholder.svg"}
-                                    alt={project.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                       <CanvasLayoutPreview
+                                    layout={project.project_layout}
+                                    name={project.name}
+                                    viewportWidth={240}
+                                    viewportHeight={96}
                                   />
                                 </div>
                               )}
@@ -4082,10 +4158,11 @@ export function Dashboard({
                           ) : (
                             <>
                               <div className="relative aspect-4/3 overflow-hidden bg-muted">
-                                <img
-                                  src={project.thumbnail || "/placeholder.svg"}
-                                  alt={project.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          <CanvasLayoutPreview
+                                  layout={project.project_layout}
+                                  name={project.name}
+                                  viewportWidth={320}
+                                  viewportHeight={240}
                                 />
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <DropdownMenu>
