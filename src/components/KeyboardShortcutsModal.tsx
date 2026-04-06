@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,7 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Search } from 'lucide-react';
-import { ScrollArea } from './ui/scroll-area';
+
 import { Badge } from './ui/badge';
 
 interface KeyboardShortcutsModalProps {
@@ -27,6 +27,17 @@ interface Shortcut {
 
 export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
+
+   useEffect(() => {
+    if (!isOpen) {
+      document.body.style.pointerEvents = '';
+    }
+
+    return () => {
+      document.body.style.pointerEvents = '';
+    };
+  }, [isOpen]);
+
 
   const shortcuts: Shortcut[] = [
     {
@@ -70,8 +81,13 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+      <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col min-h-0">
         <DialogHeader>
           <DialogTitle>Keyboard Shortcuts</DialogTitle>
           <DialogDescription>
@@ -92,7 +108,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
         </div>
 
         {/* Shortcuts List */}
-        <ScrollArea className="flex-1 pr-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-4">
           <div className="space-y-6 py-4">
             {filteredShortcuts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -138,7 +154,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
               ))
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="pt-4 border-t">
           <p className="text-xs text-muted-foreground text-center">

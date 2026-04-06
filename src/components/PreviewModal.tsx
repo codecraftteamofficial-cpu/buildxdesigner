@@ -3,9 +3,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import {
   X,
-  Monitor,
-  Smartphone,
-  Tablet,
+
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -112,7 +110,7 @@ export function PreviewModal({
   currentUser,
   canvasBackgroundColor = "#ffffff",
 }: PreviewModalProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("desktop");
+   const [viewMode] = useState<ViewMode>("desktop");
   const [fitMode, setFitMode] = useState<FitMode>("fit");
   const [zoom, setZoom] = useState(1);
   const [showControls, setShowControls] = useState(true);
@@ -968,21 +966,7 @@ export function PreviewModal({
         case "Escape":
           onClose();
           break;
-        case "1":
-          setViewMode("desktop");
-          break;
-        case "2":
-          setViewMode("tablet");
-          break;
-        case "3":
-          setViewMode("mobile");
-          break;
-        case "f":
-          setFitMode("fit");
-          break;
-        case "F":
-          setFitMode("fill");
-          break;
+    
         case "0":
           setFitMode("actual");
           setZoom(1);
@@ -1169,35 +1153,7 @@ export function PreviewModal({
               <span className="text-white font-medium">Preview</span>
             </div>
 
-            <div className="flex items-center gap-1">
-              <Button
-                variant={viewMode === "desktop" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("desktop")}
-                className="text-white hover:text-black"
-              >
-                <Monitor className="w-4 h-4 mr-1" />
-                Desktop
-              </Button>
-              <Button
-                variant={viewMode === "tablet" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("tablet")}
-                className="text-white hover:text-black"
-              >
-                <Tablet className="w-4 h-4 mr-1" />
-                Tablet
-              </Button>
-              <Button
-                variant={viewMode === "mobile" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("mobile")}
-                className="text-white hover:text-black"
-              >
-                <Smartphone className="w-4 h-4 mr-1" />
-                Mobile
-              </Button>
-            </div>
+          
           </div>
 
           <div className="flex items-center gap-4">
@@ -1420,15 +1376,11 @@ export function PreviewModal({
       >
         <div className="bg-black/80 backdrop-blur-sm text-white text-xs p-3 rounded-lg">
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <kbd className="bg-white/20 px-1 rounded">Esc</kbd> Close
-            </div>
+           
             <div>
               <kbd className="bg-white/20 px-1 rounded">F</kbd> Fit to Screen
             </div>
-            <div>
-              <kbd className="bg-white/20 px-1 rounded">1-3</kbd> Device Mode
-            </div>
+           
             <div>
               <kbd className="bg-white/20 px-1 rounded">+/-</kbd> Zoom
             </div>

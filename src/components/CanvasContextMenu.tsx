@@ -77,7 +77,7 @@ const menuItems = [
 
   return (
     <div
-      className="fixed z-9999 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-40"
+       className="fixed z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-40"
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,

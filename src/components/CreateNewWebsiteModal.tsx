@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ interface Template {
   name: string;
   description: string;
   thumbnail: string;
+  projectLayout?: any[];
   category: string;
   premium: boolean;
   tags: string[];
@@ -48,7 +49,7 @@ interface CreateNewWebsiteModalProps {
     projectName: string,
     projectCategory: string,
     projectDescription?: string,
-  ) => void;
+  ) => void | Promise<void>;
   onTemplateChange?: (templateId: string) => void;
   onTrackSearch: (query: string) => void;
   recommendedTemplates?: Template[];
@@ -121,6 +122,203 @@ const fetchWithPathFallback = async (paths: string[], init?: RequestInit) => {
   throw lastError ?? new Error("Request failed for all route candidates.");
 };
 
+const normalizeCanvasValue = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const collectPreviewComponents = (layout: any[]): any[] => {
+  const collected: any[] = [];
+
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    collected.push(node);
+
+    if (Array.isArray(node.children)) node.children.forEach(visit);
+    if (Array.isArray(node.components)) node.components.forEach(visit);
+  };
+
+  layout.forEach(visit);
+  return collected;
+};
+
+const extractLayoutBounds = (components: any[]) => {
+  if (!components.length) return { minX: 0, minY: 0, maxX: 1200, maxY: 720 };
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  components.forEach((component) => {
+    const x = normalizeCanvasValue(component?.position?.x, 0);
+    const y = normalizeCanvasValue(component?.position?.y, 0);
+    const width = normalizeCanvasValue(component?.style?.width, 320);
+    const height = normalizeCanvasValue(component?.style?.height, 160);
+
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + Math.max(width, 1));
+    maxY = Math.max(maxY, y + Math.max(height, 1));
+  });
+
+  return {
+    minX: Number.isFinite(minX) ? minX : 0,
+    minY: Number.isFinite(minY) ? minY : 0,
+    maxX: Number.isFinite(maxX) ? maxX : 1200,
+    maxY: Number.isFinite(maxY) ? maxY : 720,
+  };
+};
+
+const resolveFirstPageLayout = (layout?: any[]): any[] => {
+  if (!Array.isArray(layout) || layout.length === 0) return [];
+  const firstItem = layout[0];
+  if (
+    firstItem &&
+    typeof firstItem === "object" &&
+    Array.isArray(firstItem.components)
+  ) {
+    return firstItem.components;
+  }
+  return layout;
+};
+
+const CanvasLayoutPreview = ({
+  layout,
+  name,
+  className = "w-full h-full",
+  viewportWidth = 320,
+  viewportHeight = 180,
+}: {
+  layout?: any[];
+  name: string;
+  className?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+}) => {
+  const normalizedLayout = Array.isArray(layout)
+    ? collectPreviewComponents(layout).filter(
+        (component) => component && typeof component === "object",
+      )
+    : [];
+
+  if (!normalizedLayout.length) {
+    return (
+      <div
+        className={`${className} flex items-center justify-center bg-muted text-xs text-muted-foreground`}
+      >
+        {name}
+      </div>
+    );
+  }
+
+  const bounds = extractLayoutBounds(normalizedLayout);
+  const width = Math.max(bounds.maxX - bounds.minX, 1);
+  const height = Math.max(bounds.maxY - bounds.minY, 1);
+  const viewportRatio = viewportHeight / viewportWidth;
+  const idealPreviewHeight = width * viewportRatio;
+  const isTallLayout = height > idealPreviewHeight * 1.25;
+  const croppedHeight = isTallLayout
+    ? Math.min(height, Math.max(idealPreviewHeight, height * 0.5))
+    : height;
+  const fitScale = viewportWidth / width;
+  const safeScale = Number.isFinite(fitScale) && fitScale > 0 ? fitScale : 0.2;
+  const scaledWidth = width * safeScale;
+  const scaledHeight = croppedHeight * safeScale;
+  const translateX = (viewportWidth - scaledWidth) / 2;
+  const translateY =
+    scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
+
+  return (
+    <div
+      className={`${className} relative overflow-hidden rounded-md bg-[#f7f8fa]`}
+    >
+      <div
+        className="origin-top-left"
+        style={{
+          width: `${width}px`,
+          height: `${croppedHeight}px`,
+          transform: `translate(${translateX}px, ${translateY}px) scale(${safeScale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {normalizedLayout.map((component, index) => {
+          const componentStyle = (component?.style || {}) as Record<
+            string,
+            any
+          >;
+          const x =
+            normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
+          const y =
+            normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
+          const widthValue = normalizeCanvasValue(componentStyle.width, 320);
+          const heightValue = normalizeCanvasValue(componentStyle.height, 140);
+          const type = String(component?.type || "").toLowerCase();
+          const content = String(
+            component?.props?.text ??
+              component?.props?.content ??
+              component?.props?.children ??
+              component?.props?.title ??
+              component?.props?.label ??
+              component?.name ??
+              "",
+          );
+
+          return (
+            <div
+              key={component.id || `${name}-${index}`}
+              className="absolute overflow-hidden"
+              style={{
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${Math.max(widthValue, 1)}px`,
+                height: `${Math.max(heightValue, 1)}px`,
+                borderRadius: componentStyle.borderRadius ?? 8,
+                background:
+                  componentStyle.background ||
+                  componentStyle.backgroundColor ||
+                  (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
+                border:
+                  componentStyle.border || "1px solid rgba(148,163,184,0.35)",
+                color:
+                  componentStyle.color ||
+                  (type === "button" ? "#ffffff" : "#0f172a"),
+                fontSize:
+                  componentStyle.fontSize ||
+                  (type === "heading" ? "22px" : "14px"),
+                fontWeight:
+                  componentStyle.fontWeight || (type === "heading" ? 700 : 500),
+                padding: componentStyle.padding || "8px 10px",
+                display: "flex",
+                alignItems: componentStyle.alignItems || "center",
+                justifyContent: componentStyle.justifyContent || "center",
+                textAlign: componentStyle.textAlign || "center",
+                whiteSpace: "pre-wrap",
+                boxShadow:
+                  componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
+              }}
+            >
+              {type === "image" && component?.props?.src ? (
+                <img
+                  src={component.props.src}
+                  alt={component?.props?.alt || name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="line-clamp-3">{content || type}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export function CreateNewWebsiteModal({
   isOpen,
   onClose,
@@ -150,6 +348,8 @@ export function CreateNewWebsiteModal({
   const [commentsError, setCommentsError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const createProjectInFlightRef = useRef(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const isBlankTemplateSelected = selectedTemplate?.id === "blank";
   const [mlRecommendedTemplates, setMlRecommendedTemplates] = useState<
@@ -199,6 +399,17 @@ export function CreateNewWebsiteModal({
         item?.projects?.thumbnail ??
         "/placeholder.svg",
     ),
+    projectLayout: resolveFirstPageLayout(
+      Array.isArray(item?.project_layout)
+        ? item.project_layout
+        : Array.isArray(item?.projectLayout)
+          ? item.projectLayout
+          : Array.isArray(item?.project?.project_layout)
+            ? item.project.project_layout
+            : Array.isArray(item?.projects?.project_layout)
+              ? item.projects.project_layout
+              : [],
+    ),
     category: String(
       item?.category ??
         item?.template_category ??
@@ -245,6 +456,66 @@ export function CreateNewWebsiteModal({
     ),
   });
 
+  const extractTemplateLayoutFromApiResponse = (payload: any): any[] => {
+    const templateData = Array.isArray(payload?.templateData)
+      ? payload.templateData
+      : [];
+
+    if (!templateData.length) return [];
+
+    const projectLayout = templateData[0]?.projects?.project_layout;
+    return Array.isArray(projectLayout)
+      ? resolveFirstPageLayout(projectLayout)
+      : [];
+  };
+
+  const fetchTemplateLayoutByProjectId = async (
+    projectId: string,
+  ): Promise<any[]> => {
+    if (!projectId || projectId === "blank") return [];
+
+    const response = await fetchWithPathFallback([
+      `/api/template-data/${encodeURIComponent(projectId)}`,
+      `/api/get-template-data-by-id/${encodeURIComponent(projectId)}`,
+    ]);
+
+    const json = await response.json();
+    return extractTemplateLayoutFromApiResponse(json);
+  };
+
+  const hydrateTemplatesWithLayouts = async (
+    templates: Template[],
+  ): Promise<Template[]> => {
+    const hydratedTemplates = await Promise.all(
+      templates.map(async (template) => {
+        if (
+          Array.isArray(template.projectLayout) &&
+          template.projectLayout.length > 0
+        ) {
+          return template;
+        }
+
+        try {
+          const fetchedLayout = await fetchTemplateLayoutByProjectId(
+            template.id,
+          );
+          if (Array.isArray(fetchedLayout) && fetchedLayout.length > 0) {
+            return { ...template, projectLayout: fetchedLayout };
+          }
+        } catch (error) {
+          console.warn(
+            `[CreateNewWebsiteModal] failed to fetch layout for ${template.id}`,
+            error,
+          );
+        }
+
+        return template;
+      }),
+    );
+
+    return hydratedTemplates;
+  };
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -266,7 +537,10 @@ export function CreateNewWebsiteModal({
             : [];
 
         if (isMounted) {
-          setProjectTemplates(payload.map(normalizeTemplate));
+          const normalizedTemplates = payload.map(normalizeTemplate);
+          const hydratedTemplates =
+            await hydrateTemplatesWithLayouts(normalizedTemplates);
+          setProjectTemplates(hydratedTemplates);
         }
       } catch (error) {
         console.error("Error fetching templates:", error);
@@ -351,7 +625,10 @@ export function CreateNewWebsiteModal({
               : [];
 
         if (mounted) {
-          setMlRecommendedTemplates(payload.map(normalizeTemplate));
+          const normalizedTemplates = payload.map(normalizeTemplate);
+          const hydratedTemplates =
+            await hydrateTemplatesWithLayouts(normalizedTemplates);
+          setMlRecommendedTemplates(hydratedTemplates);
         }
       } catch (error) {
         console.error("Failed to fetch ML recommended templates:", error);
@@ -601,19 +878,31 @@ export function CreateNewWebsiteModal({
     setShowNameInput(true);
   };
 
-  const handleCreateProject = () => {
-    if (selectedTemplate && projectName.trim()) {
-      onSelectTemplate(
+  const handleCreateProject = async () => {
+    if (!selectedTemplate || !projectName.trim()) return;
+    if (createProjectInFlightRef.current) return;
+
+    createProjectInFlightRef.current = true;
+    setIsCreatingProject(true);
+
+    try {
+      await onSelectTemplate(
         selectedTemplate.id,
         projectName,
         projectCategory,
         projectDescription.trim(),
       );
-      handleClose();
+    } catch (error) {
+      console.error("Failed to create project:", error);
+    } finally {
+      createProjectInFlightRef.current = false;
+      setIsCreatingProject(false);
     }
   };
 
   const handleClose = () => {
+    createProjectInFlightRef.current = false;
+    setIsCreatingProject(false);
     onClose();
   };
 
@@ -691,11 +980,19 @@ export function CreateNewWebsiteModal({
                           onClick={() => handleTemplateClick(template)}
                         >
                           <div className="relative aspect-video overflow-hidden">
-                            <img
-                              src={template.thumbnail || "/placeholder.svg"}
-                              alt={template.name}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
+                            {Array.isArray(template.projectLayout) &&
+                            template.projectLayout.length > 0 ? (
+                              <CanvasLayoutPreview
+                                layout={template.projectLayout}
+                                name={template.name}
+                              />
+                            ) : (
+                              <img
+                                src={template.thumbnail || "/placeholder.svg"}
+                                alt={template.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                            )}
                             {template.premium && (
                               <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
                                 Premium
@@ -771,11 +1068,19 @@ export function CreateNewWebsiteModal({
                           onClick={() => handleTemplateClick(template)}
                         >
                           <div className="relative aspect-video overflow-hidden">
-                            <img
-                              src={template.thumbnail || "/placeholder.svg"}
-                              alt={template.name}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
+                            {Array.isArray(template.projectLayout) &&
+                            template.projectLayout.length > 0 ? (
+                              <CanvasLayoutPreview
+                                layout={template.projectLayout}
+                                name={template.name}
+                              />
+                            ) : (
+                              <img
+                                src={template.thumbnail || "/placeholder.svg"}
+                                alt={template.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                            )}
                             {template.premium && (
                               <Badge className="absolute top-2 right-2 bg-linear-to-r from-yellow-500 to-yellow-600">
                                 Premium
@@ -844,11 +1149,22 @@ export function CreateNewWebsiteModal({
                 <Card className="border-2">
                   <div className="flex items-start gap-4 p-4">
                     <div className="w-32 h-24 rounded overflow-hidden shrink-0">
-                      <img
-                        src={selectedTemplate.thumbnail || "/placeholder.svg"}
-                        alt={selectedTemplate.name}
-                        className="w-full h-full object-cover"
-                      />
+                      {Array.isArray(selectedTemplate.projectLayout) &&
+                      selectedTemplate.projectLayout.length > 0 ? (
+                        <CanvasLayoutPreview
+                          layout={selectedTemplate.projectLayout}
+                          name={selectedTemplate.name}
+                          className="w-full h-full"
+                          viewportWidth={128}
+                          viewportHeight={96}
+                        />
+                      ) : (
+                        <img
+                          src={selectedTemplate.thumbnail || "/placeholder.svg"}
+                          alt={selectedTemplate.name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </div>
                     <div className="flex-1">
                       <h4 className="font-medium mb-1">
@@ -987,10 +1303,10 @@ export function CreateNewWebsiteModal({
               <div className="flex items-center gap-3 pt-4">
                 <Button
                   onClick={handleCreateProject}
-                  disabled={!projectName.trim()}
+                  disabled={!projectName.trim() || isCreatingProject}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
                 >
-                  Create Project
+                  {isCreatingProject ? "Creating..." : "Create Project"}
                 </Button>
               </div>
             </div>

@@ -96,7 +96,11 @@ import {
 // MarketplaceComponentModal removed — import happens inline on card click
 import { toast } from "sonner";
 import { importPublishedComponent } from "../supabase/data/publishedComponentService";
-import { deleteCustomComponent, updateCustomComponentPublicStatus, deletePublishedComponent } from "../supabase/data/customComponentService";
+import {
+  deleteCustomComponent,
+  updateCustomComponentPublicStatus,
+  deletePublishedComponent,
+} from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
 import { markStepComplete } from "../supabase/data/tutorialProgressService";
 
@@ -106,7 +110,8 @@ type DashboardSection =
   | "team"
   | "all"
   | "trash"
-  | "marketplace" | "custom";
+  | "marketplace"
+  | "custom";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
 
@@ -173,6 +178,7 @@ interface TemplateCardData {
   name: string;
   category: string;
   thumbnail: string;
+  projectLayout?: any[];
   description: string;
   creator?: string;
   creatorAvatar?: string;
@@ -181,6 +187,209 @@ interface TemplateCardData {
   premium: boolean;
   tags: string[];
 }
+
+const normalizeCanvasValue = (value: unknown, fallback: number) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const collectPreviewComponents = (layout: any[]): any[] => {
+  const collected: any[] = [];
+
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    collected.push(node);
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+    if (Array.isArray(node.components)) {
+      node.components.forEach(visit);
+    }
+  };
+
+  layout.forEach(visit);
+  return collected;
+};
+
+const extractLayoutBounds = (components: any[]) => {
+  if (!components.length) {
+    return { minX: 0, minY: 0, maxX: 1200, maxY: 720 };
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  components.forEach((component) => {
+    const x = normalizeCanvasValue(component?.position?.x, 0);
+    const y = normalizeCanvasValue(component?.position?.y, 0);
+    const width = normalizeCanvasValue(component?.style?.width, 320);
+    const height = normalizeCanvasValue(component?.style?.height, 160);
+
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + Math.max(width, 1));
+    maxY = Math.max(maxY, y + Math.max(height, 1));
+  });
+
+  return {
+    minX: Number.isFinite(minX) ? minX : 0,
+    minY: Number.isFinite(minY) ? minY : 0,
+    maxX: Number.isFinite(maxX) ? maxX : 1200,
+    maxY: Number.isFinite(maxY) ? maxY : 720,
+  };
+};
+
+const CanvasLayoutPreview = ({
+  layout,
+  name,
+  className = "w-full h-full",
+  viewportWidth = 320,
+  viewportHeight = 180,
+}: {
+  layout?: any[];
+  name: string;
+  className?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+}) => {
+  const normalizedLayout = Array.isArray(layout)
+    ? collectPreviewComponents(layout).filter(
+      (component) => component && typeof component === "object",
+    )
+    : [];
+  if (!normalizedLayout.length) {
+    return (
+      <div
+        className={`${className} flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-500 dark:from-neutral-900 dark:to-neutral-800 dark:text-slate-400`}
+      >
+        <Layout className="h-5 w-5 opacity-70" />
+        <span className="text-[10px] font-medium">Empty canvas</span>
+      </div>
+    );
+  }
+
+  const bounds = extractLayoutBounds(normalizedLayout);
+  const width = Math.max(bounds.maxX - bounds.minX, 1);
+  const height = Math.max(bounds.maxY - bounds.minY, 1);
+  const viewportRatio = viewportHeight / viewportWidth;
+  const idealPreviewHeight = width * viewportRatio;
+  const isTallLayout = height > idealPreviewHeight * 1.25;
+  const croppedHeight = isTallLayout
+    ? Math.min(height, Math.max(idealPreviewHeight, height * 0.5))
+    : height;
+  const framePadding = 0;
+  const fitWidth = Math.max(viewportWidth - framePadding * 2, 1);
+  const baseScale = fitWidth / width;
+  const zoomedScale = baseScale;
+  const safeScale =
+    Number.isFinite(zoomedScale) && zoomedScale > 0 ? zoomedScale : 0.2;
+  const scaledWidth = width * safeScale;
+  const scaledHeight = croppedHeight * safeScale;
+  const translateX = (viewportWidth - scaledWidth) / 2;
+  const translateY =
+    scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
+
+  return (
+    <div
+      className={`${className} relative overflow-hidden rounded-md bg-[#f7f8fa] dark:bg-neutral-900`}
+    >
+      <div
+        className="origin-top-left"
+        style={{
+          width: `${width}px`,
+          height: `${croppedHeight}px`,
+          transform: `translate(${translateX}px, ${translateY}px) scale(${safeScale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {normalizedLayout.map((component, index) => {
+          const componentStyle = (component?.style || {}) as Record<
+            string,
+            any
+          >;
+          const x =
+            normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
+          const y =
+            normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
+          const widthValue = normalizeCanvasValue(componentStyle.width, 320);
+          const heightValue = normalizeCanvasValue(componentStyle.height, 140);
+          const type = String(component?.type || "").toLowerCase();
+          const content = String(
+            component?.props?.text ??
+            component?.props?.content ??
+            component?.props?.children ??
+            component?.props?.title ??
+            component?.props?.label ??
+            component?.props?.placeholder ??
+            component?.name ??
+            "",
+          );
+
+          return (
+            <div
+              key={component.id || `${name}-${index}`}
+              className="absolute overflow-hidden"
+              style={{
+                left: `${x}px`,
+                top: `${y}px`,
+                width: `${Math.max(widthValue, 1)}px`,
+                height: `${Math.max(heightValue, 1)}px`,
+                borderRadius: componentStyle.borderRadius ?? 8,
+                background:
+                  componentStyle.background ||
+                  componentStyle.backgroundColor ||
+                  (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
+                border:
+                  componentStyle.border || "1px solid rgba(148,163,184,0.35)",
+                color:
+                  componentStyle.color ||
+                  (type === "button" ? "#ffffff" : "#0f172a"),
+                fontSize:
+                  componentStyle.fontSize ||
+                  (type === "heading" ? "22px" : "14px"),
+                fontWeight:
+                  componentStyle.fontWeight || (type === "heading" ? 700 : 500),
+                padding: componentStyle.padding || "8px 10px",
+                display: "flex",
+                alignItems: componentStyle.alignItems || "center",
+                justifyContent: componentStyle.justifyContent || "center",
+                textAlign: componentStyle.textAlign || "center",
+                whiteSpace: "pre-wrap",
+                boxShadow:
+                  componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
+              }}
+            >
+              {type === "image" && component?.props?.src ? (
+                <img
+                  src={component.props.src}
+                  alt={component?.props?.alt || name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="line-clamp-3">{content || type}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const CanvasLayoutThumbnail = ({
+  template,
+}: {
+  template: TemplateCardData;
+}) => (
+  <CanvasLayoutPreview layout={template.projectLayout} name={template.name} />
+);
 
 interface PublishedTemplate {
   project_id: string;
@@ -197,6 +406,7 @@ interface PublishedTemplate {
     projects_id: string;
     is_published: boolean;
     project_name: string;
+    project_layout?: any[];
   };
 }
 
@@ -211,6 +421,7 @@ interface SharedProject {
     projects_id: string;
     project_name: string;
     is_published?: boolean;
+    project_layout?: any[];
     owner_profile: {
       user_id: string;
       full_name: string;
@@ -306,6 +517,49 @@ const resolveTemplateProjectId = (item: any, fallback: string) =>
     fallback,
   ).trim();
 
+const resolveFirstPageLayout = (layout: any[]): any[] => {
+  if (!Array.isArray(layout) || layout.length === 0) return [];
+
+  const firstNode = layout[0];
+  if (firstNode && typeof firstNode === "object") {
+    if (Array.isArray(firstNode.components)) {
+      return firstNode.components;
+    }
+    if (Array.isArray(firstNode.project_layout)) {
+      return firstNode.project_layout;
+    }
+  }
+
+  return layout;
+};
+
+const extractLayoutCandidate = (item: any): any[] => {
+  const directLayout =
+    item?.project_layout ??
+    item?.published_layout ??
+    item?.layout ??
+    item?.components ??
+    item?.project?.project_layout ??
+    item?.project?.published_layout ??
+    item?.projects?.project_layout ??
+    item?.projects?.published_layout;
+
+  if (Array.isArray(directLayout)) {
+    return resolveFirstPageLayout(directLayout);
+  }
+
+  const pageLayout =
+    item?.page?.project_layout ??
+    item?.page?.components ??
+    item?.project?.pages?.[0]?.components ??
+    item?.project?.pages?.[0]?.project_layout ??
+    item?.projects?.pages?.[0]?.components ??
+    item?.projects?.pages?.[0]?.project_layout ??
+    item?.pages?.[0]?.components ??
+    item?.pages?.[0]?.project_layout;
+
+  return Array.isArray(pageLayout) ? resolveFirstPageLayout(pageLayout) : [];
+};
 // Mock recent projects with different statuses
 
 export function Dashboard({
@@ -363,7 +617,7 @@ export function Dashboard({
   ); // Updated to string | null
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
- 
+
   const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
     useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
@@ -427,6 +681,7 @@ export function Dashboard({
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [pendingDeleteProject, setPendingDeleteProject] =
     useState<Project | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [showEditProjectDialog, setShowEditProjectDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editProjectName, setEditProjectName] = useState("");
@@ -487,7 +742,7 @@ export function Dashboard({
         const { fetchTutorialProgress } = await import("../supabase/data/tutorialProgressService");
         const rows = await fetchTutorialProgress(currentUserId);
         const completedKeys = new Set(rows.filter(r => r.completed).map(r => r.step_key));
-        
+
         const allDone = ALL_STEP_KEYS.every(key => completedKeys.has(key));
         if (allDone) {
           window.dispatchEvent(new Event("buildx-tutorial-completed"));
@@ -509,49 +764,49 @@ export function Dashboard({
     }
 
     handleTourCompletedShowGuide();
-  }, [currentUserId]); 
+  }, [currentUserId]);
 
   // Listen for step completions fired from the editor (App.tsx)
-useEffect(() => {
-  const handleEditorStepCompleted = async (e: Event) => {
-    const stepKey = (e as CustomEvent).detail?.stepKey;
-    if (!stepKey) return;
+  useEffect(() => {
+    const handleEditorStepCompleted = async (e: Event) => {
+      const stepKey = (e as CustomEvent).detail?.stepKey;
+      if (!stepKey) return;
 
-    const userId = currentUserIdRef.current;
+      const userId = currentUserIdRef.current;
 
-    if (userId) {
-      try {
-        await markStepComplete(userId, stepKey);
-      } catch (err) {
-        console.error(`Failed to save tutorial step ${stepKey}:`, err);
-      }
-      try {
-        const { fetchTutorialProgress } = await import(
-          "../supabase/data/tutorialProgressService"
-        );
-        const rows = await fetchTutorialProgress(userId);
-        const completedKeys = new Set(
-          rows.filter((r) => r.completed).map((r) => r.step_key)
-        );
-        if (ALL_STEP_KEYS.every((key) => completedKeys.has(key))) {
-          window.dispatchEvent(new Event("buildx-tutorial-completed"));
-          return;
+      if (userId) {
+        try {
+          await markStepComplete(userId, stepKey);
+        } catch (err) {
+          console.error(`Failed to save tutorial step ${stepKey}:`, err);
         }
-      } catch (err) {
-        console.error("Failed to fetch tutorial progress:", err);
+        try {
+          const { fetchTutorialProgress } = await import(
+            "../supabase/data/tutorialProgressService"
+          );
+          const rows = await fetchTutorialProgress(userId);
+          const completedKeys = new Set(
+            rows.filter((r) => r.completed).map((r) => r.step_key)
+          );
+          if (ALL_STEP_KEYS.every((key) => completedKeys.has(key))) {
+            window.dispatchEvent(new Event("buildx-tutorial-completed"));
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to fetch tutorial progress:", err);
+        }
+      } else {
+        localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
       }
-    } else {
-      localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
-    }
 
-    // ← CHANGED: only refresh the key, don't close modals or redirect
-    handleTourComplete();
-  };
+      // ← CHANGED: only refresh the key, don't close modals or redirect
+      handleTourComplete();
+    };
 
-  window.addEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
-  return () =>
-    window.removeEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
-}, []);
+    window.addEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
+    return () =>
+      window.removeEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
+  }, []);
 
   useEffect(() => {
     const handleTutorialComplete = () => {
@@ -605,8 +860,6 @@ useEffect(() => {
     }
   }, []);
 
- 
-
   // --- NEW STATES FOR REDESIGNED PROMPT SECTION ---
   const [selectedTemplateCategory, setSelectedTemplateCategory] =
     useState<string>("All");
@@ -649,6 +902,9 @@ useEffect(() => {
         item?.projects?.thumbnail ??
         "/placeholder.svg",
       ),
+
+      projectLayout: extractLayoutCandidate(item),
+
       category: String(
         item?.category ??
         item?.template_category ??
@@ -857,7 +1113,7 @@ useEffect(() => {
     };
   }, [currentUserId]);
 
-   const visibleRecommendedTemplates = publishedTemplateCards.filter(
+  const visibleRecommendedTemplates = publishedTemplateCards.filter(
     (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
   );
 
@@ -1196,10 +1452,11 @@ useEffect(() => {
     setPrefetchingTemplateIds((prev) => ({ ...prev, [projectId]: true }));
     try {
       const layout = await fetchTemplateLayoutByProjectId(projectId);
-      if (layout.length > 0) {
+      const firstPageLayout = resolveFirstPageLayout(layout);
+      if (firstPageLayout.length > 0) {
         setPrefetchedTemplateLayouts((prev) => ({
           ...prev,
-          [projectId]: layout,
+          [projectId]: firstPageLayout,
         }));
       }
     } catch (error) {
@@ -1218,102 +1475,25 @@ useEffect(() => {
   }, [showCreateTemplateModal, selectedTemplateId]);
 
   useEffect(() => {
-    if (!showCreateTemplateModal) return;
-    if (localStorage.getItem("buildx-pending-editor-tour") === "1") {
-      localStorage.removeItem("buildx-pending-editor-tour");
-      const id = window.setTimeout(() => setShowWebsiteCreationTour(true), 250);
-      return () => window.clearTimeout(id);
-    }
-  }, [showCreateTemplateModal]);
-
-  // Add this useEffect near your other useEffects
-  useEffect(() => {
-    if (!showCreateTemplateModal) {
-      // Check for any pending tours that need to fire when the modal closes
-      // Canvas tour targets editor-only DOM; App.tsx consumes buildx-pending-canvas-tour on /editor.
-      if (localStorage.getItem("buildx-pending-properties-tour") === "1") {
-        localStorage.removeItem("buildx-pending-properties-tour");
-        setTimeout(() => setShowPropertiesPanelTour(true), 100);
-      } else if (localStorage.getItem("buildx-pending-ai-tour") === "1") {
-        localStorage.removeItem("buildx-pending-ai-tour");
-        setTimeout(() => setShowAIAssistantTour(true), 100);
-      } else if (localStorage.getItem("buildx-pending-code-tour") === "1") {
-        localStorage.removeItem("buildx-pending-code-tour");
-        setTimeout(() => setShowCodeEditorTour(true), 100);
-      } else if (localStorage.getItem("buildx-pending-collab-tour") === "1") {
-        localStorage.removeItem("buildx-pending-collab-tour");
-        setTimeout(() => setShowSavingCollabTour(true), 100);
-      } else if (localStorage.getItem("buildx-pending-publishing-basics-tour") === "1") {
-        localStorage.removeItem("buildx-pending-publishing-basics-tour");
-        setTimeout(() => setShowPublishingBasicsTour(true), 100);
+    const templatesToPrefetch = [
+      ...visibleRecommendedTemplates,
+      ...trendingTemplates,
+    ];
+    templatesToPrefetch.forEach((template) => {
+      const projectId = String(template.projectId ?? template.id ?? "").trim();
+      const hasLayout =
+        Array.isArray(template.projectLayout) &&
+        template.projectLayout.length > 0;
+      if (!hasLayout && projectId) {
+        prefetchTemplateLayout(projectId);
       }
-    }
-  }, [showCreateTemplateModal]);
-
-  useEffect(() => {
-    if (!pendingGuidePopup) return;
-
-    const hasActiveTour =
-      showBuildXIntroductionTour ||
-      showWebsiteCreationTour ||
-      showPublishingBasicsTour ||
-      showDashboardTour ||
-      showPropertiesPanel ||
-      showAIAssistantTour ||
-      showCodeEditorTour ||
-      showComponentsLibraryTour ||
-      showSavingCollabTour;
-
-    if (hasActiveTour || showCreateTemplateModal) return;
-
-    setShowGettingStartedPopup(true);
-    setPendingGuidePopup(false);
+    });
   }, [
-    pendingGuidePopup,
-    showBuildXIntroductionTour,
-    showWebsiteCreationTour,
-    showPublishingBasicsTour,
-    showDashboardTour,
-    showPropertiesPanel,
-    showAIAssistantTour,
-    showCodeEditorTour,
-    showComponentsLibraryTour,
-    showSavingCollabTour,
-    showCreateTemplateModal,
+    visibleRecommendedTemplates,
+    trendingTemplates,
+    prefetchedTemplateLayouts,
+    prefetchingTemplateIds,
   ]);
-
-  useEffect(() => {
-    if (localStorage.getItem("buildx-guide-resume-from-editor-intro") === "1") {
-      localStorage.removeItem("buildx-guide-resume-from-editor-intro");
-      setActiveSection("new-chat");
-      setTimeout(() => setShowBuildXIntroductionTour(true), 50);
-      return;
-    }
-    if (localStorage.getItem("buildx-guide-resume-from-editor-dashboard") === "1") {
-      localStorage.removeItem("buildx-guide-resume-from-editor-dashboard");
-      setTimeout(() => setShowDashboardTour(true), 50);
-      return;
-    }
-    if (localStorage.getItem("buildx-guide-resume-from-editor-library") === "1") {
-      localStorage.removeItem("buildx-guide-resume-from-editor-library");
-      setActiveSection("marketplace");
-      setTimeout(() => setShowComponentsLibraryTour(true), 50);
-      return;
-    }
-    if (localStorage.getItem("buildx-guide-resume-from-editor-website") === "1") {
-      localStorage.removeItem("buildx-guide-resume-from-editor-website");
-      setSelectedTemplateId("blank");
-      setShowCreateTemplateModal(true);
-      localStorage.setItem("buildx-pending-editor-tour", "1");
-      return;
-    }
-    if (localStorage.getItem("buildx-guide-resume-from-editor-publishing") === "1") {
-      localStorage.removeItem("buildx-guide-resume-from-editor-publishing");
-      setSelectedTemplateId("blank");
-      setShowCreateTemplateModal(true);
-      localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
-    }
-  }, []);
 
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
@@ -1742,8 +1922,6 @@ useEffect(() => {
   };
 
   const handleQuickTemplateClick = (template: TemplateCardData) => {
-    
-
     setSelectedTemplateId(template.id);
     setShowTemplateBrowser(false);
     setShowCreateTemplateModal(true);
@@ -1942,6 +2120,12 @@ useEffect(() => {
   }, [profileData.userId]);
 
   const handleDeleteProject = async (projectId: string) => {
+    if (!projectId) return;
+
+    setIsDeletingProject(true);
+    setShowDeleteConfirmDialog(false);
+    setPendingDeleteProject(null);
+
     try {
       setProjectsLoading(true);
 
@@ -1954,14 +2138,16 @@ useEffect(() => {
         throw deleteError;
       }
 
-      setShowDeleteConfirmDialog(false);
-      setPendingDeleteProject(null);
-
       await reloadProjects();
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
     } catch (err) {
       console.error("Failed to delete project:", err);
-      setProjectsLoading(false);
       alert("Failed to delete project. Check console for details.");
+    } finally {
+      setIsDeletingProject(false);
+      setProjectsLoading(false);
     }
   };
 
@@ -2268,9 +2454,11 @@ useEffect(() => {
     try {
       setMyComponentsLoading(true);
 
-      const { data: publishedComponents, error: publishedError } = await supabase
-        .from("published_components")
-        .select(`
+      const { data: publishedComponents, error: publishedError } =
+        await supabase
+          .from("published_components")
+          .select(
+            `
           *,
           custom_components!inner(
             id,
@@ -2282,23 +2470,26 @@ useEffect(() => {
               user_id
             )
           )
-        `)
-        .eq("user_id", currentUserId)
-        .order("created_at", { ascending: false });
+        `,
+          )
+          .eq("user_id", currentUserId)
+          .order("created_at", { ascending: false });
 
       if (publishedError) {
         throw publishedError;
       }
 
-      const publicComponents = publishedComponents?.map((pubComp) => ({
-        ...pubComp.custom_components,
-        id: pubComp.custom_components?.id || pubComp.id,
-        name: pubComp.name,
-        component_json: pubComp.component_json,
-        created_at: pubComp.custom_components?.created_at || pubComp.created_at,
-        isPublic: true,
-        published_id: pubComp.id,
-      })) || [];
+      const publicComponents =
+        publishedComponents?.map((pubComp) => ({
+          ...pubComp.custom_components,
+          id: pubComp.custom_components?.id || pubComp.id,
+          name: pubComp.name,
+          component_json: pubComp.component_json,
+          created_at:
+            pubComp.custom_components?.created_at || pubComp.created_at,
+          isPublic: true,
+          published_id: pubComp.id,
+        })) || [];
 
       setUserPublicComponents(publicComponents);
     } catch (error) {
@@ -2320,18 +2511,30 @@ useEffect(() => {
 
     try {
       // Check if it's a public component
-      if (pendingDeleteComponent.isPublic && pendingDeleteComponent.published_id) {
+      if (
+        pendingDeleteComponent.isPublic &&
+        pendingDeleteComponent.published_id
+      ) {
         // Delete from published_components and update isPublic to 0
-        const { error: deleteError } = await deletePublishedComponent(pendingDeleteComponent.published_id);
+        const { error: deleteError } = await deletePublishedComponent(
+          pendingDeleteComponent.published_id,
+        );
         if (deleteError) throw deleteError;
 
-        const { error: updateError } = await updateCustomComponentPublicStatus(pendingDeleteComponent.id, false);
+        const { error: updateError } = await updateCustomComponentPublicStatus(
+          pendingDeleteComponent.id,
+          false,
+        );
         if (updateError) throw updateError;
 
-        toast.success(`"${pendingDeleteComponent.name}" has been removed from public components.`);
+        toast.success(
+          `"${pendingDeleteComponent.name}" has been removed from public components.`,
+        );
       } else {
         // Regular delete for imported/created components
-        const { error } = await deleteCustomComponent(pendingDeleteComponent.id);
+        const { error } = await deleteCustomComponent(
+          pendingDeleteComponent.id,
+        );
         if (error) throw error;
 
         toast.success(`"${pendingDeleteComponent.name}" has been deleted.`);
@@ -2709,7 +2912,7 @@ useEffect(() => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-              data-tour="sidebar-profile" 
+                data-tour="sidebar-profile"
                 className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 disabled={authLoading}
               >
@@ -2759,7 +2962,7 @@ useEffect(() => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-            data-tour="sidebar-search" 
+              data-tour="sidebar-search"
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -2770,12 +2973,12 @@ useEffect(() => {
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2">
-          <nav data-tour="sidebar-nav" className="space-y-1"> 
+          <nav data-tour="sidebar-nav" className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -2785,10 +2988,9 @@ useEffect(() => {
             {/* Marketplace */}
             <button
               onClick={() => setActiveSection("marketplace")}
-              data-tour="sidebar-components-library"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -2799,8 +3001,8 @@ useEffect(() => {
             <button
               onClick={() => setActiveSection("all")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Layout className="w-4 h-4" />
@@ -2811,8 +3013,8 @@ useEffect(() => {
             <button
               onClick={() => setActiveSection("drafts")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Folder className="w-4 h-4" />
@@ -2828,8 +3030,8 @@ useEffect(() => {
             <button
               onClick={() => setActiveSection("trash")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Trash2 className="w-4 h-4" />
@@ -2970,99 +3172,111 @@ useEffect(() => {
                           {recommendationsLoading ? (
                             renderRecommendedTemplateSkeletons()
                           ) : filteredRecommendedTemplates.length > 0 ? (
-                            filteredRecommendedTemplates.map((template) => (
-                              <div
-                                key={template.id}
-                                data-tour="recommended-template-card"
-                                className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
-                                onClick={() =>
-                                  handleQuickTemplateClick(template)
-                                }
-                              >
-                                <div className="aspect-video bg-muted relative overflow-hidden">
-                                  <img
-                                    src={
-                                      template.thumbnail || "/placeholder.svg"
-                                    }
-                                    alt={template.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                </div>
-                                <div className="p-4">
-                                  <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
-                                    {template.name}
-                                  </h3>
-                                  <Badge
-                                    variant="outline"
-                                    className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                                  >
-                                    {template.category}
-                                  </Badge>
-                                  <p className="text-sm text-muted-foreground mb-3">
-                                    {template.description}
-                                  </p>
+                            filteredRecommendedTemplates.map((template) => {
+                              const resolvedLayout =
+                                Array.isArray(template.projectLayout) &&
+                                  template.projectLayout.length > 0
+                                  ? resolveFirstPageLayout(
+                                    template.projectLayout,
+                                  )
+                                  : resolveFirstPageLayout(
+                                    prefetchedTemplateLayouts[
+                                    template.projectId || template.id
+                                    ] || [],
+                                  );
+                              return (
+                                <div
+                                  key={template.id}
+                                  data-tour="recommended-template-card"
+                                  className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                                  onClick={() =>
+                                    handleQuickTemplateClick(template)
+                                  }
+                                >
+                                  <div className="aspect-video bg-muted relative overflow-hidden">
+                                    <CanvasLayoutThumbnail
+                                      template={{
+                                        ...template,
+                                        projectLayout: resolvedLayout,
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  </div>
+                                  <div className="p-4">
+                                    <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                      {template.name}
+                                    </h3>
+                                    <Badge
+                                      variant="outline"
+                                      className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                    >
+                                      {template.category}
+                                    </Badge>
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                      {template.description}
+                                    </p>
 
-                                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                                    <div className="flex items-center gap-2">
-                                      <img
-                                        src={
-                                          template.creatorAvatar ||
-                                          "/placeholder.svg"
-                                        }
-                                        alt={template.creator}
-                                        className="w-6 h-6 rounded-full"
-                                      />
-                                      <span className="text-xs text-muted-foreground font-medium">
-                                        {template.creator}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                      <button
-                                        type="button"
-                                        data-tour="template-like-button"
-                                        onClick={(event) =>
-                                          handleLikeTemplate(event, template)
-                                        }
-                                        disabled={
-                                          likingTemplateIds[
-                                          getTemplateLikeKey(template)
-                                          ]
-                                        }
-                                        className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                          ? "text-red-500"
-                                          : "text-muted-foreground hover:text-red-500"
-                                          }`}
-                                      >
-                                        <Heart
-                                          className={`w-4 h-4 ${isTemplateLiked(template)
-                                            ? "fill-red-500 text-red-500"
-                                            : ""
-                                            }`}
+                                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                                      <div className="flex items-center gap-2">
+                                        <img
+                                          src={
+                                            template.creatorAvatar ||
+                                            "/placeholder.svg"
+                                          }
+                                          alt={template.creator}
+                                          className="w-6 h-6 rounded-full"
                                         />
-                                        <span className="text-xs">
-                                          {getTemplateLikeCount(template)}
+                                        <span className="text-xs text-muted-foreground font-medium">
+                                          {template.creator}
                                         </span>
-                                      </button>
+                                      </div>
 
-                                      <button
-                                        type="button"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setSelectedReportTemplate(template);
-                                          setShowReportTemplateModal(true);
-                                        }}
-                                        className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
-                                        aria-label={`Report ${template.name}`}
-                                      >
-                                        <Flag className="w-4 h-4" />
-                                      </button>
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          type="button"
+                                          data-tour="template-like-button"
+                                          onClick={(event) =>
+                                            handleLikeTemplate(event, template)
+                                          }
+                                          disabled={
+                                            likingTemplateIds[
+                                            getTemplateLikeKey(template)
+                                            ]
+                                          }
+                                          className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                              ? "text-red-500"
+                                              : "text-muted-foreground hover:text-red-500"
+                                            }`}
+                                        >
+                                          <Heart
+                                            className={`w-4 h-4 ${isTemplateLiked(template)
+                                                ? "fill-red-500 text-red-500"
+                                                : ""
+                                              }`}
+                                          />
+                                          <span className="text-xs">
+                                            {getTemplateLikeCount(template)}
+                                          </span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setSelectedReportTemplate(template);
+                                            setShowReportTemplateModal(true);
+                                          }}
+                                          className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
+                                          aria-label={`Report ${template.name}`}
+                                        >
+                                          <Flag className="w-4 h-4" />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
                             <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                               No recommended templates available.
@@ -3073,7 +3287,7 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
-                 <div className="w-full max-w-6xl mx-auto mt-10">
+                <div className="w-full max-w-6xl mx-auto mt-10">
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-2xl font-semibold text-foreground">
@@ -3089,7 +3303,10 @@ useEffect(() => {
                       onStartBuildXIntroduction={() => {
                         setShowBuildXIntroductionTour(false);
                         setActiveSection("new-chat");
-                        setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+                        setTimeout(
+                          () => setShowBuildXIntroductionTour(true),
+                          50,
+                        );
                       }}
                       onStartWebsiteCreation={() => {
                         setShowWebsiteCreationTour(false);
@@ -3153,96 +3370,108 @@ useEffect(() => {
                       {trendingLoading ? (
                         renderRecommendedTemplateSkeletons()
                       ) : trendingTemplates.length > 0 ? (
-                        trendingTemplates.map((template) => (
-                          <div
-                            key={template.id}
-                            className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
-                            onClick={() => handleQuickTemplateClick(template)}
-                          >
-                            <div className="aspect-video bg-muted relative overflow-hidden">
-                              <img
-                                src={template.thumbnail || "/placeholder.svg"}
-                                alt={template.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                            </div>
+                        trendingTemplates.map((template) => {
+                          const resolvedLayout =
+                            Array.isArray(template.projectLayout) &&
+                              template.projectLayout.length > 0
+                              ? resolveFirstPageLayout(template.projectLayout)
+                              : resolveFirstPageLayout(
+                                prefetchedTemplateLayouts[
+                                template.projectId || template.id
+                                ] || [],
+                              );
+                          return (
+                            <div
+                              key={template.id}
+                              className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                              onClick={() => handleQuickTemplateClick(template)}
+                            >
+                              <div className="aspect-video bg-muted relative overflow-hidden">
+                                <CanvasLayoutThumbnail
+                                  template={{
+                                    ...template,
+                                    projectLayout: resolvedLayout,
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                              </div>
 
-                            <div className="p-4">
-                              <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
-                                {template.name}
-                              </h3>
+                              <div className="p-4">
+                                <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                  {template.name}
+                                </h3>
 
-                              <Badge
-                                variant="outline"
-                                className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                              >
-                                {template.category}
-                              </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                >
+                                  {template.category}
+                                </Badge>
 
-                              <p className="text-sm text-muted-foreground mb-3">
-                                {template.description}
-                              </p>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {template.description}
+                                </p>
 
-                              <div className="flex items-center justify-between pt-3 border-t border-border">
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={
-                                      template.creatorAvatar ||
-                                      "/placeholder.svg"
-                                    }
-                                    alt={template.creator}
-                                    className="w-6 h-6 rounded-full"
-                                  />
-                                  <span className="text-xs text-muted-foreground font-medium">
-                                    {template.creator}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={(event) =>
-                                      handleLikeTemplate(event, template)
-                                    }
-                                    disabled={
-                                      likingTemplateIds[
-                                      getTemplateLikeKey(template)
-                                      ]
-                                    }
-                                    className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                      ? "text-red-500"
-                                      : "text-muted-foreground hover:text-red-500"
-                                      }`}
-                                  >
-                                    <Heart
-                                      className={`w-4 h-4 ${isTemplateLiked(template)
-                                        ? "fill-red-500 text-red-500"
-                                        : ""
-                                        }`}
+                                <div className="flex items-center justify-between pt-3 border-t border-border">
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={
+                                        template.creatorAvatar ||
+                                        "/placeholder.svg"
+                                      }
+                                      alt={template.creator}
+                                      className="w-6 h-6 rounded-full"
                                     />
-                                    <span className="text-xs">
-                                      {getTemplateLikeCount(template)}
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      {template.creator}
                                     </span>
-                                  </button>
+                                  </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setSelectedReportTemplate(template);
-                                      setShowReportTemplateModal(true);
-                                    }}
-                                    className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
-                                    aria-label={`Report ${template.name}`}
-                                  >
-                                    <Flag className="w-4 h-4" />
-                                  </button>
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={(event) =>
+                                        handleLikeTemplate(event, template)
+                                      }
+                                      disabled={
+                                        likingTemplateIds[
+                                        getTemplateLikeKey(template)
+                                        ]
+                                      }
+                                      className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                          ? "text-red-500"
+                                          : "text-muted-foreground hover:text-red-500"
+                                        }`}
+                                    >
+                                      <Heart
+                                        className={`w-4 h-4 ${isTemplateLiked(template)
+                                            ? "fill-red-500 text-red-500"
+                                            : ""
+                                          }`}
+                                      />
+                                      <span className="text-xs">
+                                        {getTemplateLikeCount(template)}
+                                      </span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedReportTemplate(template);
+                                        setShowReportTemplateModal(true);
+                                      }}
+                                      className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
+                                      aria-label={`Report ${template.name}`}
+                                    >
+                                      <Flag className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                           No trending templates available.
@@ -3524,8 +3753,8 @@ useEffect(() => {
                       <button
                         onClick={() => setProjectsFilter("all")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "all"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         All
@@ -3533,8 +3762,8 @@ useEffect(() => {
                       <button
                         onClick={() => setProjectsFilter("published")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "published"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         Published Templates
@@ -3542,8 +3771,8 @@ useEffect(() => {
                       <button
                         onClick={() => setProjectsFilter("shared")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "shared"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         Shared
@@ -3574,15 +3803,16 @@ useEffect(() => {
                               }
                             >
                               <CardContent className="p-3">
-                                <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                  <img
-                                    src={
-                                      project.thumbnail || "/placeholder.svg"
-                                    }
-                                    alt={project.name}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  />
-                                </div>
+                                {viewMode === "grid" ? (
+                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                    <CanvasLayoutPreview
+                                      layout={extractLayoutCandidate(project)}
+                                      name={project.name}
+                                      viewportWidth={240}
+                                      viewportHeight={96}
+                                    />
+                                  </div>
+                                ) : null}
 
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2 min-w-0">
@@ -3739,16 +3969,18 @@ useEffect(() => {
                                 }
                               >
                                 <CardContent className="p-3">
-                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                    <img
-                                      src={
-                                        template.projects.thumbnail ||
-                                        "/placeholder.svg"
-                                      }
-                                      alt={template.projects.project_name}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    />
-                                  </div>
+                                  {viewMode === "grid" ? (
+                                    <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                      <CanvasLayoutPreview
+                                        layout={
+                                          template.projects.project_layout
+                                        }
+                                        name={template.projects.project_name}
+                                        viewportWidth={240}
+                                        viewportHeight={96}
+                                      />
+                                    </div>
+                                  ) : null}
 
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2 min-w-0">
@@ -3824,13 +4056,13 @@ useEffect(() => {
                               >
                                 <CardContent className="p-3">
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                    <img
-                                      src={
-                                        sharedProject.projects.thumbnail ||
-                                        "/placeholder.svg"
+                                    <CanvasLayoutPreview
+                                      layout={
+                                        sharedProject.projects.project_layout
                                       }
-                                      alt={sharedProject.projects.project_name}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      name={sharedProject.projects.project_name}
+                                      viewportWidth={240}
+                                      viewportHeight={96}
                                     />
                                   </div>
 
@@ -3907,13 +4139,11 @@ useEffect(() => {
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                              <img
-                                src={
-                                  template.projects.thumbnail ||
-                                  "/placeholder.svg"
-                                }
-                                alt={template.projects.project_name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              <CanvasLayoutPreview
+                                layout={template.projects.project_layout}
+                                name={template.projects.project_name}
+                                viewportWidth={240}
+                                viewportHeight={96}
                               />
                             </div>
 
@@ -3984,13 +4214,11 @@ useEffect(() => {
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                              <img
-                                src={
-                                  sharedProject.projects.thumbnail ||
-                                  "/placeholder.svg"
-                                }
-                                alt={sharedProject.projects.project_name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              <CanvasLayoutPreview
+                                layout={sharedProject.projects.project_layout}
+                                name={sharedProject.projects.project_name}
+                                viewportWidth={240}
+                                viewportHeight={96}
                               />
                             </div>
 
@@ -4048,7 +4276,7 @@ useEffect(() => {
                     </div>
                   ) : filteredProjects.length > 0 ? (
                     <div
-                      className={`grid ${activeSection === "drafts" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
+                      className={`grid ${viewMode === "grid" ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1"} gap-3 md:gap-4`}
                     >
                       {filteredProjects.map((project) => (
                         <Card
@@ -4062,13 +4290,16 @@ useEffect(() => {
                             activeSection === "all" ||
                             activeSection === "trash" ? (
                             <CardContent className="p-3">
-                              <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                <img
-                                  src={project.thumbnail || "/placeholder.svg"}
-                                  alt={project.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              </div>
+                              {viewMode === "grid" && (
+                                <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                  <CanvasLayoutPreview
+                                    layout={project.project_layout}
+                                    name={project.name}
+                                    viewportWidth={240}
+                                    viewportHeight={96}
+                                  />
+                                </div>
+                              )}
 
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2 min-w-0">
@@ -4186,10 +4417,11 @@ useEffect(() => {
                           ) : (
                             <>
                               <div className="relative aspect-4/3 overflow-hidden bg-muted">
-                                <img
-                                  src={project.thumbnail || "/placeholder.svg"}
-                                  alt={project.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                <CanvasLayoutPreview
+                                  layout={project.project_layout}
+                                  name={project.name}
+                                  viewportWidth={320}
+                                  viewportHeight={240}
                                 />
                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <DropdownMenu>
@@ -4364,13 +4596,13 @@ useEffect(() => {
             </Button>
             <Button
               variant="destructive"
-              disabled={!pendingDeleteProject || projectsLoading}
+              disabled={!pendingDeleteProject || isDeletingProject}
               onClick={() => {
                 if (!pendingDeleteProject) return;
-                handleDeleteProject(pendingDeleteProject.id);
+                void handleDeleteProject(pendingDeleteProject.id);
               }}
             >
-              {projectsLoading ? "Deleting..." : "Delete forever"}
+              {isDeletingProject ? "Deleting..." : "Delete forever"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4643,7 +4875,6 @@ useEffect(() => {
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-          completeTutorialStep("palette");
         }}
       />
 
@@ -4655,7 +4886,6 @@ useEffect(() => {
         }}
         onComplete={() => {
           setShowWebsiteCreationTour(false);
-          completeTutorialStep("website");
         }}
       />
 
@@ -4663,7 +4893,6 @@ useEffect(() => {
         showOnMount={showPublishingBasicsTour}
         onComplete={() => {
           setShowPublishingBasicsTour(false);
-          completeTutorialStep("publishing");
         }}
       />
 
@@ -4790,7 +5019,6 @@ useEffect(() => {
             <DialogTitle>My Components</DialogTitle>
             <DialogDescription>
               Manage your personal component library
-
             </DialogDescription>
           </DialogHeader>
 
@@ -4810,11 +5038,10 @@ useEffect(() => {
                   {userPublicComponents.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                       <Store className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p className="font-semibold">
-                        No public components yet
-                      </p>
+                      <p className="font-semibold">No public components yet</p>
                       <p className="text-sm mt-1">
-                        Export your components to make them public and available to others
+                        Export your components to make them public and available
+                        to others
                       </p>
                     </div>
                   ) : (
@@ -4857,7 +5084,10 @@ useEffect(() => {
                               />
                             </div>
                             <div className="absolute top-2 right-2">
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              >
                                 Public
                               </Badge>
                             </div>
@@ -5033,4 +5263,4 @@ useEffect(() => {
       </Dialog>
     </div>
   );
-} 
+}
