@@ -1480,14 +1480,14 @@ export function Canvas({
       >
         {/* Zoom Controls - Hide in Read Only */}
         {!readOnly && (
-          <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-background/90 backdrop-blur-sm border border-border rounded-lg shadow-lg px-2 py-1.5 z-50">
+           <div className="absolute bottom-3 right-3 flex items-center gap-0.5 rounded-md border border-border bg-background/85 px-1.5 py-1 shadow-md backdrop-blur-sm z-10">
             <button
               onClick={() => setDisplayZoom(displayZoom - 10)}
-              className="p-1 hover:bg-accent rounded transition-colors"
+             className="p-0.5 hover:bg-accent rounded transition-colors"
               title="Zoom Out"
             >
               <svg
-                className="w-3.5 h-3.5"
+                 className="w-3 h-3"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1500,16 +1500,16 @@ export function Canvas({
                 />
               </svg>
             </button>
-            <span className="text-xs font-medium text-muted-foreground min-w-12 text-center">
+            <span className="text-[10px] font-medium text-muted-foreground min-w-10 text-center">
               {displayZoom}%
             </span>
             <button
               onClick={() => setDisplayZoom(displayZoom + 10)}
-              className="p-1 hover:bg-accent rounded transition-colors"
+              className="p-0.5 hover:bg-accent rounded transition-colors"
               title="Zoom In"
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-3 h-3"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1525,7 +1525,7 @@ export function Canvas({
             <div className="w-px h-4 bg-border mx-0.5" />
             <button
               onClick={() => setDisplayZoom(0)}
-              className="px-1.5 py-0.5 hover:bg-accent rounded transition-colors text-xs"
+                 className="px-1 py-0.5 hover:bg-accent rounded transition-colors text-[10px]"
               title="Reset Zoom"
             >
               Reset
