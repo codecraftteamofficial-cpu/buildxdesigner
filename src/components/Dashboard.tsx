@@ -266,19 +266,35 @@ const CanvasLayoutPreview = ({
   const bounds = extractLayoutBounds(normalizedLayout);
   const width = Math.max(bounds.maxX - bounds.minX, 1);
   const height = Math.max(bounds.maxY - bounds.minY, 1);
-  const scale = Math.min(viewportWidth / width, viewportHeight / height);
-  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 0.2;
+  const viewportRatio = viewportHeight / viewportWidth;
+  const idealPreviewHeight = width * viewportRatio;
+  const isTallLayout = height > idealPreviewHeight * 1.25;
+  const croppedHeight = isTallLayout
+    ? Math.min(height, Math.max(idealPreviewHeight, height * 0.5))
+    : height;
+  const framePadding = 0;
+  const fitWidth = Math.max(viewportWidth - framePadding * 2, 1);
+  const baseScale = fitWidth / width;
+  const zoomedScale = baseScale;
+  const safeScale = Number.isFinite(zoomedScale) && zoomedScale > 0
+    ? zoomedScale
+    : 0.2;
+  const scaledWidth = width * safeScale;
+  const scaledHeight = croppedHeight * safeScale;
+  const translateX = (viewportWidth - scaledWidth) / 2;
+  const translateY =
+    scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
 
   return (
-   <div
-      className={`${className} overflow-hidden rounded-md bg-[linear-gradient(45deg,rgba(148,163,184,0.12)_25%,transparent_25%,transparent_50%,rgba(148,163,184,0.12)_50%,rgba(148,163,184,0.12)_75%,transparent_75%,transparent)] bg-[length:12px_12px] bg-white dark:bg-neutral-900`}
+    <div
+      className={`${className} relative overflow-hidden rounded-md bg-[#f7f8fa] dark:bg-neutral-900`}
     >
       <div
         className="origin-top-left"
         style={{
           width: `${width}px`,
-          height: `${height}px`,
-           transform: `translate(${Math.max((viewportWidth - width * safeScale) / 2, 0)}px, ${Math.max((viewportHeight - height * safeScale) / 2, 0)}px) scale(${safeScale})`,
+         height: `${croppedHeight}px`,
+          transform: `translate(${translateX}px, ${translateY}px) scale(${safeScale})`,
           transformOrigin: "top left",
         }}
       >
