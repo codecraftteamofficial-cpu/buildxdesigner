@@ -1247,7 +1247,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterEditor }) => {
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="Tell visitors what you liked about BuildX Designer."
-                    className="min-h-[110px]"
+                    className="min-h-[110px] max-h-44 overflow-y-auto [field-sizing:fixed] [overflow-wrap:anywhere]"
                     maxLength={280}
                   />
                   <p className="text-xs text-gray-400 mt-2 text-right">
