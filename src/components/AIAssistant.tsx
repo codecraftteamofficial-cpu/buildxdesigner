@@ -47,6 +47,7 @@ const TypewriterText = ({ text, animate }: { text: string, animate?: boolean }) 
 export function AIAssistant({ selectedComponentType, projectId }: { selectedComponentType?: string, projectId?: string }) {
   
   const storageKey = `buildx_ai_history_${projectId || "default"}`
+  const threadStorageKey = `buildx_ai_thread_${projectId || "default"}`
 
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -121,13 +122,23 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
 
   const generateResponse = async (userMessage: string): Promise<string> => {
     try {
+      const savedThreadId = localStorage.getItem(threadStorageKey)
+
       const response = await fetch("https://pyqt-buildx-aiinterface.onrender.com/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userMessage }),
+        body: JSON.stringify({ 
+          question: userMessage,
+          thread_id: savedThreadId 
+        }),
       })
       if (!response.ok) throw new Error("Server error")
       const data = await response.json()
+
+      if (data.thread_id && !savedThreadId) {
+        localStorage.setItem(threadStorageKey, data.thread_id)
+      }
+
       return data.answer
     } catch (error) {
       return "⚠️ Connection Error: Please make sure the AI server is running."
