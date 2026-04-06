@@ -247,7 +247,7 @@ export function GettingStartedGuideContent({
                 className={`text-white mt-1 w-full ${
                   locked
                     ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted whitespace-normal h-auto py-2 text-xs"
-                    : "bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                    : "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
                 }`}
                 onClick={() => {
                   if (locked) return;
