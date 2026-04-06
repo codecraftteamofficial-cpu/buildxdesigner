@@ -90,7 +90,11 @@ import {
 // MarketplaceComponentModal removed — import happens inline on card click
 import { toast } from "sonner";
 import { importPublishedComponent } from "../supabase/data/publishedComponentService";
-import { deleteCustomComponent, updateCustomComponentPublicStatus, deletePublishedComponent } from "../supabase/data/customComponentService";
+import {
+  deleteCustomComponent,
+  updateCustomComponentPublicStatus,
+  deletePublishedComponent,
+} from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
 
 type DashboardSection =
@@ -99,7 +103,8 @@ type DashboardSection =
   | "team"
   | "all"
   | "trash"
-  | "marketplace" | "custom";
+  | "marketplace"
+  | "custom";
 
 const DASHBOARD_RETURN_SECTION_KEY = "dashboard_return_section";
 
@@ -254,7 +259,7 @@ const CanvasLayoutPreview = ({
     : [];
   if (!normalizedLayout.length) {
     return (
-         <div
+      <div
         className={`${className} flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-slate-50 to-slate-100 text-slate-500 dark:from-neutral-900 dark:to-neutral-800 dark:text-slate-400`}
       >
         <Layout className="h-5 w-5 opacity-70" />
@@ -276,9 +281,8 @@ const CanvasLayoutPreview = ({
   const fitWidth = Math.max(viewportWidth - framePadding * 2, 1);
   const baseScale = fitWidth / width;
   const zoomedScale = baseScale;
-  const safeScale = Number.isFinite(zoomedScale) && zoomedScale > 0
-    ? zoomedScale
-    : 0.2;
+  const safeScale =
+    Number.isFinite(zoomedScale) && zoomedScale > 0 ? zoomedScale : 0.2;
   const scaledWidth = width * safeScale;
   const scaledHeight = croppedHeight * safeScale;
   const translateX = (viewportWidth - scaledWidth) / 2;
@@ -293,27 +297,32 @@ const CanvasLayoutPreview = ({
         className="origin-top-left"
         style={{
           width: `${width}px`,
-         height: `${croppedHeight}px`,
+          height: `${croppedHeight}px`,
           transform: `translate(${translateX}px, ${translateY}px) scale(${safeScale})`,
           transformOrigin: "top left",
         }}
       >
-              {normalizedLayout.map((component, index) => {
-          const componentStyle = (component?.style || {}) as Record<string, any>;
-          const x = normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
-          const y = normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
+        {normalizedLayout.map((component, index) => {
+          const componentStyle = (component?.style || {}) as Record<
+            string,
+            any
+          >;
+          const x =
+            normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
+          const y =
+            normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
           const widthValue = normalizeCanvasValue(componentStyle.width, 320);
           const heightValue = normalizeCanvasValue(componentStyle.height, 140);
           const type = String(component?.type || "").toLowerCase();
           const content = String(
             component?.props?.text ??
-            component?.props?.content ??
+              component?.props?.content ??
               component?.props?.children ??
-            component?.props?.title ??
-            component?.props?.label ??
+              component?.props?.title ??
+              component?.props?.label ??
               component?.props?.placeholder ??
-            component?.name ??
-            "",
+              component?.name ??
+              "",
           );
 
           return (
@@ -326,24 +335,34 @@ const CanvasLayoutPreview = ({
                 width: `${Math.max(widthValue, 1)}px`,
                 height: `${Math.max(heightValue, 1)}px`,
                 borderRadius: componentStyle.borderRadius ?? 8,
-                background: componentStyle.background || componentStyle.backgroundColor || (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
-                border: componentStyle.border || "1px solid rgba(148,163,184,0.35)",
-                color: componentStyle.color || (type === "button" ? "#ffffff" : "#0f172a"),
-                fontSize: componentStyle.fontSize || (type === "heading" ? "22px" : "14px"),
-                fontWeight: componentStyle.fontWeight || (type === "heading" ? 700 : 500),
+                background:
+                  componentStyle.background ||
+                  componentStyle.backgroundColor ||
+                  (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
+                border:
+                  componentStyle.border || "1px solid rgba(148,163,184,0.35)",
+                color:
+                  componentStyle.color ||
+                  (type === "button" ? "#ffffff" : "#0f172a"),
+                fontSize:
+                  componentStyle.fontSize ||
+                  (type === "heading" ? "22px" : "14px"),
+                fontWeight:
+                  componentStyle.fontWeight || (type === "heading" ? 700 : 500),
                 padding: componentStyle.padding || "8px 10px",
                 display: "flex",
                 alignItems: componentStyle.alignItems || "center",
                 justifyContent: componentStyle.justifyContent || "center",
                 textAlign: componentStyle.textAlign || "center",
                 whiteSpace: "pre-wrap",
-                 boxShadow: componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
+                boxShadow:
+                  componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
               }}
             >
               {type === "image" && component?.props?.src ? (
                 <img
                   src={component.props.src}
-                     alt={component?.props?.alt || name}
+                  alt={component?.props?.alt || name}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -357,7 +376,11 @@ const CanvasLayoutPreview = ({
   );
 };
 
-const CanvasLayoutThumbnail = ({ template }: { template: TemplateCardData }) => (
+const CanvasLayoutThumbnail = ({
+  template,
+}: {
+  template: TemplateCardData;
+}) => (
   <CanvasLayoutPreview layout={template.projectLayout} name={template.name} />
 );
 
@@ -376,7 +399,7 @@ interface PublishedTemplate {
     projects_id: string;
     is_published: boolean;
     project_name: string;
-       project_layout?: any[];
+    project_layout?: any[];
   };
 }
 
@@ -391,7 +414,7 @@ interface SharedProject {
     projects_id: string;
     project_name: string;
     is_published?: boolean;
-        project_layout?: any[];
+    project_layout?: any[];
     owner_profile: {
       user_id: string;
       full_name: string;
@@ -472,19 +495,19 @@ const normalizeProjectLikeRows = (raw: any) => {
 const resolveTemplateProjectId = (item: any, fallback: string) =>
   String(
     item?.project_id ??
-    item?.projectId ??
-    item?.project?.projects_id ??
-    item?.project?.project_id ??
-    item?.project?.id ??
-    item?.projects_id ??
-    item?.projects?.projects_id ??
-    item?.projects?.project_id ??
-    item?.projects?.id ??
-    item?.template_id ??
-    item?.templateId ??
-    item?.id ??
-    item?._id ??
-    fallback,
+      item?.projectId ??
+      item?.project?.projects_id ??
+      item?.project?.project_id ??
+      item?.project?.id ??
+      item?.projects_id ??
+      item?.projects?.projects_id ??
+      item?.projects?.project_id ??
+      item?.projects?.id ??
+      item?.template_id ??
+      item?.templateId ??
+      item?.id ??
+      item?._id ??
+      fallback,
   ).trim();
 
 const resolveFirstPageLayout = (layout: any[]): any[] => {
@@ -587,7 +610,7 @@ export function Dashboard({
   ); // Updated to string | null
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
- 
+
   const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
     useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
@@ -633,6 +656,7 @@ export function Dashboard({
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
   const [pendingDeleteProject, setPendingDeleteProject] =
     useState<Project | null>(null);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [showEditProjectDialog, setShowEditProjectDialog] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editProjectName, setEditProjectName] = useState("");
@@ -716,8 +740,6 @@ export function Dashboard({
     }
   }, []);
 
- 
-
   // --- NEW STATES FOR REDESIGNED PROMPT SECTION ---
   const [selectedTemplateCategory, setSelectedTemplateCategory] =
     useState<string>("All");
@@ -735,43 +757,43 @@ export function Dashboard({
       projectId: resolvedProjectId,
       name: String(
         item?.name ??
-        item?.title ??
-        item?.project_name ??
-        item?.project?.project_name ??
-        item?.projects?.project_name ??
-        "Untitled Template",
+          item?.title ??
+          item?.project_name ??
+          item?.project?.project_name ??
+          item?.projects?.project_name ??
+          "Untitled Template",
       ),
       description: String(
         item?.description ??
-        item?.template_description ??
-        item?.project_description ??
-        item?.summary ??
-        item?.project?.description ??
-        item?.project?.project_description ??
-        item?.projects?.description ??
-        item?.projects?.project_description ??
-        "No description available",
+          item?.template_description ??
+          item?.project_description ??
+          item?.summary ??
+          item?.project?.description ??
+          item?.project?.project_description ??
+          item?.projects?.description ??
+          item?.projects?.project_description ??
+          "No description available",
       ),
       thumbnail: String(
         item?.thumbnail ??
-        item?.thumbnailUrl ??
-        item?.image ??
-        item?.project?.thumbnail ??
-        item?.projects?.thumbnail ??
-        "/placeholder.svg",
+          item?.thumbnailUrl ??
+          item?.image ??
+          item?.project?.thumbnail ??
+          item?.projects?.thumbnail ??
+          "/placeholder.svg",
       ),
 
-            projectLayout: extractLayoutCandidate(item),
-        
+      projectLayout: extractLayoutCandidate(item),
+
       category: String(
         item?.category ??
-        item?.template_category ??
-        item?.project_category ??
-        item?.project?.category ??
-        item?.project?.project_category ??
-        item?.projects?.category ??
-        item?.projects?.project_category ??
-        "Business",
+          item?.template_category ??
+          item?.project_category ??
+          item?.project?.category ??
+          item?.project?.project_category ??
+          item?.projects?.category ??
+          item?.projects?.project_category ??
+          "Business",
       ),
       premium: Boolean(
         item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
@@ -802,12 +824,12 @@ export function Dashboard({
       ),
       favorites: Number(
         item?.favorites ??
-        item?.like_count ??
-        item?.likeCount ??
-        item?.likes ??
-        item?.project?.likes ??
-        item?.projects?.likes ??
-        0,
+          item?.like_count ??
+          item?.likeCount ??
+          item?.likes ??
+          item?.project?.likes ??
+          item?.projects?.likes ??
+          0,
       ),
     };
   };
@@ -919,11 +941,11 @@ export function Dashboard({
 
             const parsedLikeCount = Number(
               item?.like_count ??
-              item?.likeCount ??
-              item?.favorites ??
-              item?.likes ??
-              item?.project?.likes ??
-              item?.projects?.likes,
+                item?.likeCount ??
+                item?.favorites ??
+                item?.likes ??
+                item?.project?.likes ??
+                item?.projects?.likes,
             );
 
             if (Number.isFinite(parsedLikeCount) && parsedLikeCount >= 0) {
@@ -971,7 +993,7 @@ export function Dashboard({
     };
   }, [currentUserId]);
 
-   const visibleRecommendedTemplates = publishedTemplateCards.filter(
+  const visibleRecommendedTemplates = publishedTemplateCards.filter(
     (t) => t.id !== "getting-started-guide" && t.id !== "getting-started",
   );
 
@@ -1106,8 +1128,8 @@ export function Dashboard({
 
     const intervalId = isApiReachable
       ? window.setInterval(() => {
-        fetchAndSetProjectLikes();
-      }, 15000)
+          fetchAndSetProjectLikes();
+        }, 15000)
       : null;
 
     const handleVisibilityChange = () => {
@@ -1310,11 +1332,11 @@ export function Dashboard({
     setPrefetchingTemplateIds((prev) => ({ ...prev, [projectId]: true }));
     try {
       const layout = await fetchTemplateLayoutByProjectId(projectId);
-       const firstPageLayout = resolveFirstPageLayout(layout);
+      const firstPageLayout = resolveFirstPageLayout(layout);
       if (firstPageLayout.length > 0) {
         setPrefetchedTemplateLayouts((prev) => ({
           ...prev,
-            [projectId]: firstPageLayout,
+          [projectId]: firstPageLayout,
         }));
       }
     } catch (error) {
@@ -1333,16 +1355,25 @@ export function Dashboard({
   }, [showCreateTemplateModal, selectedTemplateId]);
 
   useEffect(() => {
-    const templatesToPrefetch = [...visibleRecommendedTemplates, ...trendingTemplates];
+    const templatesToPrefetch = [
+      ...visibleRecommendedTemplates,
+      ...trendingTemplates,
+    ];
     templatesToPrefetch.forEach((template) => {
       const projectId = String(template.projectId ?? template.id ?? "").trim();
-      const hasLayout = Array.isArray(template.projectLayout) && template.projectLayout.length > 0;
+      const hasLayout =
+        Array.isArray(template.projectLayout) &&
+        template.projectLayout.length > 0;
       if (!hasLayout && projectId) {
         prefetchTemplateLayout(projectId);
       }
     });
-  }, [visibleRecommendedTemplates, trendingTemplates, prefetchedTemplateLayouts, prefetchingTemplateIds]);
-
+  }, [
+    visibleRecommendedTemplates,
+    trendingTemplates,
+    prefetchedTemplateLayouts,
+    prefetchingTemplateIds,
+  ]);
 
   // --- AUTHENTICATION EFFECT (UPDATED TO FETCH RICH PROFILE DATA) ---
   useEffect(() => {
@@ -1771,8 +1802,6 @@ export function Dashboard({
   };
 
   const handleQuickTemplateClick = (template: TemplateCardData) => {
-    
-
     setSelectedTemplateId(template.id);
     setShowTemplateBrowser(false);
     setShowCreateTemplateModal(true);
@@ -1971,6 +2000,12 @@ export function Dashboard({
   }, [profileData.userId]);
 
   const handleDeleteProject = async (projectId: string) => {
+    if (!projectId) return;
+
+    setIsDeletingProject(true);
+    setShowDeleteConfirmDialog(false);
+    setPendingDeleteProject(null);
+
     try {
       setProjectsLoading(true);
 
@@ -1983,14 +2018,16 @@ export function Dashboard({
         throw deleteError;
       }
 
-      setShowDeleteConfirmDialog(false);
-      setPendingDeleteProject(null);
-
       await reloadProjects();
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
     } catch (err) {
       console.error("Failed to delete project:", err);
-      setProjectsLoading(false);
       alert("Failed to delete project. Check console for details.");
+    } finally {
+      setIsDeletingProject(false);
+      setProjectsLoading(false);
     }
   };
 
@@ -2297,9 +2334,11 @@ export function Dashboard({
     try {
       setMyComponentsLoading(true);
 
-      const { data: publishedComponents, error: publishedError } = await supabase
-        .from("published_components")
-        .select(`
+      const { data: publishedComponents, error: publishedError } =
+        await supabase
+          .from("published_components")
+          .select(
+            `
           *,
           custom_components!inner(
             id,
@@ -2311,23 +2350,26 @@ export function Dashboard({
               user_id
             )
           )
-        `)
-        .eq("user_id", currentUserId)
-        .order("created_at", { ascending: false });
+        `,
+          )
+          .eq("user_id", currentUserId)
+          .order("created_at", { ascending: false });
 
       if (publishedError) {
         throw publishedError;
       }
 
-      const publicComponents = publishedComponents?.map((pubComp) => ({
-        ...pubComp.custom_components,
-        id: pubComp.custom_components?.id || pubComp.id,
-        name: pubComp.name,
-        component_json: pubComp.component_json,
-        created_at: pubComp.custom_components?.created_at || pubComp.created_at,
-        isPublic: true,
-        published_id: pubComp.id,
-      })) || [];
+      const publicComponents =
+        publishedComponents?.map((pubComp) => ({
+          ...pubComp.custom_components,
+          id: pubComp.custom_components?.id || pubComp.id,
+          name: pubComp.name,
+          component_json: pubComp.component_json,
+          created_at:
+            pubComp.custom_components?.created_at || pubComp.created_at,
+          isPublic: true,
+          published_id: pubComp.id,
+        })) || [];
 
       setUserPublicComponents(publicComponents);
     } catch (error) {
@@ -2349,18 +2391,30 @@ export function Dashboard({
 
     try {
       // Check if it's a public component
-      if (pendingDeleteComponent.isPublic && pendingDeleteComponent.published_id) {
+      if (
+        pendingDeleteComponent.isPublic &&
+        pendingDeleteComponent.published_id
+      ) {
         // Delete from published_components and update isPublic to 0
-        const { error: deleteError } = await deletePublishedComponent(pendingDeleteComponent.published_id);
+        const { error: deleteError } = await deletePublishedComponent(
+          pendingDeleteComponent.published_id,
+        );
         if (deleteError) throw deleteError;
 
-        const { error: updateError } = await updateCustomComponentPublicStatus(pendingDeleteComponent.id, false);
+        const { error: updateError } = await updateCustomComponentPublicStatus(
+          pendingDeleteComponent.id,
+          false,
+        );
         if (updateError) throw updateError;
 
-        toast.success(`"${pendingDeleteComponent.name}" has been removed from public components.`);
+        toast.success(
+          `"${pendingDeleteComponent.name}" has been removed from public components.`,
+        );
       } else {
         // Regular delete for imported/created components
-        const { error } = await deleteCustomComponent(pendingDeleteComponent.id);
+        const { error } = await deleteCustomComponent(
+          pendingDeleteComponent.id,
+        );
         if (error) throw error;
 
         toast.success(`"${pendingDeleteComponent.name}" has been deleted.`);
@@ -2601,31 +2655,31 @@ export function Dashboard({
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredPublishedTemplates = normalizedSearchQuery
     ? publishedTemplates.filter((template) =>
-      [
-        template.projects?.project_name,
-        template.projects?.description,
-        template.projects?.category,
-        template.profiles?.full_name,
-      ]
-        .filter(Boolean)
-        .some((value) =>
-          String(value).toLowerCase().includes(normalizedSearchQuery),
-        ),
-    )
+        [
+          template.projects?.project_name,
+          template.projects?.description,
+          template.projects?.category,
+          template.profiles?.full_name,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value).toLowerCase().includes(normalizedSearchQuery),
+          ),
+      )
     : publishedTemplates;
   const filteredSharedProjects = normalizedSearchQuery
     ? sharedProjects.filter((sharedProject) =>
-      [
-        sharedProject.projects?.project_name,
-        sharedProject.projects?.description,
-        sharedProject.projects?.owner_profile?.full_name,
-        sharedProject.role,
-      ]
-        .filter(Boolean)
-        .some((value) =>
-          String(value).toLowerCase().includes(normalizedSearchQuery),
-        ),
-    )
+        [
+          sharedProject.projects?.project_name,
+          sharedProject.projects?.description,
+          sharedProject.projects?.owner_profile?.full_name,
+          sharedProject.role,
+        ]
+          .filter(Boolean)
+          .some((value) =>
+            String(value).toLowerCase().includes(normalizedSearchQuery),
+          ),
+      )
     : sharedProjects;
   const allProjectsPreview = filteredProjects.slice(0, 10);
   const isDeployedValue = (value: unknown) =>
@@ -2800,10 +2854,11 @@ export function Dashboard({
           <nav className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "new-chat"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>Dashboard</span>
@@ -2812,10 +2867,11 @@ export function Dashboard({
             {/* Marketplace */}
             <button
               onClick={() => setActiveSection("marketplace")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "marketplace"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <BookOpen className="w-4 h-4" />
               <span>Components Library</span>
@@ -2824,10 +2880,11 @@ export function Dashboard({
             {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "all"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Layout className="w-4 h-4" />
               <span>All projects</span>
@@ -2836,10 +2893,11 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "drafts"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Folder className="w-4 h-4" />
               <span>Drafts</span>
@@ -2853,10 +2911,11 @@ export function Dashboard({
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
-                ? "text-blue-500 bg-blue-500/10"
-                : "text-muted-foreground hover:bg-muted"
-                }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
+                activeSection === "trash"
+                  ? "text-blue-500 bg-blue-500/10"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
             >
               <Trash2 className="w-4 h-4" />
               <span>Trash</span>
@@ -2996,99 +3055,113 @@ export function Dashboard({
                           {recommendationsLoading ? (
                             renderRecommendedTemplateSkeletons()
                           ) : filteredRecommendedTemplates.length > 0 ? (
-                                filteredRecommendedTemplates.map((template) => {
+                            filteredRecommendedTemplates.map((template) => {
                               const resolvedLayout =
-                                (Array.isArray(template.projectLayout) && template.projectLayout.length > 0)
-                                  ? resolveFirstPageLayout(template.projectLayout)
-                                  : resolveFirstPageLayout(prefetchedTemplateLayouts[template.projectId || template.id] || []);
+                                Array.isArray(template.projectLayout) &&
+                                template.projectLayout.length > 0
+                                  ? resolveFirstPageLayout(
+                                      template.projectLayout,
+                                    )
+                                  : resolveFirstPageLayout(
+                                      prefetchedTemplateLayouts[
+                                        template.projectId || template.id
+                                      ] || [],
+                                    );
                               return (
-                              <div
-                                key={template.id}
-                                data-tour="recommended-template-card"
-                                className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
-                                onClick={() =>
-                                  handleQuickTemplateClick(template)
-                                }
-                              >
-                                <div className="aspect-video bg-muted relative overflow-hidden">
+                                <div
+                                  key={template.id}
+                                  data-tour="recommended-template-card"
+                                  className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                                  onClick={() =>
+                                    handleQuickTemplateClick(template)
+                                  }
+                                >
+                                  <div className="aspect-video bg-muted relative overflow-hidden">
                                     <CanvasLayoutThumbnail
-                                    template={{ ...template, projectLayout: resolvedLayout }} />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                </div>
-                                <div className="p-4">
-                                  <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
-                                    {template.name}
-                                  </h3>
-                                  <Badge
-                                    variant="outline"
-                                    className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                                  >
-                                    {template.category}
-                                  </Badge>
-                                  <p className="text-sm text-muted-foreground mb-3">
-                                    {template.description}
-                                  </p>
+                                      template={{
+                                        ...template,
+                                        projectLayout: resolvedLayout,
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  </div>
+                                  <div className="p-4">
+                                    <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                      {template.name}
+                                    </h3>
+                                    <Badge
+                                      variant="outline"
+                                      className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                    >
+                                      {template.category}
+                                    </Badge>
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                      {template.description}
+                                    </p>
 
-                                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                                    <div className="flex items-center gap-2">
-                                      <img
-                                        src={
-                                          template.creatorAvatar ||
-                                          "/placeholder.svg"
-                                        }
-                                        alt={template.creator}
-                                        className="w-6 h-6 rounded-full"
-                                      />
-                                      <span className="text-xs text-muted-foreground font-medium">
-                                        {template.creator}
-                                      </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-3">
-                                      <button
-                                        type="button"
-                                        data-tour="template-like-button"
-                                        onClick={(event) =>
-                                          handleLikeTemplate(event, template)
-                                        }
-                                        disabled={
-                                          likingTemplateIds[
-                                          getTemplateLikeKey(template)
-                                          ]
-                                        }
-                                        className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                          ? "text-red-500"
-                                          : "text-muted-foreground hover:text-red-500"
-                                          }`}
-                                      >
-                                        <Heart
-                                          className={`w-4 h-4 ${isTemplateLiked(template)
-                                            ? "fill-red-500 text-red-500"
-                                            : ""
-                                            }`}
+                                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                                      <div className="flex items-center gap-2">
+                                        <img
+                                          src={
+                                            template.creatorAvatar ||
+                                            "/placeholder.svg"
+                                          }
+                                          alt={template.creator}
+                                          className="w-6 h-6 rounded-full"
                                         />
-                                        <span className="text-xs">
-                                          {getTemplateLikeCount(template)}
+                                        <span className="text-xs text-muted-foreground font-medium">
+                                          {template.creator}
                                         </span>
-                                      </button>
+                                      </div>
 
-                                      <button
-                                        type="button"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setSelectedReportTemplate(template);
-                                          setShowReportTemplateModal(true);
-                                        }}
-                                        className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
-                                        aria-label={`Report ${template.name}`}
-                                      >
-                                        <Flag className="w-4 h-4" />
-                                      </button>
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          type="button"
+                                          data-tour="template-like-button"
+                                          onClick={(event) =>
+                                            handleLikeTemplate(event, template)
+                                          }
+                                          disabled={
+                                            likingTemplateIds[
+                                              getTemplateLikeKey(template)
+                                            ]
+                                          }
+                                          className={`flex items-center gap-1 transition-colors ${
+                                            isTemplateLiked(template)
+                                              ? "text-red-500"
+                                              : "text-muted-foreground hover:text-red-500"
+                                          }`}
+                                        >
+                                          <Heart
+                                            className={`w-4 h-4 ${
+                                              isTemplateLiked(template)
+                                                ? "fill-red-500 text-red-500"
+                                                : ""
+                                            }`}
+                                          />
+                                          <span className="text-xs">
+                                            {getTemplateLikeCount(template)}
+                                          </span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            setSelectedReportTemplate(template);
+                                            setShowReportTemplateModal(true);
+                                          }}
+                                          className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
+                                          aria-label={`Report ${template.name}`}
+                                        >
+                                          <Flag className="w-4 h-4" />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                              )})
+                              );
+                            })
                           ) : (
                             <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                               No recommended templates available.
@@ -3099,7 +3172,7 @@ export function Dashboard({
                     </div>
                   </div>
                 </div>
-                 <div className="w-full max-w-6xl mx-auto mt-10">
+                <div className="w-full max-w-6xl mx-auto mt-10">
                   <div className="mb-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-2xl font-semibold text-foreground">
@@ -3113,7 +3186,10 @@ export function Dashboard({
                       onStartBuildXIntroduction={() => {
                         setShowBuildXIntroductionTour(false);
                         setActiveSection("new-chat");
-                        setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+                        setTimeout(
+                          () => setShowBuildXIntroductionTour(true),
+                          50,
+                        );
                       }}
                       onStartWebsiteCreation={() => {
                         localStorage.setItem("buildx-pending-editor-tour", "1");
@@ -3143,100 +3219,110 @@ export function Dashboard({
                       {trendingLoading ? (
                         renderRecommendedTemplateSkeletons()
                       ) : trendingTemplates.length > 0 ? (
-                          trendingTemplates.map((template) => {
+                        trendingTemplates.map((template) => {
                           const resolvedLayout =
-                            (Array.isArray(template.projectLayout) && template.projectLayout.length > 0)
+                            Array.isArray(template.projectLayout) &&
+                            template.projectLayout.length > 0
                               ? resolveFirstPageLayout(template.projectLayout)
-                              : resolveFirstPageLayout(prefetchedTemplateLayouts[template.projectId || template.id] || []);
+                              : resolveFirstPageLayout(
+                                  prefetchedTemplateLayouts[
+                                    template.projectId || template.id
+                                  ] || [],
+                                );
                           return (
-                          <div
-                            key={template.id}
-                            className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
-                            onClick={() => handleQuickTemplateClick(template)}
-                          >
-                            <div className="aspect-video bg-muted relative overflow-hidden">
-                                     <CanvasLayoutThumbnail
-                                  template={{ ...template, projectLayout: resolvedLayout }}
-                                
+                            <div
+                              key={template.id}
+                              className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer"
+                              onClick={() => handleQuickTemplateClick(template)}
+                            >
+                              <div className="aspect-video bg-muted relative overflow-hidden">
+                                <CanvasLayoutThumbnail
+                                  template={{
+                                    ...template,
+                                    projectLayout: resolvedLayout,
+                                  }}
                                 />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                            </div>
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                              </div>
 
-                            <div className="p-4">
-                              <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
-                                {template.name}
-                              </h3>
+                              <div className="p-4">
+                                <h3 className="font-semibold text-foreground mb-1 group-hover:text-blue-600 transition-colors">
+                                  {template.name}
+                                </h3>
 
-                              <Badge
-                                variant="outline"
-                                className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                              >
-                                {template.category}
-                              </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="mb-2 rounded-full border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                                >
+                                  {template.category}
+                                </Badge>
 
-                              <p className="text-sm text-muted-foreground mb-3">
-                                {template.description}
-                              </p>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {template.description}
+                                </p>
 
-                              <div className="flex items-center justify-between pt-3 border-t border-border">
-                                <div className="flex items-center gap-2">
-                                  <img
-                                    src={
-                                      template.creatorAvatar ||
-                                      "/placeholder.svg"
-                                    }
-                                    alt={template.creator}
-                                    className="w-6 h-6 rounded-full"
-                                  />
-                                  <span className="text-xs text-muted-foreground font-medium">
-                                    {template.creator}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={(event) =>
-                                      handleLikeTemplate(event, template)
-                                    }
-                                    disabled={
-                                      likingTemplateIds[
-                                      getTemplateLikeKey(template)
-                                      ]
-                                    }
-                                    className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                      ? "text-red-500"
-                                      : "text-muted-foreground hover:text-red-500"
-                                      }`}
-                                  >
-                                    <Heart
-                                      className={`w-4 h-4 ${isTemplateLiked(template)
-                                        ? "fill-red-500 text-red-500"
-                                        : ""
-                                        }`}
+                                <div className="flex items-center justify-between pt-3 border-t border-border">
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={
+                                        template.creatorAvatar ||
+                                        "/placeholder.svg"
+                                      }
+                                      alt={template.creator}
+                                      className="w-6 h-6 rounded-full"
                                     />
-                                    <span className="text-xs">
-                                      {getTemplateLikeCount(template)}
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      {template.creator}
                                     </span>
-                                  </button>
+                                  </div>
 
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      setSelectedReportTemplate(template);
-                                      setShowReportTemplateModal(true);
-                                    }}
-                                    className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
-                                    aria-label={`Report ${template.name}`}
-                                  >
-                                    <Flag className="w-4 h-4" />
-                                  </button>
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={(event) =>
+                                        handleLikeTemplate(event, template)
+                                      }
+                                      disabled={
+                                        likingTemplateIds[
+                                          getTemplateLikeKey(template)
+                                        ]
+                                      }
+                                      className={`flex items-center gap-1 transition-colors ${
+                                        isTemplateLiked(template)
+                                          ? "text-red-500"
+                                          : "text-muted-foreground hover:text-red-500"
+                                      }`}
+                                    >
+                                      <Heart
+                                        className={`w-4 h-4 ${
+                                          isTemplateLiked(template)
+                                            ? "fill-red-500 text-red-500"
+                                            : ""
+                                        }`}
+                                      />
+                                      <span className="text-xs">
+                                        {getTemplateLikeCount(template)}
+                                      </span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedReportTemplate(template);
+                                        setShowReportTemplateModal(true);
+                                      }}
+                                      className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-red-500"
+                                      aria-label={`Report ${template.name}`}
+                                    >
+                                      <Flag className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                             )})
+                          );
+                        })
                       ) : (
                         <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                           No trending templates available.
@@ -3513,28 +3599,31 @@ export function Dashboard({
                     <div className="flex items-center gap-2 mb-6">
                       <button
                         onClick={() => setProjectsFilter("all")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "all"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "all"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
                       >
                         All
                       </button>
                       <button
                         onClick={() => setProjectsFilter("published")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "published"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "published"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
                       >
                         Published Templates
                       </button>
                       <button
                         onClick={() => setProjectsFilter("shared")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "shared"
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          projectsFilter === "shared"
+                            ? "bg-blue-500 text-white shadow-md"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
                       >
                         Shared
                       </button>
@@ -3566,7 +3655,7 @@ export function Dashboard({
                               <CardContent className="p-3">
                                 {viewMode === "grid" ? (
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                         <CanvasLayoutPreview
+                                    <CanvasLayoutPreview
                                       layout={extractLayoutCandidate(project)}
                                       name={project.name}
                                       viewportWidth={240}
@@ -3730,16 +3819,18 @@ export function Dashboard({
                                 }
                               >
                                 <CardContent className="p-3">
-                                    {viewMode === "grid" ? (
-                                  <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                   <CanvasLayoutPreview
-                                      layout={template.projects.project_layout}
-                                      name={template.projects.project_name}
-                                      viewportWidth={240}
-                                      viewportHeight={96}
-                                    />
-                                  </div>
-                                ) : null}
+                                  {viewMode === "grid" ? (
+                                    <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
+                                      <CanvasLayoutPreview
+                                        layout={
+                                          template.projects.project_layout
+                                        }
+                                        name={template.projects.project_name}
+                                        viewportWidth={240}
+                                        viewportHeight={96}
+                                      />
+                                    </div>
+                                  ) : null}
 
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2 min-w-0">
@@ -3815,8 +3906,10 @@ export function Dashboard({
                               >
                                 <CardContent className="p-3">
                                   <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                        <CanvasLayoutPreview
-                                      layout={sharedProject.projects.project_layout}
+                                    <CanvasLayoutPreview
+                                      layout={
+                                        sharedProject.projects.project_layout
+                                      }
                                       name={sharedProject.projects.project_name}
                                       viewportWidth={240}
                                       viewportHeight={96}
@@ -3896,7 +3989,7 @@ export function Dashboard({
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                <CanvasLayoutPreview
+                              <CanvasLayoutPreview
                                 layout={template.projects.project_layout}
                                 name={template.projects.project_name}
                                 viewportWidth={240}
@@ -3971,7 +4064,7 @@ export function Dashboard({
                           <CardContent className="p-3">
                             {/* Thumbnail */}
                             <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                               <CanvasLayoutPreview
+                              <CanvasLayoutPreview
                                 layout={sharedProject.projects.project_layout}
                                 name={sharedProject.projects.project_name}
                                 viewportWidth={240}
@@ -4044,12 +4137,12 @@ export function Dashboard({
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
                           {activeSection === "drafts" ||
-                             activeSection === "all" ||
+                          activeSection === "all" ||
                           activeSection === "trash" ? (
                             <CardContent className="p-3">
-                             {viewMode === "grid" && (
+                              {viewMode === "grid" && (
                                 <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
-                                       <CanvasLayoutPreview
+                                  <CanvasLayoutPreview
                                     layout={project.project_layout}
                                     name={project.name}
                                     viewportWidth={240}
@@ -4174,7 +4267,7 @@ export function Dashboard({
                           ) : (
                             <>
                               <div className="relative aspect-4/3 overflow-hidden bg-muted">
-                          <CanvasLayoutPreview
+                                <CanvasLayoutPreview
                                   layout={project.project_layout}
                                   name={project.name}
                                   viewportWidth={320}
@@ -4353,13 +4446,13 @@ export function Dashboard({
             </Button>
             <Button
               variant="destructive"
-              disabled={!pendingDeleteProject || projectsLoading}
+              disabled={!pendingDeleteProject || isDeletingProject}
               onClick={() => {
                 if (!pendingDeleteProject) return;
-                handleDeleteProject(pendingDeleteProject.id);
+                void handleDeleteProject(pendingDeleteProject.id);
               }}
             >
-              {projectsLoading ? "Deleting..." : "Delete forever"}
+              {isDeletingProject ? "Deleting..." : "Delete forever"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4576,7 +4669,7 @@ export function Dashboard({
           setSelectedTemplateId(templateId);
           prefetchTemplateLayout(templateId);
         }}
-        onTrackSearch={() => { }}
+        onTrackSearch={() => {}}
         recommendedTemplates={visibleRecommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
       />
@@ -4595,8 +4688,8 @@ export function Dashboard({
 
           const projectId = String(
             selectedReportTemplate?.projectId ??
-            selectedReportTemplate?.id ??
-            "",
+              selectedReportTemplate?.id ??
+              "",
           ).trim();
 
           if (!projectId) {
@@ -4626,8 +4719,6 @@ export function Dashboard({
         }}
       />
 
-
-
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
         onComplete={() => {
@@ -4635,7 +4726,6 @@ export function Dashboard({
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
-         
         }}
       />
 
@@ -4644,7 +4734,6 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
-         
         }}
       />
 
@@ -4653,7 +4742,6 @@ export function Dashboard({
         onComplete={() => {
           localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
-         
         }}
       />
 
@@ -4707,7 +4795,6 @@ export function Dashboard({
             <DialogTitle>My Components</DialogTitle>
             <DialogDescription>
               Manage your personal component library
-
             </DialogDescription>
           </DialogHeader>
 
@@ -4727,11 +4814,10 @@ export function Dashboard({
                   {userPublicComponents.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-border p-8 text-center text-muted-foreground">
                       <Store className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p className="font-semibold">
-                        No public components yet
-                      </p>
+                      <p className="font-semibold">No public components yet</p>
                       <p className="text-sm mt-1">
-                        Export your components to make them public and available to others
+                        Export your components to make them public and available
+                        to others
                       </p>
                     </div>
                   ) : (
@@ -4774,7 +4860,10 @@ export function Dashboard({
                               />
                             </div>
                             <div className="absolute top-2 right-2">
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                              >
                                 Public
                               </Badge>
                             </div>
@@ -4950,4 +5039,4 @@ export function Dashboard({
       </Dialog>
     </div>
   );
-} 
+}
