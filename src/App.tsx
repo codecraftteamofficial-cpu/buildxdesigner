@@ -59,6 +59,18 @@ import { PropertiesPanel } from "./components/Guides/PropertiesPanel";
 import { AIAssistant } from "./components/Guides/AIAssistant";
 import { CodeEditorTour } from "./components/Guides/CodeEditorTour";
 import { SavingCollaboration } from "./components/Guides/SavingCollaboration";
+import { BlocksPaletteTour } from "./components/Guides/BlocksPaletteTour";
+import { LayersPanelTour } from "./components/Guides/LayersPanelTour";
+import { MultiPageTour } from "./components/Guides/MultiPageTour";
+import { PreviewModeTour } from "./components/Guides/PreviewModeTour";
+import { CustomComponentsTour } from "./components/Guides/CustomComponentsTour";
+import { ExportFilesTour } from "./components/Guides/ExportFilesTour";
+import { PublishTemplateTour } from "./components/Guides/PublishTemplateTour";
+import { ComponentsLibrary } from "./components/Guides/ComponentsLibrary";
+import { DashboardOverview } from "./components/Guides/DashboardOverview";
+import { NavigatingProjects } from "./components/Guides/NavigatingProjects";
+import { BuildXIntroduction } from "./components/Guides/BuildXIntroduction";
+import { TemplateInteraction } from "./components/Guides/TemplateInteraction";
 import { markStepComplete } from "./supabase/data/tutorialProgressService";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
@@ -132,27 +144,61 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   const [showAITour, setShowAITour] = useState(false);
   const [showCodeTour, setShowCodeTour] = useState(false);
   const [showCollabTour, setShowCollabTour] = useState(false);
+  const [showBlocksPaletteTour, setShowBlocksPaletteTour] = useState(false);
+  const [showLayersPanelTour, setShowLayersPanelTour] = useState(false);
+  const [showMultiPageTour, setShowMultiPageTour] = useState(false);
+  const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
+  const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
+  const [showExportFilesTour, setShowExportFilesTour] = useState(false);
+  const [showPublishTemplateTour, setShowPublishTemplateTour] = useState(false);
+  const [showLibraryTour, setShowLibraryTour] = useState(false);
+  const [showDashboardOverviewTour, setShowDashboardOverviewTour] = useState(false);
+  const [showNavigatingProjectsTour, setShowNavigatingProjectsTour] = useState(false);
+  const [showBuildXIntroTour, setShowBuildXIntroTour] = useState(false);
+  const [showTemplateInteractTour, setShowTemplateInteractTour] = useState(false);
 
   //Ito is ihohold niya muna yung tutorial to create a project, and then kapag nakacreate na siya ng project, dun na magcocontinue yung tutorial
 useEffect(() => {
-  if (!location.pathname.startsWith("/editor")) return;
-
-  const checks = [
-    { key: "buildx-pending-editor-tour",            setter: setShowEditorTour },
-    { key: "buildx-pending-publishing-basics-tour", setter: setShowPublishingBasicsTour },
-    { key: "buildx-pending-canvas-tour",            setter: setShowCanvasTour },
-    { key: "buildx-pending-properties-tour",        setter: setShowPropertiesT },
-    { key: "buildx-pending-ai-tour",                setter: setShowAITour },
-    { key: "buildx-pending-code-tour",              setter: setShowCodeTour },
-    { key: "buildx-pending-collab-tour",            setter: setShowCollabTour },
+  const editorChecks = [
+    { key: "buildx-pending-editor-tour",              setter: setShowEditorTour },
+    { key: "buildx-pending-publishing-basics-tour",   setter: setShowPublishingBasicsTour },
+    { key: "buildx-pending-canvas-tour",              setter: setShowCanvasTour },
+    { key: "buildx-pending-properties-tour",          setter: setShowPropertiesT },
+    { key: "buildx-pending-ai-tour",                  setter: setShowAITour },
+    { key: "buildx-pending-code-tour",                setter: setShowCodeTour },
+    { key: "buildx-pending-collab-tour",              setter: setShowCollabTour },
+    { key: "buildx-pending-blocks-palette-tour",      setter: setShowBlocksPaletteTour },
+    { key: "buildx-pending-layers-panel-tour",        setter: setShowLayersPanelTour },
+    { key: "buildx-pending-multi-page-tour",          setter: setShowMultiPageTour },
+    { key: "buildx-pending-preview-mode-tour",        setter: setShowPreviewModeTour },
+    { key: "buildx-pending-custom-components-tour",   setter: setShowCustomComponentsTour },
+    { key: "buildx-pending-export-files-tour",        setter: setShowExportFilesTour },
+    { key: "buildx-pending-publish-template-tour",    setter: setShowPublishTemplateTour },
   ];
 
-  checks.forEach(({ key, setter }) => {
-    if (localStorage.getItem(key) === "1") {
-      localStorage.removeItem(key);
-      setTimeout(() => setter(true), 100); // ← added setTimeout
-    }
-  });
+  const dashboardChecks = [
+    { key: "buildx-pending-components-library-tour",  setter: setShowLibraryTour },
+    { key: "buildx-pending-dashboard-overview-tour", setter: setShowDashboardOverviewTour },
+    { key: "buildx-pending-navigating-projects-tour", setter: setShowNavigatingProjectsTour },
+    { key: "buildx-pending-buildx-introduction-tour", setter: setShowBuildXIntroTour },
+    { key: "buildx-pending-template-interaction-tour", setter: setShowTemplateInteractTour },
+  ];
+
+  if (location.pathname.startsWith("/editor")) {
+    editorChecks.forEach(({ key, setter }) => {
+      if (localStorage.getItem(key) === "1") {
+        localStorage.removeItem(key);
+        setTimeout(() => setter(true), 100);
+      }
+    });
+  } else if (location.pathname === "/dashboard") {
+    dashboardChecks.forEach(({ key, setter }) => {
+      if (localStorage.getItem(key) === "1") {
+        localStorage.removeItem(key);
+        setTimeout(() => setter(true), 100);
+      }
+    });
+  }
 }, [location.pathname]);
 
 useEffect(() => {
@@ -655,6 +701,46 @@ useEffect(() => {
                   hasUnsavedChanges: true,
                 }));
               }}
+              onStartBuildXIntroduction={() => setShowBuildXIntroTour(true)}
+              onStartDashboardOverview={() => setShowDashboardOverviewTour(true)}
+              onStartNavigatingProjects={() => setShowNavigatingProjectsTour(true)}
+              onStartTemplateInteraction={() => setShowTemplateInteractTour(true)}
+              onStartComponentsLibrary={() => setShowLibraryTour(true)}
+            />
+            <BuildXIntroduction
+              showOnMount={showBuildXIntroTour}
+              onComplete={() => {
+                setShowBuildXIntroTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "library" } }));
+              }}
+            />
+            <DashboardOverview
+              showOnMount={showDashboardOverviewTour}
+              onComplete={() => {
+                setShowDashboardOverviewTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "dashboard" } }));
+              }}
+            />
+            <NavigatingProjects
+              showOnMount={showNavigatingProjectsTour}
+              onComplete={() => {
+                setShowNavigatingProjectsTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "nav-projects" } }));
+              }}
+            />
+            <TemplateInteraction
+              showOnMount={showTemplateInteractTour}
+              onComplete={() => {
+                setShowTemplateInteractTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "template-interact" } }));
+              }}
+            />
+            <ComponentsLibrary
+              showOnMount={showLibraryTour}
+              onComplete={() => {
+                setShowLibraryTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "library" } }));
+              }}
             />
             <Toaster />
           </>
@@ -751,6 +837,55 @@ useEffect(() => {
                   localStorage.setItem("buildx-tutorial-collab", "1");
                   setShowCollabTour(false);
                   window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+                }}
+              />
+              <BlocksPaletteTour
+                showOnMount={showBlocksPaletteTour}
+                onComplete={() => {
+                  setShowBlocksPaletteTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "blocks-palette" } }));
+                }}
+              />
+              <LayersPanelTour
+                showOnMount={showLayersPanelTour}
+                onComplete={() => {
+                  setShowLayersPanelTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "layers-panel" } }));
+                }}
+              />
+              <MultiPageTour
+                showOnMount={showMultiPageTour}
+                onComplete={() => {
+                  setShowMultiPageTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "multi-page" } }));
+                }}
+              />
+              <PreviewModeTour
+                showOnMount={showPreviewModeTour}
+                onComplete={() => {
+                  setShowPreviewModeTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "preview-mode" } }));
+                }}
+              />
+              <CustomComponentsTour
+                showOnMount={showCustomComponentsTour}
+                onComplete={() => {
+                  setShowCustomComponentsTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "custom-components" } }));
+                }}
+              />
+              <ExportFilesTour
+                showOnMount={showExportFilesTour}
+                onComplete={() => {
+                  setShowExportFilesTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "export-files" } }));
+                }}
+              />
+              <PublishTemplateTour
+                showOnMount={showPublishTemplateTour}
+                onComplete={() => {
+                  setShowPublishTemplateTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publish-template" } }));
                 }}
               />
             </>
@@ -899,6 +1034,55 @@ useEffect(() => {
               setShowCollabTour(false);
               window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
             }}
+            />
+            <BlocksPaletteTour
+              showOnMount={showBlocksPaletteTour}
+              onComplete={() => {
+                setShowBlocksPaletteTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "blocks-palette" } }));
+              }}
+            />
+            <LayersPanelTour
+              showOnMount={showLayersPanelTour}
+              onComplete={() => {
+                setShowLayersPanelTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "layers-panel" } }));
+              }}
+            />
+            <MultiPageTour
+              showOnMount={showMultiPageTour}
+              onComplete={() => {
+                setShowMultiPageTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "multi-page" } }));
+              }}
+            />
+            <PreviewModeTour
+              showOnMount={showPreviewModeTour}
+              onComplete={() => {
+                setShowPreviewModeTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "preview-mode" } }));
+              }}
+            />
+            <CustomComponentsTour
+              showOnMount={showCustomComponentsTour}
+              onComplete={() => {
+                setShowCustomComponentsTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "custom-components" } }));
+              }}
+            />
+            <ExportFilesTour
+              showOnMount={showExportFilesTour}
+              onComplete={() => {
+                setShowExportFilesTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "export-files" } }));
+              }}
+            />
+            <PublishTemplateTour
+              showOnMount={showPublishTemplateTour}
+              onComplete={() => {
+                setShowPublishTemplateTour(false);
+                window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publish-template" } }));
+              }}
             />
           </>
         }

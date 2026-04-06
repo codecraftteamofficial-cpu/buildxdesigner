@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import {
   fetchTutorialProgress,
@@ -17,9 +16,292 @@ import {
   migrateLocalProgressToDB,
 } from "../supabase/data/tutorialProgressService";
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export type GuideCategory = "beginner" | "intermediate" | "advanced";
+
+interface GuideStep {
+  id: string;
+  category: GuideCategory;
+  title: string;
+  desc: string;
+  comingSoon?: boolean;
+  actionKey?: string;
+}
+
+// ─── Step Definitions ────────────────────────────────────────────────────────
+
+const ALL_GUIDE_STEPS: GuideStep[] = [
+  // ─── Beginner ───
+  {
+    id: "dashboard",
+    category: "beginner",
+    title: "Dashboard Overview",
+    desc: "Get familiar with the sidebar, project sections, and theme switcher.",
+    actionKey: "onStartDashboardOverview",
+  },
+  {
+    id: "nav-projects",
+    category: "beginner",
+    title: "Navigating Projects",
+    desc: "Learn to navigate Recents, Drafts, All Projects, and Trash.",
+    actionKey: "onStartNavigatingProjects",
+  },
+  {
+    id: "palette",
+    category: "beginner",
+    title: "Using Templates",
+    desc: "Browse and select templates to jumpstart your projects.",
+    actionKey: "onStartBuildXIntroduction",
+  },
+  {
+    id: "template-interact",
+    category: "beginner",
+    title: "Template Interaction",
+    desc: "Like, comment on, and report templates.",
+    actionKey: "onStartTemplateInteraction",
+  },
+  {
+    id: "website",
+    category: "beginner",
+    title: "Create New Project",
+    desc: "Start a blank project, use a template, and enter project details.",
+    actionKey: "onStartWebsiteCreation",
+  },
+
+  // ─── Intermediate ───
+  {
+    id: "canvas",
+    category: "intermediate",
+    title: "Canvas Overview",
+    desc: "Navigate the workspace, select, move, and resize components.",
+    actionKey: "onStartCanvasArea",
+  },
+  {
+    id: "blocks-palette",
+    category: "intermediate",
+    title: "Blocks Palette",
+    desc: "Drag and drop components from the blocks palette onto your canvas.",
+    actionKey: "onStartBlocksPalette",
+  },
+  {
+    id: "properties",
+    category: "intermediate",
+    title: "Properties Panel",
+    desc: "Edit colors, text, spacing, typography, borders, and shadows.",
+    actionKey: "onStartPropertiesPanel",
+  },
+  {
+    id: "layers-panel",
+    category: "intermediate",
+    title: "Layers Panel",
+    desc: "Manage your component structure and stacking order.",
+    actionKey: "onStartLayersPanel",
+  },
+  {
+    id: "multi-page",
+    category: "intermediate",
+    title: "Multi-Page Management",
+    desc: "Add and manage multiple pages in your project.",
+    actionKey: "onStartMultiPageManagement",
+  },
+  {
+    id: "ai",
+    category: "intermediate",
+    title: "AI Mentor",
+    desc: "Get guided assistance, design suggestions, and content generation.",
+    actionKey: "onStartAIAssistant",
+  },
+  {
+    id: "collab",
+    category: "intermediate",
+    title: "Collaboration Features",
+    desc: "Invite teammates, share access, and manage editor/viewer roles.",
+    actionKey: "onStartSavingCollaboration",
+  },
+  {
+    id: "preview-mode",
+    category: "intermediate",
+    title: "Preview Mode",
+    desc: "Preview your website at different screen sizes before publishing.",
+    actionKey: "onStartPreviewMode",
+  },
+  {
+    id: "publish-template",
+    category: "intermediate",
+    title: "Publish Template",
+    desc: "Share your project as a template for others to use.",
+    actionKey: "onStartPublishTemplate",
+  },
+
+  // ─── Advanced ───
+  {
+    id: "code",
+    category: "advanced",
+    title: "Code Editor",
+    desc: "Edit source code in Code View for backend customization.",
+    actionKey: "onStartCodeEditor",
+  },
+  {
+    id: "custom-components",
+    category: "advanced",
+    title: "Custom Components Creation",
+    desc: "Create, code, and upload your own custom components.",
+    actionKey: "onStartCustomComponents",
+  },
+  {
+    id: "library",
+    category: "advanced",
+    title: "Component Library",
+    desc: "Browse, import, and reuse community-built components.",
+    actionKey: "onStartComponentsLibrary",
+  },
+  {
+    id: "db-integration",
+    category: "advanced",
+    title: "Database Integration",
+    desc: "Connect Supabase for reading and writing data from your site.",
+    comingSoon: true,
+  },
+  {
+    id: "third-party",
+    category: "advanced",
+    title: "Third-Party Integrations",
+    desc: "Set up PayMongo payments, email services, and more.",
+    comingSoon: true,
+  },
+  {
+    id: "publishing",
+    category: "advanced",
+    title: "Deployment",
+    desc: "Publish your website live and manage hosting.",
+    actionKey: "onStartPublishingBasics",
+  },
+  {
+    id: "export-files",
+    category: "advanced",
+    title: "Export Project Files",
+    desc: "Download your project files for external use.",
+    actionKey: "onStartExportFiles",
+  },
+];
+
+// ─── Derived Constants (exported for Dashboard cards) ────────────────────────
+
+export const VISIBLE_GUIDE_STEPS = ALL_GUIDE_STEPS.filter(
+  (s) => !s.comingSoon,
+);
+
+const stepsForCategory = (cat: GuideCategory) =>
+  VISIBLE_GUIDE_STEPS.filter((s) => s.category === cat);
+
+export const BEGINNER_KEYS = stepsForCategory("beginner").map((s) => s.id);
+export const INTERMEDIATE_KEYS = stepsForCategory("intermediate").map(
+  (s) => s.id,
+);
+export const ADVANCED_KEYS = stepsForCategory("advanced").map((s) => s.id);
+export const ALL_VISIBLE_KEYS = VISIBLE_GUIDE_STEPS.map((s) => s.id);
+
+const CATEGORY_ORDER: GuideCategory[] = [
+  "beginner",
+  "intermediate",
+  "advanced",
+];
+
+export const CATEGORY_META: Record<
+  GuideCategory,
+  {
+    title: string;
+    subtitle: string;
+    description: string;
+    icon: string;
+    colors: {
+      border: string;
+      badge: string;
+      btn: string;
+      gradient: string;
+      progressBar: string;
+    };
+    stepKeys: string[];
+  }
+> = {
+  beginner: {
+    title: "Beginner",
+    subtitle: "Getting Started Guide",
+    description: "Basic navigation and simple project creation",
+    icon: "🟢",
+    colors: {
+      border: "border-emerald-500",
+      badge: "text-emerald-600 dark:text-emerald-400",
+      btn: "from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700",
+      gradient: "from-emerald-500/10 to-emerald-600/5",
+      progressBar: "bg-emerald-500",
+    },
+    stepKeys: BEGINNER_KEYS,
+  },
+  intermediate: {
+    title: "Intermediate",
+    subtitle: "Core Building Features",
+    description: "Actual website building and feature usage",
+    icon: "🟡",
+    colors: {
+      border: "border-amber-500",
+      badge: "text-amber-600 dark:text-amber-400",
+      btn: "from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700",
+      gradient: "from-amber-500/10 to-amber-600/5",
+      progressBar: "bg-amber-500",
+    },
+    stepKeys: INTERMEDIATE_KEYS,
+  },
+  advanced: {
+    title: "Advanced",
+    subtitle: "Customization & Production",
+    description: "Customization, optimization, and production-ready output",
+    icon: "🔴",
+    colors: {
+      border: "border-red-500",
+      badge: "text-red-600 dark:text-red-400",
+      btn: "from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700",
+      gradient: "from-red-500/10 to-red-600/5",
+      progressBar: "bg-red-500",
+    },
+    stepKeys: ADVANCED_KEYS,
+  },
+};
+
+// ─── Utility Functions (exported) ────────────────────────────────────────────
+
+export const isCategoryLocked = (
+  category: GuideCategory,
+  completed: Record<string, boolean>,
+): boolean => {
+  const categoryIndex = CATEGORY_ORDER.indexOf(category);
+  if (categoryIndex <= 0) return false;
+
+  for (let i = 0; i < categoryIndex; i++) {
+    const prevCategory = CATEGORY_ORDER[i];
+    const meta = CATEGORY_META[prevCategory];
+    if (!meta.stepKeys.every((key) => completed[key])) return true;
+  }
+  return false;
+};
+
+export const getCategoryProgress = (
+  category: GuideCategory,
+  completed: Record<string, boolean>,
+) => {
+  const meta = CATEGORY_META[category];
+  const done = meta.stepKeys.filter((key) => completed[key]).length;
+  const total = meta.stepKeys.length;
+  return { done, total };
+};
+
+// ─── Main Content Component ──────────────────────────────────────────────────
+
 interface GettingStartedGuideContentProps {
-  userId?: string | null;  
-  refreshKey?: number; 
+  userId?: string | null;
+  refreshKey?: number;
+  category?: GuideCategory;
   onStartBuildXIntroduction?: () => void;
   onStartWebsiteCreation?: () => void;
   onStartPublishingBasics?: () => void;
@@ -31,11 +313,21 @@ interface GettingStartedGuideContentProps {
   onStartCodeEditor?: () => void;
   onStartComponentsLibrary?: () => void;
   onStartSavingCollaboration?: () => void;
+  onStartNavigatingProjects?: () => void;
+  onStartTemplateInteraction?: () => void;
+  onStartPublishTemplate?: () => void;
+  onStartBlocksPalette?: () => void;
+  onStartLayersPanel?: () => void;
+  onStartMultiPageManagement?: () => void;
+  onStartPreviewMode?: () => void;
+  onStartCustomComponents?: () => void;
+  onStartExportFiles?: () => void;
 }
 
 export function GettingStartedGuideContent({
   userId,
-  refreshKey, 
+  refreshKey,
+  category: propCategory,
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -46,11 +338,20 @@ export function GettingStartedGuideContent({
   onStartCodeEditor,
   onStartComponentsLibrary,
   onStartSavingCollaboration,
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartPublishTemplate,
+  onStartBlocksPalette,
+  onStartLayersPanel,
+  onStartMultiPageManagement,
+  onStartPreviewMode,
+  onStartCustomComponents,
+  onStartExportFiles,
 }: GettingStartedGuideContentProps) {
-  const [activePhase, setActivePhase] = useState("all");
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [progressLoading, setProgressLoading] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState<GuideCategory | null>(null);
+
   useEffect(() => {
     const loadProgress = async () => {
       if (!userId) {
@@ -64,7 +365,7 @@ export function GettingStartedGuideContent({
 
         if (rows.length > 0) {
           const dbCompleted = Object.fromEntries(
-            rows.map((r) => [r.step_key, r.completed])
+            rows.map((r) => [r.step_key, r.completed]),
           );
           writeLocalProgress(dbCompleted);
           setCompleted(dbCompleted);
@@ -84,201 +385,272 @@ export function GettingStartedGuideContent({
     loadProgress();
   }, [userId, refreshKey]);
 
-  const doneCount = Object.values(completed).filter(Boolean).length;
-  const totalCount = 9; // ← updated from 10
-
-  const STEPS = [
-    {
-      id: "dashboard", phase: "orientation", badge: "Step 1",
-      title: "Dashboard Overview",
-      desc: "Get familiar with the sidebar, project sections, and theme switcher.",
-      action: onStartDashboardOverview,
-    },
-    {
-      id: "palette", phase: "orientation", badge: "Step 2",
-      title: "Templates",
-      desc: "Explore and create templates to reuse across your projects.",
-      action: onStartBuildXIntroduction,
-    },
-    {
-      id: "website", phase: "building", badge: "Step 3",
-      title: "Website creation",
-      desc: "Build a complete page from a template or from scratch.",
-      action: onStartWebsiteCreation,
-    },
-    {
-      id: "canvas", phase: "building", badge: "Step 4",
-      title: "Canvas area",
-      desc: "Drop, arrange, resize, and reorder components on your canvas.",
-      action: onStartCanvasArea,
-    },
-    {
-      id: "properties", phase: "building", badge: "Step 5",
-      title: "Properties panel",
-      desc: "Edit colors, text, spacing, and more for any selected component.",
-      action: onStartPropertiesPanel,
-    },
-    {
-      id: "ai", phase: "customizing", badge: "Step 6",
-      title: "AI assistant",
-      desc: "Use the built-in AI for design tips, content, and code snippets.",
-      action: onStartAIAssistant,
-    },
-    {
-      id: "code", phase: "customizing", badge: "Step 7",
-      title: "Code editor & files",
-      desc: "Switch to code view to fine-tune your design's HTML/CSS.",
-      action: onStartCodeEditor,
-    },
-    {
-      id: "collab", phase: "publishing", badge: "Step 8",
-      title: "Saving & collaboration",
-      desc: "Save your work, share with teammates, and manage access.",
-      action: onStartSavingCollaboration,
-    },
-    {
-      id: "publishing", phase: "publishing", badge: "Step 9",
-      title: "Publishing basics",
-      desc: "Publish your site live and share templates with the community.",
-      action: onStartPublishingBasics,
-    },
-  ];
-
-  const PHASES = [
-    { id: "all", label: "All steps" },
-    { id: "orientation", label: "1. Orientation" },
-    { id: "building", label: "2. Building" },
-    { id: "customizing", label: "3. Customizing" },
-    { id: "publishing", label: "4. Publishing" },
-  ];
-
-  const phaseColorMap: Record<string, { border: string; badge: string; btn: string }> = {
-    orientation: {
-      border: "border-blue-500",
-      badge: "text-blue-600 dark:text-blue-400",
-      btn: "bg-blue-600 hover:bg-blue-700",
-    },
-    building: {
-      border: "border-emerald-500",
-      badge: "text-emerald-600 dark:text-emerald-400",
-      btn: "bg-emerald-600 hover:bg-emerald-700",
-    },
-    customizing: {
-      border: "border-amber-500",
-      badge: "text-amber-600 dark:text-amber-400",
-      btn: "bg-amber-600 hover:bg-amber-700",
-    },
-    publishing: {
-      border: "border-orange-500",
-      badge: "text-orange-600 dark:text-orange-400",
-      btn: "bg-orange-600 hover:bg-orange-700",
-    },
+  // Map action keys → callbacks
+  const actionMap: Record<string, (() => void) | undefined> = {
+    onStartDashboardOverview,
+    onStartBuildXIntroduction,
+    onStartWebsiteCreation,
+    onStartCanvasArea,
+    onStartPropertiesPanel,
+    onStartAIAssistant,
+    onStartCodeEditor,
+    onStartComponentsLibrary,
+    onStartSavingCollaboration,
+    onStartPublishingBasics,
+    onStartNavigatingProjects,
+    onStartTemplateInteraction,
+    onStartPublishTemplate,
+    onStartBlocksPalette,
+    onStartLayersPanel,
+    onStartMultiPageManagement,
+    onStartPreviewMode,
+    onStartCustomComponents,
+    onStartExportFiles,
   };
 
-  const visible = STEPS.filter(s => activePhase === "all" || s.phase === activePhase);
+  // Overall progress statistics
+  const overallDone = ALL_VISIBLE_KEYS.filter((k) => completed[k]).length;
+  const overallTotal = ALL_VISIBLE_KEYS.length;
 
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Progress bar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 bg-muted rounded-full h-2">
-          <div
-            className="bg-blue-500 h-2 rounded-full transition-all"
-            style={{ width: `${(doneCount / totalCount) * 100}%` }}
-          />
-        </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {doneCount} / {totalCount} complete
-        </span>
-      </div>
+  // Logic to determine what to show
+  const currentCategory = propCategory || activeTab;
 
-      {/* Phase tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {PHASES.map(p => (
-          <button
-            key={p.id}
-            onClick={() => setActivePhase(p.id)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-              activePhase === p.id
-                ? "bg-muted border-border text-foreground font-medium"
-                : "border-transparent text-muted-foreground hover:border-border"
-            }`}
+  // If we have a category (either from prop or from click), show the list of steps
+  if (currentCategory) {
+    const steps = VISIBLE_GUIDE_STEPS.filter((s) => s.category === currentCategory);
+    const categoryMeta = CATEGORY_META[currentCategory];
+    const categoryLocked = isCategoryLocked(currentCategory, completed);
+    const { done: doneCount, total: totalCount } = getCategoryProgress(currentCategory, completed);
+    const progressPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500">
+        {/* Navigation & Header */}
+        {!propCategory && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab(null)}
+            className="w-fit mb-2 -ml-1 text-muted-foreground hover:text-foreground font-bold flex items-center gap-2"
           >
-            {p.label}
-          </button>
-        ))}
+            ← Back to Overview
+          </Button>
+        )}
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 p-6 rounded-2xl bg-muted/20 border border-border/50">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{categoryMeta.icon}</span>
+              <h2 className="text-2xl font-bold text-foreground">
+                {categoryMeta.title} Tutorials
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground max-w-lg font-medium">
+              {categoryMeta.description}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-end shrink-0">
+             <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-foreground tabular-nums">
+                  {Math.round(progressPercent)}%
+                </span>
+                <span className="text-[10px] font-black text-muted-foreground tracking-widest bg-muted px-2 py-0.5 rounded-md">COMPLETE</span>
+             </div>
+             <p className="text-[10px] font-bold text-muted-foreground mt-1">
+                {doneCount} / {totalCount} tutorials finished
+             </p>
+          </div>
+        </div>
+
+        {/* Individual Step Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {steps.map((step, idx) => {
+            const done = completed[step.id];
+            const categorySteps = VISIBLE_GUIDE_STEPS.filter((s) => s.category === step.category);
+            const stepIndexInCategory = categorySteps.findIndex((s) => s.id === step.id);
+            const prevStepId = stepIndexInCategory > 0 ? categorySteps[stepIndexInCategory - 1]?.id : undefined;
+            const locked = !done && stepIndexInCategory > 0 ? !completed[prevStepId ?? ""] : false;
+            const colors = categoryMeta.colors;
+            
+            return (
+              <div
+                key={step.id}
+                className={`group flex flex-col border-2 rounded-2xl p-6 gap-4 transition-all duration-300 ${
+                  locked 
+                    ? "opacity-60 bg-muted/5 border-dashed border-border" 
+                    : done
+                    ? `bg-muted/10 ${colors.border}/30`
+                    : "bg-card border-border hover:border-muted-foreground hover:shadow-md"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-lg bg-muted/80 ${colors.badge}`}>
+                    Step {idx + 1}
+                  </span>
+                  {done && (
+                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shadow-lg">✓</div>
+                  )}
+                  {locked && <span className="text-[10px] font-black opacity-30 tracking-widest uppercase">Locked</span>}
+                </div>
+                
+                <div className="space-y-1.5 min-h-[80px]">
+                  <h4 className="font-bold text-lg text-foreground leading-tight group-hover:text-primary transition-colors">
+                    {step.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                    {step.desc}
+                  </p>
+                </div>
+
+                <div className="mt-auto pt-4 relative">
+                  <Button
+                    size="default"
+                    disabled={locked}
+                    className={`text-white w-full rounded-xl h-11 font-bold transition-all ${
+                      locked
+                        ? "bg-muted text-muted-foreground/30 shadow-none border-transparent"
+                        : done
+                        ? `bg-muted hover:bg-muted/80 text-foreground border-2 border-border shadow-none`
+                        : `bg-gradient-to-r ${colors.btn} shadow-lg shadow-primary/10`
+                    }`}
+                    onClick={() => {
+                      if (locked || !step.actionKey) return;
+                      actionMap[step.actionKey]?.();
+                    }}
+                  >
+                    {done ? "Review Step" : locked ? "Locked" : "Start Step"}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Overall Progress Sticky Footer Mini */}
+        {!propCategory && (
+          <div className="mt-8 p-6 rounded-2xl bg-muted/30 border border-border flex items-center justify-between gap-4">
+             <div className="flex flex-col">
+               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Global Designer Mastery</span>
+               <span className="text-sm font-bold">{overallDone} of {overallTotal} Skills Unlocked</span>
+             </div>
+             <div className="flex-1 max-w-[200px] h-2 bg-muted rounded-full overflow-hidden border border-border">
+                <div className="h-full bg-primary transition-all duration-700" style={{ width: `${(overallDone/overallTotal)*100}%` }} />
+             </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Home View: Show 3 Large Category Cards (Mirrors Dashboard UI)
+  return (
+    <div className="flex flex-col gap-8 animate-in fade-in zoom-in-95 duration-500">
+      <div className="space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">Getting Started Guide</h2>
+        <p className="text-muted-foreground max-w-2xl font-medium">
+          Master BuildX Designer step by step — from basic navigation to advanced custom components and database integration.
+        </p>
       </div>
 
-      {/* Step cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
-        {visible.map(step => {
-          const done = completed[step.id];
-          const stepIndex = STEPS.findIndex((s) => s.id === step.id);
-          const prevStepId = stepIndex > 0 ? STEPS[stepIndex - 1]?.id : undefined;
-          const locked = !done && stepIndex > 0 ? !completed[prevStepId ?? ""] : false;
-
-          const colors = phaseColorMap[step.phase];
-          const borderColorClass = done
-            ? "border-blue-500"
-            : locked
-              ? "border-black dark:border-black"
-              : "border-white dark:border-white";
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat) => {
+          const meta = CATEGORY_META[cat];
+          const { done, total } = getCategoryProgress(cat, completed);
+          const locked = isCategoryLocked(cat, completed);
+          const progressPercent = total > 0 ? (done / total) * 100 : 0;
+          const isComplete = done === total && total > 0;
 
           return (
-            <div
-              key={step.id}
-              className={`flex flex-col border-2 rounded-xl p-4 gap-2 transition-all bg-card ${borderColorClass} ${locked ? "opacity-70" : ""}`}
+            <button
+              key={cat}
+              onClick={() => !locked && setActiveTab(cat)}
+              disabled={locked}
+              className={`group relative flex flex-col rounded-2xl border-2 p-7 text-left transition-all duration-300 bg-card hover:shadow-xl hover:scale-[1.02] ${
+                locked
+                  ? "border-border opacity-70 cursor-not-allowed grayscale-[0.5]"
+                  : isComplete
+                    ? `${meta.colors.border} shadow-md border-opacity-50`
+                    : "border-border hover:border-muted-foreground"
+              }`}
             >
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-semibold ${colors.badge}`}>{step.badge}</span>
-                <span
-                  className={`text-xs font-medium ${
-                    done ? "text-blue-500" : locked ? "text-foreground" : "text-muted-foreground"
-                  }`}
-                >
-                  {done ? "✓ Completed" : locked ? "Locked" : "Unlocked"}
-                </span>
+              {/* Category icon + lock */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{meta.icon}</span>
+                {locked ? (
+                  <span className="text-xl opacity-40">🔒</span>
+                ) : isComplete ? (
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${meta.colors.border} ${meta.colors.badge} bg-background`}>
+                    ✓ COMPLETE
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black text-muted-foreground opacity-40">Lv. {CATEGORY_ORDER.indexOf(cat) + 1}</span>
+                )}
               </div>
-              <p className="font-semibold text-sm text-foreground">{step.title}</p>
-              <p className="text-xs text-muted-foreground flex-1">{step.desc}</p>
-              <Button
-                size="sm"
-                disabled={locked}
-                className={`text-white mt-1 w-full ${
-                  locked
-                    ? "bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted whitespace-normal h-auto py-2 text-xs"
-                    : "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
-                }`}
-                onClick={() => {
-                  if (locked) return;
-                  step.action?.();
-                }}
-              >
-                {done ? "Review" : locked ? "Complete previous step to unlock" : "Start Tutorial"}
-              </Button>
-            </div>
+
+              {/* Title + subtitle */}
+              <h3 className="text-xl font-black text-foreground mb-1 tracking-tight">
+                {meta.title}
+              </h3>
+              <p className={`text-[11px] font-black mb-3 uppercase tracking-widest ${meta.colors.badge}`}>
+                {meta.subtitle}
+              </p>
+              <p className="text-sm text-muted-foreground font-medium mb-6 flex-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                {meta.description}
+              </p>
+
+              {/* Progress bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-muted-foreground uppercase opacity-60">Progress</span>
+                  <span className="text-foreground">{done}/{total}</span>
+                </div>
+                <div className="bg-muted rounded-full h-2.5 overflow-hidden border border-border/50">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 cubic-bezier(0.4, 0, 0.2, 1) ${meta.colors.progressBar}`}
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </button>
           );
         })}
+      </div>
+
+      <div className="mt-4 p-8 rounded-2xl bg-muted/20 border border-border border-dashed flex flex-col items-center text-center gap-4">
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-foreground">Complete and Master Everything</p>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Unlock all {overallTotal} designer skills to become a certified BuildX expert. 
+            All your progress is automatically saved to your profile.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="bg-muted rounded-full w-48 h-2">
+            <div className="bg-primary h-full rounded-full" style={{ width: `${(overallDone/overallTotal)*100}%` }} />
+          </div>
+          <span className="text-xs font-black">{Math.round((overallDone/overallTotal)*100)}% Overall</span>
+        </div>
       </div>
     </div>
   );
 }
 
-interface GettingStartedModalProps extends GettingStartedGuideContentProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onStartDashboardOverview?: () => void;
-  onStartCanvasArea?: () => void;
-  onStartPropertiesPanel?: () => void;
-  onStartAIAssistant?: () => void;
-  onStartCodeEditor?: () => void;
-  onStartComponentsLibrary?: () => void;
-  onStartSavingCollaboration?: () => void;
+// ─── Category Dialog (NEW — one category at a time) ──────────────────────────
+
+interface GettingStartedCategoryDialogProps
+  extends GettingStartedGuideContentProps {
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  category: GuideCategory;
 }
 
-export function GettingStartedModal({
-  isOpen,
-  onClose,
+export function GettingStartedCategoryDialog({
+  open,
+  onOpenChange,
+  category,
+  userId,
+  refreshKey,
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -289,8 +661,91 @@ export function GettingStartedModal({
   onStartCodeEditor,
   onStartComponentsLibrary,
   onStartSavingCollaboration,
-}: GettingStartedModalProps) {
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartPublishTemplate,
+  onStartBlocksPalette,
+  onStartLayersPanel,
+  onStartMultiPageManagement,
+  onStartPreviewMode,
+  onStartCustomComponents,
+  onStartExportFiles,
+}: GettingStartedCategoryDialogProps) {
+  const meta = CATEGORY_META[category];
 
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
+      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-6xl border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {meta.icon} {meta.title} — {meta.subtitle}
+          </DialogTitle>
+          <DialogDescription>
+            {meta.description}. Complete the tutorials in order to unlock the
+            next step.
+          </DialogDescription>
+        </DialogHeader>
+
+        <GettingStartedGuideContent
+          userId={userId}
+          refreshKey={refreshKey}
+          category={category}
+          onStartBuildXIntroduction={onStartBuildXIntroduction}
+          onStartWebsiteCreation={onStartWebsiteCreation}
+          onStartPublishingBasics={onStartPublishingBasics}
+          onStartDashboardOverview={onStartDashboardOverview}
+          onStartCanvasArea={onStartCanvasArea}
+          onStartPropertiesPanel={onStartPropertiesPanel}
+          onStartAIAssistant={onStartAIAssistant}
+          onStartCodeEditor={onStartCodeEditor}
+          onStartComponentsLibrary={onStartComponentsLibrary}
+          onStartSavingCollaboration={onStartSavingCollaboration}
+          onStartNavigatingProjects={onStartNavigatingProjects}
+          onStartTemplateInteraction={onStartTemplateInteraction}
+          onStartPublishTemplate={onStartPublishTemplate}
+          onStartBlocksPalette={onStartBlocksPalette}
+          onStartLayersPanel={onStartLayersPanel}
+          onStartMultiPageManagement={onStartMultiPageManagement}
+          onStartPreviewMode={onStartPreviewMode}
+          onStartCustomComponents={onStartCustomComponents}
+          onStartExportFiles={onStartExportFiles}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Legacy Exports (backward compatibility) ─────────────────────────────────
+
+interface GettingStartedModalProps extends GettingStartedGuideContentProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function GettingStartedModal({
+  isOpen,
+  onClose,
+  userId,
+  onStartBuildXIntroduction,
+  onStartWebsiteCreation,
+  onStartPublishingBasics,
+  onStartDashboardOverview,
+  onStartCanvasArea,
+  onStartPropertiesPanel,
+  onStartAIAssistant,
+  onStartCodeEditor,
+  onStartComponentsLibrary,
+  onStartSavingCollaboration,
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartPublishTemplate,
+  onStartBlocksPalette,
+  onStartLayersPanel,
+  onStartMultiPageManagement,
+  onStartPreviewMode,
+  onStartCustomComponents,
+  onStartExportFiles,
+}: GettingStartedModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-7xl border-0 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -302,33 +757,101 @@ export function GettingStartedModal({
         </DialogHeader>
 
         <GettingStartedGuideContent
-          onStartBuildXIntroduction={() => { onClose(); onStartBuildXIntroduction?.(); }}
-          onStartWebsiteCreation={() => { onClose(); onStartWebsiteCreation?.(); }}
-          onStartPublishingBasics={() => { onClose(); onStartPublishingBasics?.(); }}
-          onStartDashboardOverview={() => { onClose(); onStartDashboardOverview?.(); }}
-          onStartCanvasArea={() => { onClose(); onStartCanvasArea?.(); }}
-          onStartPropertiesPanel={() => { onClose(); onStartPropertiesPanel?.(); }}
-          onStartAIAssistant={() => { onClose(); onStartAIAssistant?.(); }}
-          onStartCodeEditor={() => { onClose(); onStartCodeEditor?.(); }}
-          onStartComponentsLibrary={() => { onClose(); onStartComponentsLibrary?.(); }}
-          onStartSavingCollaboration={() => { onClose(); onStartSavingCollaboration?.(); }}
+          userId={userId}
+          onStartBuildXIntroduction={() => {
+            onClose();
+            onStartBuildXIntroduction?.();
+          }}
+          onStartWebsiteCreation={() => {
+            onClose();
+            onStartWebsiteCreation?.();
+          }}
+          onStartPublishingBasics={() => {
+            onClose();
+            onStartPublishingBasics?.();
+          }}
+          onStartDashboardOverview={() => {
+            onClose();
+            onStartDashboardOverview?.();
+          }}
+          onStartCanvasArea={() => {
+            onClose();
+            onStartCanvasArea?.();
+          }}
+          onStartPropertiesPanel={() => {
+            onClose();
+            onStartPropertiesPanel?.();
+          }}
+          onStartAIAssistant={() => {
+            onClose();
+            onStartAIAssistant?.();
+          }}
+          onStartCodeEditor={() => {
+            onClose();
+            onStartCodeEditor?.();
+          }}
+          onStartComponentsLibrary={() => {
+            onClose();
+            onStartComponentsLibrary?.();
+          }}
+          onStartSavingCollaboration={() => {
+            onClose();
+            onStartSavingCollaboration?.();
+          }}
+          onStartNavigatingProjects={() => {
+            onClose();
+            onStartNavigatingProjects?.();
+          }}
+          onStartTemplateInteraction={() => {
+            onClose();
+            onStartTemplateInteraction?.();
+          }}
+          onStartPublishTemplate={() => {
+            onClose();
+            onStartPublishTemplate?.();
+          }}
+          onStartBlocksPalette={() => {
+            onClose();
+            onStartBlocksPalette?.();
+          }}
+          onStartLayersPanel={() => {
+            onClose();
+            onStartLayersPanel?.();
+          }}
+          onStartMultiPageManagement={() => {
+            onClose();
+            onStartMultiPageManagement?.();
+          }}
+          onStartPreviewMode={() => {
+            onClose();
+            onStartPreviewMode?.();
+          }}
+          onStartCustomComponents={() => {
+            onClose();
+            onStartCustomComponents?.();
+          }}
+          onStartExportFiles={() => {
+            onClose();
+            onStartExportFiles?.();
+          }}
         />
-
       </DialogContent>
     </Dialog>
   );
 }
 
-interface GettingStartedGuideDialogProps extends GettingStartedGuideContentProps {
+// ─── Main Guide Dialog (used in Editor) ──────────────────────────────────────
+
+interface GettingStartedGuideDialogProps
+  extends GettingStartedGuideContentProps {
   open: boolean;
   onOpenChange?: (open: boolean) => void;
-  userId?: string | null; 
 }
 
 export function GettingStartedGuideDialog({
   open,
   onOpenChange,
-  userId,  
+  userId,
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -339,6 +862,15 @@ export function GettingStartedGuideDialog({
   onStartCodeEditor,
   onStartComponentsLibrary,
   onStartSavingCollaboration,
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartPublishTemplate,
+  onStartBlocksPalette,
+  onStartLayersPanel,
+  onStartMultiPageManagement,
+  onStartPreviewMode,
+  onStartCustomComponents,
+  onStartExportFiles,
 }: GettingStartedGuideDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
@@ -351,7 +883,7 @@ export function GettingStartedGuideDialog({
         </DialogHeader>
 
         <GettingStartedGuideContent
-          userId={userId}  
+          userId={userId}
           onStartBuildXIntroduction={onStartBuildXIntroduction}
           onStartWebsiteCreation={onStartWebsiteCreation}
           onStartPublishingBasics={onStartPublishingBasics}
@@ -362,6 +894,15 @@ export function GettingStartedGuideDialog({
           onStartCodeEditor={onStartCodeEditor}
           onStartComponentsLibrary={onStartComponentsLibrary}
           onStartSavingCollaboration={onStartSavingCollaboration}
+          onStartNavigatingProjects={onStartNavigatingProjects}
+          onStartTemplateInteraction={onStartTemplateInteraction}
+          onStartPublishTemplate={onStartPublishTemplate}
+          onStartBlocksPalette={onStartBlocksPalette}
+          onStartLayersPanel={onStartLayersPanel}
+          onStartMultiPageManagement={onStartMultiPageManagement}
+          onStartPreviewMode={onStartPreviewMode}
+          onStartCustomComponents={onStartCustomComponents}
+          onStartExportFiles={onStartExportFiles}
         />
       </DialogContent>
     </Dialog>

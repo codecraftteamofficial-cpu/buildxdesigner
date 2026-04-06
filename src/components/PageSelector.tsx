@@ -227,7 +227,10 @@ export function PageSelector({
                         }
                     }}
                 >
-                    <SelectTrigger className="h-8 min-w-[120px] bg-transparent border-none hover:bg-accent focus:ring-0 shadow-none text-sm font-medium">
+                    <SelectTrigger 
+                        data-tour="page-selector-trigger"
+                        className="h-8 min-w-[120px] bg-transparent border-none hover:bg-accent focus:ring-0 shadow-none text-sm font-medium"
+                    >
                         <SelectValue placeholder="Select Page" />
                     </SelectTrigger>
 

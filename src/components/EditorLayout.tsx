@@ -42,16 +42,39 @@ import { CodeExportModal } from "./CodeExportModal";
 import type { useEditorState } from "../hooks/useEditorState";
 import type { ComponentData } from "../types/editor";
 import { GetOut } from "./UnexpectedEntry/UnexpectedEntry";
+import { BlocksPaletteTour } from "./Guides/BlocksPaletteTour";
+import { LayersPanelTour } from "./Guides/LayersPanelTour";
+import { MultiPageTour } from "./Guides/MultiPageTour";
+import { PublishTemplateTour } from "./Guides/PublishTemplateTour";
+import { PreviewModeTour } from "./Guides/PreviewModeTour";
+import { CustomComponentsTour } from "./Guides/CustomComponentsTour";
+import { ExportFilesTour } from "./Guides/ExportFilesTour";
+import { markStepComplete } from "../supabase/data/tutorialProgressService";
+import { PublishingBasics } from "./Guides/PublishingBasics";
+import { PropertiesPanel as PropertiesPanelTour } from "./Guides/PropertiesPanel";
+import { AIAssistant as AIAssistantTour } from "./Guides/AIAssistant";
+import { CodeEditorTour } from "./Guides/CodeEditorTour";
+import { SavingCollaboration } from "./Guides/SavingCollaboration";
+import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
+import { CanvasArea as CanvasAreaTour } from "./Guides/CanvasArea";
+
 
 interface EditorLayoutProps {
   editor: ReturnType<typeof useEditorState>;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
   onStartCanvasArea?: () => void;
-  onStartPropertiesPanel?: () => void;  // ← ADD
-  onStartAIAssistant?: () => void;       // ← ADD
-  onStartCodeEditor?: () => void;        // ← ADD
-  onStartSavingCollaboration?: () => void; // ← ADD
+  onStartPropertiesPanel?: () => void;
+  onStartAIAssistant?: () => void;
+  onStartCodeEditor?: () => void;
+  onStartSavingCollaboration?: () => void;
+  onStartBlocksPalette?: () => void;
+  onStartLayersPanel?: () => void;
+  onStartMultiPageManagement?: () => void;
+  onStartPublishTemplate?: () => void;
+  onStartPreviewMode?: () => void;
+  onStartCustomComponents?: () => void;
+  onStartExportFiles?: () => void;
 }
 
 export function EditorLayout({
@@ -63,6 +86,13 @@ export function EditorLayout({
   onStartAIAssistant,
   onStartCodeEditor,
   onStartSavingCollaboration,
+  onStartBlocksPalette,
+  onStartLayersPanel,
+  onStartMultiPageManagement,
+  onStartPublishTemplate,
+  onStartPreviewMode,
+  onStartCustomComponents,
+  onStartExportFiles,
 }: EditorLayoutProps) {
   console.log("[EditorLayout] Render state.userProjectConfig:", editor?.state?.userProjectConfig);
   const {
@@ -114,6 +144,40 @@ export function EditorLayout({
   const [showCodeExportModal, setShowCodeExportModal] = useState(false);
   const [showGettingStartedGuideDialog, setShowGettingStartedGuideDialog] = useState(false);
   const [showCongratsModal, setShowCongratsModal] = useState(false);
+  const [showPublishingBasicsTour, setShowPublishingBasicsTour] = useState(false);
+  const [showCanvasAreaTour, setShowCanvasAreaTour] = useState(false);
+  const [showPropertiesPanelTour, setShowPropertiesPanelTour] = useState(false);
+  const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
+  const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
+  const [showSavingCollaborationTour, setShowSavingCollaborationTour] = useState(false);
+  const [showBlocksPaletteTour, setShowBlocksPaletteTour] = useState(false);
+  const [showLayersPanelTour, setShowLayersPanelTour] = useState(false);
+  const [showMultiPageTour, setShowMultiPageTour] = useState(false);
+  const [showPublishTemplateTour, setShowPublishTemplateTour] = useState(false);
+  const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
+  const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
+  const [showExportFilesTour, setShowExportFilesTour] = useState(false);
+  
+  const ALL_STEP_KEYS = [
+    "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
+    "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
+    "code", "custom-components", "library", "publishing", "export-files"
+  ];
+
+  const checkAllStepsComplete = async () => {
+    if (!state.currentUser?.id) return;
+    try {
+      const { fetchTutorialProgress } = await import("../supabase/data/tutorialProgressService");
+      const rows = await fetchTutorialProgress(state.currentUser.id);
+      const completedKeys = new Set(rows.filter(r => r.completed).map(r => r.step_key));
+      const allDone = ALL_STEP_KEYS.every(key => completedKeys.has(key));
+      if (allDone) {
+        window.dispatchEvent(new Event("buildx-tutorial-completed"));
+      }
+    } catch (err) {
+      console.error("Error checking tutorial completion:", err);
+    }
+  };
 
   // Auto-show guide dialog when tutorial steps complete
   useEffect(() => {
@@ -137,6 +201,72 @@ export function EditorLayout({
   }, []);
 
   // Add alongside the existing buildx-tutorial-completed listener
+  useEffect(() => {
+    const checkPendingTours = () => {
+      if (localStorage.getItem("buildx-pending-publishing-basics-tour")) {
+        localStorage.removeItem("buildx-pending-publishing-basics-tour");
+        onStartPublishingBasics?.();
+      }
+      if (localStorage.getItem("buildx-pending-canvas-tour")) {
+        localStorage.removeItem("buildx-pending-canvas-tour");
+        onStartCanvasArea?.();
+      }
+      if (localStorage.getItem("buildx-pending-properties-tour")) {
+        localStorage.removeItem("buildx-pending-properties-tour");
+        onStartPropertiesPanel?.();
+      }
+      if (localStorage.getItem("buildx-pending-ai-tour")) {
+        localStorage.removeItem("buildx-pending-ai-tour");
+        onStartAIAssistant?.();
+      }
+      if (localStorage.getItem("buildx-pending-code-tour")) {
+        localStorage.removeItem("buildx-pending-code-tour");
+        onStartCodeEditor?.();
+      }
+      if (localStorage.getItem("buildx-pending-collab-tour")) {
+        localStorage.removeItem("buildx-pending-collab-tour");
+        onStartSavingCollaboration?.();
+      }
+      if (localStorage.getItem("buildx-pending-publish-template-tour")) {
+        localStorage.removeItem("buildx-pending-publish-template-tour");
+        onStartPublishTemplate?.();
+      }
+      if (localStorage.getItem("buildx-pending-blocks-palette-tour")) {
+        localStorage.removeItem("buildx-pending-blocks-palette-tour");
+        onStartBlocksPalette?.();
+      }
+      if (localStorage.getItem("buildx-pending-layers-panel-tour")) {
+        localStorage.removeItem("buildx-pending-layers-panel-tour");
+        onStartLayersPanel?.();
+      }
+      if (localStorage.getItem("buildx-pending-multi-page-tour")) {
+        localStorage.removeItem("buildx-pending-multi-page-tour");
+        onStartMultiPageManagement?.();
+      }
+      if (localStorage.getItem("buildx-pending-preview-mode-tour")) {
+        localStorage.removeItem("buildx-pending-preview-mode-tour");
+        onStartPreviewMode?.();
+      }
+      if (localStorage.getItem("buildx-pending-custom-components-tour")) {
+        localStorage.removeItem("buildx-pending-custom-components-tour");
+        onStartCustomComponents?.();
+      }
+      if (localStorage.getItem("buildx-pending-export-files-tour")) {
+        localStorage.removeItem("buildx-pending-export-files-tour");
+        onStartExportFiles?.();
+      }
+    };
+    
+    // Tiny delay to ensure editor is seated
+    const timer = setTimeout(checkPendingTours, 800);
+    return () => clearTimeout(timer);
+  }, [
+    onStartPublishingBasics, onStartCanvasArea, onStartPropertiesPanel, 
+    onStartAIAssistant, onStartCodeEditor, onStartSavingCollaboration,
+    onStartPublishTemplate, onStartBlocksPalette, onStartLayersPanel,
+    onStartMultiPageManagement, onStartPreviewMode, onStartCustomComponents,
+    onStartExportFiles
+  ]);
 
   const openExportConfirmDialog = async (component: any) => {
     setPendingExportComponent(component);
@@ -736,7 +866,8 @@ export function EditorLayout({
             userId={state.currentUser?.id}
             onStartBuildXIntroduction={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartTour?.();
+              localStorage.setItem("buildx-pending-buildx-introduction-tour", "1");
+              editor.goToDashboard();
             }}
             onStartWebsiteCreation={() => {
               setShowGettingStartedGuideDialog(false);
@@ -744,31 +875,75 @@ export function EditorLayout({
             }}
             onStartPublishingBasics={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartPublishingBasics?.();
+              setShowPublishingBasicsTour(true);
             }}
             onStartDashboardOverview={() => {
               setShowGettingStartedGuideDialog(false);
+              localStorage.setItem("buildx-pending-dashboard-overview-tour", "1");
+              editor.goToDashboard();
             }}
             onStartCanvasArea={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartCanvasArea?.();
+              setShowCanvasAreaTour(true);
             }}
-            // ↓ CHANGED: these now actually trigger the tours
             onStartPropertiesPanel={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartPropertiesPanel?.();        // ← use the actual prop
+              setShowPropertiesPanelTour(true);
             }}
             onStartAIAssistant={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartAIAssistant?.();            // ← use the actual prop
+              setShowAIAssistantTour(true);
             }}
             onStartCodeEditor={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartCodeEditor?.();             // ← use the actual prop
+              setShowCodeEditorTour(true);
             }}
             onStartSavingCollaboration={() => {
               setShowGettingStartedGuideDialog(false);
-              onStartSavingCollaboration?.();    // ← use the actual prop
+              setShowSavingCollaborationTour(true);
+            }}
+            onStartNavigatingProjects={() => {
+              setShowGettingStartedGuideDialog(false);
+              localStorage.setItem("buildx-pending-navigating-projects-tour", "1");
+              editor.goToDashboard();
+            }}
+            onStartTemplateInteraction={() => {
+              setShowGettingStartedGuideDialog(false);
+              localStorage.setItem("buildx-pending-template-interaction-tour", "1");
+              editor.goToDashboard();
+            }}
+            onStartComponentsLibrary={() => {
+              setShowGettingStartedGuideDialog(false);
+              localStorage.setItem("buildx-pending-components-library-tour", "1");
+              editor.goToDashboard();
+            }}
+            onStartBlocksPalette={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowBlocksPaletteTour(true);
+            }}
+            onStartLayersPanel={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowLayersPanelTour(true);
+            }}
+            onStartMultiPageManagement={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowMultiPageTour(true);
+            }}
+            onStartPublishTemplate={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowPublishTemplateTour(true);
+            }}
+            onStartPreviewMode={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowPreviewModeTour(true);
+            }}
+            onStartCustomComponents={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowCustomComponentsTour(true);
+            }}
+            onStartExportFiles={() => {
+              setShowGettingStartedGuideDialog(false);
+              setShowExportFilesTour(true);
             }}
           />
 
@@ -778,7 +953,7 @@ export function EditorLayout({
                 <DialogHeader>
                   <DialogTitle>🎉 Congratulations!</DialogTitle>
                   <DialogDescription>
-                    You've completed all 10 tutorial steps. You're now ready to build amazing websites with BuildX!
+                    You've completed all 19 tutorial steps. You're now a BuildX master!
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -792,6 +967,178 @@ export function EditorLayout({
               </DialogContent>
             </Dialog>
           )}
+
+          {showBlocksPaletteTour && (
+            <BlocksPaletteTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowBlocksPaletteTour(false);
+                markStepComplete(state.currentUser?.id || "", "blocks-palette").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showLayersPanelTour && (
+            <LayersPanelTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowLayersPanelTour(false);
+                markStepComplete(state.currentUser?.id || "", "layers-panel").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showMultiPageTour && (
+            <MultiPageTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowMultiPageTour(false);
+                markStepComplete(state.currentUser?.id || "", "multi-page").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showPublishTemplateTour && (
+            <PublishTemplateTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowPublishTemplateTour(false);
+                markStepComplete(state.currentUser?.id || "", "publish-template").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showPreviewModeTour && (
+            <PreviewModeTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowPreviewModeTour(false);
+                markStepComplete(state.currentUser?.id || "", "preview-mode").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showCustomComponentsTour && (
+            <CustomComponentsTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowCustomComponentsTour(false);
+                markStepComplete(state.currentUser?.id || "", "custom-components").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showExportFilesTour && (
+            <ExportFilesTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowExportFilesTour(false);
+                markStepComplete(state.currentUser?.id || "", "export-files").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+
+          {showPublishingBasicsTour && (
+            <PublishingBasics
+              showOnMount={true}
+              onComplete={() => {
+                setShowPublishingBasicsTour(false);
+                markStepComplete(state.currentUser?.id || "", "publishing").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showCanvasAreaTour && (
+            <CanvasAreaTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowCanvasAreaTour(false);
+                markStepComplete(state.currentUser?.id || "", "canvas").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showPropertiesPanelTour && (
+            <PropertiesPanelTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowPropertiesPanelTour(false);
+                markStepComplete(state.currentUser?.id || "", "properties").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showAIAssistantTour && (
+            <AIAssistantTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowAIAssistantTour(false);
+                markStepComplete(state.currentUser?.id || "", "ai").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showCodeEditorTour && (
+            <CodeEditorTour
+              showOnMount={true}
+              onComplete={() => {
+                setShowCodeEditorTour(false);
+                markStepComplete(state.currentUser?.id || "", "code").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+          {showSavingCollaborationTour && (
+            <SavingCollaboration
+              showOnMount={true}
+              onComplete={() => {
+                setShowSavingCollaborationTour(false);
+                markStepComplete(state.currentUser?.id || "", "collab").then(() => {
+                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  checkAllStepsComplete();
+                });
+              }}
+            />
+          )}
+
+
           <Toaster />
         </div>
       </TooltipProvider>

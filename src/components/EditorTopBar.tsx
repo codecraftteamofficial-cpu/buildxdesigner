@@ -1384,6 +1384,7 @@ export function EditorTopBar({
 
         {pages && activePageId && onSwitchPage && (
           <PageSelector
+            data-tour="top-bar-page-selector"
             pages={pages}
             activePageId={activePageId}
             onSwitchPage={onSwitchPage}
@@ -1801,7 +1802,7 @@ export function EditorTopBar({
 
         {onPreview && (
           <Button
-            data-tour="preview"
+            data-tour="top-bar-preview"
             variant="ghost"
             size="sm"
             onClick={onPreview}
@@ -1835,7 +1836,7 @@ export function EditorTopBar({
         </Button>
 
         <Button
-          data-tour="publish"
+          data-tour="top-bar-publish-template"
           ref={publishButtonRef}
           onClick={handlePublishTemplateClick}
           size="sm"
@@ -1854,6 +1855,19 @@ export function EditorTopBar({
         >
           <span>Share</span>
         </Button>
+
+        {onExport && (
+          <Button
+            data-tour="top-bar-export"
+            onClick={onExport}
+            size="sm"
+            variant="ghost"
+            className="h-9 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors"
+            title="Export Project Files"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+        )}
 
         {resolvedAvatarUrl && !avatarLoadFailed ? (
           <img

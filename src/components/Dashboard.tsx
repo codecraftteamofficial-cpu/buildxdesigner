@@ -77,7 +77,13 @@ import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { GettingStartedGuideContent } from "./GettingStartedModal";
+import {
+  type GuideCategory,
+  CATEGORY_META,
+  isCategoryLocked,
+  getCategoryProgress,
+  GettingStartedCategoryDialog,
+} from "./GettingStartedModal";
 import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
@@ -87,6 +93,8 @@ import { AIAssistant } from "./Guides/AIAssistant";
 import { CodeEditorTour } from "./Guides/CodeEditorTour";
 import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { SavingCollaboration } from "./Guides/SavingCollaboration";
+import { NavigatingProjects } from "./Guides/NavigatingProjects";
+import { TemplateInteraction } from "./Guides/TemplateInteraction";
 import {
   fetchDraftProjectsFromApi,
   fetchTrendingTemplatesFromApi,
@@ -102,7 +110,7 @@ import {
   deletePublishedComponent,
 } from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
-import { markStepComplete } from "../supabase/data/tutorialProgressService";
+import { markStepComplete, fetchTutorialProgress, readLocalProgress, writeLocalProgress } from "../supabase/data/tutorialProgressService";
 
 type DashboardSection =
   | "new-chat"
@@ -133,6 +141,11 @@ interface DashboardProps {
   onThemeChange?: (theme: "light" | "dark" | "system") => void;
   onLoadTemplate?: (components: ComponentData[]) => void;
   isSupabaseConnected?: boolean;
+  onStartBuildXIntroduction?: () => void;
+  onStartDashboardOverview?: () => void;
+  onStartNavigatingProjects?: () => void;
+  onStartTemplateInteraction?: () => void;
+  onStartComponentsLibrary?: () => void;
 }
 
 interface ProfileDisplayData {
@@ -572,6 +585,11 @@ export function Dashboard({
   onThemeChange,
   onLoadTemplate,
   isSupabaseConnected,
+  onStartBuildXIntroduction,
+  onStartDashboardOverview,
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartComponentsLibrary,
 }: DashboardProps) {
   // --- AUTHENTICATION STATES ---
   const [authLoading, setAuthLoading] = useState(true);
@@ -626,6 +644,8 @@ export function Dashboard({
   const [tourCompletionKey, setTourCompletionKey] = useState(0);
   const [showGettingStartedPopup, setShowGettingStartedPopup] = useState(false);
   const [pendingGuidePopup, setPendingGuidePopup] = useState(false);
+  const [guideCategoryModal, setGuideCategoryModal] = useState<GuideCategory | null>(null);
+  const [tutorialProgress, setTutorialProgress] = useState<Record<string, boolean>>({});
   const handleTourComplete = () => {
     setTourCompletionKey(prev => prev + 1);
   };
@@ -638,9 +658,38 @@ export function Dashboard({
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
   const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
+
+  // Auto-switch sections when tours are triggered from external props (e.g. from Editor redirect)
+  useEffect(() => {
+    if (onStartComponentsLibrary) {
+      // If the parent tells us to start the library tour, make sure we're in the right section
+      const originalHandler = onStartComponentsLibrary;
+      // We don't want to wrap it in a way that causes infinite loops, 
+      // but we need to know when it's CALLED.
+      // Actually, App.tsx calls it on mount if localstorage flag is set.
+    }
+  }, [onStartComponentsLibrary]);
+
+  // Handle tours that require specific sections
+  useEffect(() => {
+    // Check if the library tour state in the parent (App.tsx) ever changes 
+    // This is tricky because we don't have access to App's showLibraryTour directly.
+    // However, App.tsx passes the onStart callback.
+    // Let's use a simpler approach: check localstorage directly in Dashboard too 
+    // to ensure the UI section is correct.
+    const checkPendingTours = () => {
+      if (localStorage.getItem("buildx-pending-components-library-tour") === "1") {
+        setActiveSection("marketplace");
+        // No need to remove it here, App.tsx will handle it
+      }
+    };
+    checkPendingTours();
+  }, []);
   const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
   const [showComponentsLibraryTour, setShowComponentsLibraryTour] = useState(false);
   const [showSavingCollabTour, setShowSavingCollabTour] = useState(false);
+  const [showNavigatingProjectsTour, setShowNavigatingProjectsTour] = useState(false);
+  const [showTemplateInteractionTour, setShowTemplateInteractionTour] = useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -722,7 +771,35 @@ export function Dashboard({
     useState<any>(null);
   const [showCongratsPopup, setShowCongratsPopup] = useState(false);
 
-  const ALL_STEP_KEYS = ["dashboard", "palette", "website", "canvas", "properties", "ai", "code", "collab", "publishing"];
+  const ALL_STEP_KEYS = [
+    "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
+    "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
+    "code", "custom-components", "library", "publishing", "export-files"
+  ];
+
+  // Load tutorial progress for the 3 category cards
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (!currentUserId) {
+        setTutorialProgress(readLocalProgress());
+        return;
+      }
+      try {
+        const rows = await fetchTutorialProgress(currentUserId);
+        if (rows.length > 0) {
+          const dbCompleted = Object.fromEntries(
+            rows.map((r: any) => [r.step_key, r.completed]),
+          );
+          setTutorialProgress(dbCompleted);
+        } else {
+          setTutorialProgress(readLocalProgress());
+        }
+      } catch {
+        setTutorialProgress(readLocalProgress());
+      }
+    };
+    loadProgress();
+  }, [currentUserId, tourCompletionKey]);
 
   const currentUserIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -2976,6 +3053,7 @@ export function Dashboard({
           <nav data-tour="sidebar-nav" className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
+              data-tour="nav-dashboard"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
                   ? "text-blue-500 bg-blue-500/10"
                   : "text-muted-foreground hover:bg-muted"
@@ -3000,6 +3078,7 @@ export function Dashboard({
             {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
+              data-tour="nav-all"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
                   ? "text-blue-500 bg-blue-500/10"
                   : "text-muted-foreground hover:bg-muted"
@@ -3012,6 +3091,7 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
+              data-tour="nav-drafts"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
                   ? "text-blue-500 bg-blue-500/10"
                   : "text-muted-foreground hover:bg-muted"
@@ -3029,6 +3109,7 @@ export function Dashboard({
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
+              data-tour="nav-trash"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
                   ? "text-blue-500 bg-blue-500/10"
                   : "text-muted-foreground hover:bg-muted"
@@ -3261,6 +3342,7 @@ export function Dashboard({
 
                                         <button
                                           type="button"
+                                          data-tour="template-report"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             setSelectedReportTemplate(template);
@@ -3294,68 +3376,68 @@ export function Dashboard({
                         Getting Started Guide
                       </h2>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Complete the tutorials in order to unlock the next step.
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Master BuildX step by step — from basics to advanced features.
                     </p>
-                    <GettingStartedGuideContent
-                      userId={currentUserId}
-                      refreshKey={tourCompletionKey}
-                      onStartBuildXIntroduction={() => {
-                        setShowBuildXIntroductionTour(false);
-                        setActiveSection("new-chat");
-                        setTimeout(
-                          () => setShowBuildXIntroductionTour(true),
-                          50,
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat) => {
+                        const meta = CATEGORY_META[cat];
+                        const { done, total } = getCategoryProgress(cat, tutorialProgress);
+                        const locked = isCategoryLocked(cat, tutorialProgress);
+                        const progressPercent = total > 0 ? (done / total) * 100 : 0;
+                        const isComplete = done === total && total > 0;
+
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => setGuideCategoryModal(cat)}
+                            className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition-all duration-200 bg-card hover:shadow-xl hover:scale-[1.02] ${
+                              locked
+                                ? "border-border opacity-60 cursor-not-allowed"
+                                : isComplete
+                                  ? `${meta.colors.border} shadow-md`
+                                  : "border-border hover:border-muted-foreground"
+                            }`}
+                          >
+                            {/* Category icon + lock */}
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-3xl">{meta.icon}</span>
+                              {locked && <span className="text-lg">🔒</span>}
+                              {isComplete && (
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${meta.colors.border} border ${meta.colors.badge}`}>
+                                  ✓ Complete
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Title + subtitle */}
+                            <h3 className="text-lg font-bold text-foreground mb-0.5">
+                              {meta.title}
+                            </h3>
+                            <p className={`text-xs font-semibold mb-2 ${meta.colors.badge}`}>
+                              {meta.subtitle}
+                            </p>
+                            <p className="text-xs text-muted-foreground mb-4 flex-1">
+                              {meta.description}
+                            </p>
+
+                            {/* Progress bar */}
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-muted rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all ${meta.colors.progressBar}`}
+                                  style={{ width: `${progressPercent}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap font-medium">
+                                {done}/{total}
+                              </span>
+                            </div>
+                          </button>
                         );
-                      }}
-                      onStartWebsiteCreation={() => {
-                        setShowWebsiteCreationTour(false);
-                        setActiveSection("new-chat");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                        setTimeout(() => setShowWebsiteCreationTour(true), 280);
-                      }}
-                      onStartPublishingBasics={() => {
-                        localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      // ADD THESE:
-                      onStartDashboardOverview={() => {
-                        setShowDashboardTour(false);
-                        setTimeout(() => setShowDashboardTour(true), 50);
-                      }}
-                      onStartCanvasArea={() => {
-                        localStorage.setItem("buildx-pending-canvas-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      onStartPropertiesPanel={() => {
-                        localStorage.setItem("buildx-pending-properties-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      onStartAIAssistant={() => {
-                        localStorage.setItem("buildx-pending-ai-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      onStartCodeEditor={() => {
-                        localStorage.setItem("buildx-pending-code-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      onStartComponentsLibrary={() => {
-                        setActiveSection("marketplace");
-                        setShowComponentsLibraryTour(false);
-                        setTimeout(() => setShowComponentsLibraryTour(true), 50);
-                      }}
-                      onStartSavingCollaboration={() => {
-                        localStorage.setItem("buildx-pending-collab-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                    />
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="w-full max-w-6xl mx-auto mt-10">
@@ -4946,6 +5028,173 @@ export function Dashboard({
         }}
       />
 
+      {/* Getting Started Category Modal */}
+      {guideCategoryModal && (
+        <GettingStartedCategoryDialog
+          open={!!guideCategoryModal}
+          onOpenChange={(open) => {
+            if (!open) setGuideCategoryModal(null);
+          }}
+          category={guideCategoryModal}
+          userId={currentUserId}
+          refreshKey={tourCompletionKey}
+          onStartBuildXIntroduction={() => {
+            setGuideCategoryModal(null);
+            if (onStartBuildXIntroduction) {
+              onStartBuildXIntroduction();
+            } else {
+              setShowBuildXIntroductionTour(false);
+              setActiveSection("new-chat");
+              setTimeout(() => setShowBuildXIntroductionTour(true), 50);
+            }
+          }}
+          onStartWebsiteCreation={() => {
+            setGuideCategoryModal(null);
+            setShowWebsiteCreationTour(false);
+            setActiveSection("new-chat");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+            setTimeout(() => setShowWebsiteCreationTour(true), 280);
+          }}
+          onStartPublishingBasics={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartDashboardOverview={() => {
+            setGuideCategoryModal(null);
+            if (onStartDashboardOverview) {
+              onStartDashboardOverview();
+            } else {
+              setShowDashboardTour(false);
+              setTimeout(() => setShowDashboardTour(true), 50);
+            }
+          }}
+          onStartCanvasArea={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-canvas-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartPropertiesPanel={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-properties-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartAIAssistant={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-ai-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartCodeEditor={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-code-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartComponentsLibrary={() => {
+            setGuideCategoryModal(null);
+            setActiveSection("marketplace");
+            if (onStartComponentsLibrary) {
+              onStartComponentsLibrary();
+            } else {
+              setShowComponentsLibraryTour(false);
+              setTimeout(() => setShowComponentsLibraryTour(true), 50);
+            }
+          }}
+          onStartSavingCollaboration={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-collab-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartNavigatingProjects={() => {
+            setGuideCategoryModal(null);
+            if (onStartNavigatingProjects) {
+              onStartNavigatingProjects();
+            } else {
+              setShowNavigatingProjectsTour(false);
+              setTimeout(() => setShowNavigatingProjectsTour(true), 50);
+            }
+          }}
+          onStartTemplateInteraction={() => {
+            setGuideCategoryModal(null);
+            if (onStartTemplateInteraction) {
+              onStartTemplateInteraction();
+            } else {
+              setShowTemplateInteractionTour(false);
+              setTimeout(() => setShowTemplateInteractionTour(true), 50);
+            }
+          }}
+          onStartPublishTemplate={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-publish-template-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartBlocksPalette={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-blocks-palette-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartLayersPanel={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-layers-panel-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartMultiPageManagement={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-multi-page-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartPreviewMode={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-preview-mode-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartCustomComponents={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-custom-components-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartExportFiles={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-export-files-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+        />
+      )}
+
+      {showNavigatingProjectsTour && (
+        <NavigatingProjects
+          showOnMount={true}
+          onComplete={() => {
+            setShowNavigatingProjectsTour(false);
+            completeTutorialStep("nav-projects");
+          }}
+        />
+      )}
+
+      {showTemplateInteractionTour && (
+        <TemplateInteraction
+          showOnMount={true}
+          onComplete={() => {
+            setShowTemplateInteractionTour(false);
+            completeTutorialStep("template-interact");
+          }}
+        />
+      )}
+
+
       {/* Congratulations Modal - shows after all 10 steps completed */}
       {showCongratsPopup && (
         <Dialog open={showCongratsPopup} onOpenChange={setShowCongratsPopup}>
@@ -4953,7 +5202,7 @@ export function Dashboard({
             <DialogHeader>
               <DialogTitle>🎉 Congratulations!</DialogTitle>
               <DialogDescription>
-                You've completed all 10 tutorial steps. You're now ready to build amazing websites with BuildX!
+                You've completed all 19 tutorial steps. You're now a BuildX master!
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

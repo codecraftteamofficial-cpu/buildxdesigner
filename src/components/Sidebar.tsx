@@ -191,9 +191,10 @@ export function Sidebar({
         className="flex flex-col h-full overflow-hidden"
       >
         <div className="border-b p-3 shrink-0">
-          <TabsList className="grid w-full grid-cols-3 h-8">
+          <TabsList data-tour="sidebar-tabs" className="grid w-full grid-cols-3 h-8">
             <TabsTrigger
               value="blocks"
+              data-tour="tab-blocks"
               className="flex items-center gap-1.5 text-xs h-7"
             >
               <Blocks className="w-3.5 h-3.5" />
@@ -201,6 +202,7 @@ export function Sidebar({
             </TabsTrigger>
             <TabsTrigger
               value="components"
+              data-tour="tab-custom"
               className="flex items-center gap-1.5 text-xs h-7 shrink-0"
             >
               <Code2 className="w-3.5 h-3.5" />
@@ -208,6 +210,7 @@ export function Sidebar({
             </TabsTrigger>
             <TabsTrigger
               value="layers"
+              data-tour="tab-layers"
               className="flex items-center gap-1.5 text-xs h-7"
             >
               <Layers className="w-3.5 h-3.5" />
@@ -236,6 +239,7 @@ export function Sidebar({
               <Button
                 className="flex-1 justify-start gap-2"
                 variant="outline"
+                data-tour="create-custom-btn"
                 onClick={() => {
                   setEditingComponent(null);
                   setIsModalOpen(true);
