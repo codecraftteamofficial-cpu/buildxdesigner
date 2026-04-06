@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +31,7 @@ interface Template {
   name: string;
   description: string;
   thumbnail: string;
-    projectLayout?: any[];
+  projectLayout?: any[];
   category: string;
   premium: boolean;
   tags: string[];
@@ -49,7 +49,7 @@ interface CreateNewWebsiteModalProps {
     projectName: string,
     projectCategory: string,
     projectDescription?: string,
-  ) => void;
+  ) => void | Promise<void>;
   onTemplateChange?: (templateId: string) => void;
   onTrackSearch: (query: string) => void;
   recommendedTemplates?: Template[];
@@ -226,8 +226,7 @@ const CanvasLayoutPreview = ({
     ? Math.min(height, Math.max(idealPreviewHeight, height * 0.5))
     : height;
   const fitScale = viewportWidth / width;
-  const safeScale =
-    Number.isFinite(fitScale) && fitScale > 0 ? fitScale : 0.2;
+  const safeScale = Number.isFinite(fitScale) && fitScale > 0 ? fitScale : 0.2;
   const scaledWidth = width * safeScale;
   const scaledHeight = croppedHeight * safeScale;
   const translateX = (viewportWidth - scaledWidth) / 2;
@@ -235,7 +234,9 @@ const CanvasLayoutPreview = ({
     scaledHeight > viewportHeight ? 0 : (viewportHeight - scaledHeight) / 2;
 
   return (
-    <div className={`${className} relative overflow-hidden rounded-md bg-[#f7f8fa]`}>
+    <div
+      className={`${className} relative overflow-hidden rounded-md bg-[#f7f8fa]`}
+    >
       <div
         className="origin-top-left"
         style={{
@@ -246,9 +247,14 @@ const CanvasLayoutPreview = ({
         }}
       >
         {normalizedLayout.map((component, index) => {
-          const componentStyle = (component?.style || {}) as Record<string, any>;
-          const x = normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
-          const y = normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
+          const componentStyle = (component?.style || {}) as Record<
+            string,
+            any
+          >;
+          const x =
+            normalizeCanvasValue(component?.position?.x, 0) - bounds.minX;
+          const y =
+            normalizeCanvasValue(component?.position?.y, 0) - bounds.minY;
           const widthValue = normalizeCanvasValue(componentStyle.width, 320);
           const heightValue = normalizeCanvasValue(componentStyle.height, 140);
           const type = String(component?.type || "").toLowerCase();
@@ -276,17 +282,24 @@ const CanvasLayoutPreview = ({
                   componentStyle.background ||
                   componentStyle.backgroundColor ||
                   (type === "button" ? "#2563eb" : "rgba(148,163,184,0.2)"),
-                border: componentStyle.border || "1px solid rgba(148,163,184,0.35)",
-                color: componentStyle.color || (type === "button" ? "#ffffff" : "#0f172a"),
-                fontSize: componentStyle.fontSize || (type === "heading" ? "22px" : "14px"),
-                fontWeight: componentStyle.fontWeight || (type === "heading" ? 700 : 500),
+                border:
+                  componentStyle.border || "1px solid rgba(148,163,184,0.35)",
+                color:
+                  componentStyle.color ||
+                  (type === "button" ? "#ffffff" : "#0f172a"),
+                fontSize:
+                  componentStyle.fontSize ||
+                  (type === "heading" ? "22px" : "14px"),
+                fontWeight:
+                  componentStyle.fontWeight || (type === "heading" ? 700 : 500),
                 padding: componentStyle.padding || "8px 10px",
                 display: "flex",
                 alignItems: componentStyle.alignItems || "center",
                 justifyContent: componentStyle.justifyContent || "center",
                 textAlign: componentStyle.textAlign || "center",
                 whiteSpace: "pre-wrap",
-                boxShadow: componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
+                boxShadow:
+                  componentStyle.boxShadow || "0 2px 8px rgba(15,23,42,0.06)",
               }}
             >
               {type === "image" && component?.props?.src ? (
@@ -335,6 +348,8 @@ export function CreateNewWebsiteModal({
   const [commentsError, setCommentsError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const createProjectInFlightRef = useRef(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const isBlankTemplateSelected = selectedTemplate?.id === "blank";
   const [mlRecommendedTemplates, setMlRecommendedTemplates] = useState<
@@ -384,7 +399,7 @@ export function CreateNewWebsiteModal({
         item?.projects?.thumbnail ??
         "/placeholder.svg",
     ),
-      projectLayout: resolveFirstPageLayout(
+    projectLayout: resolveFirstPageLayout(
       Array.isArray(item?.project_layout)
         ? item.project_layout
         : Array.isArray(item?.projectLayout)
@@ -441,7 +456,7 @@ export function CreateNewWebsiteModal({
     ),
   });
 
-   const extractTemplateLayoutFromApiResponse = (payload: any): any[] => {
+  const extractTemplateLayoutFromApiResponse = (payload: any): any[] => {
     const templateData = Array.isArray(payload?.templateData)
       ? payload.templateData
       : [];
@@ -449,7 +464,9 @@ export function CreateNewWebsiteModal({
     if (!templateData.length) return [];
 
     const projectLayout = templateData[0]?.projects?.project_layout;
-    return Array.isArray(projectLayout) ? resolveFirstPageLayout(projectLayout) : [];
+    return Array.isArray(projectLayout)
+      ? resolveFirstPageLayout(projectLayout)
+      : [];
   };
 
   const fetchTemplateLayoutByProjectId = async (
@@ -479,7 +496,9 @@ export function CreateNewWebsiteModal({
         }
 
         try {
-          const fetchedLayout = await fetchTemplateLayoutByProjectId(template.id);
+          const fetchedLayout = await fetchTemplateLayoutByProjectId(
+            template.id,
+          );
           if (Array.isArray(fetchedLayout) && fetchedLayout.length > 0) {
             return { ...template, projectLayout: fetchedLayout };
           }
@@ -496,7 +515,6 @@ export function CreateNewWebsiteModal({
 
     return hydratedTemplates;
   };
-
 
   useEffect(() => {
     if (!isOpen) return;
@@ -519,7 +537,7 @@ export function CreateNewWebsiteModal({
             : [];
 
         if (isMounted) {
-         const normalizedTemplates = payload.map(normalizeTemplate);
+          const normalizedTemplates = payload.map(normalizeTemplate);
           const hydratedTemplates =
             await hydrateTemplatesWithLayouts(normalizedTemplates);
           setProjectTemplates(hydratedTemplates);
@@ -860,19 +878,31 @@ export function CreateNewWebsiteModal({
     setShowNameInput(true);
   };
 
-  const handleCreateProject = () => {
-    if (selectedTemplate && projectName.trim()) {
-      onSelectTemplate(
+  const handleCreateProject = async () => {
+    if (!selectedTemplate || !projectName.trim()) return;
+    if (createProjectInFlightRef.current) return;
+
+    createProjectInFlightRef.current = true;
+    setIsCreatingProject(true);
+
+    try {
+      await onSelectTemplate(
         selectedTemplate.id,
         projectName,
         projectCategory,
         projectDescription.trim(),
       );
-      handleClose();
+    } catch (error) {
+      console.error("Failed to create project:", error);
+    } finally {
+      createProjectInFlightRef.current = false;
+      setIsCreatingProject(false);
     }
   };
 
   const handleClose = () => {
+    createProjectInFlightRef.current = false;
+    setIsCreatingProject(false);
     onClose();
   };
 
@@ -947,7 +977,7 @@ export function CreateNewWebsiteModal({
                           onClick={() => handleTemplateClick(template)}
                         >
                           <div className="relative aspect-video overflow-hidden">
-                         {Array.isArray(template.projectLayout) &&
+                            {Array.isArray(template.projectLayout) &&
                             template.projectLayout.length > 0 ? (
                               <CanvasLayoutPreview
                                 layout={template.projectLayout}
@@ -1035,7 +1065,7 @@ export function CreateNewWebsiteModal({
                           onClick={() => handleTemplateClick(template)}
                         >
                           <div className="relative aspect-video overflow-hidden">
-                             {Array.isArray(template.projectLayout) &&
+                            {Array.isArray(template.projectLayout) &&
                             template.projectLayout.length > 0 ? (
                               <CanvasLayoutPreview
                                 layout={template.projectLayout}
@@ -1116,7 +1146,7 @@ export function CreateNewWebsiteModal({
                 <Card className="border-2">
                   <div className="flex items-start gap-4 p-4">
                     <div className="w-32 h-24 rounded overflow-hidden shrink-0">
-                       {Array.isArray(selectedTemplate.projectLayout) &&
+                      {Array.isArray(selectedTemplate.projectLayout) &&
                       selectedTemplate.projectLayout.length > 0 ? (
                         <CanvasLayoutPreview
                           layout={selectedTemplate.projectLayout}
@@ -1270,10 +1300,10 @@ export function CreateNewWebsiteModal({
               <div className="flex items-center gap-3 pt-4">
                 <Button
                   onClick={handleCreateProject}
-                  disabled={!projectName.trim()}
+                  disabled={!projectName.trim() || isCreatingProject}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
                 >
-                  Create Project
+                  {isCreatingProject ? "Creating..." : "Create Project"}
                 </Button>
               </div>
             </div>
