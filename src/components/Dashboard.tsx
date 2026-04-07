@@ -5019,6 +5019,10 @@ export function Dashboard({
 
       <BuildXIntroduction
         showOnMount={showBuildXIntroductionTour}
+        onOpenTemplateModal={() => {
+          setSelectedTemplateId(null);
+          setShowCreateTemplateModal(true);
+        }}
         onComplete={() => {
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);

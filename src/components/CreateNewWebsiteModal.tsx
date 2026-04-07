@@ -202,8 +202,8 @@ const CanvasLayoutPreview = ({
 }) => {
   const normalizedLayout = Array.isArray(layout)
     ? collectPreviewComponents(layout).filter(
-        (component) => component && typeof component === "object",
-      )
+      (component) => component && typeof component === "object",
+    )
     : [];
 
   if (!normalizedLayout.length) {
@@ -260,12 +260,12 @@ const CanvasLayoutPreview = ({
           const type = String(component?.type || "").toLowerCase();
           const content = String(
             component?.props?.text ??
-              component?.props?.content ??
-              component?.props?.children ??
-              component?.props?.title ??
-              component?.props?.label ??
-              component?.name ??
-              "",
+            component?.props?.content ??
+            component?.props?.children ??
+            component?.props?.title ??
+            component?.props?.label ??
+            component?.name ??
+            "",
           );
 
           return (
@@ -365,39 +365,39 @@ export function CreateNewWebsiteModal({
   const normalizeTemplate = (item: any, index: number): Template => ({
     id: String(
       item?.id ??
-        item?._id ??
-        item?.project_id ??
-        item?.project?.projects_id ??
-        item?.projects?.projects_id ??
-        item?.templateId ??
-        `template-${index}`,
+      item?._id ??
+      item?.project_id ??
+      item?.project?.projects_id ??
+      item?.projects?.projects_id ??
+      item?.templateId ??
+      `template-${index}`,
     ),
     name: String(
       item?.name ??
-        item?.title ??
-        item?.project_name ??
-        item?.project?.project_name ??
-        item?.projects?.project_name ??
-        "Untitled Template",
+      item?.title ??
+      item?.project_name ??
+      item?.project?.project_name ??
+      item?.projects?.project_name ??
+      "Untitled Template",
     ),
     description: String(
       item?.description ??
-        item?.template_description ??
-        item?.project_description ??
-        item?.summary ??
-        item?.project?.description ??
-        item?.project?.project_description ??
-        item?.projects?.description ??
-        item?.projects?.project_description ??
-        "No description available",
+      item?.template_description ??
+      item?.project_description ??
+      item?.summary ??
+      item?.project?.description ??
+      item?.project?.project_description ??
+      item?.projects?.description ??
+      item?.projects?.project_description ??
+      "No description available",
     ),
     thumbnail: String(
       item?.thumbnail ??
-        item?.thumbnailUrl ??
-        item?.image ??
-        item?.project?.thumbnail ??
-        item?.projects?.thumbnail ??
-        "/placeholder.svg",
+      item?.thumbnailUrl ??
+      item?.image ??
+      item?.project?.thumbnail ??
+      item?.projects?.thumbnail ??
+      "/placeholder.svg",
     ),
     projectLayout: resolveFirstPageLayout(
       Array.isArray(item?.project_layout)
@@ -412,13 +412,13 @@ export function CreateNewWebsiteModal({
     ),
     category: String(
       item?.category ??
-        item?.template_category ??
-        item?.project_category ??
-        item?.project?.category ??
-        item?.project?.project_category ??
-        item?.projects?.category ??
-        item?.projects?.project_category ??
-        "Business",
+      item?.template_category ??
+      item?.project_category ??
+      item?.project?.category ??
+      item?.project?.project_category ??
+      item?.projects?.category ??
+      item?.projects?.project_category ??
+      "Business",
     ),
     premium: Boolean(item?.premium ?? item?.isPremium ?? item?.isPro ?? false),
     tags: Array.isArray(item?.tags)
@@ -447,12 +447,12 @@ export function CreateNewWebsiteModal({
     ),
     favorites: Number(
       item?.favorites ??
-        item?.likeCount ??
-        item?.like_count ??
-        item?.likes ??
-        item?.project?.likes ??
-        item?.projects?.likes ??
-        0,
+      item?.likeCount ??
+      item?.like_count ??
+      item?.likes ??
+      item?.project?.likes ??
+      item?.projects?.likes ??
+      0,
     ),
   });
 
@@ -669,25 +669,25 @@ export function CreateNewWebsiteModal({
         ),
         userId: String(
           item?.userId ??
-            item?.user_id ??
-            item?.profiles?.user_id ??
-            item?.profiles?.id ??
-            "",
+          item?.user_id ??
+          item?.profiles?.user_id ??
+          item?.profiles?.id ??
+          "",
         ),
         userName: String(
           item?.userName ??
-            item?.user_name ??
-            item?.profiles?.full_name ??
-            item?.full_name ??
-            "Anonymous",
+          item?.user_name ??
+          item?.profiles?.full_name ??
+          item?.full_name ??
+          "Anonymous",
         ),
         userComment: commentText,
         createdAt: String(
           item?.createdAt ??
-            item?.created_at ??
-            item?.timestamp ??
-            item?.commented_at ??
-            "",
+          item?.created_at ??
+          item?.timestamp ??
+          item?.commented_at ??
+          "",
         ),
         userAvatar: item?.avatarUrl
           ? String(item.avatarUrl)
@@ -981,7 +981,7 @@ export function CreateNewWebsiteModal({
                         >
                           <div className="relative aspect-video overflow-hidden">
                             {Array.isArray(template.projectLayout) &&
-                            template.projectLayout.length > 0 ? (
+                              template.projectLayout.length > 0 ? (
                               <CanvasLayoutPreview
                                 layout={template.projectLayout}
                                 name={template.name}
@@ -1069,7 +1069,7 @@ export function CreateNewWebsiteModal({
                         >
                           <div className="relative aspect-video overflow-hidden">
                             {Array.isArray(template.projectLayout) &&
-                            template.projectLayout.length > 0 ? (
+                              template.projectLayout.length > 0 ? (
                               <CanvasLayoutPreview
                                 layout={template.projectLayout}
                                 name={template.name}
@@ -1150,7 +1150,7 @@ export function CreateNewWebsiteModal({
                   <div className="flex items-start gap-4 p-4">
                     <div className="w-32 h-24 rounded overflow-hidden shrink-0">
                       {Array.isArray(selectedTemplate.projectLayout) &&
-                      selectedTemplate.projectLayout.length > 0 ? (
+                        selectedTemplate.projectLayout.length > 0 ? (
                         <CanvasLayoutPreview
                           layout={selectedTemplate.projectLayout}
                           name={selectedTemplate.name}
@@ -1170,7 +1170,10 @@ export function CreateNewWebsiteModal({
                       <h4 className="font-medium mb-1">
                         {selectedTemplate.name}
                       </h4>
-                      <p className="text-sm text-muted-foreground mb-2">
+                      <p
+                        data-tour="template-details-description"
+                        className="text-sm text-muted-foreground mb-2"
+                      >
                         {selectedTemplate.description}
                       </p>
                       <Badge variant="outline">
