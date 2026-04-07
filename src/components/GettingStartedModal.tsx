@@ -451,15 +451,15 @@ export function GettingStartedGuideContent({
           </div>
 
           <div className="flex flex-col items-end shrink-0">
-             <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-foreground tabular-nums">
-                  {Math.round(progressPercent)}%
-                </span>
-                <span className="text-[10px] font-black text-muted-foreground tracking-widest bg-muted px-2 py-0.5 rounded-md">COMPLETE</span>
-             </div>
-             <p className="text-[10px] font-bold text-muted-foreground mt-1">
-                {doneCount} / {totalCount} tutorials finished
-             </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-foreground tabular-nums">
+                {Math.round(progressPercent)}%
+              </span>
+              <span className="text-[10px] font-black text-muted-foreground tracking-widest bg-muted px-2 py-0.5 rounded-md">COMPLETE</span>
+            </div>
+            <p className="text-[10px] font-bold text-muted-foreground mt-1">
+              {doneCount} / {totalCount} tutorials finished
+            </p>
           </div>
         </div>
 
@@ -472,28 +472,18 @@ export function GettingStartedGuideContent({
             const prevStepId = stepIndexInCategory > 0 ? categorySteps[stepIndexInCategory - 1]?.id : undefined;
             const locked = !done && stepIndexInCategory > 0 ? !completed[prevStepId ?? ""] : false;
             const colors = categoryMeta.colors;
-            
+
             return (
               <div
                 key={step.id}
-                className={`group flex flex-col border-2 rounded-2xl p-6 gap-4 transition-all duration-300 ${
-                  locked 
-                    ? "opacity-60 bg-muted/5 border-dashed border-border" 
-                    : done
+                className={`group flex flex-col border-2 rounded-2xl p-6 gap-4 transition-all duration-300 ${locked
+                  ? "opacity-60 bg-muted/5 border-dashed border-border"
+                  : done
                     ? `bg-muted/10 ${colors.border}/30`
                     : "bg-card border-border hover:border-muted-foreground hover:shadow-md"
-                }`}
+                  }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className={`text-[10px] uppercase tracking-widest font-black px-2.5 py-1 rounded-lg bg-muted/80 ${colors.badge}`}>
-                    Step {idx + 1}
-                  </span>
-                  {done && (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shadow-lg">✓</div>
-                  )}
-                  {locked && <span className="text-[10px] font-black opacity-30 tracking-widest uppercase">Locked</span>}
-                </div>
-                
+
                 <div className="space-y-1.5 min-h-[80px]">
                   <h4 className="font-bold text-lg text-foreground leading-tight group-hover:text-primary transition-colors">
                     {step.title}
@@ -507,13 +497,12 @@ export function GettingStartedGuideContent({
                   <Button
                     size="default"
                     disabled={locked}
-                    className={`text-white w-full rounded-xl h-11 font-bold transition-all ${
-                      locked
-                        ? "bg-muted text-muted-foreground/30 shadow-none border-transparent"
-                        : done
+                    className={`text-white w-full rounded-xl h-11 font-bold transition-all ${locked
+                      ? "bg-muted text-muted-foreground/30 shadow-none border-transparent"
+                      : done
                         ? `bg-muted hover:bg-muted/80 text-foreground border-2 border-border shadow-none`
                         : `bg-gradient-to-r ${colors.btn} shadow-lg shadow-primary/10`
-                    }`}
+                      }`}
                     onClick={() => {
                       if (locked || !step.actionKey) return;
                       actionMap[step.actionKey]?.();
@@ -530,13 +519,13 @@ export function GettingStartedGuideContent({
         {/* Overall Progress Sticky Footer Mini */}
         {!propCategory && (
           <div className="mt-8 p-6 rounded-2xl bg-muted/30 border border-border flex items-center justify-between gap-4">
-             <div className="flex flex-col">
-               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Global Designer Mastery</span>
-               <span className="text-sm font-bold">{overallDone} of {overallTotal} Skills Unlocked</span>
-             </div>
-             <div className="flex-1 max-w-[200px] h-2 bg-muted rounded-full overflow-hidden border border-border">
-                <div className="h-full bg-primary transition-all duration-700" style={{ width: `${(overallDone/overallTotal)*100}%` }} />
-             </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Global Designer Mastery</span>
+              <span className="text-sm font-bold">{overallDone} of {overallTotal} Skills Unlocked</span>
+            </div>
+            <div className="flex-1 max-w-[200px] h-2 bg-muted rounded-full overflow-hidden border border-border">
+              <div className="h-full bg-primary transition-all duration-700" style={{ width: `${(overallDone / overallTotal) * 100}%` }} />
+            </div>
           </div>
         )}
       </div>
@@ -566,13 +555,12 @@ export function GettingStartedGuideContent({
               key={cat}
               onClick={() => !locked && setActiveTab(cat)}
               disabled={locked}
-              className={`group relative flex flex-col rounded-2xl border-2 p-7 text-left transition-all duration-300 bg-card hover:shadow-xl hover:scale-[1.02] ${
-                locked
-                  ? "border-border opacity-70 cursor-not-allowed grayscale-[0.5]"
-                  : isComplete
-                    ? `${meta.colors.border} shadow-md border-opacity-50`
-                    : "border-border hover:border-muted-foreground"
-              }`}
+              className={`group relative flex flex-col rounded-2xl border-2 p-7 text-left transition-all duration-300 bg-card hover:shadow-xl hover:scale-[1.02] ${locked
+                ? "border-border opacity-70 cursor-not-allowed grayscale-[0.5]"
+                : isComplete
+                  ? `${meta.colors.border} shadow-md border-opacity-50`
+                  : "border-border hover:border-muted-foreground"
+                }`}
             >
               {/* Category icon + lock */}
               <div className="flex items-center justify-between mb-4">
@@ -621,15 +609,15 @@ export function GettingStartedGuideContent({
         <div className="space-y-1">
           <p className="text-sm font-bold text-foreground">Complete and Master Everything</p>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Unlock all {overallTotal} designer skills to become a certified BuildX expert. 
+            Unlock all {overallTotal} designer skills to become a certified BuildX expert.
             All your progress is automatically saved to your profile.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-muted rounded-full w-48 h-2">
-            <div className="bg-primary h-full rounded-full" style={{ width: `${(overallDone/overallTotal)*100}%` }} />
+            <div className="bg-primary h-full rounded-full" style={{ width: `${(overallDone / overallTotal) * 100}%` }} />
           </div>
-          <span className="text-xs font-black">{Math.round((overallDone/overallTotal)*100)}% Overall</span>
+          <span className="text-xs font-black">{Math.round((overallDone / overallTotal) * 100)}% Overall</span>
         </div>
       </div>
     </div>

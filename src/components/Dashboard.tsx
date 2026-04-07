@@ -3055,8 +3055,8 @@ export function Dashboard({
               onClick={() => setActiveSection("new-chat")}
               data-tour="nav-dashboard"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -3067,8 +3067,8 @@ export function Dashboard({
             <button
               onClick={() => setActiveSection("marketplace")}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -3080,8 +3080,8 @@ export function Dashboard({
               onClick={() => setActiveSection("all")}
               data-tour="nav-all"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Layout className="w-4 h-4" />
@@ -3093,8 +3093,8 @@ export function Dashboard({
               onClick={() => setActiveSection("drafts")}
               data-tour="nav-drafts"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Folder className="w-4 h-4" />
@@ -3111,8 +3111,8 @@ export function Dashboard({
               onClick={() => setActiveSection("trash")}
               data-tour="nav-trash"
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
                 }`}
             >
               <Trash2 className="w-4 h-4" />
@@ -3325,14 +3325,14 @@ export function Dashboard({
                                             ]
                                           }
                                           className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                              ? "text-red-500"
-                                              : "text-muted-foreground hover:text-red-500"
+                                            ? "text-red-500"
+                                            : "text-muted-foreground hover:text-red-500"
                                             }`}
                                         >
                                           <Heart
                                             className={`w-4 h-4 ${isTemplateLiked(template)
-                                                ? "fill-red-500 text-red-500"
-                                                : ""
+                                              ? "fill-red-500 text-red-500"
+                                              : ""
                                               }`}
                                           />
                                           <span className="text-xs">
@@ -3380,59 +3380,104 @@ export function Dashboard({
                       Master BuildX step by step — from basics to advanced features.
                     </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                      {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat) => {
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat, catIdx) => {
                         const meta = CATEGORY_META[cat];
                         const { done, total } = getCategoryProgress(cat, tutorialProgress);
                         const locked = isCategoryLocked(cat, tutorialProgress);
                         const progressPercent = total > 0 ? (done / total) * 100 : 0;
                         const isComplete = done === total && total > 0;
 
+                        const levelLabels = ["Level 1", "Level 2", "Level 3"];
+                        const accentColors: Record<string, { glow: string; bar: string; badge: string; num: string }> = {
+                          beginner: { glow: "hover:shadow-emerald-500/10", bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400" },
+                          intermediate: { glow: "hover:shadow-amber-500/10", bar: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400" },
+                          advanced: { glow: "hover:shadow-red-500/10", bar: "bg-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400" },
+                        };
+                        const accent = accentColors[cat];
+
                         return (
                           <button
                             key={cat}
-                            onClick={() => setGuideCategoryModal(cat)}
-                            className={`group relative flex flex-col rounded-2xl border-2 p-6 text-left transition-all duration-200 bg-card hover:shadow-xl hover:scale-[1.02] ${
-                              locked
-                                ? "border-border opacity-60 cursor-not-allowed"
-                                : isComplete
-                                  ? `${meta.colors.border} shadow-md`
-                                  : "border-border hover:border-muted-foreground"
-                            }`}
+                            onClick={() => !locked && setGuideCategoryModal(cat)}
+                            disabled={locked}
+                            style={{ minHeight: "220px" }}
+                            className={`group relative flex flex-col rounded-xl border text-left transition-all duration-200
+          ${locked
+                                ? "border-border/40 opacity-50 cursor-not-allowed bg-card"
+                                : "border-border bg-card hover:border-border/80 hover:shadow-lg " + accent.glow
+                              }`}
                           >
-                            {/* Category icon + lock */}
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-3xl">{meta.icon}</span>
-                              {locked && <span className="text-lg">🔒</span>}
-                              {isComplete && (
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${meta.colors.border} border ${meta.colors.badge}`}>
-                                  ✓ Complete
-                                </span>
-                              )}
-                            </div>
+                            {/* Top accent strip - inline style to guarantee it renders */}
+                            <div
+                              style={{ height: "3px", flexShrink: 0 }}
+                              className={`w-full rounded-t-xl ${locked ? "bg-border/30" : accent.bar}`}
+                            />
 
-                            {/* Title + subtitle */}
-                            <h3 className="text-lg font-bold text-foreground mb-0.5">
-                              {meta.title}
-                            </h3>
-                            <p className={`text-xs font-semibold mb-2 ${meta.colors.badge}`}>
-                              {meta.subtitle}
-                            </p>
-                            <p className="text-xs text-muted-foreground mb-4 flex-1">
-                              {meta.description}
-                            </p>
+                            {/* Card body */}
+                            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
 
-                            {/* Progress bar */}
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-muted rounded-full h-2">
-                                <div
-                                  className={`h-2 rounded-full transition-all ${meta.colors.progressBar}`}
-                                  style={{ width: `${progressPercent}%` }}
-                                />
+                              {/* Header */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`inline-flex items-center gap-1.5 self-start text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md border ${locked ? "bg-muted/30 text-muted-foreground/50 border-border/30" : accent.badge}`}>
+                                    {locked ? "🔒 Locked" : levelLabels[catIdx]}
+                                  </span>
+                                  <h3 className="text-base font-semibold text-foreground mt-0.5">
+                                    {meta.title}
+                                  </h3>
+                                  <p className={`text-[11px] font-medium ${locked ? "text-muted-foreground/40" : "text-muted-foreground"}`}>
+                                    {meta.subtitle}
+                                  </p>
+                                </div>
+                                <div className="shrink-0">
+                                  {isComplete ? (
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${accent.bar} text-white`}>
+                                      ✓
+                                    </div>
+                                  ) : (
+                                    <span className={`text-xl font-black tabular-nums ${locked ? "text-muted-foreground/30" : accent.num}`}>
+                                      {done}<span className="text-xs font-medium text-muted-foreground/50">/{total}</span>
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-[10px] text-muted-foreground whitespace-nowrap font-medium">
-                                {done}/{total}
-                              </span>
+
+                              {/* Description */}
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {meta.description}
+                              </p>
+
+                              {/* Spacer */}
+                              <div style={{ flex: 1 }} />
+
+                              {/* Progress */}
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-end">
+                                  {done && (
+                                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shadow-lg">✓</div>
+                                  )}
+                                  {locked && <span className="text-[10px] font-black opacity-30 tracking-widest uppercase">Locked</span>}
+                                </div>
+                                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${locked ? "bg-muted-foreground/20" : accent.bar}`}
+                                    style={{ width: `${progressPercent}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Footer */}
+                              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {total} tutorial{total !== 1 ? "s" : ""}
+                                </span>
+                                {!locked && (
+                                  <span className={`text-[11px] font-semibold group-hover:underline underline-offset-2 ${isComplete ? "text-muted-foreground" : accent.num}`}>
+                                    {isComplete ? "Review →" : done > 0 ? "Continue →" : "Start →"}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </button>
                         );
@@ -3521,14 +3566,14 @@ export function Dashboard({
                                         ]
                                       }
                                       className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
-                                          ? "text-red-500"
-                                          : "text-muted-foreground hover:text-red-500"
+                                        ? "text-red-500"
+                                        : "text-muted-foreground hover:text-red-500"
                                         }`}
                                     >
                                       <Heart
                                         className={`w-4 h-4 ${isTemplateLiked(template)
-                                            ? "fill-red-500 text-red-500"
-                                            : ""
+                                          ? "fill-red-500 text-red-500"
+                                          : ""
                                           }`}
                                       />
                                       <span className="text-xs">
@@ -3835,8 +3880,8 @@ export function Dashboard({
                       <button
                         onClick={() => setProjectsFilter("all")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "all"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         All
@@ -3844,8 +3889,8 @@ export function Dashboard({
                       <button
                         onClick={() => setProjectsFilter("published")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "published"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         Published Templates
@@ -3853,8 +3898,8 @@ export function Dashboard({
                       <button
                         onClick={() => setProjectsFilter("shared")}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "shared"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
                           }`}
                       >
                         Shared
