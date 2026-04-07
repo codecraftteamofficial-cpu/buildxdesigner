@@ -5002,6 +5002,7 @@ export function Dashboard({
           setShowBuildXIntroductionTour(false);
           setShowCreateTemplateModal(false);
           setSelectedTemplateId(null);
+          completeTutorialStep("palette");
         }}
       />
 

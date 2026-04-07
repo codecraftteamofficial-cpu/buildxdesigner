@@ -65,22 +65,11 @@ export function DashboardOverview({
       },
       {
         onHighlightStarted: () => {
-          onNavigateToAllProjects?.();
-        },
-        element: '[data-tour="project-card"]',
-        title: "Draft vs. Published Status",
-        description:
-          "Project cards show a status badge — green 'Deployed' means your site is live, red 'Undeployed' means it's saved but not yet published. Use the ••• menu to edit, duplicate, or move projects.",
-        side: "bottom" as const,
-        align: "start" as const,
-      },
-      {
-        onHighlightStarted: () => {
           onNavigateToDashboard?.();
         },
         title: "You're Ready!",
         description:
-          "That covers the Dashboard. You know how to navigate sections, search projects, manage your account, and switch themes. Next step: the Components Palette inside the editor.",
+          "That covers the Dashboard. You know how to navigate sections, search projects, manage your account, and switch themes. Next step: Navigating Projects.",
       },
     ],
     [onNavigateToAllProjects, onNavigateToDashboard],
