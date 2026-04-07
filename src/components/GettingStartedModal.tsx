@@ -730,11 +730,13 @@ export function GettingStartedModal({
 }: GettingStartedModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-7xl border-0 shadow-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Tutorial</DialogTitle>
-          <DialogDescription>
-            Complete the tutorials in order to unlock the next step.
+      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-7xl border border-border shadow-2xl max-h-[90vh] overflow-y-auto bg-card">
+        <DialogHeader className="border-b border-border pb-4">
+          <DialogTitle className="text-xl font-bold flex items-center gap-2">
+            🎓 Getting Started Guide
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Complete tutorials in order to unlock the next level. Your progress is saved automatically.
           </DialogDescription>
         </DialogHeader>
 
@@ -834,6 +836,7 @@ export function GettingStartedGuideDialog({
   open,
   onOpenChange,
   userId,
+  refreshKey,
   onStartBuildXIntroduction,
   onStartWebsiteCreation,
   onStartPublishingBasics,
@@ -854,38 +857,186 @@ export function GettingStartedGuideDialog({
   onStartCustomComponents,
   onStartExportFiles,
 }: GettingStartedGuideDialogProps) {
+  const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  const [selectedCategory, setSelectedCategory] = useState<GuideCategory | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!userId) { setCompleted(readLocalProgress()); return; }
+      try {
+        const rows = await fetchTutorialProgress(userId);
+        if (rows.length > 0) {
+          setCompleted(Object.fromEntries(rows.map((r) => [r.step_key, r.completed])));
+        } else {
+          setCompleted(readLocalProgress());
+        }
+      } catch { setCompleted(readLocalProgress()); }
+    };
+    if (open) load();
+  }, [userId, refreshKey, open]);
+
+  // Reset to overview when dialog closes
+  useEffect(() => {
+    if (!open) setSelectedCategory(null);
+  }, [open]);
+
+  const actionMap: Record<string, (() => void) | undefined> = {
+    onStartDashboardOverview, onStartBuildXIntroduction, onStartWebsiteCreation,
+    onStartCanvasArea, onStartPropertiesPanel, onStartAIAssistant, onStartCodeEditor,
+    onStartComponentsLibrary, onStartSavingCollaboration, onStartPublishingBasics,
+    onStartNavigatingProjects, onStartTemplateInteraction, onStartPublishTemplate,
+    onStartBlocksPalette, onStartLayersPanel, onStartMultiPageManagement,
+    onStartPreviewMode, onStartCustomComponents, onStartExportFiles,
+  };
+
+  const levelLabels = ["Level 1", "Level 2", "Level 3"];
+  const accentColors: Record<string, { bar: string; badge: string; num: string }> = {
+    beginner: { bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400" },
+    intermediate: { bar: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400" },
+    advanced: { bar: "bg-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400" },
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
-      <DialogContent className="custom-scrollbar w-full max-w-[90vw] lg:max-w-[85vw] xl:max-w-6xl border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Getting Started Guide</DialogTitle>
-          <DialogDescription>
-            Complete the tutorials in order to unlock the next step.
+      <DialogContent className="custom-scrollbar w-full max-w-3xl border border-border shadow-2xl max-h-[85vh] overflow-y-auto bg-card">
+        <DialogHeader className="border-b border-border pb-4">
+          <DialogTitle className="text-lg font-bold flex items-center gap-2">
+            🎓 Getting Started Guide
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Complete tutorials in order to unlock the next level.
           </DialogDescription>
         </DialogHeader>
 
-        <GettingStartedGuideContent
-          userId={userId}
-          onStartBuildXIntroduction={onStartBuildXIntroduction}
-          onStartWebsiteCreation={onStartWebsiteCreation}
-          onStartPublishingBasics={onStartPublishingBasics}
-          onStartDashboardOverview={onStartDashboardOverview}
-          onStartCanvasArea={onStartCanvasArea}
-          onStartPropertiesPanel={onStartPropertiesPanel}
-          onStartAIAssistant={onStartAIAssistant}
-          onStartCodeEditor={onStartCodeEditor}
-          onStartComponentsLibrary={onStartComponentsLibrary}
-          onStartSavingCollaboration={onStartSavingCollaboration}
-          onStartNavigatingProjects={onStartNavigatingProjects}
-          onStartTemplateInteraction={onStartTemplateInteraction}
-          onStartPublishTemplate={onStartPublishTemplate}
-          onStartBlocksPalette={onStartBlocksPalette}
-          onStartLayersPanel={onStartLayersPanel}
-          onStartMultiPageManagement={onStartMultiPageManagement}
-          onStartPreviewMode={onStartPreviewMode}
-          onStartCustomComponents={onStartCustomComponents}
-          onStartExportFiles={onStartExportFiles}
-        />
+        <div className="py-4">
+          {!selectedCategory ? (
+            // Compact category cards — matches dashboard style
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat, catIdx) => {
+                const meta = CATEGORY_META[cat];
+                const { done, total } = getCategoryProgress(cat, completed);
+                const locked = isCategoryLocked(cat, completed);
+                const progressPercent = total > 0 ? (done / total) * 100 : 0;
+                const isComplete = done === total && total > 0;
+                const accent = accentColors[cat];
+
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => !locked && setSelectedCategory(cat)}
+                    disabled={locked}
+                    style={{ minHeight: "180px" }}
+                    className={`group relative flex flex-col rounded-xl border text-left transition-all duration-200 ${locked
+                      ? "border-border/40 opacity-50 cursor-not-allowed bg-card"
+                      : "border-border bg-card hover:border-border/80 hover:shadow-md"
+                      }`}
+                  >
+                    <div style={{ height: "3px", flexShrink: 0 }}
+                      className={`w-full rounded-t-xl ${locked ? "bg-border/30" : accent.bar}`} />
+                    <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-flex items-center gap-1.5 self-start text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md border ${locked ? "bg-muted/30 text-muted-foreground/50 border-border/30" : accent.badge}`}>
+                            {locked ? "🔒 Locked" : levelLabels[catIdx]}
+                          </span>
+                          <h3 className="text-sm font-semibold text-foreground mt-0.5">{meta.title}</h3>
+                          <p className={`text-[10px] font-medium ${locked ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{meta.subtitle}</p>
+                        </div>
+                        <div className="shrink-0">
+                          {isComplete ? (
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${accent.bar} text-white`}>✓</div>
+                          ) : (
+                            <span className={`text-lg font-black tabular-nums ${locked ? "text-muted-foreground/30" : accent.num}`}>
+                              {done}<span className="text-xs font-medium text-muted-foreground/50">/{total}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{meta.description}</p>
+                      <div style={{ flex: 1 }} />
+                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${locked ? "bg-muted-foreground/20" : accent.bar}`}
+                          style={{ width: `${progressPercent}%` }} />
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                        <span className="text-[10px] text-muted-foreground">{total} tutorial{total !== 1 ? "s" : ""}</span>
+                        {!locked && (
+                          <span className={`text-[10px] font-semibold ${isComplete ? "text-muted-foreground" : accent.num}`}>
+                            {isComplete ? "Review →" : done > 0 ? "Continue →" : "Start →"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            // Step list for selected category
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className="w-fit text-xs text-muted-foreground hover:text-foreground font-semibold flex items-center gap-1"
+              >
+                ← Back
+              </button>
+              {(() => {
+                const meta = CATEGORY_META[selectedCategory];
+                const { done: doneCount, total: totalCount } = getCategoryProgress(selectedCategory, completed);
+                const steps = VISIBLE_GUIDE_STEPS.filter((s) => s.category === selectedCategory);
+                const accent = accentColors[selectedCategory];
+                return (
+                  <>
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{meta.icon}</span>
+                        <div>
+                          <h2 className="text-base font-bold text-foreground">{meta.title} Tutorials</h2>
+                          <p className="text-xs text-muted-foreground">{meta.description}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className={`text-2xl font-black tabular-nums ${accent.num}`}>{doneCount}</span>
+                        <span className="text-xs text-muted-foreground">/{totalCount}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {steps.map((step) => {
+                        const done = completed[step.id];
+                        const categorySteps = VISIBLE_GUIDE_STEPS.filter((s) => s.category === step.category);
+                        const stepIdx = categorySteps.findIndex((s) => s.id === step.id);
+                        const prevId = stepIdx > 0 ? categorySteps[stepIdx - 1]?.id : undefined;
+                        const locked = !done && stepIdx > 0 ? !completed[prevId ?? ""] : false;
+                        return (
+                          <div key={step.id}
+                            className={`flex flex-col border rounded-xl p-4 gap-3 transition-all ${locked ? "opacity-60 bg-muted/5 border-dashed border-border"
+                              : done ? "bg-muted/10 border-border"
+                                : "bg-card border-border hover:border-muted-foreground hover:shadow-sm"
+                              }`}>
+                            <div>
+                              <h4 className="font-semibold text-sm text-foreground">{step.title}</h4>
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{step.desc}</p>
+                            </div>
+                            <button
+                              disabled={locked}
+                              className={`w-full rounded-lg py-2 text-xs font-bold transition-all ${locked ? "bg-muted text-muted-foreground/30 cursor-not-allowed"
+                                : done ? "bg-muted text-foreground border border-border"
+                                  : `bg-gradient-to-r ${meta.colors.btn} text-white shadow-sm`
+                                }`}
+                              onClick={() => { if (!locked && step.actionKey) actionMap[step.actionKey]?.(); }}
+                            >
+                              {done ? "Review Step" : locked ? "Locked" : "Start Step"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -157,7 +157,7 @@ export function EditorLayout({
   const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
   const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
   const [showExportFilesTour, setShowExportFilesTour] = useState(false);
-  
+
   const ALL_STEP_KEYS = [
     "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
     "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
@@ -256,12 +256,12 @@ export function EditorLayout({
         onStartExportFiles?.();
       }
     };
-    
+
     // Tiny delay to ensure editor is seated
     const timer = setTimeout(checkPendingTours, 800);
     return () => clearTimeout(timer);
   }, [
-    onStartPublishingBasics, onStartCanvasArea, onStartPropertiesPanel, 
+    onStartPublishingBasics, onStartCanvasArea, onStartPropertiesPanel,
     onStartAIAssistant, onStartCodeEditor, onStartSavingCollaboration,
     onStartPublishTemplate, onStartBlocksPalette, onStartLayersPanel,
     onStartMultiPageManagement, onStartPreviewMode, onStartCustomComponents,
@@ -630,8 +630,8 @@ export function EditorLayout({
                         }
                         data-tour="properties-toolbar"
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
-                            ? "bg-card text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
@@ -646,8 +646,8 @@ export function EditorLayout({
                         }
                         data-tour="ai-mentor-toolbar"
                         className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
-                            ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
-                            : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
+                          ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
+                          : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
                           }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
