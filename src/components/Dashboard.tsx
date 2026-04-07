@@ -3578,6 +3578,7 @@ export function Dashboard({
                                   <div className="flex items-center gap-3">
                                     <button
                                       type="button"
+                                      data-tour="trending-like-button"
                                       onClick={(event) =>
                                         handleLikeTemplate(event, template)
                                       }
@@ -3604,6 +3605,7 @@ export function Dashboard({
 
                                     <button
                                       type="button"
+                                      data-tour="trending-report"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         setSelectedReportTemplate(template);
