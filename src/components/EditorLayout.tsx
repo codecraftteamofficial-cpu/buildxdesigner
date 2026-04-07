@@ -1141,6 +1141,9 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowSavingCollaborationTour(false);
+                if (state.showShareModal) {
+                  toggleShareModal();
+                }
                 markStepComplete(state.currentUser?.id || "", "collab").then(() => {
                   window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
                   checkAllStepsComplete();
