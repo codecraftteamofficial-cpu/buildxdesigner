@@ -895,7 +895,12 @@ export function EditorLayout({
             }}
             onStartAIAssistant={() => {
               setShowGettingStartedGuideDialog(false);
-              setShowAIAssistantTour(true);
+              setState((prev) => ({
+                ...prev,
+                isRightSidebarVisible: true,
+                rightSidebarTab: "ai-assistant",
+              }));
+              setTimeout(() => setShowAIAssistantTour(true), 500);
             }}
             onStartCodeEditor={() => {
               setShowGettingStartedGuideDialog(false);
@@ -1111,6 +1116,9 @@ export function EditorLayout({
                   window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
                   checkAllStepsComplete();
                 });
+              }}
+              onSwitchToProperties={() => {
+                setState((prev) => ({ ...prev, rightSidebarTab: "properties" }));
               }}
             />
           )}
