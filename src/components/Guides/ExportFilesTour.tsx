@@ -20,7 +20,23 @@ export function ExportFilesTour({
           "Ready to take your design offline? You can export your entire project as a clean, production-ready codebase.",
       },
       {
-        element: '[data-tour="top-bar-export"]',
+        element: '[data-tour="toolbar-top"]',
+        title: "Export Code in Code View",
+        description:
+          "Switch to Code view using the toggle in the toolbar.",
+        side: "bottom" as const,
+        align: "center" as const,
+      },
+      {
+        element: '[data-tour="code-editor-content"]',
+        title: "Export Code in Code View",
+        description:
+          "In here you can find the Download Zip button that lets you download your project as a ZIP file containing all your HTML, CSS, and JS files.",
+        side: "bottom" as const,
+        align: "end" as const,
+      },
+      {
+        element: '[data-tour="download-zip"]',
         title: "Export Code",
         description:
           "Click here to open the export options. You can download your project as a ZIP file containing HTML, CSS, and JS.",

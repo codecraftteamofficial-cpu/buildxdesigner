@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { driver } from "driver.js";
 
 interface CodeEditorTourProps {
@@ -12,9 +12,17 @@ export function CodeEditorTour({
   onComplete,
   onViewModeChange,
 }: CodeEditorTourProps) {
+  const driverRef = useRef<any>(null);
+  const isDestroyingRef = useRef(false);
+
   useEffect(() => {
     if (!showOnMount) return;
 
+    if (driverRef.current) {
+      return;
+    }
+
+    isDestroyingRef.current = false;
     const driverObj = driver({
       showProgress: true,
       showButtons: ["next", "previous", "close"],
@@ -97,16 +105,32 @@ export function CodeEditorTour({
           },
         },
       ],
-      onDestroyStarted: () => {
-        if (onViewModeChange) onViewModeChange("design");
-        driverObj.destroy();
-        localStorage.setItem("buildx-tutorial-code", "1");
-        onComplete?.();
+      doneBtnText: "Done", // Ensures final button says "Done"
+      onDestroyed: () => {
+        // Handle completion on ANY destroy (Done button, overlay click, etc.)
+        if (!isDestroyingRef.current) {
+          isDestroyingRef.current = true;
+          if (onViewModeChange) onViewModeChange("design");
+          localStorage.setItem("buildx-tutorial-code", "1");
+          onComplete?.();
+        }
+        driverRef.current = null;
       },
     });
 
+    driverRef.current = driverObj;
     driverObj.drive();
-  }, [showOnMount, onComplete]);
+
+    return () => {
+      if (driverRef.current && !isDestroyingRef.current) {
+        isDestroyingRef.current = true;
+        try {
+          driverRef.current.destroy();
+        } catch (e) {}
+        driverRef.current = null;
+      }
+    };
+  }, [showOnMount]);
 
   return null;
 }

@@ -3395,12 +3395,13 @@ export function Dashboard({
                         const locked = isCategoryLocked(cat, tutorialProgress);
                         const progressPercent = total > 0 ? (done / total) * 100 : 0;
                         const isComplete = done === total && total > 0;
+                        const progressLabel = `${Math.round(progressPercent)}%`;
 
                         const levelLabels = ["Level 1", "Level 2", "Level 3"];
-                        const accentColors: Record<string, { glow: string; bar: string; badge: string; num: string }> = {
-                          beginner: { glow: "hover:shadow-emerald-500/10", bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400" },
-                          intermediate: { glow: "hover:shadow-amber-500/10", bar: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400" },
-                          advanced: { glow: "hover:shadow-red-500/10", bar: "bg-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400" },
+                        const accentColors: Record<string, { glow: string; badge: string; num: string; fillHex: string; trackRgba: string }> = {
+                          beginner: { glow: "hover:shadow-emerald-500/10", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400", fillHex: "#10B981", trackRgba: "rgba(16, 185, 129, 0.22)" },
+                          intermediate: { glow: "hover:shadow-amber-500/10", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400", fillHex: "#FBBF24", trackRgba: "rgba(251, 191, 36, 0.22)" },
+                          advanced: { glow: "hover:shadow-red-500/10", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400", fillHex: "#EF4444", trackRgba: "rgba(239, 68, 68, 0.22)" },
                         };
                         const accent = accentColors[cat];
 
@@ -3421,12 +3422,6 @@ export function Dashboard({
                                 : "border-border bg-card hover:border-border/80 hover:shadow-lg " + accent.glow
                               }`}
                           >
-                            {/* Top accent strip - inline style to guarantee it renders */}
-                            <div
-                              style={{ height: "3px", flexShrink: 0 }}
-                              className={`w-full rounded-t-xl ${locked ? "bg-border/30" : accent.bar}`}
-                            />
-
                             {/* Card body */}
                             <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
 
@@ -3445,7 +3440,10 @@ export function Dashboard({
                                 </div>
                                 <div className="shrink-0">
                                   {isComplete ? (
-                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${accent.bar} text-white`}>
+                                    <div
+                                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
+                                      style={{ backgroundColor: accent.fillHex }}
+                                    >
                                       ✓
                                     </div>
                                   ) : (
@@ -3472,10 +3470,28 @@ export function Dashboard({
                                   )}
                                   {locked && <span className="text-[10px] font-black opacity-30 tracking-widest uppercase">Locked</span>}
                                 </div>
-                                <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold text-muted-foreground">
+                                    {progressLabel}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {done}/{total}
+                                  </span>
+                                </div>
+                                <div className="relative h-1 w-full rounded-full bg-muted overflow-hidden">
+                                  {/* faint colored track so 0% still shows category color */}
                                   <div
-                                    className={`h-full rounded-full transition-all duration-500 ${locked ? "bg-muted-foreground/20" : accent.bar}`}
-                                    style={{ width: `${progressPercent}%` }}
+                                    className="absolute inset-0"
+                                    style={{
+                                      backgroundColor: locked ? "rgba(148, 163, 184, 0.12)" : accent.trackRgba,
+                                    }}
+                                  />
+                                  <div
+                                    className="relative h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${progressPercent}%`,
+                                      backgroundColor: locked ? "rgba(148, 163, 184, 0.22)" : accent.fillHex,
+                                    }}
                                   />
                                 </div>
                               </div>

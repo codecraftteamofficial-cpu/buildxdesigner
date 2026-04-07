@@ -43,6 +43,11 @@ export function LayersPanelTour({
         side: "right" as const,
         align: "start" as const,
       },
+      {
+        title: "Layers Panel Done!",
+        description:
+          "That's the Layers Panel! Use it to keep your page structure organized and easily manage complex designs.",
+      },
     ],
     []
   );
