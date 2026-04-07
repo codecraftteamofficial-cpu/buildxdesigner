@@ -47,13 +47,7 @@ const ALL_GUIDE_STEPS: GuideStep[] = [
     desc: "Learn to navigate Recents, Drafts, All Projects, and Trash.",
     actionKey: "onStartNavigatingProjects",
   },
-  {
-    id: "palette",
-    category: "beginner",
-    title: "Using Templates",
-    desc: "Browse and select templates to jumpstart your projects.",
-    actionKey: "onStartBuildXIntroduction",
-  },
+
   {
     id: "template-interact",
     category: "beginner",

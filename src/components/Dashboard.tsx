@@ -84,7 +84,6 @@ import {
   getCategoryProgress,
   GettingStartedCategoryDialog,
 } from "./GettingStartedModal";
-import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
 import { DashboardOverview } from "./Guides/DashboardOverview";
@@ -141,7 +140,6 @@ interface DashboardProps {
   onThemeChange?: (theme: "light" | "dark" | "system") => void;
   onLoadTemplate?: (components: ComponentData[]) => void;
   isSupabaseConnected?: boolean;
-  onStartBuildXIntroduction?: () => void;
   onStartDashboardOverview?: () => void;
   onStartNavigatingProjects?: () => void;
   onStartTemplateInteraction?: () => void;
@@ -585,7 +583,6 @@ export function Dashboard({
   onThemeChange,
   onLoadTemplate,
   isSupabaseConnected,
-  onStartBuildXIntroduction,
   onStartDashboardOverview,
   onStartNavigatingProjects,
   onStartTemplateInteraction,
@@ -636,8 +633,6 @@ export function Dashboard({
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
 
-  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
-    useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
@@ -5019,20 +5014,6 @@ export function Dashboard({
         }}
       />
 
-      <BuildXIntroduction
-        showOnMount={showBuildXIntroductionTour}
-        onOpenTemplateModal={() => {
-          setSelectedTemplateId(null);
-          setShowCreateTemplateModal(true);
-        }}
-        onComplete={() => {
-          setShowBuildXIntroductionTour(false);
-          setShowCreateTemplateModal(false);
-          setSelectedTemplateId(null);
-          completeTutorialStep("palette");
-        }}
-      />
-
       <WebsiteCreation
         showOnMount={showWebsiteCreationTour}
         onEnsureCreateWebsiteModalOpen={() => {
@@ -5112,16 +5093,6 @@ export function Dashboard({
           category={guideCategoryModal}
           userId={currentUserId}
           refreshKey={tourCompletionKey}
-          onStartBuildXIntroduction={() => {
-            setGuideCategoryModal(null);
-            if (onStartBuildXIntroduction) {
-              onStartBuildXIntroduction();
-            } else {
-              setShowBuildXIntroductionTour(false);
-              setActiveSection("new-chat");
-              setTimeout(() => setShowBuildXIntroductionTour(true), 50);
-            }
-          }}
           onStartWebsiteCreation={() => {
             setGuideCategoryModal(null);
             setShowWebsiteCreationTour(false);
