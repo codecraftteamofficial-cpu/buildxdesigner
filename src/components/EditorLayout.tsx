@@ -376,6 +376,7 @@ export function EditorLayout({
             onUpdatePage={canEditProject ? editor.updatePage : undefined}
             onStartTour={onStartTour}
             onStartPublishingBasics={onStartPublishingBasics}
+            onOpenGettingStarted={() => setShowGettingStartedGuideDialog(true)}
             currentProject={{
               id: state.currentProjectId!,
               name: state.projectName,

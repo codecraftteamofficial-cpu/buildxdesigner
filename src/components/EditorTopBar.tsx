@@ -134,6 +134,7 @@ interface EditorTopBarProps {
   ) => void;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
+  onOpenGettingStarted?: () => void;
 }
 
 interface ProjectCollaborator {
@@ -265,6 +266,7 @@ export function EditorTopBar({
   onUpdatePage,
   onStartTour,
   onStartPublishingBasics,
+  onOpenGettingStarted,
 }: EditorTopBarProps) {
   const navigate = useNavigate();
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
@@ -1414,6 +1416,19 @@ export function EditorTopBar({
           >
             {projectName}
           </div>
+        )}
+
+        {onOpenGettingStarted && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenGettingStarted}
+            className="h-8 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors gap-2 ml-1"
+            title="Getting Started Guide"
+          >
+            <Info className="w-4 h-4" />
+            <span className="hidden sm:inline font-medium text-sm">Guide</span>
+          </Button>
         )}
       </div>
 
