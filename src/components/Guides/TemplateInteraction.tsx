@@ -19,37 +19,29 @@ export function TemplateInteraction({
       {
         title: "Template Interaction",
         description:
-          "Welcome to the template interaction guide! Learn how to engage with community designs by liking and reporting them.",
-      },
-      {
-        element: '[data-tour="recommended-templates"]',
-        title: "Discover Templates",
-        description:
-          "Browse through a collection of templates shared by other users. You can explore different styles and inspiration right here.",
-        side: "top" as const,
-        align: "start" as const,
+          "Learn how to engage with the BuildX community — liking templates you love and reporting ones that need attention.",
         onHighlightStarted: () => onNavigateToSection?.("new-chat"),
       },
       {
         element: '[data-tour="template-like-button"]',
-        title: "Show Some Love",
+        title: "Like a Template",
         description:
-          "If you find a design you like, show your support by clicking the heart icon. Liking a template helps other users find the best content.",
+          "Click the heart icon on any template card to like it. Likes help great templates surface for other users.",
         side: "top" as const,
         align: "start" as const,
       },
       {
         element: '[data-tour="template-report"]',
-        title: "Report Issues",
+        title: "Report a Template",
         description:
-          "Found something inappropriate or buggy? Use the report flag to notify our moderators. Let's keep the community safe and high quality!",
+          "If you spot something inappropriate or broken, use the flag icon to report it. This keeps the community safe and high quality.",
         side: "bottom" as const,
         align: "end" as const,
       },
       {
-        title: "Engagement Expert!",
+        title: "Community Ready!",
         description:
-          "You're now ready to join the conversation and contribute to the BuildX community. Enjoy exploring!",
+          "You now know how to support great creators and help moderate the platform. Keep exploring!",
       },
     ],
     [onNavigateToSection]
