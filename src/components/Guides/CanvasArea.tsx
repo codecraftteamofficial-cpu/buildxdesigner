@@ -66,16 +66,6 @@ export function CanvasArea({ showOnMount, onComplete }: CanvasAreaProps) {
           },
         },
         {
-          element: '[data-tour="canvas-area-dnd"]',
-          popover: {
-            title: "Reorder sections",
-            description:
-              "Use the layer panel on the right side to change the stacking order of your components — drag a layer up or down to reorder it on the page.",
-            side: "top",
-            align: "center",
-          },
-        },
-        {
           element: '[data-tour="canvas-area"]',
           popover: {
             title: "Delete a component",

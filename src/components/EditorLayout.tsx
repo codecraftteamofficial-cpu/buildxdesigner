@@ -157,6 +157,7 @@ export function EditorLayout({
   const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
   const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
   const [showExportFilesTour, setShowExportFilesTour] = useState(false);
+  const [guideRefreshKey, setGuideRefreshKey] = useState(0);
 
   const ALL_STEP_KEYS = [
     "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
@@ -192,6 +193,7 @@ export function EditorLayout({
 
   useEffect(() => {
     const handleStepCompleted = () => {
+      setGuideRefreshKey(prev => prev + 1); // ← ADD THIS
       setTimeout(() => {
         setShowGettingStartedGuideDialog(true);
       }, 400);
@@ -864,6 +866,7 @@ export function EditorLayout({
             open={showGettingStartedGuideDialog}
             onOpenChange={setShowGettingStartedGuideDialog}
             userId={state.currentUser?.id}
+            refreshKey={guideRefreshKey}
             onStartBuildXIntroduction={() => {
               setShowGettingStartedGuideDialog(false);
               localStorage.setItem("buildx-pending-buildx-introduction-tour", "1");

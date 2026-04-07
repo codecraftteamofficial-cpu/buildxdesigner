@@ -880,6 +880,24 @@ export function GettingStartedGuideDialog({
     if (!open) setSelectedCategory(null);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleStepCompleted = () => {
+      if (!userId) { setCompleted(readLocalProgress()); return; }
+      fetchTutorialProgress(userId)
+        .then((rows) => {
+          if (rows.length > 0) {
+            setCompleted(Object.fromEntries(rows.map((r) => [r.step_key, r.completed])));
+          } else {
+            setCompleted(readLocalProgress());
+          }
+        })
+        .catch(() => setCompleted(readLocalProgress()));
+    };
+    window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+    return () => window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+  }, [open, userId]);
+
   const actionMap: Record<string, (() => void) | undefined> = {
     onStartDashboardOverview, onStartBuildXIntroduction, onStartWebsiteCreation,
     onStartCanvasArea, onStartPropertiesPanel, onStartAIAssistant, onStartCodeEditor,
