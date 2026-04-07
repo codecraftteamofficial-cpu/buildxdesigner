@@ -40,10 +40,18 @@ export function BuildXIntroduction({
       {
         title: "Open a Template",
         description:
-          "I'll open the template browser for you now. Click any template card inside the dialog to open its details — then come back and click Next.",
+          "I'll open the template browser for you now. This allows you to explore all our professionally designed starting points.",
         onHighlightStarted: () => {
           onOpenTemplateModal?.();
         },
+      },
+      {
+        element: '[data-tour="create-website-templates"]',
+        title: "Choose Your Template",
+        description:
+          "Within the browser, search or browse by category. Pick any template you like to see its full details — then come back and click Next.",
+        side: "top" as const,
+        align: "center" as const,
       },
       {
         element: '[data-tour="template-details-dialog"]',
@@ -72,7 +80,7 @@ export function BuildXIntroduction({
       {
         title: "You're All Set!",
         description:
-          "You now know how to browse Recommended and Trending templates, open a template's details, read its description, and leave a comment. Pick one and hit Create Project when ready!",
+          "You now know how to browse templates, view their details, and engage with the creator. Pick one and hit Create Project when ready!",
       },
     ],
     [onOpenTemplateModal]

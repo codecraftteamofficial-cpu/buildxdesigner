@@ -38,21 +38,42 @@ export function WebsiteCreation({
         align: "start" as const,
       },
       {
+        title: "Explore All Templates",
+        description:
+          "I'll open the full template library for you now. This is where you can find all our categorized and premium templates.",
+        onHighlightStarted: () => {
+          onEnsureCreateWebsiteModalOpen?.();
+        },
+      },
+      {
         element: '[data-tour="create-website-templates"]',
         title: "Choose Your Template",
         description:
           "Inside the dialog, you can browse all available templates by category. Click one to select it — it will be highlighted so you know it's chosen.",
         side: "top" as const,
         align: "center" as const,
-        onHighlightStarted: () => {
-          onEnsureCreateWebsiteModalOpen?.();
-        },
       },
       {
         element: '[data-tour="template-details-dialog"]',
         title: "Name Your Project",
         description:
           "Give your project a name and optionally set a category and description. Then click 'Create Project' to open it in the editor.",
+        side: "top" as const,
+        align: "center" as const,
+      },
+      {
+        element: '[data-tour="template-details-description"]',
+        title: "Template Description",
+        description:
+          "Read this to understand what the template is designed for — its category, use case, and any notes from the creator.",
+        side: "top" as const,
+        align: "center" as const,
+      },
+      {
+        element: '[data-tour="template-comment-textarea"]',
+        title: "Leave a Comment",
+        description:
+          "Have feedback or a question for the creator? Leave a comment here before starting your project.",
         side: "top" as const,
         align: "center" as const,
       },
