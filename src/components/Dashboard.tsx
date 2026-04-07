@@ -654,6 +654,10 @@ export function Dashboard({
     setShowCreateTemplateModal(false);
     setSelectedTemplateId(null);
     setActiveSection("new-chat");
+    // Reopen the category modal after a short delay
+    if (lastGuideCategoryRef.current) {
+      setTimeout(() => setGuideCategoryModal(lastGuideCategoryRef.current), 300);
+    }
   };
   const [showDashboardTour, setShowDashboardTour] = useState(false);
   const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
@@ -724,6 +728,12 @@ export function Dashboard({
   const [isApiReachable, setIsApiReachable] = useState(true);
   const projectLikesFetchErrorLoggedRef = useRef(false);
   const likeMutationAtRef = useRef<Record<string, number>>({});
+  const lastGuideCategoryRef = useRef<GuideCategory | null>(null);
+
+  const openGuideCategory = (cat: GuideCategory) => {
+    lastGuideCategoryRef.current = cat;
+    setGuideCategoryModal(cat);
+  };
 
   const LIKE_SYNC_COOLDOWN_MS = 10000;
 
@@ -878,6 +888,9 @@ export function Dashboard({
 
       // ← CHANGED: only refresh the key, don't close modals or redirect
       handleTourComplete();
+      if (lastGuideCategoryRef.current) {
+        setTimeout(() => setGuideCategoryModal(lastGuideCategoryRef.current), 300);
+      }
     };
 
     window.addEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
@@ -3399,7 +3412,12 @@ export function Dashboard({
                         return (
                           <button
                             key={cat}
-                            onClick={() => !locked && setGuideCategoryModal(cat)}
+                            onClick={() => {
+                              if (!locked) {
+                                lastGuideCategoryRef.current = cat;
+                                setGuideCategoryModal(cat);
+                              }
+                            }}
                             disabled={locked}
                             style={{ minHeight: "220px" }}
                             className={`group relative flex flex-col rounded-xl border text-left transition-all duration-200
@@ -5014,6 +5032,7 @@ export function Dashboard({
         }}
         onComplete={() => {
           setShowWebsiteCreationTour(false);
+          completeTutorialStep("website");
         }}
       />
 
@@ -5079,7 +5098,7 @@ export function Dashboard({
         <GettingStartedCategoryDialog
           open={!!guideCategoryModal}
           onOpenChange={(open) => {
-            if (!open) setGuideCategoryModal(null);
+            if (!open) lastGuideCategoryRef.current = null; setGuideCategoryModal(null);
           }}
           category={guideCategoryModal}
           userId={currentUserId}
@@ -5098,9 +5117,7 @@ export function Dashboard({
             setGuideCategoryModal(null);
             setShowWebsiteCreationTour(false);
             setActiveSection("new-chat");
-            setSelectedTemplateId("blank");
-            setShowCreateTemplateModal(true);
-            setTimeout(() => setShowWebsiteCreationTour(true), 280);
+            setTimeout(() => setShowWebsiteCreationTour(true), 50);
           }}
           onStartPublishingBasics={() => {
             setGuideCategoryModal(null);

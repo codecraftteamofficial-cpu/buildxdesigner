@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { MultiStepTour } from "./MultiStepTour";
 
 interface WebsiteCreationProps {
   showOnMount?: boolean;
   onComplete?: () => void;
-  /** Ensures Create New Website modal is open so template tour targets exist in the DOM */
   onEnsureCreateWebsiteModalOpen?: () => void;
 }
 
@@ -15,69 +14,55 @@ export function WebsiteCreation({
   onComplete,
   onEnsureCreateWebsiteModalOpen,
 }: WebsiteCreationProps) {
-  const ensureModalRef = useRef(onEnsureCreateWebsiteModalOpen);
-  useEffect(() => {
-    ensureModalRef.current = onEnsureCreateWebsiteModalOpen;
-  }, [onEnsureCreateWebsiteModalOpen]);
-
   const steps = useMemo(
     () => [
       {
-        title: "Website Creation 🌐",
+        title: "Create Your First Project 🚀",
         description:
-          "In this step you'll learn how to start a new project — from picking a template to opening your first blank canvas. The later guides will go deep on each tool.",
+          "This guide walks you through creating your very first website project in BuildX — from choosing a template to opening your canvas. Let's get started!",
+      },
+      {
+        element: '[data-tour="recommended-templates"]',
+        title: "Browse Recommended Templates",
+        description:
+          "The dashboard shows templates recommended for you. Each card is a ready-made starting point — pick one that fits your goal or scroll down to see more.",
+        side: "top" as const,
+        align: "center" as const,
+      },
+      {
+        element: '[data-tour="recommended-template-card"]',
+        title: "Click a Template to Start",
+        description:
+          "Click any template card to open the project setup dialog. You'll get to preview the layout before committing.",
+        side: "bottom" as const,
+        align: "start" as const,
       },
       {
         element: '[data-tour="create-website-templates"]',
-        title: "Start from a template",
+        title: "Choose Your Template",
         description:
-          "This Create New Website dialog shows recommended templates. Pick one that matches your goal or start blank if you want full control.",
+          "Inside the dialog, you can browse all available templates by category. Click one to select it — it will be highlighted so you know it's chosen.",
         side: "top" as const,
         align: "center" as const,
         onHighlightStarted: () => {
-          ensureModalRef.current?.();
+          onEnsureCreateWebsiteModalOpen?.();
         },
       },
       {
         element: '[data-tour="template-details-dialog"]',
-        title: "Pick your template",
+        title: "Name Your Project",
         description:
-          "Click a template card to select it. You'll be asked to name your project before it opens in the editor.",
+          "Give your project a name and optionally set a category and description. Then click 'Create Project' to open it in the editor.",
         side: "top" as const,
         align: "center" as const,
       },
       {
-        element: '[data-tour="sidebar-palette"]',
-        title: "Components palette",
+        title: "You're Ready to Build! ✅",
         description:
-          "Once in the editor, the palette on the left is your toolbox. Drag any component onto the canvas to start building. We'll go deeper on this in the next guide.",
-        side: "right" as const,
-        align: "start" as const,
-      },
-      {
-        element: '[data-tour="canvas-area"]',
-        title: "Your canvas",
-        description:
-          "Everything you drag lands here. This is a live preview of your page — what you see is what your visitors see. We'll cover all the canvas controls in the Canvas Area guide.",
-        side: "top" as const,
-        align: "center" as const,
-      },
-      {
-        element: '[data-tour="save-progress"]',
-        title: "Save early, save often",
-        description:
-          "Hit Ctrl+S (Cmd+S on Mac) or click the Save button any time. BuildX also auto-saves, but manual saves ensure nothing is lost before you close the tab.",
-        side: "bottom" as const,
-        align: "center" as const,
-      },
-      {
-        title: "Website Creation — done! ✅",
-        description:
-          "You know how to start a project and open the editor. The next guides will go step-by-step through the Canvas, Properties Panel, AI Assistant, Code Editor, and more.",
-          
+          "Once you click Create Project, your canvas opens and you can start designing. The next guides will walk you through the canvas, properties panel, AI assistant, and more.",
       },
     ],
-    []
+    [onEnsureCreateWebsiteModalOpen]
   );
 
   return (
