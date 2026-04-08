@@ -475,12 +475,25 @@ export function Canvas({
 
     selectedComps.forEach((comp) => {
       const pos = comp.position || { x: 0, y: 0 };
-      const width = comp.style?.width
-        ? Number.parseInt(String(comp.style.width).replace("px", ""))
-        : 200;
-      const height = comp.style?.height
-        ? Number.parseInt(String(comp.style.height).replace("px", ""))
-        : 100;
+      
+      let width = 200;
+      let height = 100;
+
+      // Try to get actual DOM measurements first for best accuracy
+      const domNode = document.querySelector(`[data-component-id="${comp.id}"]`);
+      if (domNode) {
+        const rect = domNode.getBoundingClientRect();
+        const scale = getEffectiveScale();
+        width = rect.width / scale;
+        height = rect.height / scale;
+      } else {
+        width = comp.style?.width
+          ? Number.parseInt(String(comp.style.width).replace("px", ""))
+          : 200;
+        height = comp.style?.height
+          ? Number.parseInt(String(comp.style.height).replace("px", ""))
+          : 100;
+      }
 
       minX = Math.min(minX, pos.x);
       minY = Math.min(minY, pos.y);
@@ -1732,6 +1745,7 @@ export function Canvas({
                     <RenderableComponent
                       component={component}
                       isSelected={readOnly ? false : isSelected}
+                      zoom={getEffectiveScale()}
                       onUpdate={
                         !readOnly
                           ? (updates) => {
