@@ -491,7 +491,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[85vh] sm:max-w-[95vw] flex flex-col p-0 overflow-hidden bg-background border border-border shadow-2xl rounded-xl">
+      <DialogContent data-tour="create-custom-code" className="max-w-[95vw] w-[95vw] h-[85vh] sm:max-w-[95vw] flex flex-col p-0 overflow-hidden bg-background border border-border shadow-2xl rounded-xl">
         <DialogHeader className="p-4 border-b shrink-0 bg-muted/30">
           <div className="space-y-3">
             <DialogTitle className="text-xl font-bold">{initialData ? 'Edit Custom Component' : 'Create Custom Component'}</DialogTitle>
@@ -826,7 +826,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
             </Button>
           )}
 
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+          <Button data-tour="save-custom-code" onClick={handleSave} disabled={isSaving} className="gap-2">
             <Save className="w-4 h-4" />
             {isSaving ? 'Saving...' : initialData ? 'Update Component' : 'Save Component'}
           </Button>

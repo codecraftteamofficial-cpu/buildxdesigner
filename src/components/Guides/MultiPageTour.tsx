@@ -28,14 +28,30 @@ export function MultiPageTour({
         align: "start" as const,
       },
       {
+        element: '[data-tour="create-new-page"]',
         title: "Creating New Pages",
         description:
           "Need more space? Open the selector and click 'Create New Page' to add a new route to your project.",
+        side: "bottom" as const,
+        align: "start" as const,
+      },
+      {
+        element: '[data-tour="new-page-modal"]',
+        title: "Creating New Pages",
+        description:
+          "Add the name of your new page and its Path, and then click 'Create'. Your new page will be added to the selector and you can start designing right away!",
+        side: "bottom" as const,
+        align: "start" as const,
       },
       {
         title: "Global vs Local",
         description:
           "Some components (like Navbars and Footers) can be set to appear on all pages, while others are unique to a specific page.",
+      },
+      {
+        title: "Multi-Page Done!",
+        description:
+          "You're all set to create and manage multiple pages in your project. Happy building!",
       },
     ],
     []

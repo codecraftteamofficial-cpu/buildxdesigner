@@ -491,11 +491,9 @@ export function GettingStartedGuideContent({
                   <Button
                     size="default"
                     disabled={locked}
-                    className={`text-white w-full rounded-xl h-11 font-bold transition-all ${locked
+                    className={`w-full rounded-xl h-11 font-bold transition-all flex-1 bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white ${locked
                       ? "bg-muted text-muted-foreground/30 shadow-none border-transparent"
-                      : done
-                        ? `bg-muted hover:bg-muted/80 text-foreground border-2 border-border shadow-none`
-                        : `bg-gradient-to-r ${colors.btn} shadow-lg shadow-primary/10`
+                      : "shadow-lg shadow-primary/10"
                       }`}
                     onClick={() => {
                       if (locked || !step.actionKey) return;
@@ -908,15 +906,23 @@ export function GettingStartedGuideDialog({
   };
 
   const levelLabels = ["Level 1", "Level 2", "Level 3"];
-  const accentColors: Record<string, { bar: string; badge: string; num: string }> = {
-    beginner: { bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400" },
-    intermediate: { bar: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400" },
-    advanced: { bar: "bg-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400" },
+  const accentColors: Record<string, { bar: string; badge: string; num: string; fillHex: string; trackRgba: string }> = {
+    beginner: { bar: "bg-emerald-500", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400", fillHex: "#10B981", trackRgba: "rgba(16, 185, 129, 0.22)" },
+    intermediate: { bar: "bg-amber-400", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400", fillHex: "#FBBF24", trackRgba: "rgba(251, 191, 36, 0.22)" },
+    advanced: { bar: "bg-red-500", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400", fillHex: "#EF4444", trackRgba: "rgba(239, 68, 68, 0.22)" },
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => onOpenChange?.(isOpen)}>
-      <DialogContent className="custom-scrollbar w-full max-w-3xl border border-border shadow-2xl max-h-[85vh] overflow-y-auto bg-card">
+      <DialogContent className="w-[90vw]
+    md:w-[85vw]
+    xl:w-[80vw]
+    max-w-none
+    h-[90vh]
+    overflow-y-auto
+    border border-border
+    shadow-2xl
+    bg-card">
         <DialogHeader className="border-b border-border pb-4">
           <DialogTitle className="text-lg font-bold flex items-center gap-2">
             🎓 Getting Started Guide
@@ -937,6 +943,7 @@ export function GettingStartedGuideDialog({
                 const progressPercent = total > 0 ? (done / total) * 100 : 0;
                 const isComplete = done === total && total > 0;
                 const accent = accentColors[cat];
+                const progressLabel = `${Math.round(progressPercent)}%`;
 
                 return (
                   <button
@@ -949,8 +956,12 @@ export function GettingStartedGuideDialog({
                       : "border-border bg-card hover:border-border/80 hover:shadow-md"
                       }`}
                   >
-                    <div style={{ height: "3px", flexShrink: 0 }}
-                      className={`w-full rounded-t-xl ${locked ? "bg-border/30" : accent.bar}`} />
+                    {cat !== "advanced" && (
+                      <div
+                        style={{ height: "3px", flexShrink: 0 }}
+                        className={`w-full rounded-t-xl ${locked ? "bg-border/30" : accent.bar}`}
+                      />
+                    )}
                     <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-col gap-1">
@@ -962,7 +973,12 @@ export function GettingStartedGuideDialog({
                         </div>
                         <div className="shrink-0">
                           {isComplete ? (
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${accent.bar} text-white`}>✓</div>
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white"
+                              style={{ backgroundColor: accent.fillHex }}
+                            >
+                              ✓
+                            </div>
                           ) : (
                             <span className={`text-lg font-black tabular-nums ${locked ? "text-muted-foreground/30" : accent.num}`}>
                               {done}<span className="text-xs font-medium text-muted-foreground/50">/{total}</span>
@@ -972,9 +988,31 @@ export function GettingStartedGuideDialog({
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">{meta.description}</p>
                       <div style={{ flex: 1 }} />
-                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                        <div className={`h-full rounded-full transition-all duration-500 ${locked ? "bg-muted-foreground/20" : accent.bar}`}
-                          style={{ width: `${progressPercent}%` }} />
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-muted-foreground">
+                            {progressLabel}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {done}/{total}
+                          </span>
+                        </div>
+                        <div className="relative h-1 w-full rounded-full bg-muted overflow-hidden">
+                          {/* faint colored track so 0% still shows category color */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundColor: locked ? "rgba(148, 163, 184, 0.12)" : accent.trackRgba,
+                            }}
+                          />
+                          <div
+                            className="relative h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${progressPercent}%`,
+                              backgroundColor: locked ? "rgba(148, 163, 184, 0.22)" : accent.fillHex,
+                            }}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-border/40">
                         <span className="text-[10px] text-muted-foreground">{total} tutorial{total !== 1 ? "s" : ""}</span>

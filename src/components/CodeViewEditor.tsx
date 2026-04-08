@@ -1009,6 +1009,7 @@ export function CodeViewEditor({
 
               
                 <Button
+                  data-tour="download-zip"
                   size="sm"
                   variant="ghost"
                    onClick={handleExportZip}

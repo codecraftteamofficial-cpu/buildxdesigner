@@ -56,7 +56,17 @@ export function SavingCollaboration({ showOnMount, onComplete }: SavingCollabora
           },
         },
         {
-          element: '[data-tour="share"]',
+          element: '[data-tour="share-modal"]',
+          popover: {
+            title: "Visibility and Access Control",
+            description:
+              "This allows you to control who can access your project. You can invite specific people or make your project public for anyone with the link to view or edit, depending on the permissions you set.",
+            side: "bottom",
+            align: "end",
+          },
+        },
+        {
+          element: '[data-tour="share-modal"]',
           popover: {
             title: "Editor vs. Viewer roles",
             description:
