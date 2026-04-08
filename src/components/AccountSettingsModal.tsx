@@ -97,6 +97,7 @@ export function AccountSettingsModal({
   const [isConnectingSupabase, setIsConnectingSupabase] = useState(false);
   const [isDisconnectingSupabase, setIsDisconnectingSupabase] = useState(false);
   const [showResendApiKey, setShowResendApiKey] = useState(false);
+  const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
 
   // --- Data Fetching Effect ---
   useEffect(() => {
@@ -173,6 +174,19 @@ export function AccountSettingsModal({
 
     const { error } = await updateProfile(updates);
 
+    if (pendingAvatar) {
+      const { url, error } = await uploadAvatar(pendingAvatar);
+      if (error) {
+        setError("Profile updated but failed to upload avatar.");
+        setIsSaving(false);
+        return;
+      }
+
+      updates.avatarUrl = url;
+      setProfileData((prev) => ({ ...prev, avatarUrl: url }));
+      setPendingAvatar(null);
+    }
+
     if (error) {
       setError(error);
     } else {
@@ -190,9 +204,9 @@ export function AccountSettingsModal({
       // Notify editor state of config change
       window.dispatchEvent(
         new CustomEvent("userProjectConfigUpdated", {
-          detail: { 
+          detail: {
             resendApiKey: profileData.resend_api_key || "",
-            paymongoKey: profileData.paymongo_key || "",  // ← add
+            paymongoKey: profileData.paymongo_key || "", // ← add
           },
         }),
       );
@@ -200,25 +214,36 @@ export function AccountSettingsModal({
     setIsSaving(false);
   };
 
+  const prepareAvatarForUpload = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject("Failed to read file");
+        }
+      };
+      reader.onerror = () => reject("Failed to read file");
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleAvatarUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-    if (!file || !initialData) return;
+    if (!file) return;
 
-    setUploading(true);
     setError(null);
+    setPendingAvatar(file);
 
-    const { url, error } = await uploadAvatar(file);
-
-    if (error) {
-      setError(`Upload failed: ${error}`);
-    } else if (url) {
-      setProfileData((prev) => ({ ...prev, avatarUrl: url }));
-      setInitialData((prev) => (prev ? { ...prev, avatarUrl: url } : null));
-      setSuccessMessage("Profile picture updated!");
+    try {
+      const preview = await prepareAvatarForUpload(file);
+      setProfileData((prev) => ({ ...prev, avatarUrl: preview }));
+    } catch (error) {
+      setError("Failed to prepare avatar for upload.");
     }
-    setUploading(false);
   };
 
   // Fallback for avatar display
