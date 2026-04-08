@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { GripHorizontal, GripVertical, CornerDownRight } from 'lucide-react';
+import { DiagonalResizeHandle } from './DiagonalResizeHandle';
 
 interface ResizeHandleProps {
   onResize: (newX: number, newY: number, newWidth: number, newHeight: number) => void;
@@ -16,6 +17,8 @@ interface ResizeHandleProps {
   onResizeEnd?: () => void;
   gridSize?: number;
   autoSize?: boolean;
+  zoom?: number;
+  isSelected?: boolean;
   [key: string]: any;
 }
 
@@ -25,8 +28,8 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
   initialY = 0,
   initialWidth = 300,
   initialHeight = 200,
-  minWidth = 50,
-  minHeight = 30,
+  minWidth = 80,
+  minHeight = 40,
   className = '',
   children,
   disabled = false,
@@ -34,6 +37,8 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
   onResizeEnd,
   gridSize = 20,
   autoSize = false,
+  zoom = 1,
+  isSelected = false,
   ...props
 }, ref) => {
   const [dimensions, setDimensions] = useState({
@@ -53,9 +58,8 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
   const currentDimensions = useRef({ x: initialX, y: initialY, width: initialWidth, height: initialHeight });
   const activeResizeDirection = useRef<'left' | 'right' | 'top' | 'bottom' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | null>(null);
 
-  // Update dimensions when initialWidth or initialHeight changes
+  // Sync state with props when they change externally
   React.useEffect(() => {
-    // Prevent the parent state from fighting the local state while dragging
     if (!isResizing) {
       const newDims = { x: initialX, y: initialY, width: initialWidth, height: initialHeight };
       setDimensions(newDims);
@@ -104,13 +108,17 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
 
     const direction = activeResizeDirection.current;
 
+    // Adjust deltas by zoom level
+    const scaledDeltaX = deltaX / zoom;
+    const scaledDeltaY = deltaY / zoom;
+
     if (direction.includes('right')) {
-      newWidth = Math.max(minWidth, startDimensions.current.width + deltaX);
+      newWidth = Math.max(minWidth, startDimensions.current.width + scaledDeltaX);
     } else if (direction.includes('left')) {
-      const potentialWidth = startDimensions.current.width - deltaX;
+      const potentialWidth = startDimensions.current.width - scaledDeltaX;
       if (potentialWidth >= minWidth) {
         newWidth = potentialWidth;
-        newX = startDimensions.current.x + deltaX;
+        newX = startDimensions.current.x + scaledDeltaX;
       } else {
         newWidth = minWidth;
         newX = startDimensions.current.x + (startDimensions.current.width - minWidth);
@@ -118,12 +126,12 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
     }
 
     if (direction.includes('bottom')) {
-      newHeight = Math.max(minHeight, startDimensions.current.height + deltaY);
+      newHeight = Math.max(minHeight, startDimensions.current.height + scaledDeltaY);
     } else if (direction.includes('top')) {
-      const potentialHeight = startDimensions.current.height - deltaY;
+      const potentialHeight = startDimensions.current.height - scaledDeltaY;
       if (potentialHeight >= minHeight) {
         newHeight = potentialHeight;
-        newY = startDimensions.current.y + deltaY;
+        newY = startDimensions.current.y + scaledDeltaY;
       } else {
         newHeight = minHeight;
         newY = startDimensions.current.y + (startDimensions.current.height - minHeight);
@@ -301,54 +309,54 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
 
       {/* Resize handles - visible on hover and when selected */}
       {!disabled && !autoSize && (
-        <div className="absolute inset-0 pointer-events-none group-hover:pointer-events-auto z-10">
+        <div className={`absolute inset-0 ${isSelected ? 'pointer-events-auto' : 'pointer-events-none group-hover:pointer-events-auto'} z-10`}>
           {/* Top handle */}
           <div
-            className="absolute -top-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-t-2 border-transparent hover:border-primary touch-none"
+            className={`resize-handle absolute -top-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center border-t-2 border-transparent hover:border-primary touch-none`}
             onMouseDown={(e) => handleMouseDown(e, 'top')}
             onContextMenu={(e) => e.stopPropagation()}
             onTouchStart={(e) => handleTouchStart(e, 'top')}
             style={{ pointerEvents: 'auto' }}
           >
-            <div className="h-1 w-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+            <div className={`h-1 w-8 bg-primary rounded-full ${isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'} transition-opacity`} />
           </div>
 
           {/* Left handle */}
           <div
-            className="absolute top-0 -left-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-l-2 border-transparent hover:border-primary touch-none"
+            className={`resize-handle absolute top-0 -left-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center border-l-2 border-transparent hover:border-primary touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'left')}
             onTouchStart={(e) => handleTouchStart(e, 'left')}
             style={{ pointerEvents: 'auto' }}
           >
-            <div className="w-1 h-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+            <div className={`w-1 h-8 bg-primary rounded-full ${isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'} transition-opacity`} />
           </div>
 
           {/* Right handle (width) */}
           <div
-            className="absolute top-0 -right-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-r-2 border-transparent hover:border-primary touch-none"
+            className={`resize-handle absolute top-0 -right-1.5 w-3 h-full cursor-ew-resize bg-primary/0 hover:bg-primary/30 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center border-r-2 border-transparent hover:border-primary touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'right')}
             onTouchStart={(e) => handleTouchStart(e, 'right')}
             style={{ pointerEvents: 'auto' }}
           >
-            <div className="w-1 h-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+            <div className={`w-1 h-8 bg-primary rounded-full ${isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'} transition-opacity`} />
           </div>
 
           {/* Bottom handle (height) */}
           <div
-            className="absolute -bottom-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center border-b-2 border-transparent hover:border-primary touch-none"
+            className={`resize-handle absolute -bottom-1.5 left-0 w-full h-3 cursor-ns-resize bg-primary/0 hover:bg-primary/30 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center border-b-2 border-transparent hover:border-primary touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'bottom')}
             onTouchStart={(e) => handleTouchStart(e, 'bottom')}
             style={{ pointerEvents: 'auto' }}
           >
-            <div className="h-1 w-8 bg-primary rounded-full opacity-0 group-hover:opacity-80 transition-opacity" />
+            <div className={`h-1 w-8 bg-primary rounded-full ${isSelected ? 'opacity-80' : 'opacity-0 group-hover:opacity-80'} transition-opacity`} />
           </div>
 
           {/* Top-Left handle */}
           <div
-            className="absolute -top-2 -left-2 w-4 h-4 cursor-nwse-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className={`resize-handle absolute -top-2 -left-2 w-4 h-4 cursor-nwse-resize bg-primary hover:bg-primary/80 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'topLeft')}
             onTouchStart={(e) => handleTouchStart(e, 'topLeft')}
@@ -357,7 +365,7 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
 
           {/* Top-Right handle */}
           <div
-            className="absolute -top-2 -right-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className={`resize-handle absolute -top-2 -right-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'topRight')}
             onTouchStart={(e) => handleTouchStart(e, 'topRight')}
@@ -366,23 +374,28 @@ export const ResizeHandle = React.forwardRef<HTMLDivElement, ResizeHandleProps>(
 
           {/* Bottom-Left handle */}
           <div
-            className="absolute -bottom-2 -left-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
+            className={`resize-handle absolute -bottom-2 -left-2 w-4 h-4 cursor-nesw-resize bg-primary hover:bg-primary/80 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onMouseDown={(e) => handleMouseDown(e, 'bottomLeft')}
             onTouchStart={(e) => handleTouchStart(e, 'bottomLeft')}
             style={{ pointerEvents: 'auto' }}
           ></div>
 
-          {/* Bottom-Right handle (both) - most prominent */}
-          <div
-            className="absolute -bottom-2 -right-2 w-5 h-5 cursor-nwse-resize bg-primary hover:bg-primary/80 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-sm shadow-lg border-2 border-white dark:border-gray-800 touch-none"
-            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            onMouseDown={(e) => handleMouseDown(e, 'bottomRight')}
-            onTouchStart={(e) => handleTouchStart(e, 'bottomRight')}
-            style={{ pointerEvents: 'auto' }}
-          >
-            <CornerDownRight className="w-3 h-3 text-white" />
-          </div>
+          {/* Bottom-Right handle (both) - specialized component */}
+          <DiagonalResizeHandle
+            onResize={onResize}
+            initialX={initialX}
+            initialY={initialY}
+            initialWidth={initialWidth}
+            initialHeight={initialHeight}
+            minWidth={minWidth}
+            minHeight={minHeight}
+            zoom={zoom}
+            isSelected={isSelected}
+            onResizeStart={onResizeStart}
+            onResizeEnd={onResizeEnd}
+            containerRef={containerRef}
+          />
         </div>
       )}
 

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card'
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Trash2, Edit, Upload, EyeOff } from 'lucide-react';
 import { ResizeHandle } from './ResizeHandle';
+import { GroupResizeHandle } from './GroupResizeHandle';
 import { EditableText } from './EditableText';
 import { PayMongoButton } from './PayMongoButton';
 import { SignInBlock } from './auth/SignInBlock';
@@ -200,6 +201,7 @@ interface RenderableComponentProps {
   navigate?: (path: string) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
   onSelect?: (component: ComponentData, e: React.MouseEvent | React.TouchEvent) => void;
+  zoom?: number;
 }
 
 export function RenderableComponent({
@@ -218,6 +220,7 @@ export function RenderableComponent({
   onContextMenu,
   onSelect,
   currentUser,
+  zoom = 1,
 }: RenderableComponentProps) {
   const { type, props, style } = component;
   const combinedStyle = { ...style } as React.CSSProperties;
@@ -1535,14 +1538,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={textWidth}
             initialHeight={textHeight}
             className="group inline-block"
-            minWidth={50}
-            minHeight={20}
+            minWidth={100}
+            minHeight={40}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -1583,14 +1586,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={headingWidth}
             initialHeight={headingHeight}
             className="group inline-block"
-            minWidth={100}
-            minHeight={30}
+            minWidth={150}
+            minHeight={40}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -1629,14 +1632,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={buttonWidth}
             initialHeight={buttonHeight}
             className="group inline-block"
-            minWidth={60}
-            minHeight={30}
+            minWidth={100}
+            minHeight={40}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -1759,14 +1762,14 @@ export function RenderableComponent({
         return (
           <ResizeHandle
             id={props.elementId}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={shapeWidth}
             initialHeight={shapeHeight}
             className="group inline-block"
-            minWidth={30}
-            minHeight={30}
+            minWidth={50}
+            minHeight={50}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -1794,7 +1797,7 @@ export function RenderableComponent({
         return (
           <ResizeHandle
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 300)}
@@ -1835,14 +1838,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={pmWidth}
             initialHeight={pmHeight}
             className="group inline-block"
-            minWidth={100}
-            minHeight={30}
+            minWidth={150}
+            minHeight={40}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -1875,7 +1878,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 400)}
@@ -1912,7 +1915,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 400)}
@@ -1950,7 +1953,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 400)}
@@ -1990,7 +1993,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 50)}
@@ -2025,7 +2028,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={tableWidth}
@@ -2214,7 +2217,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={divWidth}
@@ -2272,7 +2275,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={accWidth}
@@ -2354,7 +2357,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={tabsWidth}
@@ -2430,14 +2433,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={modalBtnWidth}
             initialHeight={modalBtnHeight}
             className="group block"
-            minWidth={80}
-            minHeight={30}
+            minWidth={150}
+            minHeight={50}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -2582,7 +2585,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={alertWidth}
@@ -2709,7 +2712,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}  // ← use the shared handleResize, same as every other component
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}  // ← use the shared handleResize, same as every other component
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={imgWidth}
@@ -2781,22 +2784,16 @@ export function RenderableComponent({
         );
 
       case 'group':
-        const groupWidth = parseSize(style?.width, 200);
-        const groupHeight = parseSize(style?.height, 200);
-
         return (
-          <ResizeHandle
+          <GroupResizeHandle
             ref={contentRef}
-            data-component-id={component.id}
-            onResize={handleResize}
-            initialX={component.position?.x || 0}
-            initialY={component.position?.y || 0}
-            initialWidth={groupWidth}
-            initialHeight={groupHeight}
-            className="group"
+            component={component}
+            zoom={zoom}
+            isSelected={isSelected}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
+            onUpdate={onUpdate}
           >
             {customCssContent}
 
@@ -2846,7 +2843,7 @@ export function RenderableComponent({
                 </div>
               ))}
             </div>
-          </ResizeHandle>
+          </GroupResizeHandle>
         );
 
       case 'container':
@@ -2857,7 +2854,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={containerWidth}
@@ -2908,7 +2905,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={navWidth}
@@ -3023,7 +3020,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={heroWidth}
@@ -3097,7 +3094,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={footerWidth}
@@ -3148,14 +3145,14 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={inputWidth}
             initialHeight={inputHeight}
             className="group"
-            minWidth={100}
-            minHeight={30}
+            minWidth={150}
+            minHeight={40}
             disabled={isPreview}
             onResizeStart={onResizeStart}
             onResizeEnd={onResizeEnd}
@@ -3205,7 +3202,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={selectWidth}
@@ -3277,7 +3274,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 200)}
@@ -3343,7 +3340,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 300)}
@@ -3417,7 +3414,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={textareaWidth}
@@ -3469,7 +3466,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={formWidth}
@@ -3627,7 +3624,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={dynamicFormWidth}
@@ -3795,7 +3792,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={gridWidth}
@@ -3886,7 +3883,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={cardWidth}
@@ -3978,7 +3975,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={sectionHeadingWidth}
@@ -4037,7 +4034,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={paragraphWidth}
@@ -4082,7 +4079,7 @@ export function RenderableComponent({
           <ResizeHandle
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={galleryWidth}
@@ -4162,7 +4159,7 @@ export function RenderableComponent({
             id={props.elementId}
             ref={contentRef}
             data-component-id={component.id}
-            onResize={handleResize}
+            onResize={handleResize} zoom={zoom} isSelected={isSelected}
             initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={carouselWidth}
@@ -4277,7 +4274,7 @@ export function RenderableComponent({
 
       case '__unknown__':
         return (
-          <ResizeHandle data-component-id={component.id} onResize={handleResize} initialX={component.position?.x || 0}
+          <ResizeHandle data-component-id={component.id} onResize={handleResize} zoom={zoom} isSelected={isSelected} initialX={component.position?.x || 0}
             initialY={component.position?.y || 0}
             initialWidth={parseSize(style?.width, 400)} initialHeight={parseSize(style?.height, 80)}
             className="group" disabled={isPreview} onResizeStart={onResizeStart} onResizeEnd={onResizeEnd}>
@@ -4374,7 +4371,7 @@ export function RenderableComponent({
       )}
 
       {/* Edit Row Dialog */}
-      <Dialog open={!!editingRow} onOpenChange={(open) => !open && setEditingRow(null)}>
+      <Dialog open={!!editingRow} onOpenChange={(open: boolean) => !open && setEditingRow(null)}>
         <DialogContent className="max-w-[400px] w-full">
           <DialogHeader>
             <DialogTitle>Edit Row</DialogTitle>
