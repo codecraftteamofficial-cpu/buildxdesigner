@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Monitor, Smartphone } from "lucide-react";
 import { Toaster } from "./components/ui/sonner";
 import { useIsMobile } from "./components/ui/use-mobile";
+import { SubdomainRouter } from "./components/SubdomainRouter";
 import {
   BrowserRouter as Router,
   Routes,
@@ -1095,37 +1096,36 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   );
 }
 
-import { SubdomainRouter } from "./components/SubdomainRouter";
+
 
 export default function App() {
   const editor = useEditorState();
   const isMobile = useIsMobile();
 
-  if (isMobile) {
-    return (
-      <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
-          <div className="mb-4 flex items-center justify-center gap-3 text-muted-foreground">
-            <Smartphone className="h-6 w-6" aria-hidden="true" />
-            <span className="text-xs font-medium">→</span>
-            <Monitor className="h-7 w-7" aria-hidden="true" />
-          </div>
-          <h1 className="text-xl font-semibold">Unsupported viewport</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Your window is too small! Please access the app on a device with a
-            larger screen or resize your browser window to be wider than 768
-            pixels.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <SubdomainRouter>
-      <Router>
-        <AppRoutes editor={editor} />
-      </Router>
+      <>
+        {isMobile && (
+          <div className="fixed inset-0 z-[9999] min-h-screen w-full bg-background text-foreground flex items-center justify-center p-6">
+            <div className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+              <div className="mb-4 flex items-center justify-center gap-3 text-muted-foreground">
+                <Smartphone className="h-6 w-6" aria-hidden="true" />
+                <span className="text-xs font-medium">→</span>
+                <Monitor className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <h1 className="text-xl font-semibold">Unsupported viewport</h1>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Your window is too small! Please access the app on a device with a
+                larger screen or resize your browser window to be wider than 768
+                pixels.
+              </p>
+            </div>
+          </div>
+        )}
+        <Router>
+          <AppRoutes editor={editor} />
+        </Router>
+      </>
     </SubdomainRouter>
   );
 }
