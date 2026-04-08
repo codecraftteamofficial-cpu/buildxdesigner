@@ -94,6 +94,7 @@ import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { SavingCollaboration } from "./Guides/SavingCollaboration";
 import { NavigatingProjects } from "./Guides/NavigatingProjects";
 import { TemplateInteraction } from "./Guides/TemplateInteraction";
+import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
 import {
   fetchDraftProjectsFromApi,
   fetchTrendingTemplatesFromApi,
@@ -144,6 +145,7 @@ interface DashboardProps {
   onStartNavigatingProjects?: () => void;
   onStartTemplateInteraction?: () => void;
   onStartComponentsLibrary?: () => void;
+  onStartBuildXIntroduction?: () => void;
 }
 
 interface ProfileDisplayData {
@@ -587,6 +589,7 @@ export function Dashboard({
   onStartNavigatingProjects,
   onStartTemplateInteraction,
   onStartComponentsLibrary,
+  onStartBuildXIntroduction,
 }: DashboardProps) {
   // --- AUTHENTICATION STATES ---
   const [authLoading, setAuthLoading] = useState(true);
@@ -689,6 +692,7 @@ export function Dashboard({
   const [showSavingCollabTour, setShowSavingCollabTour] = useState(false);
   const [showNavigatingProjectsTour, setShowNavigatingProjectsTour] = useState(false);
   const [showTemplateInteractionTour, setShowTemplateInteractionTour] = useState(false);
+  const [showBuildXIntroTour, setShowBuildXIntroTour] = useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -5059,6 +5063,14 @@ export function Dashboard({
         }}
       />
 
+      <BuildXIntroduction
+        showOnMount={showBuildXIntroTour}
+        onComplete={() => {
+          setShowBuildXIntroTour(false);
+          completeTutorialStep("palette");
+        }}
+      />
+
       <PropertiesPanel
         showOnMount={showPropertiesPanel}
         onComplete={() => {
@@ -5193,6 +5205,15 @@ export function Dashboard({
             localStorage.setItem("buildx-pending-publish-template-tour", "1");
             setSelectedTemplateId("blank");
             setShowCreateTemplateModal(true);
+          }}
+          onStartBuildXIntroduction={() => {
+            setGuideCategoryModal(null);
+            if (onStartBuildXIntroduction) {
+              onStartBuildXIntroduction();
+            } else {
+              setShowBuildXIntroTour(false);
+              setTimeout(() => setShowBuildXIntroTour(true), 50);
+            }
           }}
           onStartBlocksPalette={() => {
             setGuideCategoryModal(null);
