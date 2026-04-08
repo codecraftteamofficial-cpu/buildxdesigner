@@ -6,147 +6,91 @@ import { MultiStepTour } from "./MultiStepTour";
 interface WebsiteCreationProps {
   showOnMount?: boolean;
   onComplete?: () => void;
+  onEnsureCreateWebsiteModalOpen?: () => void;
 }
 
 export function WebsiteCreation({
   showOnMount = false,
   onComplete,
+  onEnsureCreateWebsiteModalOpen,
 }: WebsiteCreationProps) {
   const steps = useMemo(
     () => [
       {
-        title: "Website Creation",
+        title: "Create Your First Project 🚀",
         description:
-          "Let's build a simple page: add a component, place it on the canvas, and tweak its properties.",
+          "This guide walks you through creating your very first website project in BuildX — from choosing a template to opening your canvas. Let's get started!",
       },
       {
-        element: '[data-tour="sidebar-palette"]',
-        title: "Pick a component",
+        element: '[data-tour="recommended-templates"]',
+        title: "Browse Recommended Templates",
         description:
-          "Drag a component from the palette onto the canvas to start building.",
-        side: "right" as const,
-        align: "start" as const,
-      },
-      {
-        element: '[data-tour="canvas-area"]',
-        title: "Drop it on the canvas",
-        description:
-          "This is where your website is assembled. Drop components here and arrange your layout.",
+          "The dashboard shows templates recommended for you. Each card is a ready-made starting point — pick one that fits your goal or scroll down to see more.",
         side: "top" as const,
         align: "center" as const,
       },
       {
-        element: '[data-tour="properties-panel"]',
-        title: "Customize it",
+        element: '[data-tour="recommended-template-card"]',
+        title: "Click a Template to Start",
         description:
-          "Select a component to edit text, colors, spacing, and more in the Properties Panel.",
-        side: "left" as const,
+          "Click any template card to open the project setup dialog. You'll get to preview the layout before committing.",
+        side: "bottom" as const,
         align: "start" as const,
       },
       {
-        element: '[data-tour="toolbar-top"]',
-        title: "Toolbar",
+        title: "Explore All Templates",
         description:
-          "This top toolbar gives you quick access to key actions like previewing, exporting, database integration, publishing, and sharing.",
-        side: "bottom" as const,
-        align: "center" as const,
-      },
-      {
-        element: '[data-tour="design-mode"]',
-        title: "Design Mode",
-        description:
-          "Switch back to Design Mode to build visually on the canvas.",
-        side: "bottom" as const,
-        align: "center" as const,
-      },
-      {
-        element: '[data-tour="code-view"]',
-        title: "Code View",
-        description:
-          "Switch to Code View to inspect and fine-tune the generated code behind your design.",
-        side: "bottom" as const,
-        align: "center" as const,
+          "I'll open the full template library for you now. This is where you can find all our categorized and premium templates.",
         onHighlightStarted: () => {
-          const btn = document.querySelector(
-            '[data-tour="code-view"]',
-          ) as HTMLElement | null;
-          btn?.click();
+          onEnsureCreateWebsiteModalOpen?.();
         },
       },
       {
-        element:'[data-tour="export-project"]',
-        title: "Export Project",
+        element: '[data-tour="create-website-templates"]',
+        title: "Choose Your Template",
         description:
-          "Export or download your project so you can keep a local copy or deploy elsewhere.",
-        side: "bottom" as const,
-        align: "end" as const,
-      },
-      {
-        element: '[data-tour="download-project"]',
-        title: "Download Project",
-        description:
-          "Download your project so you can keep a local copy or deploy elsewhere.",
-        side: "bottom" as const,
-        align: "end" as const,
-      },
-      {
-        element: '[data-tour="save-progress"]',
-        title: "Save Progress",
-        description:
-          "Keep an eye on your save status so you know when changes are saved (or still unsaved).",
-        side: "bottom" as const,
+          "Inside the dialog, you can browse all available templates by category. Click one to select it — it will be highlighted so you know it's chosen.",
+        side: "top" as const,
         align: "center" as const,
       },
       {
-        element: '[data-tour="more-options"]',
-        title: "More Options",
+        element: '[data-tour="template-details-dialog"]',
+        title: "Name Your Project",
         description:
-          "Open extra actions like Save, preferences, shortcuts, and more.",
-        side: "bottom" as const,
-        align: "end" as const,
+          "Give your project a name and optionally set a category and description. Then click 'Create Project' to open it in the editor.",
+        side: "top" as const,
+        align: "center" as const,
       },
       {
-        element: '[data-tour="preview"]',
-        title: "Preview",
+        element: '[data-tour="template-details-description"]',
+        title: "Template Description",
         description:
-          "Preview your website to see how it looks and behaves.",
-        side: "bottom" as const,
-        align: "end" as const,
+          "Read this to understand what the template is designed for — its category, use case, and any notes from the creator.",
+        side: "top" as const,
+        align: "center" as const,
       },
       {
-        element: '[data-tour="database-integration"]',
-        title: "Database Integration",
+        element: '[data-tour="template-comment-textarea"]',
+        title: "Leave a Comment",
         description:
-          "Connect your database to power dynamic content and data-driven components.",
-        side: "bottom" as const,
-        align: "end" as const,
+          "Have feedback or a question for the creator? Leave a comment here before starting your project.",
+        side: "top" as const,
+        align: "center" as const,
       },
       {
-        element: '[data-tour="publish"]',
-        title: "Publish",
+        title: "You're Ready to Build! ✅",
         description:
-          "Publish your website when you're ready to share it with the world.",
-        side: "bottom" as const,
-        align: "end" as const,
-      },
-      {
-        element: '[data-tour="share"]',
-        title: "Share",
-        description:
-          "Share a link so others can view (or collaborate on) your project.",
-        side: "bottom" as const,
-        align: "end" as const,
-      },
-      {
-        title: "You're Done!",
-        description:
-          "Nice work—try adding a few more components and adjusting their properties to refine your layout.",
+          "Once you click Create Project, your canvas opens and you can start designing. The next guides will walk you through the canvas, properties panel, AI assistant, and more.",
       },
     ],
-    []
+    [onEnsureCreateWebsiteModalOpen]
   );
 
   return (
-    <MultiStepTour steps={steps} showOnMount={showOnMount} onComplete={onComplete} />
+    <MultiStepTour
+      steps={steps}
+      showOnMount={showOnMount}
+      onComplete={onComplete}
+    />
   );
 }

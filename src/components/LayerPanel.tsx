@@ -82,7 +82,7 @@ export function LayerPanel({
     }
 
     const target = remaining[clampedIndex];
-    if (target) onReorder(layerId, target.id);
+    if (target) onReorder(layerId, target.id as any);
   };
 
 
@@ -117,16 +117,17 @@ export function LayerPanel({
             {searchQuery ? "No matching layers found." : "No layers yet."}
           </div>
         ) : (
-          <div className="p-2 space-y-0.5">
-              {displayLayers.map((comp, displayIndex) => {
-              const isSelected = selectedId === comp.id;
-                 const underlyingIndex = componentIndexMap.get(comp.id) ?? -1;
-              const canMoveUp = underlyingIndex >= 0 && underlyingIndex < components.length - 1;
-              const canMoveDown = underlyingIndex > 0;
-              return (
-                <div
-                  key={comp.id}
-                   draggable={!searchQuery}
+        <div data-tour="layers-tree" className="p-2 space-y-0.5">
+          {displayLayers.map((comp, displayIndex) => {
+            const isSelected = selectedId === comp.id;
+            const underlyingIndex = componentIndexMap.get(comp.id) ?? -1;
+            const canMoveUp = underlyingIndex >= 0 && underlyingIndex < components.length - 1;
+            const canMoveDown = underlyingIndex > 0;
+            return (
+              <div
+                key={comp.id}
+                data-tour="layer-item"
+                draggable={!searchQuery}
                   onDragStart={() => setDraggedLayerId(comp.id)}
                   onDragOver={(e) => {
                     if (!draggedLayerId || searchQuery) return;

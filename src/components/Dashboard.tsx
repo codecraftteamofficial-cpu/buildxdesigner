@@ -2,7 +2,7 @@
 import { getBackendUrl } from "../utils/backendConfig";
 
 import type React from "react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -77,10 +77,23 @@ import { CreateNewWebsiteModal } from "./CreateNewWebsiteModal"; // Added import
 import { getApiBaseUrl } from "../utils/apiConfig";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { GettingStartedGuideContent } from "./GettingStartedModal";
-import { BuildXIntroduction } from "./Guides/BuildXIntroduction";
+import {
+  type GuideCategory,
+  CATEGORY_META,
+  isCategoryLocked,
+  getCategoryProgress,
+  GettingStartedCategoryDialog,
+} from "./GettingStartedModal";
 import { WebsiteCreation } from "./Guides/WebsiteCreation";
 import { PublishingBasics } from "./Guides/PublishingBasics";
+import { DashboardOverview } from "./Guides/DashboardOverview";
+import { PropertiesPanel } from "./Guides/PropertiesPanel";
+import { AIAssistant } from "./Guides/AIAssistant";
+import { CodeEditorTour } from "./Guides/CodeEditorTour";
+import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
+import { SavingCollaboration } from "./Guides/SavingCollaboration";
+import { NavigatingProjects } from "./Guides/NavigatingProjects";
+import { TemplateInteraction } from "./Guides/TemplateInteraction";
 import {
   fetchDraftProjectsFromApi,
   fetchTrendingTemplatesFromApi,
@@ -96,6 +109,7 @@ import {
   deletePublishedComponent,
 } from "../supabase/data/customComponentService";
 import { ReportTemplateModal } from "./FlagTemplateModal";
+import { markStepComplete, fetchTutorialProgress, readLocalProgress, writeLocalProgress } from "../supabase/data/tutorialProgressService";
 
 type DashboardSection =
   | "new-chat"
@@ -126,6 +140,10 @@ interface DashboardProps {
   onThemeChange?: (theme: "light" | "dark" | "system") => void;
   onLoadTemplate?: (components: ComponentData[]) => void;
   isSupabaseConnected?: boolean;
+  onStartDashboardOverview?: () => void;
+  onStartNavigatingProjects?: () => void;
+  onStartTemplateInteraction?: () => void;
+  onStartComponentsLibrary?: () => void;
 }
 
 interface ProfileDisplayData {
@@ -254,8 +272,8 @@ const CanvasLayoutPreview = ({
 }) => {
   const normalizedLayout = Array.isArray(layout)
     ? collectPreviewComponents(layout).filter(
-        (component) => component && typeof component === "object",
-      )
+      (component) => component && typeof component === "object",
+    )
     : [];
   if (!normalizedLayout.length) {
     return (
@@ -316,13 +334,13 @@ const CanvasLayoutPreview = ({
           const type = String(component?.type || "").toLowerCase();
           const content = String(
             component?.props?.text ??
-              component?.props?.content ??
-              component?.props?.children ??
-              component?.props?.title ??
-              component?.props?.label ??
-              component?.props?.placeholder ??
-              component?.name ??
-              "",
+            component?.props?.content ??
+            component?.props?.children ??
+            component?.props?.title ??
+            component?.props?.label ??
+            component?.props?.placeholder ??
+            component?.name ??
+            "",
           );
 
           return (
@@ -495,19 +513,19 @@ const normalizeProjectLikeRows = (raw: any) => {
 const resolveTemplateProjectId = (item: any, fallback: string) =>
   String(
     item?.project_id ??
-      item?.projectId ??
-      item?.project?.projects_id ??
-      item?.project?.project_id ??
-      item?.project?.id ??
-      item?.projects_id ??
-      item?.projects?.projects_id ??
-      item?.projects?.project_id ??
-      item?.projects?.id ??
-      item?.template_id ??
-      item?.templateId ??
-      item?.id ??
-      item?._id ??
-      fallback,
+    item?.projectId ??
+    item?.project?.projects_id ??
+    item?.project?.project_id ??
+    item?.project?.id ??
+    item?.projects_id ??
+    item?.projects?.projects_id ??
+    item?.projects?.project_id ??
+    item?.projects?.id ??
+    item?.template_id ??
+    item?.templateId ??
+    item?.id ??
+    item?._id ??
+    fallback,
   ).trim();
 
 const resolveFirstPageLayout = (layout: any[]): any[] => {
@@ -565,6 +583,10 @@ export function Dashboard({
   onThemeChange,
   onLoadTemplate,
   isSupabaseConnected,
+  onStartDashboardOverview,
+  onStartNavigatingProjects,
+  onStartTemplateInteraction,
+  onStartComponentsLibrary,
 }: DashboardProps) {
   // --- AUTHENTICATION STATES ---
   const [authLoading, setAuthLoading] = useState(true);
@@ -611,11 +633,62 @@ export function Dashboard({
   const [projectName, setProjectName] = useState("");
   const [showTemplateBrowser, setShowTemplateBrowser] = useState(false);
 
-  const [showBuildXIntroductionTour, setShowBuildXIntroductionTour] =
-    useState(false);
   const [showWebsiteCreationTour, setShowWebsiteCreationTour] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
+  const [tourCompletionKey, setTourCompletionKey] = useState(0);
+  const [showGettingStartedPopup, setShowGettingStartedPopup] = useState(false);
+  const [pendingGuidePopup, setPendingGuidePopup] = useState(false);
+  const [guideCategoryModal, setGuideCategoryModal] = useState<GuideCategory | null>(null);
+  const [tutorialProgress, setTutorialProgress] = useState<Record<string, boolean>>({});
+  const handleTourComplete = () => {
+    setTourCompletionKey(prev => prev + 1);
+  };
+  const handleTourCompletedShowGuide = () => {
+    handleTourComplete();
+    setShowCreateTemplateModal(false);
+    setSelectedTemplateId(null);
+    setActiveSection("new-chat");
+    // Reopen the category modal after a short delay
+    if (lastGuideCategoryRef.current) {
+      setTimeout(() => setGuideCategoryModal(lastGuideCategoryRef.current), 300);
+    }
+  };
+  const [showDashboardTour, setShowDashboardTour] = useState(false);
+  const [showPropertiesPanel, setShowPropertiesPanelTour] = useState(false);
+  const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
+
+  // Auto-switch sections when tours are triggered from external props (e.g. from Editor redirect)
+  useEffect(() => {
+    if (onStartComponentsLibrary) {
+      // If the parent tells us to start the library tour, make sure we're in the right section
+      const originalHandler = onStartComponentsLibrary;
+      // We don't want to wrap it in a way that causes infinite loops, 
+      // but we need to know when it's CALLED.
+      // Actually, App.tsx calls it on mount if localstorage flag is set.
+    }
+  }, [onStartComponentsLibrary]);
+
+  // Handle tours that require specific sections
+  useEffect(() => {
+    // Check if the library tour state in the parent (App.tsx) ever changes 
+    // This is tricky because we don't have access to App's showLibraryTour directly.
+    // However, App.tsx passes the onStart callback.
+    // Let's use a simpler approach: check localstorage directly in Dashboard too 
+    // to ensure the UI section is correct.
+    const checkPendingTours = () => {
+      if (localStorage.getItem("buildx-pending-components-library-tour") === "1") {
+        setActiveSection("marketplace");
+        // No need to remove it here, App.tsx will handle it
+      }
+    };
+    checkPendingTours();
+  }, []);
+  const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
+  const [showComponentsLibraryTour, setShowComponentsLibraryTour] = useState(false);
+  const [showSavingCollabTour, setShowSavingCollabTour] = useState(false);
+  const [showNavigatingProjectsTour, setShowNavigatingProjectsTour] = useState(false);
+  const [showTemplateInteractionTour, setShowTemplateInteractionTour] = useState(false);
 
   const [newProjectCategory, setNewProjectCategory] = useState("Starter");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -650,6 +723,12 @@ export function Dashboard({
   const [isApiReachable, setIsApiReachable] = useState(true);
   const projectLikesFetchErrorLoggedRef = useRef(false);
   const likeMutationAtRef = useRef<Record<string, number>>({});
+  const lastGuideCategoryRef = useRef<GuideCategory | null>(null);
+
+  const openGuideCategory = (cat: GuideCategory) => {
+    lastGuideCategoryRef.current = cat;
+    setGuideCategoryModal(cat);
+  };
 
   const LIKE_SYNC_COOLDOWN_MS = 10000;
 
@@ -695,6 +774,132 @@ export function Dashboard({
     useState(false);
   const [pendingDeleteComponent, setPendingDeleteComponent] =
     useState<any>(null);
+  const [showCongratsPopup, setShowCongratsPopup] = useState(false);
+
+  const ALL_STEP_KEYS = [
+    "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
+    "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
+    "code", "custom-components", "library", "publishing", "export-files"
+  ];
+
+  // Load tutorial progress for the 3 category cards
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (!currentUserId) {
+        setTutorialProgress(readLocalProgress());
+        return;
+      }
+      try {
+        const rows = await fetchTutorialProgress(currentUserId);
+        if (rows.length > 0) {
+          const dbCompleted = Object.fromEntries(
+            rows.map((r: any) => [r.step_key, r.completed]),
+          );
+          setTutorialProgress(dbCompleted);
+        } else {
+          setTutorialProgress(readLocalProgress());
+        }
+      } catch {
+        setTutorialProgress(readLocalProgress());
+      }
+    };
+    loadProgress();
+  }, [currentUserId, tourCompletionKey]);
+
+  const currentUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  const completeTutorialStep = useCallback(async (stepKey: string) => {
+    if (currentUserId) {
+      try {
+        await markStepComplete(currentUserId, stepKey);
+      } catch (err) {
+        console.error(`Failed to save tutorial step ${stepKey}:`, err);
+      }
+
+      // Fetch real progress from DB to check if all done
+      try {
+        const { fetchTutorialProgress } = await import("../supabase/data/tutorialProgressService");
+        const rows = await fetchTutorialProgress(currentUserId);
+        const completedKeys = new Set(rows.filter(r => r.completed).map(r => r.step_key));
+
+        const allDone = ALL_STEP_KEYS.every(key => completedKeys.has(key));
+        if (allDone) {
+          window.dispatchEvent(new Event("buildx-tutorial-completed"));
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch tutorial progress:", err);
+      }
+    } else {
+      // localStorage-only path (no user logged in)
+      localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
+      const allDone = ALL_STEP_KEYS.every(
+        key => key === stepKey || localStorage.getItem(`buildx-tutorial-${key}`) === "1"
+      );
+      if (allDone) {
+        window.dispatchEvent(new Event("buildx-tutorial-completed"));
+        return;
+      }
+    }
+
+    handleTourCompletedShowGuide();
+  }, [currentUserId]);
+
+  // Listen for step completions fired from the editor (App.tsx)
+  useEffect(() => {
+    const handleEditorStepCompleted = async (e: Event) => {
+      const stepKey = (e as CustomEvent).detail?.stepKey;
+      if (!stepKey) return;
+
+      const userId = currentUserIdRef.current;
+
+      if (userId) {
+        try {
+          await markStepComplete(userId, stepKey);
+        } catch (err) {
+          console.error(`Failed to save tutorial step ${stepKey}:`, err);
+        }
+        try {
+          const { fetchTutorialProgress } = await import(
+            "../supabase/data/tutorialProgressService"
+          );
+          const rows = await fetchTutorialProgress(userId);
+          const completedKeys = new Set(
+            rows.filter((r) => r.completed).map((r) => r.step_key)
+          );
+          if (ALL_STEP_KEYS.every((key) => completedKeys.has(key))) {
+            window.dispatchEvent(new Event("buildx-tutorial-completed"));
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to fetch tutorial progress:", err);
+        }
+      } else {
+        localStorage.setItem(`buildx-tutorial-${stepKey}`, "1");
+      }
+
+      // ← CHANGED: only refresh the key, don't close modals or redirect
+      handleTourComplete();
+      if (lastGuideCategoryRef.current) {
+        setTimeout(() => setGuideCategoryModal(lastGuideCategoryRef.current), 300);
+      }
+    };
+
+    window.addEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
+    return () =>
+      window.removeEventListener("buildx-tutorial-step-completed", handleEditorStepCompleted);
+  }, []);
+
+  useEffect(() => {
+    const handleTutorialComplete = () => {
+      setTimeout(() => setShowCongratsPopup(true), 400);
+    };
+    window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
+    return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
+  }, []);
 
   useEffect(() => {
     if (activeSection === "marketplace") {
@@ -757,43 +962,43 @@ export function Dashboard({
       projectId: resolvedProjectId,
       name: String(
         item?.name ??
-          item?.title ??
-          item?.project_name ??
-          item?.project?.project_name ??
-          item?.projects?.project_name ??
-          "Untitled Template",
+        item?.title ??
+        item?.project_name ??
+        item?.project?.project_name ??
+        item?.projects?.project_name ??
+        "Untitled Template",
       ),
       description: String(
         item?.description ??
-          item?.template_description ??
-          item?.project_description ??
-          item?.summary ??
-          item?.project?.description ??
-          item?.project?.project_description ??
-          item?.projects?.description ??
-          item?.projects?.project_description ??
-          "No description available",
+        item?.template_description ??
+        item?.project_description ??
+        item?.summary ??
+        item?.project?.description ??
+        item?.project?.project_description ??
+        item?.projects?.description ??
+        item?.projects?.project_description ??
+        "No description available",
       ),
       thumbnail: String(
         item?.thumbnail ??
-          item?.thumbnailUrl ??
-          item?.image ??
-          item?.project?.thumbnail ??
-          item?.projects?.thumbnail ??
-          "/placeholder.svg",
+        item?.thumbnailUrl ??
+        item?.image ??
+        item?.project?.thumbnail ??
+        item?.projects?.thumbnail ??
+        "/placeholder.svg",
       ),
 
       projectLayout: extractLayoutCandidate(item),
 
       category: String(
         item?.category ??
-          item?.template_category ??
-          item?.project_category ??
-          item?.project?.category ??
-          item?.project?.project_category ??
-          item?.projects?.category ??
-          item?.projects?.project_category ??
-          "Business",
+        item?.template_category ??
+        item?.project_category ??
+        item?.project?.category ??
+        item?.project?.project_category ??
+        item?.projects?.category ??
+        item?.projects?.project_category ??
+        "Business",
       ),
       premium: Boolean(
         item?.premium ?? item?.isPremium ?? item?.isPro ?? false,
@@ -824,12 +1029,12 @@ export function Dashboard({
       ),
       favorites: Number(
         item?.favorites ??
-          item?.like_count ??
-          item?.likeCount ??
-          item?.likes ??
-          item?.project?.likes ??
-          item?.projects?.likes ??
-          0,
+        item?.like_count ??
+        item?.likeCount ??
+        item?.likes ??
+        item?.project?.likes ??
+        item?.projects?.likes ??
+        0,
       ),
     };
   };
@@ -941,11 +1146,11 @@ export function Dashboard({
 
             const parsedLikeCount = Number(
               item?.like_count ??
-                item?.likeCount ??
-                item?.favorites ??
-                item?.likes ??
-                item?.project?.likes ??
-                item?.projects?.likes,
+              item?.likeCount ??
+              item?.favorites ??
+              item?.likes ??
+              item?.project?.likes ??
+              item?.projects?.likes,
             );
 
             if (Number.isFinite(parsedLikeCount) && parsedLikeCount >= 0) {
@@ -1128,8 +1333,8 @@ export function Dashboard({
 
     const intervalId = isApiReachable
       ? window.setInterval(() => {
-          fetchAndSetProjectLikes();
-        }, 15000)
+        fetchAndSetProjectLikes();
+      }, 15000)
       : null;
 
     const handleVisibilityChange = () => {
@@ -2655,31 +2860,31 @@ export function Dashboard({
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredPublishedTemplates = normalizedSearchQuery
     ? publishedTemplates.filter((template) =>
-        [
-          template.projects?.project_name,
-          template.projects?.description,
-          template.projects?.category,
-          template.profiles?.full_name,
-        ]
-          .filter(Boolean)
-          .some((value) =>
-            String(value).toLowerCase().includes(normalizedSearchQuery),
-          ),
-      )
+      [
+        template.projects?.project_name,
+        template.projects?.description,
+        template.projects?.category,
+        template.profiles?.full_name,
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(normalizedSearchQuery),
+        ),
+    )
     : publishedTemplates;
   const filteredSharedProjects = normalizedSearchQuery
     ? sharedProjects.filter((sharedProject) =>
-        [
-          sharedProject.projects?.project_name,
-          sharedProject.projects?.description,
-          sharedProject.projects?.owner_profile?.full_name,
-          sharedProject.role,
-        ]
-          .filter(Boolean)
-          .some((value) =>
-            String(value).toLowerCase().includes(normalizedSearchQuery),
-          ),
-      )
+      [
+        sharedProject.projects?.project_name,
+        sharedProject.projects?.description,
+        sharedProject.projects?.owner_profile?.full_name,
+        sharedProject.role,
+      ]
+        .filter(Boolean)
+        .some((value) =>
+          String(value).toLowerCase().includes(normalizedSearchQuery),
+        ),
+    )
     : sharedProjects;
   const allProjectsPreview = filteredProjects.slice(0, 10);
   const isDeployedValue = (value: unknown) =>
@@ -2792,6 +2997,7 @@ export function Dashboard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                data-tour="sidebar-profile"
                 className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
                 disabled={authLoading}
               >
@@ -2841,6 +3047,7 @@ export function Dashboard({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
+              data-tour="sidebar-search"
               placeholder="Search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -2851,14 +3058,14 @@ export function Dashboard({
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2">
-          <nav className="space-y-1">
+          <nav data-tour="sidebar-nav" className="space-y-1">
             <button
               onClick={() => setActiveSection("new-chat")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "new-chat"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              data-tour="nav-dashboard"
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "new-chat"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Sparkles className="w-4 h-4" />
               <span>Dashboard</span>
@@ -2867,11 +3074,10 @@ export function Dashboard({
             {/* Marketplace */}
             <button
               onClick={() => setActiveSection("marketplace")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "marketplace"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "marketplace"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <BookOpen className="w-4 h-4" />
               <span>Components Library</span>
@@ -2880,11 +3086,11 @@ export function Dashboard({
             {/* All Projects */}
             <button
               onClick={() => setActiveSection("all")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "all"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              data-tour="nav-all"
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "all"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Layout className="w-4 h-4" />
               <span>All projects</span>
@@ -2893,11 +3099,11 @@ export function Dashboard({
             {/* Drafts */}
             <button
               onClick={() => setActiveSection("drafts")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "drafts"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              data-tour="nav-drafts"
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "drafts"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Folder className="w-4 h-4" />
               <span>Drafts</span>
@@ -2911,11 +3117,11 @@ export function Dashboard({
             {/* Trash */}
             <button
               onClick={() => setActiveSection("trash")}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${
-                activeSection === "trash"
-                  ? "text-blue-500 bg-blue-500/10"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              data-tour="nav-trash"
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-md ${activeSection === "trash"
+                ? "text-blue-500 bg-blue-500/10"
+                : "text-muted-foreground hover:bg-muted"
+                }`}
             >
               <Trash2 className="w-4 h-4" />
               <span>Trash</span>
@@ -2952,7 +3158,7 @@ export function Dashboard({
           {/* Theme Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 ml-auto">
+              <Button data-tour="theme-switcher" variant="ghost" size="sm" className="gap-2 ml-auto">
                 <ThemeIcon className="w-4 h-4" />
                 <span className="text-sm capitalize">{theme}</span>
                 <ChevronDown className="w-3 h-3" />
@@ -3058,15 +3264,15 @@ export function Dashboard({
                             filteredRecommendedTemplates.map((template) => {
                               const resolvedLayout =
                                 Array.isArray(template.projectLayout) &&
-                                template.projectLayout.length > 0
+                                  template.projectLayout.length > 0
                                   ? resolveFirstPageLayout(
-                                      template.projectLayout,
-                                    )
+                                    template.projectLayout,
+                                  )
                                   : resolveFirstPageLayout(
-                                      prefetchedTemplateLayouts[
-                                        template.projectId || template.id
-                                      ] || [],
-                                    );
+                                    prefetchedTemplateLayouts[
+                                    template.projectId || template.id
+                                    ] || [],
+                                  );
                               return (
                                 <div
                                   key={template.id}
@@ -3123,21 +3329,19 @@ export function Dashboard({
                                           }
                                           disabled={
                                             likingTemplateIds[
-                                              getTemplateLikeKey(template)
+                                            getTemplateLikeKey(template)
                                             ]
                                           }
-                                          className={`flex items-center gap-1 transition-colors ${
-                                            isTemplateLiked(template)
-                                              ? "text-red-500"
-                                              : "text-muted-foreground hover:text-red-500"
-                                          }`}
+                                          className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                            ? "text-red-500"
+                                            : "text-muted-foreground hover:text-red-500"
+                                            }`}
                                         >
                                           <Heart
-                                            className={`w-4 h-4 ${
-                                              isTemplateLiked(template)
-                                                ? "fill-red-500 text-red-500"
-                                                : ""
-                                            }`}
+                                            className={`w-4 h-4 ${isTemplateLiked(template)
+                                              ? "fill-red-500 text-red-500"
+                                              : ""
+                                              }`}
                                           />
                                           <span className="text-xs">
                                             {getTemplateLikeCount(template)}
@@ -3146,6 +3350,7 @@ export function Dashboard({
 
                                         <button
                                           type="button"
+                                          data-tour="template-report"
                                           onClick={(event) => {
                                             event.stopPropagation();
                                             setSelectedReportTemplate(template);
@@ -3179,32 +3384,134 @@ export function Dashboard({
                         Getting Started Guide
                       </h2>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Complete the tutorials in order to unlock the next step.
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Master BuildX step by step — from basics to advanced features.
                     </p>
-                    <GettingStartedGuideContent
-                      onStartBuildXIntroduction={() => {
-                        setShowBuildXIntroductionTour(false);
-                        setActiveSection("new-chat");
-                        setTimeout(
-                          () => setShowBuildXIntroductionTour(true),
-                          50,
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(["beginner", "intermediate", "advanced"] as GuideCategory[]).map((cat, catIdx) => {
+                        const meta = CATEGORY_META[cat];
+                        const { done, total } = getCategoryProgress(cat, tutorialProgress);
+                        const locked = isCategoryLocked(cat, tutorialProgress);
+                        const progressPercent = total > 0 ? (done / total) * 100 : 0;
+                        const isComplete = done === total && total > 0;
+                        const progressLabel = `${Math.round(progressPercent)}%`;
+
+                        const levelLabels = ["Level 1", "Level 2", "Level 3"];
+                        const accentColors: Record<string, { glow: string; badge: string; num: string; fillHex: string; trackRgba: string }> = {
+                          beginner: { glow: "hover:shadow-emerald-500/10", badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", num: "text-emerald-400", fillHex: "#10B981", trackRgba: "rgba(16, 185, 129, 0.22)" },
+                          intermediate: { glow: "hover:shadow-amber-500/10", badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", num: "text-amber-400", fillHex: "#FBBF24", trackRgba: "rgba(251, 191, 36, 0.22)" },
+                          advanced: { glow: "hover:shadow-red-500/10", badge: "bg-red-500/10 text-red-400 border-red-500/20", num: "text-red-400", fillHex: "#EF4444", trackRgba: "rgba(239, 68, 68, 0.22)" },
+                        };
+                        const accent = accentColors[cat];
+
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              if (!locked) {
+                                lastGuideCategoryRef.current = cat;
+                                setGuideCategoryModal(cat);
+                              }
+                            }}
+                            disabled={locked}
+                            style={{ minHeight: "220px" }}
+                            className={`group relative flex flex-col rounded-xl border text-left transition-all duration-200
+          ${locked
+                                ? "border-border/40 opacity-50 cursor-not-allowed bg-card"
+                                : "border-border bg-card hover:border-border/80 hover:shadow-lg " + accent.glow
+                              }`}
+                          >
+                            {/* Card body */}
+                            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+
+                              {/* Header */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`inline-flex items-center gap-1.5 self-start text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md border ${locked ? "bg-muted/30 text-muted-foreground/50 border-border/30" : accent.badge}`}>
+                                    {locked ? "🔒 Locked" : levelLabels[catIdx]}
+                                  </span>
+                                  <h3 className="text-base font-semibold text-foreground mt-0.5">
+                                    {meta.title}
+                                  </h3>
+                                  <p className={`text-[11px] font-medium ${locked ? "text-muted-foreground/40" : "text-muted-foreground"}`}>
+                                    {meta.subtitle}
+                                  </p>
+                                </div>
+                                <div className="shrink-0">
+                                  {isComplete ? (
+                                    <div
+                                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs text-white"
+                                      style={{ backgroundColor: accent.fillHex }}
+                                    >
+                                      ✓
+                                    </div>
+                                  ) : (
+                                    <span className={`text-xl font-black tabular-nums ${locked ? "text-muted-foreground/30" : accent.num}`}>
+                                      {done}<span className="text-xs font-medium text-muted-foreground/50">/{total}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {meta.description}
+                              </p>
+
+                              {/* Spacer */}
+                              <div style={{ flex: 1 }} />
+
+                              {/* Progress */}
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-end">
+                                  {done && (
+                                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shadow-lg">✓</div>
+                                  )}
+                                  {locked && <span className="text-[10px] font-black opacity-30 tracking-widest uppercase">Locked</span>}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold text-muted-foreground">
+                                    {progressLabel}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {done}/{total}
+                                  </span>
+                                </div>
+                                <div className="relative h-1 w-full rounded-full bg-muted overflow-hidden">
+                                  {/* faint colored track so 0% still shows category color */}
+                                  <div
+                                    className="absolute inset-0"
+                                    style={{
+                                      backgroundColor: locked ? "rgba(148, 163, 184, 0.12)" : accent.trackRgba,
+                                    }}
+                                  />
+                                  <div
+                                    className="relative h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${progressPercent}%`,
+                                      backgroundColor: locked ? "rgba(148, 163, 184, 0.22)" : accent.fillHex,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Footer */}
+                              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {total} tutorial{total !== 1 ? "s" : ""}
+                                </span>
+                                {!locked && (
+                                  <span className={`text-[11px] font-semibold group-hover:underline underline-offset-2 ${isComplete ? "text-muted-foreground" : accent.num}`}>
+                                    {isComplete ? "Review →" : done > 0 ? "Continue →" : "Start →"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
                         );
-                      }}
-                      onStartWebsiteCreation={() => {
-                        localStorage.setItem("buildx-pending-editor-tour", "1");
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                      onStartPublishingBasics={() => {
-                        localStorage.setItem(
-                          "buildx-pending-publishing-basics-tour",
-                          "1",
-                        );
-                        setSelectedTemplateId("blank");
-                        setShowCreateTemplateModal(true);
-                      }}
-                    />
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="w-full max-w-6xl mx-auto mt-10">
@@ -3215,20 +3522,23 @@ export function Dashboard({
                       </h2>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4">
+                    <div
+                      data-tour="trending-templates"
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4"
+                    >
                       {trendingLoading ? (
                         renderRecommendedTemplateSkeletons()
                       ) : trendingTemplates.length > 0 ? (
                         trendingTemplates.map((template) => {
                           const resolvedLayout =
                             Array.isArray(template.projectLayout) &&
-                            template.projectLayout.length > 0
+                              template.projectLayout.length > 0
                               ? resolveFirstPageLayout(template.projectLayout)
                               : resolveFirstPageLayout(
-                                  prefetchedTemplateLayouts[
-                                    template.projectId || template.id
-                                  ] || [],
-                                );
+                                prefetchedTemplateLayouts[
+                                template.projectId || template.id
+                                ] || [],
+                              );
                           return (
                             <div
                               key={template.id}
@@ -3279,26 +3589,25 @@ export function Dashboard({
                                   <div className="flex items-center gap-3">
                                     <button
                                       type="button"
+                                      data-tour="trending-like-button"
                                       onClick={(event) =>
                                         handleLikeTemplate(event, template)
                                       }
                                       disabled={
                                         likingTemplateIds[
-                                          getTemplateLikeKey(template)
+                                        getTemplateLikeKey(template)
                                         ]
                                       }
-                                      className={`flex items-center gap-1 transition-colors ${
-                                        isTemplateLiked(template)
-                                          ? "text-red-500"
-                                          : "text-muted-foreground hover:text-red-500"
-                                      }`}
+                                      className={`flex items-center gap-1 transition-colors ${isTemplateLiked(template)
+                                        ? "text-red-500"
+                                        : "text-muted-foreground hover:text-red-500"
+                                        }`}
                                     >
                                       <Heart
-                                        className={`w-4 h-4 ${
-                                          isTemplateLiked(template)
-                                            ? "fill-red-500 text-red-500"
-                                            : ""
-                                        }`}
+                                        className={`w-4 h-4 ${isTemplateLiked(template)
+                                          ? "fill-red-500 text-red-500"
+                                          : ""
+                                          }`}
                                       />
                                       <span className="text-xs">
                                         {getTemplateLikeCount(template)}
@@ -3307,6 +3616,7 @@ export function Dashboard({
 
                                     <button
                                       type="button"
+                                      data-tour="trending-report"
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         setSelectedReportTemplate(template);
@@ -3349,6 +3659,7 @@ export function Dashboard({
                           <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                             <Input
+                              data-tour="components-library-search"
                               placeholder="Search components..."
                               value={marketplaceSearch}
                               onChange={(e) =>
@@ -3359,6 +3670,7 @@ export function Dashboard({
                           </div>
                           <div className="ml-auto">
                             <Button
+                              data-tour="components-library-my-components"
                               variant="outline"
                               size="sm"
                               className="gap-2"
@@ -3381,7 +3693,7 @@ export function Dashboard({
                                 key={i}
                                 className="rounded-xl border border-border bg-card overflow-hidden"
                               >
-                                <Skeleton className="aspect-[4/3] w-full" />
+                                <Skeleton className="aspect-4/3 w-full" />
                                 <div className="p-4">
                                   <Skeleton width="70%" height={18} />
                                   <Skeleton
@@ -3430,10 +3742,11 @@ export function Dashboard({
                                 {filtered.map((comp) => (
                                   <div
                                     key={comp.id}
+                                    data-tour="components-library-card"
                                     className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                                   >
                                     {/* PREVIEW BOX: Using zoom to force content to fit */}
-                                    <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                                    <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                                       <style>
                                         {`
                                     .preview-container-${comp.id} {
@@ -3484,6 +3797,7 @@ export function Dashboard({
                                             </div>
                                           ) : (
                                             <button
+                                              data-tour="components-library-import"
                                               className="p-1.5 hover:bg-primary/10 rounded-full transition-colors group/import"
                                               onClick={(e) => {
                                                 e.stopPropagation();
@@ -3599,31 +3913,28 @@ export function Dashboard({
                     <div className="flex items-center gap-2 mb-6">
                       <button
                         onClick={() => setProjectsFilter("all")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "all"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "all"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         All
                       </button>
                       <button
                         onClick={() => setProjectsFilter("published")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "published"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "published"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         Published Templates
                       </button>
                       <button
                         onClick={() => setProjectsFilter("shared")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          projectsFilter === "shared"
-                            ? "bg-blue-500 text-white shadow-md"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${projectsFilter === "shared"
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
                       >
                         Shared
                       </button>
@@ -4137,8 +4448,8 @@ export function Dashboard({
                           } // <-- CRITICAL CHANGE: Pass project.name
                         >
                           {activeSection === "drafts" ||
-                          activeSection === "all" ||
-                          activeSection === "trash" ? (
+                            activeSection === "all" ||
+                            activeSection === "trash" ? (
                             <CardContent className="p-3">
                               {viewMode === "grid" && (
                                 <div className="relative h-24 rounded-md overflow-hidden bg-muted mb-3">
@@ -4541,7 +4852,7 @@ export function Dashboard({
                 placeholder="Describe your website (optional)..."
                 value={editProjectDescription}
                 onChange={(e) => setEditProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
 
@@ -4618,7 +4929,7 @@ export function Dashboard({
                 placeholder="Describe what kind of website you want to create..."
                 value={newProjectDescription}
                 onChange={(e) => setNewProjectDescription(e.target.value)}
-                className="min-h-[96px]"
+                className="min-h-24"
               />
             </div>
           </div>
@@ -4669,7 +4980,7 @@ export function Dashboard({
           setSelectedTemplateId(templateId);
           prefetchTemplateLayout(templateId);
         }}
-        onTrackSearch={() => {}}
+        onTrackSearch={() => { }}
         recommendedTemplates={visibleRecommendedTemplates}
         initialTemplateId={selectedTemplateId} // Pass selectedTemplateId as initialTemplateId
       />
@@ -4688,8 +4999,8 @@ export function Dashboard({
 
           const projectId = String(
             selectedReportTemplate?.projectId ??
-              selectedReportTemplate?.id ??
-              "",
+            selectedReportTemplate?.id ??
+            "",
           ).trim();
 
           if (!projectId) {
@@ -4719,31 +5030,252 @@ export function Dashboard({
         }}
       />
 
-      <BuildXIntroduction
-        showOnMount={showBuildXIntroductionTour}
-        onComplete={() => {
-          localStorage.setItem("buildx-tutorial-intro", "1");
-          setShowBuildXIntroductionTour(false);
-          setShowCreateTemplateModal(false);
-          setSelectedTemplateId(null);
-        }}
-      />
-
       <WebsiteCreation
         showOnMount={showWebsiteCreationTour}
+        onEnsureCreateWebsiteModalOpen={() => {
+          setSelectedTemplateId("blank");
+          setShowCreateTemplateModal(true);
+        }}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-website-creation", "1");
           setShowWebsiteCreationTour(false);
+          completeTutorialStep("website");
         }}
       />
 
       <PublishingBasics
         showOnMount={showPublishingBasicsTour}
         onComplete={() => {
-          localStorage.setItem("buildx-tutorial-publishing-basics", "1");
           setShowPublishingBasicsTour(false);
         }}
       />
+
+      <DashboardOverview
+        showOnMount={showDashboardTour}
+        onNavigateToAllProjects={() => setActiveSection("all")}
+        onNavigateToDashboard={() => setActiveSection("new-chat")}
+        onComplete={() => {
+          setShowDashboardTour(false);
+          completeTutorialStep("dashboard");
+        }}
+      />
+
+      <PropertiesPanel
+        showOnMount={showPropertiesPanel}
+        onComplete={() => {
+          setShowPropertiesPanelTour(false);
+          completeTutorialStep("properties");
+        }}
+      />
+
+      <AIAssistant
+        showOnMount={showAIAssistantTour}
+        onComplete={() => {
+          setShowAIAssistantTour(false);
+          completeTutorialStep("ai");
+        }}
+      />
+
+      <CodeEditorTour
+        showOnMount={showCodeEditorTour}
+        onComplete={() => {
+          setShowCodeEditorTour(false);
+          completeTutorialStep("code");
+        }}
+      />
+
+      <ComponentsLibrary
+        showOnMount={showComponentsLibraryTour}
+        onComplete={() => {
+          setShowComponentsLibraryTour(false);
+          completeTutorialStep("library");
+        }}
+      />
+
+      <SavingCollaboration
+        showOnMount={showSavingCollabTour}
+        onComplete={() => {
+          setShowSavingCollabTour(false);
+          completeTutorialStep("collab");
+        }}
+      />
+
+      {/* Getting Started Category Modal */}
+      {guideCategoryModal && (
+        <GettingStartedCategoryDialog
+          open={!!guideCategoryModal}
+          onOpenChange={(open) => {
+            if (!open) lastGuideCategoryRef.current = null; setGuideCategoryModal(null);
+          }}
+          category={guideCategoryModal}
+          userId={currentUserId}
+          refreshKey={tourCompletionKey}
+          onStartWebsiteCreation={() => {
+            setGuideCategoryModal(null);
+            setShowWebsiteCreationTour(false);
+            setActiveSection("new-chat");
+            setTimeout(() => setShowWebsiteCreationTour(true), 50);
+          }}
+          onStartPublishingBasics={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-publishing-basics-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartDashboardOverview={() => {
+            setGuideCategoryModal(null);
+            if (onStartDashboardOverview) {
+              onStartDashboardOverview();
+            } else {
+              setShowDashboardTour(false);
+              setTimeout(() => setShowDashboardTour(true), 50);
+            }
+          }}
+          onStartCanvasArea={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-canvas-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartPropertiesPanel={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-properties-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartAIAssistant={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-ai-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartCodeEditor={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-code-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartComponentsLibrary={() => {
+            setGuideCategoryModal(null);
+            setActiveSection("marketplace");
+            if (onStartComponentsLibrary) {
+              onStartComponentsLibrary();
+            } else {
+              setShowComponentsLibraryTour(false);
+              setTimeout(() => setShowComponentsLibraryTour(true), 50);
+            }
+          }}
+          onStartSavingCollaboration={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-collab-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartNavigatingProjects={() => {
+            setGuideCategoryModal(null);
+            if (onStartNavigatingProjects) {
+              onStartNavigatingProjects();
+            } else {
+              setShowNavigatingProjectsTour(false);
+              setTimeout(() => setShowNavigatingProjectsTour(true), 50);
+            }
+          }}
+          onStartTemplateInteraction={() => {
+            setGuideCategoryModal(null);
+            if (onStartTemplateInteraction) {
+              onStartTemplateInteraction();
+            } else {
+              setShowTemplateInteractionTour(false);
+              setTimeout(() => setShowTemplateInteractionTour(true), 50);
+            }
+          }}
+          onStartPublishTemplate={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-publish-template-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartBlocksPalette={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-blocks-palette-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartLayersPanel={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-layers-panel-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartMultiPageManagement={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-multi-page-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartPreviewMode={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-preview-mode-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartCustomComponents={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-custom-components-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+          onStartExportFiles={() => {
+            setGuideCategoryModal(null);
+            localStorage.setItem("buildx-pending-export-files-tour", "1");
+            setSelectedTemplateId("blank");
+            setShowCreateTemplateModal(true);
+          }}
+        />
+      )}
+
+      {showNavigatingProjectsTour && (
+        <NavigatingProjects
+          showOnMount={true}
+          onComplete={() => {
+            setShowNavigatingProjectsTour(false);
+            completeTutorialStep("nav-projects");
+          }}
+        />
+      )}
+
+      {showTemplateInteractionTour && (
+        <TemplateInteraction
+          showOnMount={true}
+          onComplete={() => {
+            setShowTemplateInteractionTour(false);
+            completeTutorialStep("template-interact");
+          }}
+        />
+      )}
+
+
+      {/* Congratulations Modal - shows after all 10 steps completed */}
+      {showCongratsPopup && (
+        <Dialog open={showCongratsPopup} onOpenChange={setShowCongratsPopup}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>🎉 Congratulations!</DialogTitle>
+              <DialogDescription>
+                You've completed all 19 tutorial steps. You're now a BuildX master!
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                className="w-full bg-linear-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white"
+                onClick={() => setShowCongratsPopup(false)}
+              >
+                Start Building
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
 
       {/* Import Component Confirmation Dialog */}
       <Dialog
@@ -4828,7 +5360,7 @@ export function Dashboard({
                           className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                         >
                           {/* Preview */}
-                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                             <style>
                               {`
                                 .preview-container-${comp.id} {
@@ -4923,7 +5455,7 @@ export function Dashboard({
                           className="theme-interactive-card group relative rounded-xl overflow-hidden border border-border bg-card hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
                         >
                           {/* Preview */}
-                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-[4/3] overflow-hidden flex items-center justify-center p-2">
+                          <div className="relative flex-1 bg-white dark:bg-slate-950 aspect-4/3 overflow-hidden flex items-center justify-center p-2">
                             <style>
                               {`
                                 .preview-container-${comp.id} {

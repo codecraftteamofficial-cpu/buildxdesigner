@@ -134,6 +134,7 @@ interface EditorTopBarProps {
   ) => void;
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
+  onOpenGettingStarted?: () => void;
 }
 
 interface ProjectCollaborator {
@@ -265,6 +266,7 @@ export function EditorTopBar({
   onUpdatePage,
   onStartTour,
   onStartPublishingBasics,
+  onOpenGettingStarted,
 }: EditorTopBarProps) {
   const navigate = useNavigate();
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
@@ -362,13 +364,19 @@ export function EditorTopBar({
       );
     };
 
+    const handleClosePublishSiteModal = () => {
+      setShowPublishSiteModal(false);
+    };
+
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("supabaseKeysUpdated", handleStorageChange);
     window.addEventListener("userProjectConfigUpdated", handleStorageChange);
+    window.addEventListener("close-publish-site-modal", handleClosePublishSiteModal);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("supabaseKeysUpdated", handleStorageChange);
       window.removeEventListener("userProjectConfigUpdated", handleStorageChange);
+      window.removeEventListener("close-publish-site-modal", handleClosePublishSiteModal);
     };
   }, []);
 
@@ -1384,6 +1392,7 @@ export function EditorTopBar({
 
         {pages && activePageId && onSwitchPage && (
           <PageSelector
+            data-tour="top-bar-page-selector"
             pages={pages}
             activePageId={activePageId}
             onSwitchPage={onSwitchPage}
@@ -1413,6 +1422,19 @@ export function EditorTopBar({
           >
             {projectName}
           </div>
+        )}
+
+        {onOpenGettingStarted && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenGettingStarted}
+            className="h-8 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors gap-2 ml-1"
+            title="Getting Started Guide"
+          >
+            <Info className="w-4 h-4" />
+            <span className="hidden sm:inline font-medium text-sm">Guide</span>
+          </Button>
         )}
       </div>
 
@@ -1731,7 +1753,7 @@ export function EditorTopBar({
             <DropdownMenuLabel className="text-xs text-muted-foreground">
               Template
             </DropdownMenuLabel>
-            <div className="flex items-center justify-between px-2 py-2 gap-3">
+            <div data-tour="publish-marketplace" className="flex items-center justify-between px-2 py-2 gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 <Globe className="w-4 h-4 text-foreground/70" />
                 <div className="text-sm text-foreground truncate">
@@ -1801,7 +1823,7 @@ export function EditorTopBar({
 
         {onPreview && (
           <Button
-            data-tour="preview"
+            data-tour="top-bar-preview"
             variant="ghost"
             size="sm"
             onClick={onPreview}
@@ -1835,7 +1857,7 @@ export function EditorTopBar({
         </Button>
 
         <Button
-          data-tour="publish"
+          data-tour="top-bar-publish-template"
           ref={publishButtonRef}
           onClick={handlePublishTemplateClick}
           size="sm"
@@ -1854,6 +1876,8 @@ export function EditorTopBar({
         >
           <span>Share</span>
         </Button>
+
+
 
         {resolvedAvatarUrl && !avatarLoadFailed ? (
           <img
@@ -1920,7 +1944,7 @@ export function EditorTopBar({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6" data-tour="share-modal">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-foreground">Share</h3>
                 <button

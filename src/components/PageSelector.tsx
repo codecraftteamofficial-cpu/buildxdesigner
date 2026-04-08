@@ -227,7 +227,10 @@ export function PageSelector({
                         }
                     }}
                 >
-                    <SelectTrigger className="h-8 min-w-[120px] bg-transparent border-none hover:bg-accent focus:ring-0 shadow-none text-sm font-medium">
+                    <SelectTrigger 
+                        data-tour="page-selector-trigger"
+                        className="h-8 min-w-[120px] bg-transparent border-none hover:bg-accent focus:ring-0 shadow-none text-sm font-medium"
+                    >
                         <SelectValue placeholder="Select Page" />
                     </SelectTrigger>
 
@@ -288,7 +291,7 @@ export function PageSelector({
                                     value="NEW_PAGE"
                                     className="cursor-pointer text-blue-600 focus:text-blue-700 font-medium"
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2" data-tour="create-new-page">
                                         <Plus className="w-4 h-4" />
                                         Create New Page
                                     </div>
@@ -327,7 +330,7 @@ export function PageSelector({
 
             {/* Add Page Dialog */}
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                <DialogContent onCloseAutoFocus={(e) => e.preventDefault()}>
+                <DialogContent data-tour="new-page-modal" onCloseAutoFocus={(e) => e.preventDefault()}>
                     <DialogHeader>
                         <DialogTitle>Create New Page</DialogTitle>
                         <DialogDescription>Add a new page to your project.</DialogDescription>

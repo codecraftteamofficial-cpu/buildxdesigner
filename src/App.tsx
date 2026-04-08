@@ -53,8 +53,25 @@ import LoginAuthSessionChecker from "./services/useAuthenticator";
 import { CollaborationServiceProvider } from "./services/useCollaboration";
 import { WebsiteCreation } from "./components/Guides/WebsiteCreation";
 import { PublishingBasics } from "./components/Guides/PublishingBasics";
-import { GettingStartedModal } from "./components/GettingStartedModal";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { CanvasArea } from "./components/Guides/CanvasArea";
+import { PropertiesPanel } from "./components/Guides/PropertiesPanel";
+import { AIAssistant } from "./components/Guides/AIAssistant";
+import { CodeEditorTour } from "./components/Guides/CodeEditorTour";
+import { SavingCollaboration } from "./components/Guides/SavingCollaboration";
+import { BlocksPaletteTour } from "./components/Guides/BlocksPaletteTour";
+import { LayersPanelTour } from "./components/Guides/LayersPanelTour";
+import { MultiPageTour } from "./components/Guides/MultiPageTour";
+import { PreviewModeTour } from "./components/Guides/PreviewModeTour";
+import { CustomComponentsTour } from "./components/Guides/CustomComponentsTour";
+import { ExportFilesTour } from "./components/Guides/ExportFilesTour";
+import { PublishTemplateTour } from "./components/Guides/PublishTemplateTour";
+import { ComponentsLibrary } from "./components/Guides/ComponentsLibrary";
+import { DashboardOverview } from "./components/Guides/DashboardOverview";
+import { NavigatingProjects } from "./components/Guides/NavigatingProjects";
+import { BuildXIntroduction } from "./components/Guides/BuildXIntroduction";
+import { TemplateInteraction } from "./components/Guides/TemplateInteraction";
+import { markStepComplete } from "./supabase/data/tutorialProgressService";
 
 // State hook (contains ALL state, effects, auth, keyboard shortcuts, etc.)
 import { useEditorState } from "./hooks/useEditorState";
@@ -120,29 +137,73 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   const isInitialMount = useRef(true);
   const onboardingCheckUserIdRef = useRef<string | null>(null);
   const [showEditorTour, setShowEditorTour] = useState(false);
-  const [showGettingStartedModal, setShowGettingStartedModal] = useState(false);
   const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
     useState(false);
+  const [showCanvasTour, setShowCanvasTour] = useState(false);
+  const [showPropertiesT, setShowPropertiesT] = useState(false);
+  const [showAITour, setShowAITour] = useState(false);
+  const [showCodeTour, setShowCodeTour] = useState(false);
+  const [showCollabTour, setShowCollabTour] = useState(false);
+  const [showBlocksPaletteTour, setShowBlocksPaletteTour] = useState(false);
+  const [showLayersPanelTour, setShowLayersPanelTour] = useState(false);
+  const [showMultiPageTour, setShowMultiPageTour] = useState(false);
+  const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
+  const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
+  const [showExportFilesTour, setShowExportFilesTour] = useState(false);
+  const [showPublishTemplateTour, setShowPublishTemplateTour] = useState(false);
+  const [showLibraryTour, setShowLibraryTour] = useState(false);
+  const [showDashboardOverviewTour, setShowDashboardOverviewTour] = useState(false);
+  const [showNavigatingProjectsTour, setShowNavigatingProjectsTour] = useState(false);
+  const [showBuildXIntroTour, setShowBuildXIntroTour] = useState(false);
+  const [showTemplateInteractTour, setShowTemplateInteractTour] = useState(false);
 
   //Ito is ihohold niya muna yung tutorial to create a project, and then kapag nakacreate na siya ng project, dun na magcocontinue yung tutorial
   useEffect(() => {
-    if (!location.pathname.startsWith("/editor")) return;
+    const editorChecks = [
+      { key: "buildx-pending-editor-tour", setter: setShowEditorTour },
+      { key: "buildx-pending-publishing-basics-tour", setter: setShowPublishingBasicsTour },
+      { key: "buildx-pending-canvas-tour", setter: setShowCanvasTour },
+      { key: "buildx-pending-properties-tour", setter: setShowPropertiesT },
+      { key: "buildx-pending-ai-tour", setter: setShowAITour },
+      { key: "buildx-pending-code-tour", setter: setShowCodeTour },
+      { key: "buildx-pending-collab-tour", setter: setShowCollabTour },
+      { key: "buildx-pending-blocks-palette-tour", setter: setShowBlocksPaletteTour },
+      { key: "buildx-pending-layers-panel-tour", setter: setShowLayersPanelTour },
+      { key: "buildx-pending-multi-page-tour", setter: setShowMultiPageTour },
+      { key: "buildx-pending-preview-mode-tour", setter: setShowPreviewModeTour },
+      { key: "buildx-pending-custom-components-tour", setter: setShowCustomComponentsTour },
+      { key: "buildx-pending-export-files-tour", setter: setShowExportFilesTour },
+      { key: "buildx-pending-publish-template-tour", setter: setShowPublishTemplateTour },
+    ];
 
-    const shouldStartWebsiteCreationTour =
-      localStorage.getItem("buildx-pending-editor-tour") === "1";
-    const shouldStartPublishingBasicsTour =
-      localStorage.getItem("buildx-pending-publishing-basics-tour") === "1";
+    const dashboardChecks = [
+      { key: "buildx-pending-components-library-tour", setter: setShowLibraryTour },
+      { key: "buildx-pending-dashboard-overview-tour", setter: setShowDashboardOverviewTour },
+      { key: "buildx-pending-navigating-projects-tour", setter: setShowNavigatingProjectsTour },
+      { key: "buildx-pending-buildx-introduction-tour", setter: setShowBuildXIntroTour },
+      { key: "buildx-pending-template-interaction-tour", setter: setShowTemplateInteractTour },
+    ];
 
-    if (shouldStartWebsiteCreationTour) {
-      localStorage.removeItem("buildx-pending-editor-tour");
-      setShowEditorTour(true);
-    }
-
-    if (shouldStartPublishingBasicsTour) {
-      localStorage.removeItem("buildx-pending-publishing-basics-tour");
-      setShowPublishingBasicsTour(true);
+    if (location.pathname.startsWith("/editor")) {
+      editorChecks.forEach(({ key, setter }) => {
+        if (localStorage.getItem(key) === "1") {
+          localStorage.removeItem(key);
+          setTimeout(() => setter(true), 100);
+        }
+      });
+    } else if (location.pathname === "/dashboard") {
+      dashboardChecks.forEach(({ key, setter }) => {
+        if (localStorage.getItem(key) === "1") {
+          localStorage.removeItem(key);
+          setTimeout(() => setter(true), 100);
+        }
+      });
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    console.log("[App] showCanvasTour state changed:", showCanvasTour);
+  }, [showCanvasTour]);
 
   const {
     state,
@@ -161,6 +222,31 @@ function AppRoutes({ editor }: { editor: EditorController }) {
     showOnboarding,
     setShowOnboarding,
   } = editor;
+
+  const currentUserRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentUserRef.current = currentUser?.id ?? null;
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    const handleStepCompleted = async (e: Event) => {
+      const stepKey = (e as CustomEvent).detail?.stepKey;
+      if (!stepKey) return;
+
+      const userId = currentUserRef.current;
+      if (!userId) return;
+
+      try {
+        await markStepComplete(userId, stepKey);
+      } catch (err) {
+        console.error(`[App] Failed to save tutorial step ${stepKey}:`, err);
+      }
+    };
+
+    window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+    return () =>
+      window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+  }, []);
 
   const handleAuthenticatedSession = async (session?: {
     user?: {
@@ -522,255 +608,490 @@ function AppRoutes({ editor }: { editor: EditorController }) {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <LoginAuthSessionChecker onAuthenticated={handleAuthenticatedSession}>
-            <LandingPage onEnterEditor={enterDashboard} />
-            <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50" />
-          </LoginAuthSessionChecker>
-        }
-      />
-      <Route
-        path="/admin-login"
-        element={
-          <>
-            <AdminLogin
-              onLoginSuccess={goToAdmin}
-              onBack={goToLanding}
-              theme={state.theme}
-              onThemeChange={handleThemeChange}
-            />
-            <Toaster />
-          </>
-        }
-      />
-      <Route
-        path="/admin"
-        element={
-          <>
-            <AdminDashboard
-              onBack={goToAdminLogin}
-              theme={state.theme}
-              onThemeChange={handleThemeChange}
-            />
-            <Toaster />
-          </>
-        }
-      />
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <LoginAuthSessionChecker onAuthenticated={handleAuthenticatedSession}>
+              <LandingPage onEnterEditor={enterDashboard} />
+              <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50" />
+            </LoginAuthSessionChecker>
+          }
+        />
+        <Route
+          path="/admin-login"
+          element={
+            <>
+              <AdminLogin
+                onLoginSuccess={goToAdmin}
+                onBack={goToLanding}
+                theme={state.theme}
+                onThemeChange={handleThemeChange}
+              />
+              <Toaster />
+            </>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <>
+              <AdminDashboard
+                onBack={goToAdminLogin}
+                theme={state.theme}
+                onThemeChange={handleThemeChange}
+              />
+              <Toaster />
+            </>
+          }
+        />
 
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      <Route
-        path="/dashboard"
-        element={
-          <>
-            <Dashboard
-              onCreateFromScratch={createFromScratch}
-              onOpenTemplates={toggleTemplates}
-              onOpenAIGenerator={() =>
-                setState((prev) => ({
-                  ...prev,
-                  showAIGenerator: !prev.showAIGenerator,
-                }))
-              }
-              onOpenProject={openProjectAndRoute}
-              onLogout={goToLanding}
-              theme={state.theme}
-                 onThemeChange={handleThemeChange}
-              isSupabaseConnected={state.isSupabaseConnected}
-              onLoadTemplate={(components) => {
-                const centerX = 500;
-                const centerY = 300;
-                let currentY = centerY;
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <Dashboard
+                onCreateFromScratch={createFromScratch}
+                onOpenTemplates={toggleTemplates}
+                onOpenAIGenerator={() =>
+                  setState((prev) => ({
+                    ...prev,
+                    showAIGenerator: !prev.showAIGenerator,
+                  }))
+                }
+                onOpenProject={openProjectAndRoute}
+                onLogout={goToLanding}
+                theme={state.theme}
+                onThemeChange={handleThemeChange}
+                isSupabaseConnected={state.isSupabaseConnected}
+                onLoadTemplate={(components) => {
+                  const centerX = 500;
+                  const centerY = 300;
+                  let currentY = centerY;
 
-                const positionedComponents = components.map((comp) => {
-                  const height =
-                    Number.parseFloat(
-                      String(comp.style?.height || "100").replace("px", ""),
-                    ) || 100;
-                  const width =
-                    Number.parseFloat(
-                      String(comp.style?.width || "100").replace("px", ""),
-                    ) || 100;
+                  const positionedComponents = components.map((comp) => {
+                    const height =
+                      Number.parseFloat(
+                        String(comp.style?.height || "100").replace("px", ""),
+                      ) || 100;
+                    const width =
+                      Number.parseFloat(
+                        String(comp.style?.width || "100").replace("px", ""),
+                      ) || 100;
 
-                  return {
-                    ...comp,
-                    position: {
-                      x: centerX - width / 2,
-                      y: currentY,
-                    },
-                  };
-                  currentY += height + 20;
-                });
+                    return {
+                      ...comp,
+                      position: {
+                        x: centerX - width / 2,
+                        y: currentY,
+                      },
+                    };
+                    currentY += height + 20;
+                  });
 
-                setState((prev) => ({
-                  ...prev,
-                  components: positionedComponents,
-                  currentView: "editor",
-                  currentPage: "editor",
-                  hasUnsavedChanges: true,
-                }));
-              }}
-            />
-            <Toaster />
-          </>
-        }
-      />
-      <Route
-        path="/project-private"
-        element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
-      />
-      <Route
-        path="/project-private/:projectId"
-        element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
-      />
-      <Route
-        path="/editor/:projectId/private"
-        element={
-          state.projectIsPublic === null ||
-          state.projectCanView === null ||
-          (state.projectIsPublic === false &&
-            state.projectAuthorId === null) ? (
-            <div className="flex justify-center items-center h-screen w-full bg-background">
-              <Loader2 className="w-8 h-8 mr-2 text-blue-600 animate-spin" />
-              <p className="text-xl text-foreground">Checking access...</p>
-            </div>
-          ) : state.projectIsPublic === false && !state.projectCanView ? (
-            <Navigate to={privateAccessPath} replace />
-          ) : state.projectIsPublic === false &&
-            state.currentUser?.id &&
-            state.currentUser.id !== state.projectAuthorId ? (
-            <Navigate to={`/editor/${routeProjectId}`} replace />
-          ) : (
+                  setState((prev) => ({
+                    ...prev,
+                    components: positionedComponents,
+                    currentView: "editor",
+                    currentPage: "editor",
+                    hasUnsavedChanges: true,
+                  }));
+                }}
+                onStartBuildXIntroduction={() => setShowBuildXIntroTour(true)}
+                onStartDashboardOverview={() => setShowDashboardOverviewTour(true)}
+                onStartNavigatingProjects={() => setShowNavigatingProjectsTour(true)}
+                onStartTemplateInteraction={() => setShowTemplateInteractTour(true)}
+                onStartComponentsLibrary={() => setShowLibraryTour(true)}
+              />
+              <BuildXIntroduction
+                showOnMount={showBuildXIntroTour}
+                onComplete={() => {
+                  setShowBuildXIntroTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "palette" } }));
+                }}
+              />
+              <DashboardOverview
+                showOnMount={showDashboardOverviewTour}
+                onComplete={() => {
+                  setShowDashboardOverviewTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "dashboard" } }));
+                }}
+              />
+              <NavigatingProjects
+                showOnMount={showNavigatingProjectsTour}
+                onComplete={() => {
+                  setShowNavigatingProjectsTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "nav-projects" } }));
+                }}
+              />
+              <TemplateInteraction
+                showOnMount={showTemplateInteractTour}
+                onComplete={() => {
+                  setShowTemplateInteractTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "template-interact" } }));
+                }}
+              />
+              <ComponentsLibrary
+                showOnMount={showLibraryTour}
+                onComplete={() => {
+                  setShowLibraryTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "library" } }));
+                }}
+              />
+              <Toaster />
+            </>
+          }
+        />
+        <Route
+          path="/project-private"
+          element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
+        />
+        <Route
+          path="/project-private/:projectId"
+          element={<GetOut onBackToDashboard={goToDashboardAndRoute} />}
+        />
+        <Route
+          path="/editor/:projectId/private"
+          element={
+            state.projectIsPublic === null ||
+              state.projectCanView === null ||
+              (state.projectIsPublic === false &&
+                state.projectAuthorId === null) ? (
+              <div className="flex justify-center items-center h-screen w-full bg-background">
+                <Loader2 className="w-8 h-8 mr-2 text-blue-600 animate-spin" />
+                <p className="text-xl text-foreground">Checking access...</p>
+              </div>
+            ) : state.projectIsPublic === false && !state.projectCanView ? (
+              <Navigate to={privateAccessPath} replace />
+            ) : state.projectIsPublic === false &&
+              state.currentUser?.id &&
+              state.currentUser.id !== state.projectAuthorId ? (
+              <Navigate to={`/editor/${routeProjectId}`} replace />
+            ) : (
+              <>
+                <EditorLayout
+                  editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+                  onStartTour={() => setShowEditorTour(true)}
+                  onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
+                  onStartCanvasArea={() => setShowCanvasTour(true)}
+                  onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+                  onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+                  onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+                  onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
+                />
+                <WebsiteCreation
+                  showOnMount={showEditorTour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-website-creation", "1");
+                    setShowEditorTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
+                  }}
+                />
+                <PublishingBasics
+                  showOnMount={showPublishingBasicsTour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-publishing-basics", "1");
+                    setShowPublishingBasicsTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
+                  }}
+                />
+                <CanvasArea
+                  showOnMount={showCanvasTour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-canvas", "1");
+                    setShowCanvasTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
+                  }}
+                />
+                <PropertiesPanel
+                  showOnMount={showPropertiesT}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-properties", "1");
+                    setShowPropertiesT(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+                  }}
+                />
+                <AIAssistant
+                  showOnMount={showAITour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-ai", "1");
+                    setShowAITour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
+                  }}
+                />
+                <CodeEditorTour
+                  showOnMount={showCodeTour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-code", "1");
+                    setShowCodeTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
+                  }}
+                />
+                <SavingCollaboration
+                  showOnMount={showCollabTour}
+                  onComplete={() => {
+                    localStorage.setItem("buildx-tutorial-collab", "1");
+                    setShowCollabTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+                  }}
+                />
+                <BlocksPaletteTour
+                  showOnMount={showBlocksPaletteTour}
+                  onComplete={() => {
+                    setShowBlocksPaletteTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "blocks-palette" } }));
+                  }}
+                />
+                <LayersPanelTour
+                  showOnMount={showLayersPanelTour}
+                  onComplete={() => {
+                    setShowLayersPanelTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "layers-panel" } }));
+                  }}
+                />
+                <MultiPageTour
+                  showOnMount={showMultiPageTour}
+                  onComplete={() => {
+                    setShowMultiPageTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "multi-page" } }));
+                  }}
+                />
+                <PreviewModeTour
+                  showOnMount={showPreviewModeTour}
+                  onComplete={() => {
+                    setShowPreviewModeTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "preview-mode" } }));
+                  }}
+                />
+                <CustomComponentsTour
+                  showOnMount={showCustomComponentsTour}
+                  onComplete={() => {
+                    setShowCustomComponentsTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "custom-components" } }));
+                  }}
+                />
+                <ExportFilesTour
+                  showOnMount={showExportFilesTour}
+                  onComplete={() => {
+                    setShowExportFilesTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "export-files" } }));
+                  }}
+                />
+                <PublishTemplateTour
+                  showOnMount={showPublishTemplateTour}
+                  onComplete={() => {
+                    setShowPublishTemplateTour(false);
+                    window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publish-template" } }));
+                  }}
+                />
+              </>
+            )
+          }
+        />
+        <Route
+          path="/editor"
+          element={
             <>
               <EditorLayout
                 editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
                 onStartTour={() => setShowEditorTour(true)}
-                onStartPublishingBasics={() =>
-                  setShowPublishingBasicsTour(true)
-                }
+                onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
+                onStartCanvasArea={() => setShowCanvasTour(true)}
+                onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+                onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+                onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+                onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
               />
               <WebsiteCreation
                 showOnMount={showEditorTour}
                 onComplete={() => {
                   localStorage.setItem("buildx-tutorial-website-creation", "1");
                   setShowEditorTour(false);
-                  setShowGettingStartedModal(true);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
                 }}
               />
               <PublishingBasics
                 showOnMount={showPublishingBasicsTour}
                 onComplete={() => {
-                  localStorage.setItem(
-                    "buildx-tutorial-publishing-basics",
-                    "1",
-                  );
+                  localStorage.setItem("buildx-tutorial-publishing-basics", "1");
                   setShowPublishingBasicsTour(false);
-                  setShowGettingStartedModal(true);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
                 }}
               />
-              <GettingStartedModal
-                isOpen={showGettingStartedModal}
-                onClose={() => setShowGettingStartedModal(false)}
-                onStartWebsiteCreation={() => {
-                  setShowGettingStartedModal(false);
-                  setShowEditorTour(true);
+              <CanvasArea
+                showOnMount={showCanvasTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-canvas", "1");
+                  setShowCanvasTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
                 }}
-                onStartPublishingBasics={() => {
-                  setShowGettingStartedModal(false);
-                  setShowPublishingBasicsTour(true);
+              />
+              <PropertiesPanel
+                showOnMount={showPropertiesT}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-properties", "1");
+                  setShowPropertiesT(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+                }}
+              />
+              <AIAssistant
+                showOnMount={showAITour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-ai", "1");
+                  setShowAITour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
+                }}
+              />
+              <CodeEditorTour
+                showOnMount={showCodeTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-code", "1");
+                  setShowCodeTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
+                }}
+              />
+              <SavingCollaboration
+                showOnMount={showCollabTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-collab", "1");
+                  setShowCollabTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
                 }}
               />
             </>
-          )
-        }
-      />
-      <Route
-        path="/editor"
-        element={
-          <>
-            <EditorLayout
-              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
-              onStartTour={() => setShowEditorTour(true)}
-              onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
-            />
-            <WebsiteCreation
-              showOnMount={showEditorTour}
-              onComplete={() => {
-                localStorage.setItem("buildx-tutorial-website-creation", "1");
-                setShowEditorTour(false);
-                setShowGettingStartedModal(true);
-              }}
-            />
-            <PublishingBasics
-              showOnMount={showPublishingBasicsTour}
-              onComplete={() => {
-                localStorage.setItem("buildx-tutorial-publishing-basics", "1");
-                setShowPublishingBasicsTour(false);
-                setShowGettingStartedModal(true);
-              }}
-            />
-            <GettingStartedModal
-              isOpen={showGettingStartedModal}
-              onClose={() => setShowGettingStartedModal(false)}
-              onStartWebsiteCreation={() => {
-                setShowGettingStartedModal(false);
-                setShowEditorTour(true);
-              }}
-              onStartPublishingBasics={() => {
-                setShowGettingStartedModal(false);
-                setShowPublishingBasicsTour(true);
-              }}
-            />
-          </>
-        }
-      />
-      <Route
-        path="/editor/:projectId/*"
-        element={
-          <>
-            <EditorLayout
-              editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
-              onStartTour={() => setShowEditorTour(true)}
-              onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
-            />
-            <WebsiteCreation
-              showOnMount={showEditorTour}
-              onComplete={() => {
-                localStorage.setItem("buildx-tutorial-website-creation", "1");
-                setShowEditorTour(false);
-                setShowGettingStartedModal(true);
-              }}
-            />
-            <PublishingBasics
-              showOnMount={showPublishingBasicsTour}
-              onComplete={() => {
-                localStorage.setItem("buildx-tutorial-publishing-basics", "1");
-                setShowPublishingBasicsTour(false);
-                setShowGettingStartedModal(true);
-              }}
-            />
-            <GettingStartedModal
-              isOpen={showGettingStartedModal}
-              onClose={() => setShowGettingStartedModal(false)}
-              onStartWebsiteCreation={() => {
-                setShowGettingStartedModal(false);
-                setShowEditorTour(true);
-              }}
-              onStartPublishingBasics={() => {
-                setShowGettingStartedModal(false);
-                setShowPublishingBasicsTour(true);
-              }}
-            />
-          </>
-        }
-      />
+          }
+        />
+        <Route
+          path="/editor/:projectId/*"
+          element={
+            <>
+              <EditorLayout
+                editor={{ ...editor, goToDashboard: goToDashboardAndRoute }}
+                onStartTour={() => setShowEditorTour(true)}
+                onStartPublishingBasics={() => setShowPublishingBasicsTour(true)}
+                onStartCanvasArea={() => setShowCanvasTour(true)}
+                onStartPropertiesPanel={() => setShowPropertiesT(true)}   // ← ADD
+                onStartAIAssistant={() => setShowAITour(true)}             // ← ADD
+                onStartCodeEditor={() => setShowCodeTour(true)}            // ← ADD
+                onStartSavingCollaboration={() => setShowCollabTour(true)} // ← ADD
+              />
+              <WebsiteCreation
+                showOnMount={showEditorTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-website-creation", "1");
+                  setShowEditorTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "website" } }));
+                }}
+              />
+              <PublishingBasics
+                showOnMount={showPublishingBasicsTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-publishing-basics", "1");
+                  setShowPublishingBasicsTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publishing" } }));
+                }}
+              />
+              <CanvasArea
+                showOnMount={showCanvasTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-canvas", "1");
+                  setShowCanvasTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "canvas" } }));
+                }}
+              />
+              <PropertiesPanel
+                showOnMount={showPropertiesT}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-properties", "1");
+                  setShowPropertiesT(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "properties" } }));
+                }}
+              />
+              <AIAssistant
+                showOnMount={showAITour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-ai", "1");
+                  setShowAITour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "ai" } }));
+                }}
+              />
+              <CodeEditorTour
+                showOnMount={showCodeTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-code", "1");
+                  setShowCodeTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "code" } }));
+                }}
+              />
+              <SavingCollaboration
+                showOnMount={showCollabTour}
+                onComplete={() => {
+                  localStorage.setItem("buildx-tutorial-collab", "1");
+                  setShowCollabTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "collab" } }));
+                }}
+              />
+              <BlocksPaletteTour
+                showOnMount={showBlocksPaletteTour}
+                onComplete={() => {
+                  setShowBlocksPaletteTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "blocks-palette" } }));
+                }}
+              />
+              <LayersPanelTour
+                showOnMount={showLayersPanelTour}
+                onComplete={() => {
+                  setShowLayersPanelTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "layers-panel" } }));
+                }}
+              />
+              <MultiPageTour
+                showOnMount={showMultiPageTour}
+                onComplete={() => {
+                  setShowMultiPageTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "multi-page" } }));
+                }}
+              />
+              <PreviewModeTour
+                showOnMount={showPreviewModeTour}
+                onComplete={() => {
+                  setShowPreviewModeTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "preview-mode" } }));
+                }}
+              />
+              <CustomComponentsTour
+                showOnMount={showCustomComponentsTour}
+                onComplete={() => {
+                  setShowCustomComponentsTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "custom-components" } }));
+                }}
+              />
+              <ExportFilesTour
+                showOnMount={showExportFilesTour}
+                onComplete={() => {
+                  setShowExportFilesTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "export-files" } }));
+                }}
+              />
+              <PublishTemplateTour
+                showOnMount={showPublishTemplateTour}
+                onComplete={() => {
+                  setShowPublishTemplateTour(false);
+                  window.dispatchEvent(new CustomEvent("buildx-tutorial-step-completed", { detail: { stepKey: "publish-template" } }));
+                }}
+              />
+            </>
+          }
+        />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+    </>
   );
 }
 
