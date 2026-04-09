@@ -4001,13 +4001,7 @@ export function Dashboard({
                                     </div>
                                   </div>
 
-                                  <Badge
-                                    className={`${getDraftProjectStatus(project.lastModified) === "active" ? "bg-orange-500/90 text-white" : "bg-muted text-muted-foreground"} border-0 rounded-sm px-2 py-0 h-5 text-[10px] uppercase`}
-                                  >
-                                    {getDraftProjectStatus(
-                                      project.lastModified,
-                                    )}
-                                  </Badge>
+
 
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -4488,11 +4482,7 @@ export function Dashboard({
                                   </div>
                                 </div>
 
-                                <Badge
-                                  className={`${getDraftProjectStatus(project.lastModified) === "active" ? "bg-orange-500/90 text-white" : "bg-muted text-muted-foreground"} border-0 rounded-sm px-2 py-0 h-5 text-[10px] uppercase`}
-                                >
-                                  {getDraftProjectStatus(project.lastModified)}
-                                </Badge>
+
 
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
