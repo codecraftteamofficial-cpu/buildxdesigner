@@ -130,18 +130,18 @@ const buildResponsiveCss = (
   const cls = `.${compIdClass(component)}`;
   const isFullWidth = FULL_WIDTH_TYPES.has(component.type);
 
-  const desktopLines: string[] = [`  position: absolute;`];
+  const desktopLines: string[] = [`  position: absolute !important;`];
 
   if (position) {
-    desktopLines.push(`  left: ${Math.round(position.x)}px;`);
-    desktopLines.push(`  top: ${Math.round(position.y)}px;`);
+    desktopLines.push(`  left: ${Math.round(position.x)}px !important;`);
+    desktopLines.push(`  top: ${Math.round(position.y)}px !important;`);
   }
 
   const rawW = parsePixelValue(style.width);
   const rawH = parsePixelValue(style.height);
   if (rawW !== null)
-    desktopLines.push(`  width: ${Math.round(rawW)}px;`);
-  if (rawH !== null) desktopLines.push(`  height: ${rawH}px;`);
+    desktopLines.push(`  width: ${Math.round(rawW)}px !important;`);
+  if (rawH !== null) desktopLines.push(`  height: ${Math.round(rawH)}px !important;`);
 
   for (const [key, value] of Object.entries(style)) {
     if (["left", "top", "right", "bottom", "width", "height"].includes(key))
@@ -167,24 +167,24 @@ const buildResponsiveCss = (
     const bpLines: string[] = [];
 
     if (isFullWidth) {
-      bpLines.push(`  position: relative;`);
-      bpLines.push(`  left: 0;`);
-      bpLines.push(`  top: 0;`);
-      bpLines.push(`  width: 100%;`);
+      bpLines.push(`  position: relative !important;`);
+      bpLines.push(`  left: 0 !important;`);
+      bpLines.push(`  top: 0 !important;`);
+      bpLines.push(`  width: 100% !important;`);
       if (rawH !== null)
-        bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
+        bpLines.push(`  height: ${Math.round(rawH * ratio)}px !important;`);
     } else {
       if (position) {
         bpLines.push(
-          `  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}%;`,
+          `  left: ${((position.x / DESIGN_WIDTH) * 100).toFixed(4)}% !important;`,
         );
-        bpLines.push(`  top: ${Math.round(position.y * ratio)}px;`);
+        bpLines.push(`  top: ${Math.round(position.y * ratio)}px !important;`);
       }
       if (rawH !== null)
-        bpLines.push(`  height: ${Math.round(rawH * ratio)}px;`);
+        bpLines.push(`  height: ${Math.round(rawH * ratio)}px !important;`);
       if (rawW !== null)
         bpLines.push(
-          `  min-width: ${Math.max(32, Math.round(rawW * ratio))}px;`,
+          `  min-width: ${Math.max(32, Math.round(rawW * ratio))}px !important;`,
         );
     }
 
