@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
 import {
   Copy,
   ChevronRight,
@@ -105,8 +105,7 @@ const MONACO_THEMES = [
 ];
 
 const FILE_TEMPLATES: Record<string, (name: string) => string> = {
-  php: (name) =>
-    `<?php\n// Backend logic for ${name}\nrequire_once __DIR__ . '/../lib/supabase.php';\n\n// Add your logic here\n`,
+
   js: (name) => `// ${name}.js logic\n`,
   json: (name) => `{\n  "name": "${name}"\n}\n`,
   md: (name) => `# ${name}\n`,
@@ -135,11 +134,18 @@ const FILE_TYPE_OPTIONS: FileTypeOption[] = [
     folder: "public/assets/css",
   },
   {
-    ext: "php",
-    label: "PHP Script",
-    icon: <span className="text-[10px] font-bold text-[#8892bf]">PHP</span>,
-    color: "text-[#8892bf]",
-    folder: "app/api",
+    ext: "json",
+    label: "JSON Config",
+    icon: <span className="text-[10px] font-bold text-gray-400">JSON</span>,
+    color: "text-gray-400",
+    folder: "",
+  },
+  {
+    ext: "md",
+    label: "Markdown",
+    icon: <span className="text-[10px] font-bold text-gray-400">MD</span>,
+    color: "text-gray-400",
+    folder: "",
   },
 ];
 
@@ -168,7 +174,7 @@ function FileCreatorModal({
     .replace(/[^a-zA-Z0-9_-]/g, "-")
     .toLowerCase();
   const finalPath = cleanName
-    ? `${folder}/${cleanName}.${selectedType.ext}`
+    ? folder ? `${folder}/${cleanName}.${selectedType.ext}` : `${cleanName}.${selectedType.ext}`
     : "";
 
   const validate = () => {
@@ -201,7 +207,7 @@ function FileCreatorModal({
       <div className="relative w-[min(92vw,540px)] max-w-fit min-w-[340px] bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-6 pt-6 pb-4">
           <h2 className="text-white text-lg font-semibold">
-            Create Backend File
+            Create custom file
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
             Add custom logic or configuration to your project.
@@ -227,10 +233,7 @@ function FileCreatorModal({
                       : "border-[#333] bg-[#222] hover:bg-[#2a2a2a] text-muted-foreground"
                   }`}
                 >
-                  {opt.icon}
-                  <span className="text-[10px] uppercase font-bold">
-                    {opt.ext}
-                  </span>
+                   {opt.icon}
                 </button>
               ))}
             </div>
@@ -726,6 +729,7 @@ export function CodeViewEditor({
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState("");
   const [showFileCreator, setShowFileCreator] = useState(false);
+  const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
  
   const [isGenerating, setIsGenerating] = useState(true);
   const [generatedFiles, setGeneratedFiles] = useState<Record<string, string>>({});
@@ -820,6 +824,42 @@ export function CodeViewEditor({
     [onCustomFileUpdate],
   );
 
+  const handleDeleteFile = useCallback(
+    (path: string) => {
+      const isActuallyCustom = path in customFiles;
+      const isActuallyOverride = path in fileOverrides;
+
+      if (!isActuallyCustom && !isActuallyOverride) {
+        toast.error("This is a system file and cannot be deleted.");
+        return;
+      }
+
+      setDeleteConfirmPath(path);
+    },
+    [customFiles, fileOverrides],
+  );
+
+  const confirmDelete = useCallback(() => {
+    if (!deleteConfirmPath) return;
+    
+    const path = deleteConfirmPath;
+    const isActuallyCustom = path in customFiles;
+    const fileName = path.split("/").pop();
+
+    if (isActuallyCustom) {
+      onCustomFileUpdate?.(path, null as any);
+    } else {
+      onFileOverrideUpdate?.(path, null as any);
+    }
+
+    if (selectedFile === path) {
+      setSelectedFile("");
+    }
+    
+    toast.success(`Deleted ${fileName}`);
+    setDeleteConfirmPath(null);
+  }, [deleteConfirmPath, customFiles, onCustomFileUpdate, onFileOverrideUpdate, selectedFile]);
+
   const handleExportZip = useCallback(async () => {
     if (isGenerating) {
       toast.info("Please wait until files finish generating.");
@@ -895,7 +935,18 @@ export function CodeViewEditor({
         ) : (
           <File className="w-3 h-3 opacity-50" />
         )}
-        <span className="truncate">{node.name}</span>
+        <span className="truncate flex-1">{node.name}</span>
+        
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteFile(node.path);
+          }}
+          className="opacity-20 group-hover:opacity-100 p-1 hover:bg-red-500/20 text-red-400 rounded-sm transition-all"
+          title="Delete or reset file"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
       </div>
       {node.type === "folder" &&
         expandedFolders.has(node.path) &&
@@ -914,6 +965,33 @@ export function CodeViewEditor({
           onCreateFile={handleCreateFile}
         />
       )}
+
+      <Dialog open={!!deleteConfirmPath} onOpenChange={(open) => !open && setDeleteConfirmPath(null)}>
+        <DialogContent className="max-w-md bg-[#1a1a1a] border border-[#333] text-white">
+          <DialogHeader>
+            <DialogTitle>Delete File</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Are you sure you want to delete <span className="font-mono text-white whitespace-nowrap">{deleteConfirmPath?.split("/").pop()}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteConfirmPath(null)}
+              className="text-gray-400 hover:text-white hover:bg-white/5"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white border-none"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     
       {/* Explorer */}
       <div
