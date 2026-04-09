@@ -200,7 +200,7 @@ register("grid", {
 register("card", {
   html: (c, d = 0) => {
     const p = c.props ?? {};
-    const lines = [`${indent(d)}<div id="${elId(c)}" class="${compId(c)} buildx-premade-block flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full h-full">`];
+    const lines = [`${indent(d)}<div id="${elId(c)}" class="${compId(c)} buildx-premade-block flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full">`];
     if (p.image) lines.push(`${indent(d + 1)}<img src="${esc(p.image)}" alt="${esc(p.title)}" class="${compId(c)} buildx-premade-block w-full aspect-video object-cover" />`);
     lines.push(`${indent(d + 1)}<div class="p-6 flex flex-col flex-1">`);
     lines.push(`${indent(d + 2)}<h3 class="m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">${esc(p.title || "Card Title")}</h3>`);
@@ -761,7 +761,7 @@ register("sign-in", {
     const p = c.props ?? {};
     const id = elId(c);
     return [
-      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full ${compId(c)} buildx-premade-block" id="${id}" data-component-type="sign-in">`,
+      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full ${compId(c)} buildx-premade-block" id="${id}" data-component-type="sign-in">`,
       `${indent(d + 1)}<div class="p-6 flex flex-col gap-1.5 shrink-0">`,
       `${indent(d + 2)}<h2 class="m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">${esc(p.title || "Sign In")}</h2>`,
       `${indent(d + 2)}<p class="m-0 text-slate-500 text-sm">${esc(p.description || "Enter your email and password.")}</p>`,
@@ -804,7 +804,7 @@ register("sign-up", {
     const p = c.props ?? {};
     const id = elId(c);
     return [
-      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full ${compId(c)} buildx-premade-block" id="${id}">`,
+      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full ${compId(c)} buildx-premade-block" id="${id}">`,
       `${indent(d + 1)}<div class="p-6 flex flex-col gap-1.5 shrink-0">`,
       `${indent(d + 2)}<h2 class="m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">${esc(p.title || "Sign Up")}</h2>`,
       `${indent(d + 2)}<p class="m-0 text-slate-500 text-sm">${esc(p.description || "Create a new account.")}</p>`,
@@ -849,7 +849,7 @@ register("auth-block", {
     const id = elId(c);
     const mode = p.initialMode || "signin";
     return [
-      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full h-full ${compId(c)} buildx-premade-block" id="${id}">`,
+      `${indent(d)}<div class="flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden w-full ${compId(c)} buildx-premade-block" id="${id}">`,
       `${indent(d + 1)}<div class="p-6 flex flex-col gap-1.5 shrink-0">`,
       `${indent(d + 2)}<h2 class="auth-title m-0 text-2xl font-semibold tracking-tight text-slate-900 line-height-1">${esc(mode === "signin" ? (p.signInTitle || "Sign In") : (p.signUpTitle || "Sign Up"))}</h2>`,
       `${indent(d + 2)}<p class="auth-description m-0 text-slate-500 text-sm">${esc(mode === "signin" ? (p.signInDescription || "Please authenticate to continue.") : (p.signUpDescription || ""))}</p>`,
