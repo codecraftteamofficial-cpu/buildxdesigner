@@ -16,6 +16,11 @@ import {
   ArrowLeft,
   ArrowRight,
   Download,
+  Menu,
+  Settings,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import { supabase } from "../supabase/config/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
@@ -25,12 +30,12 @@ type Action = {
   id: string;
   type: "onClick" | "onHover" | "onFocus" | "onBlur";
   handlerType:
-    | "custom"
-    | "navigate"
-    | "scroll"
-    | "copy"
-    | "toggle"
-    | "supabase";
+  | "custom"
+  | "navigate"
+  | "scroll"
+  | "copy"
+  | "toggle"
+  | "supabase";
   handler: string;
   url?: string;
   target?: "_blank" | "_self" | "_parent" | "_top";
@@ -110,10 +115,10 @@ export function PreviewModal({
   currentUser,
   canvasBackgroundColor = "#ffffff",
 }: PreviewModalProps) {
-   const [viewMode] = useState<ViewMode>("desktop");
+  const [viewMode] = useState<ViewMode>("desktop");
   const [fitMode, setFitMode] = useState<FitMode>("fit");
   const [zoom, setZoom] = useState(1);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(false);
   const [isPickingElement, setIsPickingElement] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [localComponents, setLocalComponents] =
@@ -324,27 +329,6 @@ export function PreviewModal({
       window.removeEventListener("resize", updateScale);
     };
   }, [calculateScale]);
-
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Auto-hide controls
-  const resetControlsTimeout = useCallback(() => {
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-
-    setShowControls(true);
-    const timeout = setTimeout(() => {
-      setShowControls(false);
-    }, 3000);
-
-    controlsTimeoutRef.current = timeout;
-  }, []);
-
-  // Handle mouse movement for auto-hide controls
-  const handleMouseMove = useCallback(() => {
-    resetControlsTimeout();
-  }, [resetControlsTimeout]);
 
   useEffect(() => {
     return () => {
@@ -966,7 +950,7 @@ export function PreviewModal({
         case "Escape":
           onClose();
           break;
-    
+
         case "0":
           setFitMode("actual");
           setZoom(1);
@@ -1000,20 +984,13 @@ export function PreviewModal({
 
   useEffect(() => {
     const keyDownHandler = (e: KeyboardEvent) => handleKeyDown(e);
-    const mouseMoveHandler = () => handleMouseMove();
 
     document.addEventListener("keydown", keyDownHandler);
-    document.addEventListener("mousemove", mouseMoveHandler);
-    resetControlsTimeout();
 
     return () => {
       document.removeEventListener("keydown", keyDownHandler);
-      document.removeEventListener("mousemove", mouseMoveHandler);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
     };
-  }, [handleKeyDown, handleMouseMove, resetControlsTimeout]);
+  }, [handleKeyDown]);
 
   const device = getDeviceDimensions();
 
@@ -1083,13 +1060,13 @@ export function PreviewModal({
     Math.max(
       filteredComponents.length > 0
         ? Math.max(
-            ...filteredComponents.map((c) => {
-              const componentHeight =
-                parseInt(String(c.style?.height || 0)) ||
-                (c.type === "custom-component" ? 800 : 200);
-              return (c.position?.y || 0) + componentHeight;
-            }),
-          )
+          ...filteredComponents.map((c) => {
+            const componentHeight =
+              parseInt(String(c.style?.height || 0)) ||
+              (c.type === "custom-component" ? 800 : 200);
+            return (c.position?.y || 0) + componentHeight;
+          }),
+        )
         : 1000,
       measuredHeight,
     ) + 50;
@@ -1140,20 +1117,42 @@ export function PreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black">
-      {/* Controls Overlay */}
+      {/* Sidebar-style Trigger Button */}
+      {!showControls && (
+        <div
+          className="absolute top-4 left-4"
+          style={{ zIndex: 9999 }}
+        >
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowControls(true)}
+            className="text-white bg-black/80 hover:bg-black/90 hover:text-white backdrop-blur-sm h-8 w-8 rounded-md border border-white/10 shadow-2xl transition-all"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
+
+      {/* Original Header Bar with Left-to-Right Slide */}
       <div
-        className={`absolute top-0 left-0 right-0 z-10 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-transform duration-500 ease-in-out transform ${showControls ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
-        <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4 bg-black/80 backdrop-blur-sm border-b border-white/10">
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowControls(false)}
+              className="text-white hover:bg-white/10 hover:text-white h-8 w-8 rounded-md transition-all border border-transparent hover:border-white/10"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
             <div className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-white" />
               <span className="text-white font-medium">Preview</span>
             </div>
-
-          
           </div>
 
           <div className="flex items-center gap-4">
@@ -1237,13 +1236,12 @@ export function PreviewModal({
       {/* Main Preview Area */}
       <div className="preview-container w-full h-full flex items-center justify-center">
         <div
-          className={`shadow-2xl overflow-hidden ${
-            viewMode === "mobile"
-              ? "rounded-4xl"
-              : viewMode === "tablet"
-                ? "rounded-xl"
-                : "rounded-none"
-          }`}
+          className={`shadow-2xl overflow-hidden ${viewMode === "mobile"
+            ? "rounded-4xl"
+            : viewMode === "tablet"
+              ? "rounded-xl"
+              : "rounded-none"
+            }`}
           style={{
             ...getDeviceStyles(),
             // Dark background for the device frame
@@ -1350,7 +1348,7 @@ export function PreviewModal({
                             onUpdate={(updates) =>
                               handleUpdate(component.id, updates)
                             }
-                            onDelete={() => {}}
+                            onDelete={() => { }}
                             isPreview={true}
                             userProjectConfig={userProjectConfig}
                             navigate={handleNavigate}
@@ -1370,17 +1368,16 @@ export function PreviewModal({
 
       {/* Keyboard Shortcuts Help */}
       <div
-        className={`absolute bottom-4 left-4 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`absolute bottom-4 left-4 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
       >
         <div className="bg-black/80 backdrop-blur-sm text-white text-xs p-3 rounded-lg">
           <div className="grid grid-cols-2 gap-2">
-           
+
             <div>
               <kbd className="bg-white/20 px-1 rounded">F</kbd> Fit to Screen
             </div>
-           
+
             <div>
               <kbd className="bg-white/20 px-1 rounded">+/-</kbd> Zoom
             </div>

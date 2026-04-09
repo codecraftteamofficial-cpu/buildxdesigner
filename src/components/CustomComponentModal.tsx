@@ -178,7 +178,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
   // Debounced preview state
   const [debouncedPreviewContent, setDebouncedPreviewContent] = useState('');
   const [isPreviewUpdating, setIsPreviewUpdating] = useState(false);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimeoutRef = useRef<any>(null);
 
   React.useEffect(() => {
     if (isOpen && initialData) {
@@ -202,7 +202,7 @@ export function CustomComponentModal({ isOpen, onClose, onSave, onUpdate, projec
 
   // Simulated progress logic
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (isGenerating) {
       setProgress(0);
       interval = setInterval(() => {
