@@ -379,6 +379,44 @@ const renderComponentToHTML = (component: ComponentData, depth = 0): string => {
 };
 
 // ─── JS generator ─────────────────────────────────────────────────────────────
+
+const processJsHandler = (component: ComponentData): string => {
+  let handler = component.props?.js_handler || "";
+  const id = component.props?.elementId || compIdClass(component);
+  handler = handler.replace(/\$elementId/g, id);
+
+  if (component.props?.redirectUrl || ['sign-in', 'sign-up', 'auth-block'].includes(component.type)) {
+    handler = handler.replace(/\{\{REDIRECT_URL\}\}/g, component.props?.redirectUrl || '/');
+  }
+
+  if (component.type === "form") {
+    const integrations = component.props?.integrations || [];
+    const resend = integrations.find((i: any) => i.type === 'resend');
+    handler = handler.replace(/\{\{RESEND_INTEGRATION_ID\}\}/g, resend?.id || '');
+    handler = handler.replace(/\{\{RECIPIENT_EMAIL\}\}/g, component.props?.recipientEmail || '');
+  }
+
+  if (component.type === "table") {
+    handler = handler.replace(/\{\{SUPABASE_TABLE\}\}/g, component.props?.supabaseTable || '');
+    
+    let selectColumns = '*';
+    let headerConfigStr = '';
+    
+    if (component.props?.integrations && Array.isArray(component.props.integrations) && component.props.integrations.length > 0) {
+      const config = component.props.integrations[0].config;
+      selectColumns = config?.selectColumns || '*';
+      if (config?.headerConfig && Array.isArray(config.headerConfig)) {
+        headerConfigStr = config.headerConfig.map((h: any) => `'${h.column}': '${h.label}'`).join(', ');
+      }
+    }
+    
+    handler = handler.replace(/\{\{SUPABASE_SELECT_COLUMNS\}\}/g, selectColumns);
+    handler = handler.replace(/\{\{TABLE_HEADERS_CONFIG\}\}/g, headerConfigStr);
+  }
+
+  return handler;
+};
+
 const generatePageJS = (
   components: ComponentData[],
   pageName: string,
@@ -421,7 +459,7 @@ const generatePageJS = (
     .filter((c) => c.props?.js_handler)
     .map((c) => {
       const id = compIdClass(c);
-      let handler = (c.props?.js_handler || "").replace(/\$elementId/g, id);
+      let handler = processJsHandler(c);
 
       // Scrub PHP logic if present
       if (handler.includes("<?php") || handler.includes("?>")) {
@@ -894,13 +932,24 @@ const BUILDX_SDK = `(function() {
           }
         });
         const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
-        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?' + params.toString(), {
+        let res = await fetch(supabaseUrl + '/rest/v1/' + table + '?' + params.toString(), {
           headers: {
             'apikey': supabaseAnonKey,
             'Authorization': 'Bearer ' + token
           }
         });
-        const data = await res.json();
+        let data = await res.json();
+        if (!res.ok && data.code === 'PGRST303') {
+           localStorage.removeItem('supabase.auth.token');
+           localStorage.removeItem('supabase.auth.user');
+           res = await fetch(supabaseUrl + '/rest/v1/' + table + '?' + params.toString(), {
+             headers: {
+               'apikey': supabaseAnonKey,
+               'Authorization': 'Bearer ' + supabaseAnonKey
+             }
+           });
+           data = await res.json();
+        }
         if (!res.ok) return { data: null, error: data };
         return { data: data, error: null };
       } catch (err) {
@@ -913,7 +962,7 @@ const BUILDX_SDK = `(function() {
         const { supabaseUrl, supabaseAnonKey } = await getConfig();
         if (!supabaseUrl) throw new Error('Supabase URL is not configured');
         const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
-        const res = await fetch(supabaseUrl + '/rest/v1/' + table, {
+        let res = await fetch(supabaseUrl + '/rest/v1/' + table, {
           method: 'POST',
           headers: {
             'apikey': supabaseAnonKey,
@@ -923,7 +972,22 @@ const BUILDX_SDK = `(function() {
           },
           body: JSON.stringify(data)
         });
-        const result = await res.json();
+        let result = await res.json();
+        if (!res.ok && result.code === 'PGRST303') {
+           localStorage.removeItem('supabase.auth.token');
+           localStorage.removeItem('supabase.auth.user');
+           res = await fetch(supabaseUrl + '/rest/v1/' + table, {
+             method: 'POST',
+             headers: {
+               'apikey': supabaseAnonKey,
+               'Authorization': 'Bearer ' + supabaseAnonKey,
+               'Content-Type': 'application/json',
+               'Prefer': 'return=representation'
+             },
+             body: JSON.stringify(data)
+           });
+           result = await res.json();
+        }
         if (!res.ok) return { data: null, error: result };
         return { data: result, error: null };
       } catch (err) {
@@ -941,7 +1005,7 @@ const BUILDX_SDK = `(function() {
           throw new Error('delete() requires a valid id — received empty value. Check that your fieldMap or filter correctly points to the id input.');
         }
         const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
-        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+        let res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
           method: 'DELETE',
           headers: {
             'apikey': supabaseAnonKey,
@@ -949,9 +1013,26 @@ const BUILDX_SDK = `(function() {
             'Prefer': 'return=representation'
           }
         });
+        
+        let result = {};
+        if (res.status !== 204) { result = await res.json(); }
+        
+        if (!res.ok && result.code === 'PGRST303') {
+           localStorage.removeItem('supabase.auth.token');
+           localStorage.removeItem('supabase.auth.user');
+           res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+             method: 'DELETE',
+             headers: {
+               'apikey': supabaseAnonKey,
+               'Authorization': 'Bearer ' + supabaseAnonKey,
+               'Prefer': 'return=representation'
+             }
+           });
+           if (res.status !== 204) { result = await res.json(); }
+        }
+
         // 204 No Content is a valid success for DELETE
         if (res.status === 204) return { data: [], error: null };
-        const result = await res.json();
         if (!res.ok) return { data: null, error: result };
         return { data: result, error: null };
       } catch (err) {
@@ -969,7 +1050,7 @@ const BUILDX_SDK = `(function() {
           throw new Error('update() requires a valid id — received empty value. Check that your fieldMap or filter correctly points to the id input.');
         }
         const token = localStorage.getItem('supabase.auth.token') || supabaseAnonKey;
-        const res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+        let res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
           method: 'PATCH',
           headers: {
             'apikey': supabaseAnonKey,
@@ -979,9 +1060,28 @@ const BUILDX_SDK = `(function() {
           },
           body: JSON.stringify(data)
         });
+        
+        let result = {};
+        if (res.status !== 204) { result = await res.json(); }
+        
+        if (!res.ok && result.code === 'PGRST303') {
+           localStorage.removeItem('supabase.auth.token');
+           localStorage.removeItem('supabase.auth.user');
+           res = await fetch(supabaseUrl + '/rest/v1/' + table + '?id=eq.' + encodeURIComponent(id), {
+             method: 'PATCH',
+             headers: {
+               'apikey': supabaseAnonKey,
+               'Authorization': 'Bearer ' + supabaseAnonKey,
+               'Content-Type': 'application/json',
+               'Prefer': 'return=representation'
+             },
+             body: JSON.stringify(data)
+           });
+           if (res.status !== 204) { result = await res.json(); }
+        }
+        
         // 204 No Content can also occur
         if (res.status === 204) return { data: [], error: null };
-        const result = await res.json();
         if (!res.ok) return { data: null, error: result };
         return { data: result, error: null };
       } catch (err) {
@@ -1560,7 +1660,7 @@ server.listen(PORT, () => console.log('Server running on http://localhost:' + PO
         const openingMarker = `/* [CANVAS-INJECTION]: ${compId}`;
         const closingMarker = `/* [END-CANVAS-INJECTION]: ${compId} */`;
 
-        let handler = c.props?.js_handler || "";
+        let handler = c.props?.js_handler ? processJsHandler(c) : "";
         let cjs = c.type === "custom-component" ? c.props?.js : "";
 
         if (!(handler || cjs)) return;
