@@ -562,7 +562,7 @@ export function RenderableComponent({
                   const resData = await res.json();
                   if (!res.ok) throw new Error(resData.error || 'Failed to send email');
 
-                  toast.success("Test email sent via Preview!");
+                  toast.success("Email sent!");
                   return { success: true, data: resData };
                 }
 
