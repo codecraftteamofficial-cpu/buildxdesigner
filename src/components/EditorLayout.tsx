@@ -560,6 +560,14 @@ export function EditorLayout({
                         }}
                         customFiles={state.customFiles || {}}
                         onCustomFileUpdate={(path, content) => {
+                          if (content === null) {
+                            setState((prev) => {
+                              const newFiles = { ...(prev.customFiles || {}) };
+                              delete newFiles[path];
+                              return { ...prev, customFiles: newFiles, hasUnsavedChanges: true };
+                            });
+                            return;
+                          }
                           setState((prev) => ({
                             ...prev,
                             customFiles: { ...(prev.customFiles || {}), [path]: content },

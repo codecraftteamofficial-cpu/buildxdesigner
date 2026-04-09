@@ -275,7 +275,7 @@ export function AdminPlanManagement({ onPlansUpdate }: AdminPlanManagementProps)
         ? 'bg-green-100 text-green-700 hover:bg-green-100'
         : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
       }>
-        {isActive ? 'Active' : 'Inactive'}
+        {isActive ? 'Active' : ''}
       </Badge>
     );
   };
