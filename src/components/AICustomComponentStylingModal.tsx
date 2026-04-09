@@ -19,7 +19,7 @@ const debounce = <T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: any;
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
@@ -235,7 +235,7 @@ export function AICustomComponentStylingModal({
 
   // Simulated progress logic
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (isGenerating) {
       setProgress(0);
       interval = setInterval(() => {

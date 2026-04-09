@@ -78,7 +78,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
   }, [])
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: any
     if (isLoading) {
       interval = setInterval(() => {
         setThinkingIndex((prev) => (prev + 1) % thinkingPhrases.length)
