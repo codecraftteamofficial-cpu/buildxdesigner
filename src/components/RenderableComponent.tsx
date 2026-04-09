@@ -2065,7 +2065,6 @@ export function RenderableComponent({
                   />
                   {props.supabaseTable && (
                     <span className="text-xs font-normal text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
-                      Source: {props.supabaseTable}
                     </span>
                   )}
                 </CardTitle>
