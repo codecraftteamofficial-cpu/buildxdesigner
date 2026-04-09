@@ -199,7 +199,7 @@ export function AdminUsersTable({ limit, searchQuery = '' }: AdminUsersTableProp
   const getStatusBadge = (status: User['status']) => {
     const variants = {
       active: 'bg-green-100 text-green-700 hover:bg-green-100',
-      inactive: 'bg-gray-100 text-gray-700 hover:bg-gray-100',
+
       banned: 'bg-red-100 text-red-700 hover:bg-red-100',
     };
 
@@ -232,7 +232,7 @@ export function AdminUsersTable({ limit, searchQuery = '' }: AdminUsersTableProp
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+
               <SelectItem value="banned">Banned</SelectItem>
             </SelectContent>
           </Select>
@@ -394,7 +394,7 @@ export function AdminUsersTable({ limit, searchQuery = '' }: AdminUsersTableProp
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+
                     <SelectItem value="banned">Banned</SelectItem>
                   </SelectContent>
                 </Select>
