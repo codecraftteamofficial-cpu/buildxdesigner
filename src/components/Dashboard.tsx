@@ -26,6 +26,7 @@ import {
   ArrowRight,
   FileText,
   Heart,
+  Bell,
   Flag,
   Store,
   Download,
@@ -146,6 +147,16 @@ interface DashboardProps {
   onStartTemplateInteraction?: () => void;
   onStartComponentsLibrary?: () => void;
   onStartBuildXIntroduction?: () => void;
+}
+
+interface ComponentNotification {
+  id: string;
+  component_id: string;
+  component_name: string;
+  user_id: string;
+  liker_name: string;
+  liker_avatar: string | null;
+  liked_at: string;
 }
 
 interface ProfileDisplayData {
@@ -467,6 +478,11 @@ const API_URL =
 const getApiBaseCandidates = () => {
   const candidateSet = new Set<string>();
 
+  // If we are developing locally, safely prioritize localhost so we don't throw scary 404s from Vercel!
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    candidateSet.add("http://localhost:4000");
+  }
+
   if (API_URL) candidateSet.add(API_URL);
 
   const inferredApiBase = getApiBaseUrl();
@@ -774,6 +790,17 @@ export function Dashboard({
   const [userPublicComponents, setUserPublicComponents] = useState<any[]>([]);
   const [myComponentsLoading, setMyComponentsLoading] = useState(false);
 
+  // States for Component Likes
+  const [likedComponentIds, setLikedComponentIds] = useState<Record<string, boolean>>({});
+  const [componentLikeCounts, setComponentLikeCounts] = useState<Record<string, number>>({});
+  const [likingComponentIds, setLikingComponentIds] = useState<Record<string, boolean>>({});
+
+  // States for Notifications
+  const [notifications, setNotifications] = useState<ComponentNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationPage, setNotificationPage] = useState(1);
+  const [hasMoreNotifications, setHasMoreNotifications] = useState(false);
+
   const [showDeleteComponentDialog, setShowDeleteComponentDialog] =
     useState(false);
   const [pendingDeleteComponent, setPendingDeleteComponent] =
@@ -1041,6 +1068,130 @@ export function Dashboard({
         0,
       ),
     };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchComponentLikes = async () => {
+      if (!currentUserId) {
+        if (mounted) setLikedComponentIds({});
+        return;
+      }
+      try {
+        const apiBases = getApiBaseCandidates();
+        let fetched = false;
+        for (const base of apiBases) {
+          try {
+            const res = await fetch(`${base}/api/component-likes?userId=${currentUserId}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (mounted) {
+                setComponentLikeCounts(data.likeCountsByComponent || {});
+
+                const userLikedMap: Record<string, boolean> = {};
+                (data.likedComponentIds || []).forEach((id: string) => {
+                  userLikedMap[id] = true;
+                });
+                setLikedComponentIds(userLikedMap);
+              }
+              fetched = true;
+              break;
+            }
+          } catch (err) { }
+        }
+      } catch (e) { }
+    };
+
+    // Initial fetch to load it immediately
+    fetchComponentLikes();
+
+    const fetchNotifications = async () => {
+      if (!currentUserId) return;
+      try {
+        const apiBases = getApiBaseCandidates();
+        for (const base of apiBases) {
+          try {
+            const res = await fetch(`${base}/api/notifications/likes?userId=${currentUserId}&page=${notificationPage}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (mounted) {
+                setNotifications(data);
+                setHasMoreNotifications(data.length === 5);
+              }
+              break;
+            }
+          } catch (err) {}
+        }
+      } catch (err) {}
+    };
+
+    fetchNotifications();
+
+    // Supabase Real-time WebSockets to dynamically sync data without polling!
+    const channel = supabase
+      .channel("public:component_interactions")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "component_interactions" },
+        () => {
+          // Whenever ANYONE globally likes/unlikes, we fetch the updated state instantly
+          fetchComponentLikes();
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, showNotifications, notificationPage]);
+
+  const handleLikeComponent = async (e: React.MouseEvent, componentId: string) => {
+    e.stopPropagation();
+    if (!currentUserId) {
+      toast.error("Please log in to like components.");
+      return;
+    }
+    if (likingComponentIds[componentId]) return;
+
+    const isCurrentlyLiked = Boolean(likedComponentIds[componentId]);
+    setLikingComponentIds((prev) => ({ ...prev, [componentId]: true }));
+    setLikedComponentIds((prev) => ({ ...prev, [componentId]: !isCurrentlyLiked }));
+    setComponentLikeCounts((prev) => ({
+      ...prev,
+      [componentId]: Math.max(0, (prev[componentId] || 0) + (isCurrentlyLiked ? -1 : 1))
+    }));
+
+    try {
+      const endpoint = isCurrentlyLiked ? "/api/unlike-component" : "/api/like-component";
+      const apiBases = getApiBaseCandidates();
+      let success = false;
+      for (const base of apiBases) {
+        try {
+          const res = await fetch(`${base}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: currentUserId, componentId }),
+          });
+          if (res.ok) {
+            success = true;
+            break;
+          }
+        } catch (err) { }
+      }
+      if (!success) throw new Error("Failed to reach API");
+    } catch (error) {
+      setLikedComponentIds((prev) => ({ ...prev, [componentId]: isCurrentlyLiked }));
+      setComponentLikeCounts((prev) => ({
+        ...prev,
+        [componentId]: Math.max(0, (prev[componentId] || 0) + (isCurrentlyLiked ? 1 : -1))
+      }));
+      toast.error("Failed to update like status");
+    } finally {
+      setLikingComponentIds((prev) => ({ ...prev, [componentId]: false }));
+    }
   };
 
   const fetchMarketplaceComponents = async () => {
@@ -3159,15 +3310,90 @@ export function Dashboard({
             </svg>
           </button>
 
-          {/* Theme Switcher */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button data-tour="theme-switcher" variant="ghost" size="sm" className="gap-2 ml-auto">
-                <ThemeIcon className="w-4 h-4" />
-                <span className="text-sm capitalize">{theme}</span>
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
+          {/* Theme Switcher and Notifications Container */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Notification Bell */}
+            <DropdownMenu open={showNotifications} onOpenChange={setShowNotifications}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-primary/10">
+                  <Bell className="w-4 h-4 text-foreground/80" />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-0 overflow-hidden border-border/40 shadow-xl">
+                <div className="px-4 py-3 border-b border-border/40 bg-muted/30">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" /> Activity
+                  </h3>
+                </div>
+                <div className="max-h-[350px] overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                        <Bell className="w-4 h-4 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">You're all caught up!</p>
+                    </div>
+                  ) : (
+                    notifications.map(notif => (
+                      <div key={notif.id} className="px-4 py-3 border-b border-border/30 hover:bg-muted/50 flex items-start gap-3 transition-colors cursor-default">
+                        <Avatar className="w-8 h-8 rounded-full border border-border/50 shrink-0 mt-0.5">
+                          <AvatarImage src={notif.liker_avatar || ""} />
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                            {notif.liker_name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-[13px] leading-snug text-foreground/90">
+                            <span className="font-semibold">{notif.liker_name}</span> liked your component <span className="font-medium text-primary">"{notif.component_name}"</span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                            <Heart className="w-3 h-3 fill-red-500 text-red-500" />
+                            {new Date(notif.liked_at).toLocaleDateString()} at {new Date(notif.liked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* Pagination Controls */}
+                {(notificationPage > 1 || hasMoreNotifications) && (
+                  <div className="px-3 py-2 border-t border-border/40 bg-muted/10 flex items-center justify-between">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      disabled={notificationPage <= 1}
+                      onClick={(e) => { e.preventDefault(); setNotificationPage(p => Math.max(1, p - 1)); }}
+                      className="h-6 text-xs px-2 cursor-pointer"
+                    >
+                      <ArrowUp className="w-3 h-3 mr-1 -rotate-90" /> Prev
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Page {notificationPage}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      disabled={!hasMoreNotifications}
+                      onClick={(e) => { e.preventDefault(); setNotificationPage(p => p + 1); }}
+                      className="h-6 text-xs px-2 cursor-pointer"
+                    >
+                      Next <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Theme Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button data-tour="theme-switcher" variant="ghost" size="sm" className="gap-2">
+                  <ThemeIcon className="w-4 h-4" />
+                  <span className="text-sm capitalize hidden sm:inline-flex">{theme}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onThemeChange?.("light")}>
                 <Sun className="mr-2 h-4 w-4" />
@@ -3193,6 +3419,7 @@ export function Dashboard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      </div>
 
         {/* Changed ScrollArea to allow for main content to scroll */}
         <ScrollArea className="flex-1 overflow-auto">
@@ -3795,6 +4022,20 @@ export function Dashboard({
                                           {comp.name}
                                         </h5>
                                         <div className="flex items-center gap-1.5 shrink-0">
+                                          <button
+                                            onClick={(e) => handleLikeComponent(e, comp.id)}
+                                            className="flex items-center gap-1 p-1.5 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors group/like"
+                                          >
+                                            <Heart
+                                              className={`w-4 h-4 ${likedComponentIds[comp.id]
+                                                  ? "fill-red-500 text-red-500"
+                                                  : "text-muted-foreground group-hover/like:text-red-500"
+                                                } transition-colors`}
+                                            />
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                              {componentLikeCounts[comp.id] || 0}
+                                            </span>
+                                          </button>
                                           {isComponentImported(comp.id) ? (
                                             <div className="p-1.5 bg-green-100 dark:bg-green-900/30 rounded-full">
                                               <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
