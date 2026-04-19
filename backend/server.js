@@ -799,6 +799,175 @@ app.get("/api/project-likes", async (req, res) => {
 });
 
 // ── Components Marketplace ──────────────────────────────────────────────────
+app.get("/api/notifications/likes", async (req, res) => {
+  const { userId, page = 1 } = req.query;
+  if (!userId) return res.status(400).json({ error: "userId required." });
+
+  const limit = 5;
+  const offset = (Math.max(1, parseInt(page)) - 1) * limit;
+
+  const headers = getSupabaseRestHeaders();
+  if (!headers) return res.status(500).json({ error: "Server misconfiguration" });
+
+  try {
+    const componentsResponse = await axios.get(
+      `${SUPABASE_URL}/rest/v1/published_components?user_id=eq.${encodeURIComponent(userId)}&select=id,name`,
+      { headers }
+    );
+    const components = Array.isArray(componentsResponse.data) ? componentsResponse.data : [];
+    if (components.length === 0) return res.json([]);
+    
+    const componentMap = {};
+    components.forEach(c => componentMap[c.id] = c.name);
+    const componentIds = components.map(c => c.id);
+
+    let rows = [];
+    try {
+      const likesResponse = await axios.get(
+        `${SUPABASE_URL}/rest/v1/component_interactions?component_id=in.(${componentIds.join(",")})&user_id=neq.${encodeURIComponent(userId)}&select=id,user_id,component_id,liked_at&order=liked_at.desc&limit=${limit}&offset=${offset}`,
+        { headers }
+      );
+      rows = Array.isArray(likesResponse.data) ? likesResponse.data : [];
+      if (rows.length > 0) {
+        const userIds = [...new Set(rows.map(r => r.user_id))];
+        const profResponse = await axios.get(
+          `${SUPABASE_URL}/rest/v1/profiles?user_id=in.(${userIds.join(",")})&select=user_id,full_name,avatar_url`,
+          { headers }
+        );
+        const profs = Array.isArray(profResponse.data) ? profResponse.data : [];
+        rows = rows.map(r => ({
+          ...r,
+          profiles: profs.find(p => String(p.user_id) === String(r.user_id))
+        }));
+      }
+    } catch (err) {
+      throw err;
+    }
+
+    const notifications = rows.map(row => {
+      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      return {
+        id: row.id,
+        component_id: row.component_id,
+        component_name: componentMap[row.component_id] || "A Component",
+        user_id: row.user_id,
+        liker_name: profile?.full_name || "Someone",
+        liker_avatar: profile?.avatar_url || null,
+        liked_at: row.liked_at
+      }
+    });
+
+    res.json(notifications);
+  } catch (error) {
+    console.error("Fetch notifications error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+app.get("/api/component-likes", async (req, res) => {
+  const { userId } = req.query;
+
+  const headers = getSupabaseRestHeaders();
+  if (!headers) {
+    return res.status(500).json({ error: "Server misconfiguration: Supabase keys are missing." });
+  }
+
+  try {
+    const supabaseResponse = await axios.get(
+      `${SUPABASE_URL}/rest/v1/component_interactions?select=component_id,user_id,liked_at&order=liked_at.asc`,
+      { headers },
+    );
+
+    const rows = Array.isArray(supabaseResponse.data) ? supabaseResponse.data : [];
+
+    const likeCountsByComponent = rows.reduce((acc, row) => {
+      const componentId = String(row?.component_id || "").trim();
+      if (!componentId) return acc;
+      acc[componentId] = (acc[componentId] || 0) + 1;
+      return acc;
+    }, {});
+
+    const componentLikes = rows.map((row) => ({
+      user_id: row.user_id,
+      liked_at: row.liked_at,
+      component_id: row.component_id,
+      likeCount: likeCountsByComponent[String(row.component_id || "").trim()] || 0,
+    }));
+
+    let likedComponentIds = [];
+    if (userId) {
+      likedComponentIds = rows
+        .filter((row) => String(row.user_id || "").trim() === String(userId).trim())
+        .map((row) => String(row.component_id || "").trim())
+        .filter(Boolean);
+    }
+
+    const payload = {
+      componentLikes,
+      totalLikeCount: rows.length,
+      likeCountsByComponent,
+      likedComponentIds,
+    };
+
+    return res.json(payload);
+  } catch (error) {
+    console.error("Fetch component likes error:", error.response?.data || error.message);
+    return res.status(500).json({
+      error: "Failed to fetch component likes.",
+      details: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/like-component", async (req, res) => {
+  const { userId, componentId } = req.body || {};
+  if (!userId || !componentId) return res.status(400).json({ error: "userId and componentId required." });
+
+  const headers = getSupabaseRestHeaders();
+  if (!headers) return res.status(500).json({ error: "Server misconfiguration" });
+
+  try {
+    const existingResponse = await axios.get(
+      `${SUPABASE_URL}/rest/v1/component_interactions?user_id=eq.${encodeURIComponent(userId)}&component_id=eq.${encodeURIComponent(componentId)}&limit=1`,
+      { headers },
+    );
+
+    if (Array.isArray(existingResponse.data) && existingResponse.data.length > 0) {
+      return res.json({ success: true, liked: true, alreadyLiked: true });
+    }
+
+    const insertResponse = await axios.post(
+      `${SUPABASE_URL}/rest/v1/component_interactions`,
+      [{ user_id: userId, component_id: componentId }],
+      { headers: { ...headers, Prefer: "return=representation" } },
+    );
+    
+    return res.status(201).json({ success: true, liked: true });
+  } catch (error) {
+    if (error?.response?.status === 409) return res.json({ success: true, liked: true, alreadyLiked: true });
+    return res.status(500).json({ error: "Failed to like component.", details: error.response?.data || error.message });
+  }
+});
+
+app.post("/api/unlike-component", async (req, res) => {
+  const { userId, componentId } = req.body || {};
+  if (!userId || !componentId) return res.status(400).json({ error: "userId and componentId required." });
+
+  const headers = getSupabaseRestHeaders();
+  if (!headers) return res.status(500).json({ error: "Server misconfiguration" });
+
+  try {
+    await axios.delete(
+      `${SUPABASE_URL}/rest/v1/component_interactions?user_id=eq.${encodeURIComponent(userId)}&component_id=eq.${encodeURIComponent(componentId)}`,
+      { headers },
+    );
+    return res.json({ success: true, unliked: true });
+  } catch (error) {
+    if (error?.response?.status === 404) return res.json({ success: true, unliked: true, alreadyUnliked: true });
+    return res.status(500).json({ error: "Failed to unlike component.", details: error.response?.data || error.message });
+  }
+});
+
 app.get("/api/marketplace/components", async (req, res) => {
   const headers = getSupabaseRestHeaders();
   if (!headers) {
