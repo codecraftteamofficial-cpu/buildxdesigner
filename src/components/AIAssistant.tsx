@@ -81,10 +81,8 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
   const currentWordCount = inputValue.trim() ? inputValue.trim().split(/\s+/).length : 0
   const isOverLimit = currentWordCount > MAX_WORDS
 
-  const generateResponse = useCallback(async (userMessage: string): Promise<string> => {
+  const generateResponse = useCallback(async (userMessage: string, retryCount = 0): Promise<string> => {
     try {
-      const savedThreadId = localStorage.getItem(threadStorageKey)
-
       const response = await fetch("https://aimentor.patricklmbn.online/ask", {
         method: "POST",
         headers: {
@@ -95,23 +93,34 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
           project_id: projectId
         }),
       })
-      if (!response.ok) throw new Error(`Server error (${response.status})`)
+      
+      if (!response.ok) {
+        if (response.status >= 500 && retryCount < 2) {
+          await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
+          return generateResponse(userMessage, retryCount + 1);
+        }
+        throw new Error(`Server error (${response.status})`)
+      }
+      
       const data = await response.json()
       console.log("AI Server Response:", data);
 
-      if (data.thread_id && !savedThreadId) {
+      if (data.thread_id) {
         localStorage.setItem(threadStorageKey, data.thread_id)
       }
 
-      // Check common keys for the response content
       const content = data.generation || data.answer || data.response || data.result || data.output || data.text || (typeof data === "string" ? data : null);
-      
       if (content) return content;
-      
-      // If we still don't have a string, try to stringify the whole thing as a fallback
       return JSON.stringify(data);
+      
     } catch (error: any) {
-      console.error("AI Assistant Error:", error);
+      console.error(`AI Assistant Error (Attempt ${retryCount + 1}):`, error);
+      
+      if (retryCount < 2 && (error.name === "TypeError" || error.message.includes("fetch"))) {
+        await new Promise(r => setTimeout(r, 1500 * (retryCount + 1)));
+        return generateResponse(userMessage, retryCount + 1);
+      }
+      
       return `⚠️ Connection Error: ${error.message || "Please make sure the AI server is running."}`;
     }
   }, [threadStorageKey, projectId]);
