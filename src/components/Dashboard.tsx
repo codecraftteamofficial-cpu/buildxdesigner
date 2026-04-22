@@ -473,19 +473,18 @@ const normalizeProjectCategory = (category?: string) => {
 };
 
 const API_URL =
-  import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
+  import.meta.env.VITE_API_URL || backendUrl || "http://localhost:4000";
 
 const getApiBaseCandidates = () => {
   const candidateSet = new Set<string>();
 
-  // If we are developing locally, safely prioritize localhost so we don't throw scary 404s from Vercel!
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     candidateSet.add("http://localhost:4000");
   }
 
   if (API_URL) candidateSet.add(API_URL);
 
-  const inferredApiBase = getApiBaseUrl();
+  const inferredApiBase = backendUrl;
   if (inferredApiBase) candidateSet.add(inferredApiBase);
 
   candidateSet.add("http://localhost:4000");
@@ -1121,9 +1120,9 @@ export function Dashboard({
               }
               break;
             }
-          } catch (err) {}
+          } catch (err) { }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
 
     fetchNotifications();
@@ -3351,7 +3350,7 @@ export function Dashboard({
                           </p>
                           <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                             <Heart className="w-3 h-3 fill-red-500 text-red-500" />
-                            {new Date(notif.liked_at).toLocaleDateString()} at {new Date(notif.liked_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {new Date(notif.liked_at).toLocaleDateString()} at {new Date(notif.liked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </p>
                         </div>
                       </div>
@@ -3361,9 +3360,9 @@ export function Dashboard({
                 {/* Pagination Controls */}
                 {(notificationPage > 1 || hasMoreNotifications) && (
                   <div className="px-3 py-2 border-t border-border/40 bg-muted/10 flex items-center justify-between">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       disabled={notificationPage <= 1}
                       onClick={(e) => { e.preventDefault(); setNotificationPage(p => Math.max(1, p - 1)); }}
                       className="h-6 text-xs px-2 cursor-pointer"
@@ -3371,9 +3370,9 @@ export function Dashboard({
                       <ArrowUp className="w-3 h-3 mr-1 -rotate-90" /> Prev
                     </Button>
                     <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Page {notificationPage}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       disabled={!hasMoreNotifications}
                       onClick={(e) => { e.preventDefault(); setNotificationPage(p => p + 1); }}
                       className="h-6 text-xs px-2 cursor-pointer"
@@ -3394,32 +3393,32 @@ export function Dashboard({
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onThemeChange?.("light")}>
-                <Sun className="mr-2 h-4 w-4" />
-                <span>Light</span>
-                {theme === "light" && (
-                  <span className="ml-auto text-blue-500">✓</span>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onThemeChange?.("dark")}>
-                <Moon className="mr-2 h-4 w-4" />
-                <span>Dark</span>
-                {theme === "dark" && (
-                  <span className="ml-auto text-blue-500">✓</span>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onThemeChange?.("system")}>
-                <Monitor className="mr-2 h-4 w-4" />
-                <span>System</span>
-                {theme === "system" && (
-                  <span className="ml-auto text-blue-500">✓</span>
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onThemeChange?.("light")}>
+                  <Sun className="mr-2 h-4 w-4" />
+                  <span>Light</span>
+                  {theme === "light" && (
+                    <span className="ml-auto text-blue-500">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onThemeChange?.("dark")}>
+                  <Moon className="mr-2 h-4 w-4" />
+                  <span>Dark</span>
+                  {theme === "dark" && (
+                    <span className="ml-auto text-blue-500">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onThemeChange?.("system")}>
+                  <Monitor className="mr-2 h-4 w-4" />
+                  <span>System</span>
+                  {theme === "system" && (
+                    <span className="ml-auto text-blue-500">✓</span>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
 
         {/* Changed ScrollArea to allow for main content to scroll */}
         <ScrollArea className="flex-1 overflow-auto">
@@ -4028,8 +4027,8 @@ export function Dashboard({
                                           >
                                             <Heart
                                               className={`w-4 h-4 ${likedComponentIds[comp.id]
-                                                  ? "fill-red-500 text-red-500"
-                                                  : "text-muted-foreground group-hover/like:text-red-500"
+                                                ? "fill-red-500 text-red-500"
+                                                : "text-muted-foreground group-hover/like:text-red-500"
                                                 } transition-colors`}
                                             />
                                             <span className="text-xs font-medium text-muted-foreground">
