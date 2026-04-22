@@ -5,7 +5,7 @@ export const getBackendUrl = (): string => {
   const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
 
   if (isLocal) {
-    return "http://localhost:4000";
+    return "https://buildxdesigner.duckdns.org";
   }
 
   if (
