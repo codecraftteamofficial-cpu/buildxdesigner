@@ -5,6 +5,7 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Send, User, MessageSquare, Star, X, ThumbsUp, ThumbsDown, Copy, Check, RotateCcw, Bot } from "lucide-react"
+import { AI_MENTOR_ENDPOINT } from "../utils/aiMentorConfig"
 
 interface Message {
   id: string
@@ -83,7 +84,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
 
   const generateResponse = useCallback(async (userMessage: string, retryCount = 0): Promise<string> => {
     try {
-      const response = await fetch("https://aimentor.patricklmbn.online/ask", {
+      const response = await fetch(AI_MENTOR_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -128,7 +129,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
 
   useEffect(() => {
     const pingServer = () => {
-      fetch("https://aimentor.patricklmbn.online/ask", { method: "OPTIONS" }).catch(() => null)
+      fetch(AI_MENTOR_ENDPOINT, { method: "OPTIONS" }).catch(() => null)
     }
     const pingInterval = setInterval(pingServer, 840000)
     return () => clearInterval(pingInterval)
