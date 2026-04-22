@@ -88,8 +88,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
       const response = await fetch("https://aimentor.patricklmbn.online/ask", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           question: userMessage,
@@ -119,7 +118,7 @@ export function AIAssistant({ selectedComponentType, projectId }: { selectedComp
 
   useEffect(() => {
     const pingServer = () => {
-      fetch("https://pyqt-buildx-aiinterface.onrender.com/ask", { method: "OPTIONS" }).catch(() => null)
+      fetch("https://aimentor.patricklmbn.online/ask", { method: "OPTIONS" }).catch(() => null)
     }
     const pingInterval = setInterval(pingServer, 840000)
     return () => clearInterval(pingInterval)
