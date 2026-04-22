@@ -192,8 +192,20 @@ export function EditorLayout({
   }, []);
 
   useEffect(() => {
+    const handleSwitchToAI = () => {
+      setState(prev => ({
+        ...prev,
+        isRightSidebarVisible: true,
+        rightSidebarTab: "ai-assistant"
+      }));
+    };
+    window.addEventListener("switch-to-ai-mentor", handleSwitchToAI);
+    return () => window.removeEventListener("switch-to-ai-mentor", handleSwitchToAI);
+  }, []);
+
+  useEffect(() => {
     const handleStepCompleted = () => {
-      setGuideRefreshKey(prev => prev + 1); // ← ADD THIS
+      setGuideRefreshKey(prev => prev + 1);
       setTimeout(() => {
         setShowGettingStartedGuideDialog(true);
       }, 400);
@@ -369,6 +381,7 @@ export function EditorLayout({
             }}
             pages={state.pages}
             activePageId={state.activePageId}
+            isCanvasEmpty={state.components.length === 0}
             onSwitchPage={editor.switchPage}
             onAddPage={canEditProject ? editor.addPage : undefined}
             onDeletePage={canEditProject ? editor.deletePage : undefined}
@@ -752,6 +765,7 @@ export function EditorLayout({
                             toggleCanvasGrid(updates.showGrid);
                         }}
                         pages={state.pages}
+                        projectId={state.currentProjectId}
                       />
                     )}
                   </div>

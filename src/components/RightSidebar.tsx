@@ -25,6 +25,7 @@ interface RightSidebarProps {
   onUpdateCanvasProperties?: (updates: any) => void
   pages?: { id: string; name: string; path?: string }[]
   userProjectConfig?: any
+  projectId?: string
 }
 
 export function RightSidebar({
@@ -38,6 +39,7 @@ export function RightSidebar({
   onUpdateCanvasProperties,
   pages,
   userProjectConfig,
+  projectId,
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState("content")
 
@@ -494,7 +496,10 @@ export function RightSidebar({
             <h3 className="font-medium text-sm">AI Mentor</h3>
           </div>
           <div className="flex-1 w-full overflow-hidden">
-            <AIAssistant selectedComponentType={selectedComponent?.type} />
+            <AIAssistant 
+              selectedComponentType={selectedComponent?.type} 
+              projectId={projectId}
+            />
           </div>
         </div>
       )}
