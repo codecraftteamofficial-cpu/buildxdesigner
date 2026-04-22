@@ -26,6 +26,7 @@ import {
   Monitor,
   Database,
   RotateCcw,
+  Bot,
 } from "lucide-react";
 import { SaveIndicator } from "./SaveIndicator";
 import {
@@ -74,9 +75,15 @@ import { toast } from "sonner";
 import { PageSelector } from "./PageSelector";
 import { useNavigate } from "react-router-dom";
 import { getApiBaseUrl } from "../utils/apiConfig";
+import { AIMentorLogo } from "./AIMentorLogo";
+
 
 const API_URL =
   import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
+
+// Developer Settings
+const ALWAYS_SHOW_AI_SUGGESTION = true; // Set to true to always show for testing
+const AI_SUGGESTION_PROBABILITY = 0.3; // Probability (0-1) of showing the suggestion
 
 interface EditorTopBarProps {
   viewMode: "design" | "code";
@@ -135,6 +142,7 @@ interface EditorTopBarProps {
   onStartTour?: () => void;
   onStartPublishingBasics?: () => void;
   onOpenGettingStarted?: () => void;
+  isCanvasEmpty?: boolean;
 }
 
 interface ProjectCollaborator {
@@ -267,8 +275,11 @@ export function EditorTopBar({
   onStartTour,
   onStartPublishingBasics,
   onOpenGettingStarted,
+  isCanvasEmpty = true,
 }: EditorTopBarProps) {
   const navigate = useNavigate();
+  const [showAISuggestion, setShowAISuggestion] = useState(false);
+  const [suggestionType, setSuggestionType] = useState<"improvement" | "simplification">("improvement");
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState(projectName);
   const projectNameRef = useRef<HTMLInputElement>(null);
@@ -350,6 +361,39 @@ export function EditorTopBar({
   const currentUserIsOwner = collaborators.some(
     (c) => c.isCurrentUser && c.role.trim().toLowerCase() === "owner",
   );
+
+  const [isAIThinking, setIsAIThinking] = useState(false);
+
+  useEffect(() => {
+    const handleStart = () => setIsAIThinking(true);
+    const handleStop = () => setIsAIThinking(false);
+    window.addEventListener("ai-thinking-start", handleStart);
+    window.addEventListener("ai-thinking-stop", handleStop);
+    return () => {
+      window.removeEventListener("ai-thinking-start", handleStart);
+      window.removeEventListener("ai-thinking-stop", handleStop);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Show AI suggestion randomly if canvas is not empty
+    if (!isCanvasEmpty && !showAISuggestion) {
+      const shouldShow = ALWAYS_SHOW_AI_SUGGESTION || Math.random() < AI_SUGGESTION_PROBABILITY;
+      if (shouldShow) {
+        setShowAISuggestion(true);
+      }
+    } else if (isCanvasEmpty && showAISuggestion) {
+      setShowAISuggestion(false);
+    }
+  }, [isCanvasEmpty, showAISuggestion]);
+
+  const handleAISuggestionClick = () => {
+    window.dispatchEvent(new CustomEvent("switch-to-ai-mentor"));
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("ai-mentor-suggest"));
+      setShowAISuggestion(false);
+    }, 100);
+  };
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
@@ -1478,14 +1522,41 @@ export function EditorTopBar({
         </TooltipProvider>
       </div>
 
+
+
       <div className="flex items-center gap-2">
-        <div className="hidden md:block" data-tour="save-progress">
+        <div className="hidden md:flex items-center gap-3" data-tour="save-progress">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2">
+                  {showAISuggestion && !isCanvasEmpty && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleAISuggestionClick}
+                      className="h-8 px-3 bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded-full animate-bounce-subtle flex items-center gap-2"
+                    >
+                      <Bot className="w-3.5 h-3.5" />
+                      <span className="text-[11px] font-bold">I have suggestion</span>
+                    </Button>
+                  )}
+                  <AIMentorLogo isThinking={isAIThinking} className="scale-75 cursor-help" title="AI Mentor" />
+                  {isAIThinking && (
+                    <span className="text-[10px] font-bold text-violet-500 animate-pulse hidden lg:inline">Thinking...</span>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{isAIThinking ? "AI Mentor is thinking..." : "AI Mentor is ready"}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <SaveIndicator
             isSaving={isSaving}
             lastSaved={lastSaved}
             hasUnsavedChanges={hasUnsavedChanges}
           />
         </div>
+
 
         {(isSupabaseConnected ||
           localStorage.getItem("supabase_integration_token")) && (
