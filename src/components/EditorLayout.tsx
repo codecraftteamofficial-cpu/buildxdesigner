@@ -6,12 +6,14 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   PanelRight,
+  
   ChevronLeft,
   ChevronRight,
   X,
   Monitor,
   Laptop,
   Smartphone,
+   Sparkles,
  
 } from "lucide-react";
 import { Sidebar } from "./Sidebar";
@@ -58,7 +60,7 @@ import { CodeEditorTour } from "./Guides/CodeEditorTour";
 import { SavingCollaboration } from "./Guides/SavingCollaboration";
 import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { CanvasArea as CanvasAreaTour } from "./Guides/CanvasArea";
-import { AIMentorLogo } from "./AIMentorLogo";
+import { AIAssistant } from "./AIAssistant";
 
 
 interface EditorLayoutProps {
@@ -160,8 +162,7 @@ export function EditorLayout({
   const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
   const [showExportFilesTour, setShowExportFilesTour] = useState(false);
   const [guideRefreshKey, setGuideRefreshKey] = useState(0);
-    const [isAIMentorOpen, setIsAIMentorOpen] = useState(false);
-
+   
   const ALL_STEP_KEYS = [
     "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
     "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
@@ -198,9 +199,10 @@ export function EditorLayout({
     const handleSwitchToAI = () => {
       setState(prev => ({
         ...prev,
-        isRightSidebarVisible: true
+        isRightSidebarVisible: true,
+        rightSidebarTab: "ai-assistant"
       }));
-       setIsAIMentorOpen(true);
+      
     };
     window.addEventListener("switch-to-ai-mentor", handleSwitchToAI);
     return () => window.removeEventListener("switch-to-ai-mentor", handleSwitchToAI);
@@ -419,7 +421,7 @@ export function EditorLayout({
 
           <div data-tour="canvas-area-dnd" className="flex-1 overflow-hidden flex min-h-0 relative">
             {!state.isLeftSidebarVisible && (
-              <button
+               <button
                 onClick={() =>
                   setState((prev) => ({ ...prev, isLeftSidebarVisible: true }))
                 }
@@ -647,7 +649,7 @@ export function EditorLayout({
                   </button>
 
                   <div className="border-b p-3 shrink-0">
-                     <div className="grid grid-cols-1 gap-1 bg-muted/30 p-1 rounded-lg">
+                       <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1 rounded-lg">
                       <button
                         onClick={() =>
                           setState((prev) => ({
@@ -663,6 +665,23 @@ export function EditorLayout({
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
+                      </button>
+
+                           <button
+                        onClick={() =>
+                          setState((prev) => ({
+                            ...prev,
+                            rightSidebarTab: "ai-assistant",
+                          }))
+                        }
+                        data-tour="ai-mentor-toolbar"
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
+                          ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
+                          : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
+                          }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI Mentor
                       </button>
                       
                     </div>
@@ -731,6 +750,41 @@ export function EditorLayout({
                       />
                     )}
 
+     {state.rightSidebarTab === "ai-assistant" && (
+                      <RightSidebar
+                        selectedComponent={selectedComponentObject}
+                        onUpdateComponent={
+                          canEditProject ? updateComponent : () => { }
+                        }
+                        propertiesPanelVisible={false}
+                        onToggleProperties={togglePropertiesPanel}
+                        aiAssistantVisible={true}
+                        onToggleAIAssistant={toggleAIAssistant}
+                        canvasProperties={{
+                          backgroundColor: state.canvasBackgroundColor,
+                          showGrid: state.showCanvasGrid,
+                        }}
+                        onUpdateCanvasProperties={(updates) => {
+                          if (!canEditProject) return;
+                          if (updates.backgroundColor)
+                            updateCanvasBackground(updates.backgroundColor);
+                          if (updates.showGrid !== undefined)
+                            toggleCanvasGrid(updates.showGrid);
+                        }}
+                        pages={state.pages}
+                        projectId={state.currentProjectId}
+                      />
+                    )}
+                    
+                     {state.rightSidebarTab === "ai-mentor" && (
+                      <div data-tour="ai-mentor-chat" className="h-full overflow-hidden">
+                        <AIAssistant
+                          selectedComponentType={selectedComponentObject?.type}
+                          projectId={state.currentProjectId}
+                        />
+                      </div>
+                    )}
+
                  
                   </div>
                 </>
@@ -779,48 +833,6 @@ export function EditorLayout({
               onClose={toggleShareModal}
             />
           )}
-
-                    <div className="absolute bottom-6 right-4 md:right-6 z-50 flex flex-col items-end gap-3">
-            {isAIMentorOpen && (
-              <div
-                data-tour="ai-mentor-chat"
-                className="w-[360px] h-[520px] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
-              >
-                <div className="flex items-center justify-between px-4 py-3 border-b bg-background/95">
-                  <h3 className="text-sm font-semibold">AI Mentor</h3>
-                  <button
-                    onClick={() => setIsAIMentorOpen(false)}
-                    className="p-1 rounded-md hover:bg-accent text-muted-foreground"
-                    title="Close AI Mentor"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="h-[calc(100%-49px)]">
-                  <RightSidebar
-                    selectedComponent={selectedComponentObject}
-                    onUpdateComponent={canEditProject ? updateComponent : () => { }}
-                    propertiesPanelVisible={false}
-                    onToggleProperties={togglePropertiesPanel}
-                    aiAssistantVisible={true}
-                    onToggleAIAssistant={toggleAIAssistant}
-                    pages={state.pages}
-                    projectId={state.currentProjectId}
-                  />
-                </div>
-              </div>
-            )}
-
-            <button
-              data-tour="ai-mentor-toolbar"
-              onClick={() => setIsAIMentorOpen((prev) => !prev)}
-              className="group relative w-16 h-16 rounded-full bg-linear-to-br from-violet-500 to-fuchsia-500 shadow-lg hover:shadow-violet-500/40 transition-all duration-300 flex items-center justify-center animate-[bounce_3s_ease-in-out_infinite]"
-              title="Open AI Mentor"
-            >
-              <span className="absolute inset-0 rounded-full border border-white/30 animate-pulse" />
-              <AIMentorLogo className="scale-125" />
-            </button>
-          </div>
 
 
 
@@ -928,9 +940,9 @@ export function EditorLayout({
               setState((prev) => ({
                 ...prev,
                 isRightSidebarVisible: true,
-               
+                rightSidebarTab: "ai-assistant",
               }));
-                setIsAIMentorOpen(true);
+              
               setTimeout(() => setShowAIAssistantTour(true), 500);
             }}
             onStartCodeEditor={() => {
