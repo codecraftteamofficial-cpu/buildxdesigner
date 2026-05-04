@@ -82,7 +82,7 @@ const API_URL =
   import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
 
 // Developer Settings
-const ALWAYS_SHOW_AI_SUGGESTION = true; // Set to true to always show for testing
+const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testing
 const AI_SUGGESTION_PROBABILITY = 0.3; // Probability (0-1) of showing the suggestion
 
 interface EditorTopBarProps {
