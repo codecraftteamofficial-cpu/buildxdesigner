@@ -209,7 +209,11 @@ export function AIAssistant({
       try {
         window.dispatchEvent(new CustomEvent("ai-thinking-start"));
         const suggestionPrompt =
+<<<<<<< HEAD
           "How can I improve my design? Make it simple and in 3 sentence only";
+=======
+          "How can I improve my design? Make it slightly detailed but not too long of a response. Consider best practices, potential issues, and innovative ideas. Be specific and actionable.";
+>>>>>>> parent of 355b5fa (Changed behavior of "I have a suggestion")
         const response = await generateResponse(suggestionPrompt);
         setMessages((prev) => [
           ...prev,
