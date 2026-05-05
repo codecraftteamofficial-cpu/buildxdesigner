@@ -84,17 +84,8 @@ const API_URL =
 // Developer Settings
 const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testing
 const AI_SUGGESTION_PROBABILITY = 0.5; // Probability (0-1) of showing the suggestion
-
 const AI_SUGGESTION_MIN_CHANGES = 3;
 const AI_SUGGESTION_MAX_CHANGES = 5;
-
-const suggestionThresholdRef = useRef<number>(
-  Math.floor(
-    Math.random() * (AI_SUGGESTION_MAX_CHANGES - AI_SUGGESTION_MIN_CHANGES + 1),
-  ) + AI_SUGGESTION_MIN_CHANGES,
-);
-
-const changeCountRef = useRef<number>(0);
 
 interface EditorTopBarProps {
   viewMode: "design" | "code" | "ai";
@@ -291,6 +282,15 @@ export function EditorTopBar({
   const navigate = useNavigate();
   const [showAISuggestion, setShowAISuggestion] = useState(false);
   const hasUnsavedPrevRef = useRef<boolean>(hasUnsavedChanges);
+  const changeCountRef = useRef<number>(0);
+
+  const suggestionThresholdRef = useRef<number>(
+    Math.floor(
+      Math.random() *
+        (AI_SUGGESTION_MAX_CHANGES - AI_SUGGESTION_MIN_CHANGES + 1),
+    ) + AI_SUGGESTION_MIN_CHANGES,
+  );
+
   const topbarMountedRef = useRef(false);
   const suggestionHideTimerRef = useRef<number | null>(null);
   const [suggestionType, setSuggestionType] = useState<
