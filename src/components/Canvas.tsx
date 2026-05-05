@@ -92,7 +92,10 @@ export function Canvas({
     null,
   );
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [dragPosition, setDragPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const dragPositionRef = useRef<{ x: number; y: number } | null>(null);
   const [clipboard, setClipboard] = useState<ComponentData | null>(null);
   const [commandHistory, setCommandHistory] = useState<Command[]>([]);
@@ -156,6 +159,7 @@ export function Canvas({
     }
   });
   const [rulerScroll, setRulerScroll] = useState({ x: 0, y: 0 });
+  const componentsMountedRef = useRef(false);
 
   const handleCanvasScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -338,6 +342,19 @@ export function Canvas({
     };
   }, []);
 
+  const canvasComponentsMountedRef = useRef(false);
+  useEffect(() => {
+    if (!canvasComponentsMountedRef.current) {
+      canvasComponentsMountedRef.current = true;
+      return;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("canvas-changed"));
+    } catch (e) {
+      // noop
+    }
+  }, [components]);
+
   // Clear selection when changing pages
   useEffect(() => {
     setSelectedComponents(new Set());
@@ -475,12 +492,14 @@ export function Canvas({
 
     selectedComps.forEach((comp) => {
       const pos = comp.position || { x: 0, y: 0 };
-      
+
       let width = 200;
       let height = 100;
 
       // Try to get actual DOM measurements first for best accuracy
-      const domNode = document.querySelector(`[data-component-id="${comp.id}"]`);
+      const domNode = document.querySelector(
+        `[data-component-id="${comp.id}"]`,
+      );
       if (domNode) {
         const rect = domNode.getBoundingClientRect();
         const scale = getEffectiveScale();
@@ -1493,14 +1512,14 @@ export function Canvas({
       >
         {/* Zoom Controls - Hide in Read Only */}
         {!readOnly && (
-           <div className="absolute bottom-3 right-3 flex items-center gap-0.5 rounded-md border border-border bg-background/85 px-1.5 py-1 shadow-md backdrop-blur-sm z-10">
+          <div className="absolute bottom-3 right-3 flex items-center gap-0.5 rounded-md border border-border bg-background/85 px-1.5 py-1 shadow-md backdrop-blur-sm z-10">
             <button
               onClick={() => setDisplayZoom(displayZoom - 10)}
-             className="p-0.5 hover:bg-accent rounded transition-colors"
+              className="p-0.5 hover:bg-accent rounded transition-colors"
               title="Zoom Out"
             >
               <svg
-                 className="w-3 h-3"
+                className="w-3 h-3"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1538,7 +1557,7 @@ export function Canvas({
             <div className="w-px h-4 bg-border mx-0.5" />
             <button
               onClick={() => setDisplayZoom(0)}
-                 className="px-1 py-0.5 hover:bg-accent rounded transition-colors text-[10px]"
+              className="px-1 py-0.5 hover:bg-accent rounded transition-colors text-[10px]"
               title="Reset Zoom"
             >
               Reset
@@ -1628,7 +1647,8 @@ export function Canvas({
                     top: `${cursor.y}px`,
                     transform: "translate(-2px, -2px)",
                     overflow: "visible",
-                    transition: "left 80ms cubic-bezier(0.2,0,0,1), top 80ms cubic-bezier(0.2,0,0,1)",
+                    transition:
+                      "left 80ms cubic-bezier(0.2,0,0,1), top 80ms cubic-bezier(0.2,0,0,1)",
                   }}
                 >
                   <svg
@@ -1676,7 +1696,10 @@ export function Canvas({
 
               {filteredComponents.map((component) => {
                 const isDragging = draggingComponent === component.id;
-                const position = isDragging && dragPosition ? dragPosition : (component.position || { x: 100, y: 100 });
+                const position =
+                  isDragging && dragPosition
+                    ? dragPosition
+                    : component.position || { x: 100, y: 100 };
                 const isSelected = selectedComponents.has(component.id);
 
                 return (
