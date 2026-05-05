@@ -279,6 +279,9 @@ export function EditorTopBar({
 }: EditorTopBarProps) {
   const navigate = useNavigate();
   const [showAISuggestion, setShowAISuggestion] = useState(false);
+  const hasUnsavedPrevRef = useRef<boolean>(hasUnsavedChanges);
+  const topbarMountedRef = useRef(false);
+  const suggestionHideTimerRef = useRef<number | null>(null);
   const [suggestionType, setSuggestionType] = useState<
     "improvement" | "simplification"
   >("improvement");
@@ -378,25 +381,62 @@ export function EditorTopBar({
   }, []);
 
   useEffect(() => {
-    // Show AI suggestion randomly if canvas is not empty
-    if (!isCanvasEmpty && !showAISuggestion) {
-      const shouldShow =
-        ALWAYS_SHOW_AI_SUGGESTION || Math.random() < AI_SUGGESTION_PROBABILITY;
-      if (shouldShow) {
+    if (!topbarMountedRef.current) {
+      topbarMountedRef.current = true;
+      hasUnsavedPrevRef.current = hasUnsavedChanges;
+
+      if (ALWAYS_SHOW_AI_SUGGESTION && !isCanvasEmpty) {
         setShowAISuggestion(true);
       }
-    } else if (isCanvasEmpty && showAISuggestion) {
+      return;
+    }
+
+    if (!hasUnsavedPrevRef.current && hasUnsavedChanges && !isCanvasEmpty) {
+      setShowAISuggestion(true);
+    }
+
+    if (isCanvasEmpty && showAISuggestion) {
       setShowAISuggestion(false);
     }
-  }, [isCanvasEmpty, showAISuggestion]);
+
+    hasUnsavedPrevRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges, isCanvasEmpty]);
 
   const handleAISuggestionClick = () => {
+    if (suggestionHideTimerRef.current) {
+      clearTimeout(suggestionHideTimerRef.current);
+      suggestionHideTimerRef.current = null;
+    }
+    setShowAISuggestion(false);
     window.dispatchEvent(new CustomEvent("switch-to-ai-mentor"));
     setTimeout(() => {
       window.dispatchEvent(new CustomEvent("ai-mentor-suggest"));
-      setShowAISuggestion(false);
     }, 100);
   };
+
+  useEffect(() => {
+    if (showAISuggestion) {
+      if (suggestionHideTimerRef.current) {
+        clearTimeout(suggestionHideTimerRef.current);
+      }
+      suggestionHideTimerRef.current = window.setTimeout(() => {
+        setShowAISuggestion(false);
+        suggestionHideTimerRef.current = null;
+      }, 8000);
+    } else {
+      if (suggestionHideTimerRef.current) {
+        clearTimeout(suggestionHideTimerRef.current);
+        suggestionHideTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (suggestionHideTimerRef.current) {
+        clearTimeout(suggestionHideTimerRef.current);
+        suggestionHideTimerRef.current = null;
+      }
+    };
+  }, [showAISuggestion]);
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
