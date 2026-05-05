@@ -209,7 +209,7 @@ export function AIAssistant({
       try {
         window.dispatchEvent(new CustomEvent("ai-thinking-start"));
         const suggestionPrompt =
-          "How can I improve my design? Make it detailed and structured. Consider best practices, potential issues, and innovative ideas. Be specific and actionable.";
+          "How can I improve my design? Make it slightly detailed but not too long of a response. Consider best practices, potential issues, and innovative ideas. Be specific and actionable.";
         const response = await generateResponse(suggestionPrompt);
         setMessages((prev) => [
           ...prev,
