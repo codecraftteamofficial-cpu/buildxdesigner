@@ -342,12 +342,10 @@ export function Canvas({
     };
   }, []);
 
-  // Emit a simple 'canvas-changed' event whenever the components prop updates
-  // after the initial mount. This lets other UI (like the topbar) react to
-  // user-driven canvas changes (add/update/delete) without wiring every callsite.
+  const canvasComponentsMountedRef = useRef(false);
   useEffect(() => {
-    if (!componentsMountedRef.current) {
-      componentsMountedRef.current = true;
+    if (!canvasComponentsMountedRef.current) {
+      canvasComponentsMountedRef.current = true;
       return;
     }
     try {

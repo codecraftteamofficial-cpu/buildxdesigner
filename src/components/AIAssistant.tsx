@@ -231,6 +231,31 @@ export function AIAssistant({
     return () => window.removeEventListener("ai-mentor-suggest", handleSuggest);
   }, [isLoading, generateResponse]);
 
+  // Listen for background-injected suggestions so they appear in the chat
+  useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const content = e?.detail?.content;
+        if (!content) return;
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            type: "assistant",
+            content: String(content),
+            timestamp: new Date(),
+            animate: true,
+          },
+        ]);
+      } catch (err) {
+        // noop
+      }
+    };
+
+    window.addEventListener("ai-mentor-suggestion", handler);
+    return () => window.removeEventListener("ai-mentor-suggestion", handler);
+  }, [projectId]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedChats = sessionStorage.getItem(storageKey);
