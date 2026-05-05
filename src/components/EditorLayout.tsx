@@ -6,15 +6,13 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
   PanelRight,
-  
   ChevronLeft,
   ChevronRight,
   X,
   Monitor,
   Laptop,
   Smartphone,
-   Sparkles,
- 
+  Sparkles,
 } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { Canvas } from "./Canvas";
@@ -62,7 +60,6 @@ import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { CanvasArea as CanvasAreaTour } from "./Guides/CanvasArea";
 import { AIAssistant } from "./AIAssistant";
 
-
 interface EditorLayoutProps {
   editor: ReturnType<typeof useEditorState>;
   onStartTour?: () => void;
@@ -98,7 +95,10 @@ export function EditorLayout({
   onStartCustomComponents,
   onStartExportFiles,
 }: EditorLayoutProps) {
-  console.log("[EditorLayout] Render state.userProjectConfig:", editor?.state?.userProjectConfig);
+  console.log(
+    "[EditorLayout] Render state.userProjectConfig:",
+    editor?.state?.userProjectConfig,
+  );
   const {
     state,
     setState,
@@ -144,38 +144,62 @@ export function EditorLayout({
   const [accessCheckTimedOut, setAccessCheckTimedOut] = useState(false);
 
   const [showExportConfirmDialog, setShowExportConfirmDialog] = useState(false);
-  const [pendingExportComponent, setPendingExportComponent] = useState<any>(null);
+  const [pendingExportComponent, setPendingExportComponent] =
+    useState<any>(null);
   const [showCodeExportModal, setShowCodeExportModal] = useState(false);
-  const [showGettingStartedGuideDialog, setShowGettingStartedGuideDialog] = useState(false);
+  const [showGettingStartedGuideDialog, setShowGettingStartedGuideDialog] =
+    useState(false);
   const [showCongratsModal, setShowCongratsModal] = useState(false);
-  const [showPublishingBasicsTour, setShowPublishingBasicsTour] = useState(false);
+  const [showPublishingBasicsTour, setShowPublishingBasicsTour] =
+    useState(false);
   const [showCanvasAreaTour, setShowCanvasAreaTour] = useState(false);
   const [showPropertiesPanelTour, setShowPropertiesPanelTour] = useState(false);
   const [showAIAssistantTour, setShowAIAssistantTour] = useState(false);
   const [showCodeEditorTour, setShowCodeEditorTour] = useState(false);
-  const [showSavingCollaborationTour, setShowSavingCollaborationTour] = useState(false);
+  const [showSavingCollaborationTour, setShowSavingCollaborationTour] =
+    useState(false);
   const [showBlocksPaletteTour, setShowBlocksPaletteTour] = useState(false);
   const [showLayersPanelTour, setShowLayersPanelTour] = useState(false);
   const [showMultiPageTour, setShowMultiPageTour] = useState(false);
   const [showPublishTemplateTour, setShowPublishTemplateTour] = useState(false);
   const [showPreviewModeTour, setShowPreviewModeTour] = useState(false);
-  const [showCustomComponentsTour, setShowCustomComponentsTour] = useState(false);
+  const [showCustomComponentsTour, setShowCustomComponentsTour] =
+    useState(false);
   const [showExportFilesTour, setShowExportFilesTour] = useState(false);
   const [guideRefreshKey, setGuideRefreshKey] = useState(0);
-   
+
   const ALL_STEP_KEYS = [
-    "dashboard", "nav-projects", "palette", "template-interact", "website", "publish-template",
-    "canvas", "blocks-palette", "properties", "layers-panel", "multi-page", "ai", "collab", "preview-mode",
-    "code", "custom-components", "library", "publishing", "export-files"
+    "dashboard",
+    "nav-projects",
+    "palette",
+    "template-interact",
+    "website",
+    "publish-template",
+    "canvas",
+    "blocks-palette",
+    "properties",
+    "layers-panel",
+    "multi-page",
+    "ai",
+    "collab",
+    "preview-mode",
+    "code",
+    "custom-components",
+    "library",
+    "publishing",
+    "export-files",
   ];
 
   const checkAllStepsComplete = async () => {
     if (!state.currentUser?.id) return;
     try {
-      const { fetchTutorialProgress } = await import("../supabase/data/tutorialProgressService");
+      const { fetchTutorialProgress } =
+        await import("../supabase/data/tutorialProgressService");
       const rows = await fetchTutorialProgress(state.currentUser.id);
-      const completedKeys = new Set(rows.filter(r => r.completed).map(r => r.step_key));
-      const allDone = ALL_STEP_KEYS.every(key => completedKeys.has(key));
+      const completedKeys = new Set(
+        rows.filter((r) => r.completed).map((r) => r.step_key),
+      );
+      const allDone = ALL_STEP_KEYS.every((key) => completedKeys.has(key));
       if (allDone) {
         window.dispatchEvent(new Event("buildx-tutorial-completed"));
       }
@@ -191,32 +215,46 @@ export function EditorLayout({
         setShowCongratsModal(true);
       }, 400);
     };
-    window.addEventListener("buildx-tutorial-completed", handleTutorialComplete);
-    return () => window.removeEventListener("buildx-tutorial-completed", handleTutorialComplete);
+    window.addEventListener(
+      "buildx-tutorial-completed",
+      handleTutorialComplete,
+    );
+    return () =>
+      window.removeEventListener(
+        "buildx-tutorial-completed",
+        handleTutorialComplete,
+      );
   }, []);
 
   useEffect(() => {
     const handleSwitchToAI = () => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isRightSidebarVisible: true,
-        rightSidebarTab: "ai-assistant"
+        rightSidebarTab: "ai-assistant",
       }));
-      
     };
     window.addEventListener("switch-to-ai-mentor", handleSwitchToAI);
-    return () => window.removeEventListener("switch-to-ai-mentor", handleSwitchToAI);
+    return () =>
+      window.removeEventListener("switch-to-ai-mentor", handleSwitchToAI);
   }, []);
 
   useEffect(() => {
     const handleStepCompleted = () => {
-      setGuideRefreshKey(prev => prev + 1);
+      setGuideRefreshKey((prev) => prev + 1);
       setTimeout(() => {
         setShowGettingStartedGuideDialog(true);
       }, 400);
     };
-    window.addEventListener("buildx-tutorial-step-completed", handleStepCompleted);
-    return () => window.removeEventListener("buildx-tutorial-step-completed", handleStepCompleted);
+    window.addEventListener(
+      "buildx-tutorial-step-completed",
+      handleStepCompleted,
+    );
+    return () =>
+      window.removeEventListener(
+        "buildx-tutorial-step-completed",
+        handleStepCompleted,
+      );
   }, []);
 
   // Add alongside the existing buildx-tutorial-completed listener
@@ -280,11 +318,19 @@ export function EditorLayout({
     const timer = setTimeout(checkPendingTours, 800);
     return () => clearTimeout(timer);
   }, [
-    onStartPublishingBasics, onStartCanvasArea, onStartPropertiesPanel,
-    onStartAIAssistant, onStartCodeEditor, onStartSavingCollaboration,
-    onStartPublishTemplate, onStartBlocksPalette, onStartLayersPanel,
-    onStartMultiPageManagement, onStartPreviewMode, onStartCustomComponents,
-    onStartExportFiles
+    onStartPublishingBasics,
+    onStartCanvasArea,
+    onStartPropertiesPanel,
+    onStartAIAssistant,
+    onStartCodeEditor,
+    onStartSavingCollaboration,
+    onStartPublishTemplate,
+    onStartBlocksPalette,
+    onStartLayersPanel,
+    onStartMultiPageManagement,
+    onStartPreviewMode,
+    onStartCustomComponents,
+    onStartExportFiles,
   ]);
 
   const openExportConfirmDialog = async (component: any) => {
@@ -296,13 +342,15 @@ export function EditorLayout({
     if (pendingExportComponent) {
       try {
         await exportComponent(pendingExportComponent);
-        const { toast } = await import('sonner');
-        toast.success(`"${pendingExportComponent.name}" published to community!`);
+        const { toast } = await import("sonner");
+        toast.success(
+          `"${pendingExportComponent.name}" published to community!`,
+        );
         setShowExportConfirmDialog(false);
         setPendingExportComponent(null);
       } catch (err) {
-        const { toast } = await import('sonner');
-        toast.error('Failed to publish component');
+        const { toast } = await import("sonner");
+        toast.error("Failed to publish component");
         setShowExportConfirmDialog(false);
         setPendingExportComponent(null);
       }
@@ -407,7 +455,11 @@ export function EditorLayout({
               siteTitle: state.siteTitle,
               siteLogoUrl: state.siteLogoUrl,
             }}
-            onPublishSuccess={(subdomain: string, title?: string, logoUrl?: string) => {
+            onPublishSuccess={(
+              subdomain: string,
+              title?: string,
+              logoUrl?: string,
+            ) => {
               setState((prev) => ({
                 ...prev,
                 projectSubdomain: subdomain,
@@ -419,9 +471,12 @@ export function EditorLayout({
             }}
           />
 
-          <div data-tour="canvas-area-dnd" className="flex-1 overflow-hidden flex min-h-0 relative">
+          <div
+            data-tour="canvas-area-dnd"
+            className="flex-1 overflow-hidden flex min-h-0 relative"
+          >
             {!state.isLeftSidebarVisible && (
-               <button
+              <button
                 onClick={() =>
                   setState((prev) => ({ ...prev, isLeftSidebarVisible: true }))
                 }
@@ -433,8 +488,9 @@ export function EditorLayout({
             )}
 
             <div
-              className={`shrink-0 bg-card border-r border-border overflow-hidden relative ${state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
-                }`}
+              className={`shrink-0 bg-card border-r border-border overflow-hidden relative ${
+                state.isLeftSidebarVisible ? "" : "w-0 border-r-0"
+              }`}
               style={{
                 width: state.isLeftSidebarVisible
                   ? `${state.leftSidebarWidth}px`
@@ -458,13 +514,13 @@ export function EditorLayout({
 
                   <div className="flex-1 overflow-auto h-full pt-0">
                     <Sidebar
-                      onAddComponent={canEditProject ? addComponent : () => { }}
+                      onAddComponent={canEditProject ? addComponent : () => {}}
                       components={state.components}
                       selectedId={state.selectedComponent}
                       onSelect={selectComponent}
-                      onDelete={canEditProject ? deleteComponent : () => { }}
-                      onReorder={canEditProject ? reorderComponent : () => { }}
-                      onMoveLayer={canEditProject ? editor.moveLayer : () => { }}
+                      onDelete={canEditProject ? deleteComponent : () => {}}
+                      onReorder={canEditProject ? reorderComponent : () => {}}
+                      onMoveLayer={canEditProject ? editor.moveLayer : () => {}}
                       activePageId={state.activePageId}
                       customComponents={state.customComponents}
                       onSaveCustomComponent={saveCustomComponent}
@@ -472,7 +528,7 @@ export function EditorLayout({
                       onDeleteCustomComponent={deleteCustomComponent}
                       onExportComponent={openExportConfirmDialog}
                       onImportedComponent={refreshCustomComponents}
-                      projectId={state.currentProjectId || ''}
+                      projectId={state.currentProjectId || ""}
                     />
                   </div>
                 </>
@@ -494,14 +550,20 @@ export function EditorLayout({
             <div
               className={`flex-1 flex flex-col overflow-hidden ${state.viewMode === "code" ? "bg-[#111111]" : "bg-muted/20"} ${state.isFullscreen ? "fullscreen-canvas" : ""}`}
             >
-              <div className={`flex-1 flex overflow-hidden justify-center items-start custom-scrollbar ${state.viewMode === "code" ? "p-0 bg-[#111111]" : "p-6 bg-muted/10"}`}>
+              <div
+                className={`flex-1 flex overflow-hidden justify-center items-start custom-scrollbar ${state.viewMode === "code" ? "p-0 bg-[#111111]" : "p-6 bg-muted/10"}`}
+              >
                 <div
                   className="shadow-2xl transition-all duration-300 ease-in-out h-full overflow-hidden rounded-lg relative"
                   style={{
                     width: state.viewMode === "design" ? "1920px" : "100%",
                     maxWidth: state.viewMode === "design" ? "1920px" : "none",
-                    backgroundColor: state.viewMode === "code" ? "#111111" : undefined,
-                    border: state.viewMode === "code" ? "none" : "1px solid var(--border)",
+                    backgroundColor:
+                      state.viewMode === "code" ? "#111111" : undefined,
+                    border:
+                      state.viewMode === "code"
+                        ? "none"
+                        : "1px solid var(--border)",
                   }}
                 >
                   {state.viewMode === "design" && (
@@ -534,7 +596,10 @@ export function EditorLayout({
                   )}
 
                   {state.viewMode === "code" && (
-                    <div className="flex-1 flex flex-col h-full overflow-hidden" style={{ backgroundColor: "#1e1e1e" }}>
+                    <div
+                      className="flex-1 flex flex-col h-full overflow-hidden"
+                      style={{ backgroundColor: "#1e1e1e" }}
+                    >
                       <CodeViewEditor
                         components={state.components}
                         customComponents={state.customComponents || []}
@@ -543,9 +608,13 @@ export function EditorLayout({
                         userConfig={{
                           paymongoKey: state.userProjectConfig?.paymongoKey,
                           resendApiKey: state.userProjectConfig?.resendApiKey,
-                          supabaseUrl: state.userProjectConfig?.supabaseUrl || undefined,
-                          supabaseKey: state.userProjectConfig?.supabaseKey || undefined,
-                          supabaseServiceKey: state.userProjectConfig?.supabaseServiceKey || undefined,
+                          supabaseUrl:
+                            state.userProjectConfig?.supabaseUrl || undefined,
+                          supabaseKey:
+                            state.userProjectConfig?.supabaseKey || undefined,
+                          supabaseServiceKey:
+                            state.userProjectConfig?.supabaseServiceKey ||
+                            undefined,
                         }}
                         activePageId={state.activePageId}
                         onCodeChange={(newComponents) => {
@@ -555,24 +624,37 @@ export function EditorLayout({
                         onPageCreate={
                           canEditProject
                             ? (name, path) => {
-                              editor.addPage(name, path);
-                            }
+                                editor.addPage(name, path);
+                              }
                             : undefined
                         }
                         fileOverrides={state.fileOverrides || {}}
                         onFileOverrideUpdate={(path, content) => {
                           if (content === null) {
                             setState((prev) => {
-                              const newOverrides = { ...(prev.fileOverrides || {}) };
+                              const newOverrides = {
+                                ...(prev.fileOverrides || {}),
+                              };
                               delete newOverrides[path];
-                              return { ...prev, fileOverrides: newOverrides, hasUnsavedChanges: true };
+                              return {
+                                ...prev,
+                                fileOverrides: newOverrides,
+                                hasUnsavedChanges: true,
+                              };
                             });
                             return;
                           }
-                          console.log("File override update:", path, content.substring(0, 100));
+                          console.log(
+                            "File override update:",
+                            path,
+                            content.substring(0, 100),
+                          );
                           setState((prev) => ({
                             ...prev,
-                            fileOverrides: { ...(prev.fileOverrides || {}), [path]: content },
+                            fileOverrides: {
+                              ...(prev.fileOverrides || {}),
+                              [path]: content,
+                            },
                             hasUnsavedChanges: true,
                           }));
                         }}
@@ -582,16 +664,32 @@ export function EditorLayout({
                             setState((prev) => {
                               const newFiles = { ...(prev.customFiles || {}) };
                               delete newFiles[path];
-                              return { ...prev, customFiles: newFiles, hasUnsavedChanges: true };
+                              return {
+                                ...prev,
+                                customFiles: newFiles,
+                                hasUnsavedChanges: true,
+                              };
                             });
                             return;
                           }
                           setState((prev) => ({
                             ...prev,
-                            customFiles: { ...(prev.customFiles || {}), [path]: content },
+                            customFiles: {
+                              ...(prev.customFiles || {}),
+                              [path]: content,
+                            },
                             hasUnsavedChanges: true,
                           }));
                         }}
+                      />
+                    </div>
+                  )}
+
+                  {state.viewMode === "ai" && (
+                    <div className="flex-1 flex flex-col h-full overflow-hidden">
+                      <AIAssistant
+                        selectedComponentType={selectedComponentObject?.type}
+                        projectId={state.currentProjectId || undefined}
                       />
                     </div>
                   )}
@@ -624,8 +722,9 @@ export function EditorLayout({
             )}
 
             <div
-              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col ${state.isRightSidebarVisible ? "" : "w-0 border-l-0"
-                }`}
+              className={`shrink-0 bg-card border-l border-border overflow-hidden flex flex-col ${
+                state.isRightSidebarVisible ? "" : "w-0 border-l-0"
+              }`}
               style={{
                 width: state.isRightSidebarVisible
                   ? `${state.rightSidebarWidth}px`
@@ -649,7 +748,7 @@ export function EditorLayout({
                   </button>
 
                   <div className="border-b p-3 shrink-0">
-                       <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1 rounded-lg">
+                    <div className="grid grid-cols-2 gap-1 bg-muted/30 p-1 rounded-lg">
                       <button
                         onClick={() =>
                           setState((prev) => ({
@@ -658,16 +757,17 @@ export function EditorLayout({
                           }))
                         }
                         data-tour="properties-toolbar"
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "properties"
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "properties"
+                            ? "bg-card text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
                       >
                         <PanelRight className="w-3.5 h-3.5" />
                         Properties
                       </button>
 
-                           <button
+                      <button
                         onClick={() =>
                           setState((prev) => ({
                             ...prev,
@@ -675,15 +775,15 @@ export function EditorLayout({
                           }))
                         }
                         data-tour="ai-mentor-toolbar"
-                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${state.rightSidebarTab === "ai-assistant"
-                          ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
-                          : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
-                          }`}
+                        className={`flex items-center justify-center gap-2 px-3 py-1.5 text-xs rounded-md transition-all ${
+                          state.rightSidebarTab === "ai-assistant"
+                            ? "bg-linear-to-r from-violet-600 to-fuchsia-500 text-violet-600 shadow-md font-bold"
+                            : "bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:bg-violet-500/20 font-semibold"
+                        }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         AI Mentor
                       </button>
-                      
                     </div>
                   </div>
 
@@ -694,7 +794,7 @@ export function EditorLayout({
                         activePageId={state.activePageId}
                         selectedComponent={selectedComponentObject}
                         onUpdateComponent={
-                          canEditProject ? updateComponent : () => { }
+                          canEditProject ? updateComponent : () => {}
                         }
                         onUpdateStyle={(id, style) => {
                           if (!canEditProject) return;
@@ -750,11 +850,11 @@ export function EditorLayout({
                       />
                     )}
 
-     {state.rightSidebarTab === "ai-assistant" && (
+                    {state.rightSidebarTab === "ai-assistant" && (
                       <RightSidebar
                         selectedComponent={selectedComponentObject}
                         onUpdateComponent={
-                          canEditProject ? updateComponent : () => { }
+                          canEditProject ? updateComponent : () => {}
                         }
                         propertiesPanelVisible={false}
                         onToggleProperties={togglePropertiesPanel}
@@ -775,17 +875,18 @@ export function EditorLayout({
                         projectId={state.currentProjectId}
                       />
                     )}
-                    
-                     {state.rightSidebarTab === "ai-mentor" && (
-                      <div data-tour="ai-mentor-chat" className="h-full overflow-hidden">
+
+                    {state.rightSidebarTab === "ai-mentor" && (
+                      <div
+                        data-tour="ai-mentor-chat"
+                        className="h-full overflow-hidden"
+                      >
                         <AIAssistant
                           selectedComponentType={selectedComponentObject?.type}
                           projectId={state.currentProjectId}
                         />
                       </div>
                     )}
-
-                 
                   </div>
                 </>
               )}
@@ -819,7 +920,7 @@ export function EditorLayout({
 
           <MobilePropertiesModal
             selectedComponent={selectedComponentObject}
-            onUpdateComponent={canEditProject ? updateComponent : () => { }}
+            onUpdateComponent={canEditProject ? updateComponent : () => {}}
             isOpen={state.showMobileProperties}
             onClose={() =>
               setState((prev) => ({ ...prev, showMobileProperties: false }))
@@ -834,15 +935,12 @@ export function EditorLayout({
             />
           )}
 
-
-
-
           {state.showAIAssistantModal && (
             <RightSidebar
               selectedComponent={selectedComponentObject}
-              onUpdateComponent={canEditProject ? updateComponent : () => { }}
+              onUpdateComponent={canEditProject ? updateComponent : () => {}}
               propertiesPanelVisible={false}
-              onToggleProperties={() => { }}
+              onToggleProperties={() => {}}
               aiAssistantVisible={true}
               onToggleAIAssistant={toggleAIAssistant}
               pages={state.pages}
@@ -853,23 +951,25 @@ export function EditorLayout({
           <Dialog
             open={showExportConfirmDialog}
             onOpenChange={(open) => {
-              setShowExportConfirmDialog(open)
-              if (!open) setPendingExportComponent(null)
+              setShowExportConfirmDialog(open);
+              if (!open) setPendingExportComponent(null);
             }}
           >
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Publish to Community?</DialogTitle>
                 <DialogDescription>
-                  Share "{pendingExportComponent?.name || 'this component'}" with the community? Other users will be able to import and use it.
+                  Share "{pendingExportComponent?.name || "this component"}"
+                  with the community? Other users will be able to import and use
+                  it.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter className="flex justify-end">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setShowExportConfirmDialog(false)
-                    setPendingExportComponent(null)
+                    setShowExportConfirmDialog(false);
+                    setPendingExportComponent(null);
                   }}
                 >
                   Cancel
@@ -896,7 +996,8 @@ export function EditorLayout({
                 resendApiKey: state.userProjectConfig?.resendApiKey,
                 supabaseUrl: state.userProjectConfig?.supabaseUrl || undefined,
                 supabaseKey: state.userProjectConfig?.supabaseKey || undefined,
-                supabaseServiceKey: state.userProjectConfig?.supabaseServiceKey || undefined,
+                supabaseServiceKey:
+                  state.userProjectConfig?.supabaseServiceKey || undefined,
               }}
               fileOverrides={state.fileOverrides || {}}
               customFiles={state.customFiles || {}}
@@ -911,7 +1012,10 @@ export function EditorLayout({
             refreshKey={guideRefreshKey}
             onStartBuildXIntroduction={() => {
               setShowGettingStartedGuideDialog(false);
-              localStorage.setItem("buildx-pending-buildx-introduction-tour", "1");
+              localStorage.setItem(
+                "buildx-pending-buildx-introduction-tour",
+                "1",
+              );
               editor.goToDashboard();
             }}
             onStartWebsiteCreation={() => {
@@ -924,7 +1028,10 @@ export function EditorLayout({
             }}
             onStartDashboardOverview={() => {
               setShowGettingStartedGuideDialog(false);
-              localStorage.setItem("buildx-pending-dashboard-overview-tour", "1");
+              localStorage.setItem(
+                "buildx-pending-dashboard-overview-tour",
+                "1",
+              );
               editor.goToDashboard();
             }}
             onStartCanvasArea={() => {
@@ -942,7 +1049,7 @@ export function EditorLayout({
                 isRightSidebarVisible: true,
                 rightSidebarTab: "ai-assistant",
               }));
-              
+
               setTimeout(() => setShowAIAssistantTour(true), 500);
             }}
             onStartCodeEditor={() => {
@@ -955,17 +1062,26 @@ export function EditorLayout({
             }}
             onStartNavigatingProjects={() => {
               setShowGettingStartedGuideDialog(false);
-              localStorage.setItem("buildx-pending-navigating-projects-tour", "1");
+              localStorage.setItem(
+                "buildx-pending-navigating-projects-tour",
+                "1",
+              );
               editor.goToDashboard();
             }}
             onStartTemplateInteraction={() => {
               setShowGettingStartedGuideDialog(false);
-              localStorage.setItem("buildx-pending-template-interaction-tour", "1");
+              localStorage.setItem(
+                "buildx-pending-template-interaction-tour",
+                "1",
+              );
               editor.goToDashboard();
             }}
             onStartComponentsLibrary={() => {
               setShowGettingStartedGuideDialog(false);
-              localStorage.setItem("buildx-pending-components-library-tour", "1");
+              localStorage.setItem(
+                "buildx-pending-components-library-tour",
+                "1",
+              );
               editor.goToDashboard();
             }}
             onStartBlocksPalette={() => {
@@ -999,12 +1115,16 @@ export function EditorLayout({
           />
 
           {showCongratsModal && (
-            <Dialog open={showCongratsModal} onOpenChange={setShowCongratsModal}>
+            <Dialog
+              open={showCongratsModal}
+              onOpenChange={setShowCongratsModal}
+            >
               <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>🎉 Congratulations!</DialogTitle>
                   <DialogDescription>
-                    You've completed all 19 tutorial steps. You're now a BuildX master!
+                    You've completed all 19 tutorial steps. You're now a BuildX
+                    master!
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -1024,8 +1144,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowBlocksPaletteTour(false);
-                markStepComplete(state.currentUser?.id || "", "blocks-palette").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "blocks-palette",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1037,8 +1162,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowLayersPanelTour(false);
-                markStepComplete(state.currentUser?.id || "", "layers-panel").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "layers-panel",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1050,8 +1180,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowMultiPageTour(false);
-                markStepComplete(state.currentUser?.id || "", "multi-page").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "multi-page",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1063,8 +1198,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowPublishTemplateTour(false);
-                markStepComplete(state.currentUser?.id || "", "publish-template").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "publish-template",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1076,8 +1216,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowPreviewModeTour(false);
-                markStepComplete(state.currentUser?.id || "", "preview-mode").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "preview-mode",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1089,8 +1234,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowCustomComponentsTour(false);
-                markStepComplete(state.currentUser?.id || "", "custom-components").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "custom-components",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1102,22 +1252,31 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowExportFilesTour(false);
-                markStepComplete(state.currentUser?.id || "", "export-files").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "export-files",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
             />
           )}
 
-
           {showPublishingBasicsTour && (
             <PublishingBasics
               showOnMount={true}
               onComplete={() => {
                 setShowPublishingBasicsTour(false);
-                markStepComplete(state.currentUser?.id || "", "publishing").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "publishing",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1129,10 +1288,14 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowCanvasAreaTour(false);
-                markStepComplete(state.currentUser?.id || "", "canvas").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
-                  checkAllStepsComplete();
-                });
+                markStepComplete(state.currentUser?.id || "", "canvas").then(
+                  () => {
+                    window.dispatchEvent(
+                      new Event("buildx-tutorial-step-completed"),
+                    );
+                    checkAllStepsComplete();
+                  },
+                );
               }}
             />
           )}
@@ -1142,8 +1305,13 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowPropertiesPanelTour(false);
-                markStepComplete(state.currentUser?.id || "", "properties").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                markStepComplete(
+                  state.currentUser?.id || "",
+                  "properties",
+                ).then(() => {
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
@@ -1156,12 +1324,17 @@ export function EditorLayout({
               onComplete={() => {
                 setShowAIAssistantTour(false);
                 markStepComplete(state.currentUser?.id || "", "ai").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
+                  window.dispatchEvent(
+                    new Event("buildx-tutorial-step-completed"),
+                  );
                   checkAllStepsComplete();
                 });
               }}
               onSwitchToProperties={() => {
-                setState((prev) => ({ ...prev, rightSidebarTab: "properties" }));
+                setState((prev) => ({
+                  ...prev,
+                  rightSidebarTab: "properties",
+                }));
               }}
             />
           )}
@@ -1171,10 +1344,14 @@ export function EditorLayout({
               showOnMount={true}
               onComplete={() => {
                 setShowCodeEditorTour(false);
-                markStepComplete(state.currentUser?.id || "", "code").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
-                  checkAllStepsComplete();
-                });
+                markStepComplete(state.currentUser?.id || "", "code").then(
+                  () => {
+                    window.dispatchEvent(
+                      new Event("buildx-tutorial-step-completed"),
+                    );
+                    checkAllStepsComplete();
+                  },
+                );
               }}
             />
           )}
@@ -1187,14 +1364,17 @@ export function EditorLayout({
                 if (state.showShareModal) {
                   toggleShareModal();
                 }
-                markStepComplete(state.currentUser?.id || "", "collab").then(() => {
-                  window.dispatchEvent(new Event("buildx-tutorial-step-completed"));
-                  checkAllStepsComplete();
-                });
+                markStepComplete(state.currentUser?.id || "", "collab").then(
+                  () => {
+                    window.dispatchEvent(
+                      new Event("buildx-tutorial-step-completed"),
+                    );
+                    checkAllStepsComplete();
+                  },
+                );
               }}
             />
           )}
-
 
           <Toaster />
         </div>

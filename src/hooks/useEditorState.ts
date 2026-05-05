@@ -15,7 +15,8 @@ import {
   saveCustomComponent,
   fetchCustomComponents,
   deleteCustomComponent,
-  updateCustomComponent, updateCustomComponentPublicStatus,
+  updateCustomComponent,
+  updateCustomComponentPublicStatus,
 } from "../supabase/data/customComponentService";
 import { publishComponent } from "../supabase/data/publishedComponentService";
 import useCollaboration from "../services/useCollaboration";
@@ -73,13 +74,14 @@ function getInitialUserProjectConfig() {
   const key = localStorage.getItem("target_supabase_key");
   console.log("[init] supabase config:", { url, key });
   const resendKey = localStorage.getItem("target_resend_api_key");
-  const paymongoKey = localStorage.getItem("target_paymongo_key");  // ← add
+  const paymongoKey = localStorage.getItem("target_paymongo_key"); // ← add
   return {
     supabaseUrl: url || "",
     supabaseKey: key || "",
     resendApiKey: resendKey || "",
     paymongoKey: paymongoKey || "",
-    supabaseServiceKey: localStorage.getItem("target_supabase_service_key") || "",
+    supabaseServiceKey:
+      localStorage.getItem("target_supabase_service_key") || "",
   };
 }
 
@@ -297,12 +299,18 @@ export function useEditorState() {
     // No token in URL, check existing session
     const checkSession = async () => {
       // Check for deferred connection status update BEFORE fetching profile
-      const shouldUpdate = localStorage.getItem("update_supabase_status") === "true";
+      const shouldUpdate =
+        localStorage.getItem("update_supabase_status") === "true";
       if (shouldUpdate) {
         localStorage.removeItem("update_supabase_status");
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("profiles").update({ isConnected: 1 }).eq("user_id", user.id);
+          await supabase
+            .from("profiles")
+            .update({ isConnected: 1 })
+            .eq("user_id", user.id);
         }
       }
 
@@ -414,14 +422,26 @@ export function useEditorState() {
       const detail = (e as CustomEvent).detail;
       setState((prev) => ({
         ...prev,
-        ...(detail?.isSupabaseConnected !== undefined && { isSupabaseConnected: detail.isSupabaseConnected }),
+        ...(detail?.isSupabaseConnected !== undefined && {
+          isSupabaseConnected: detail.isSupabaseConnected,
+        }),
         userProjectConfig: {
           ...prev.userProjectConfig,
-          ...(detail?.resendApiKey !== undefined && { resendApiKey: detail.resendApiKey }),
-          ...(detail?.paymongoKey !== undefined && { paymongoKey: detail.paymongoKey }),
-          ...(detail?.supabaseUrl !== undefined && { supabaseUrl: detail.supabaseUrl }),
-          ...(detail?.supabaseKey !== undefined && { supabaseKey: detail.supabaseKey }),
-          ...(detail?.supabaseServiceKey !== undefined && { supabaseServiceKey: detail.supabaseServiceKey }),
+          ...(detail?.resendApiKey !== undefined && {
+            resendApiKey: detail.resendApiKey,
+          }),
+          ...(detail?.paymongoKey !== undefined && {
+            paymongoKey: detail.paymongoKey,
+          }),
+          ...(detail?.supabaseUrl !== undefined && {
+            supabaseUrl: detail.supabaseUrl,
+          }),
+          ...(detail?.supabaseKey !== undefined && {
+            supabaseKey: detail.supabaseKey,
+          }),
+          ...(detail?.supabaseServiceKey !== undefined && {
+            supabaseServiceKey: detail.supabaseServiceKey,
+          }),
         },
       }));
     };
@@ -468,9 +488,14 @@ export function useEditorState() {
   useEffect(() => {
     const syncPaymongoKeyFromProfile = async () => {
       try {
-        const { data: { session } } = await getSupabaseSession();
+        const {
+          data: { session },
+        } = await getSupabaseSession();
         if (session?.user) {
-          const metadata = session.user.user_metadata as Record<string, unknown>;
+          const metadata = session.user.user_metadata as Record<
+            string,
+            unknown
+          >;
           const paymongoKey = (metadata?.paymongo_key as string) || "";
           if (paymongoKey) {
             localStorage.setItem("target_paymongo_key", paymongoKey);
@@ -510,7 +535,8 @@ export function useEditorState() {
 
     // Also listen for storage changes (in case keys are written after load)
     window.addEventListener("storage", syncSupabaseKeysFromStorage);
-    return () => window.removeEventListener("storage", syncSupabaseKeysFromStorage);
+    return () =>
+      window.removeEventListener("storage", syncSupabaseKeysFromStorage);
   }, []);
 
   useEffect(() => {
@@ -715,22 +741,22 @@ export function useEditorState() {
               const row = rows.find((entry: any) => {
                 const rowUserId = String(
                   entry?.user_id ??
-                  entry?.userId ??
-                  entry?.id ??
-                  entry?.member_id ??
-                  entry?.profile_id ??
-                  entry?.profiles?.user_id ??
-                  "",
+                    entry?.userId ??
+                    entry?.id ??
+                    entry?.member_id ??
+                    entry?.profile_id ??
+                    entry?.profiles?.user_id ??
+                    "",
                 ).trim();
                 const rowEmail = String(
                   entry?.email ??
-                  entry?.email_address ??
-                  entry?.user_email ??
-                  entry?.user?.email ??
-                  entry?.profile?.email ??
-                  entry?.profiles?.email ??
-                  entry?.profiles?.email_address ??
-                  "",
+                    entry?.email_address ??
+                    entry?.user_email ??
+                    entry?.user?.email ??
+                    entry?.profile?.email ??
+                    entry?.profiles?.email ??
+                    entry?.profiles?.email_address ??
+                    "",
                 )
                   .trim()
                   .toLowerCase();
@@ -757,8 +783,8 @@ export function useEditorState() {
                 collaboratorRole = isOwnerRow
                   ? "owner"
                   : normalizeCollaboratorRole(
-                    row?.role ?? row?.permission ?? row?.access_level,
-                  );
+                      row?.role ?? row?.permission ?? row?.access_level,
+                    );
               }
             }
           } catch (permissionsError) {
@@ -796,7 +822,7 @@ export function useEditorState() {
               projectRecord.last_published_at || undefined,
             projectTemplatePublished:
               projectRecord.published_template === null ||
-                projectRecord.published_template === undefined
+              projectRecord.published_template === undefined
                 ? undefined
                 : !!projectRecord.published_template,
           };
@@ -835,7 +861,9 @@ export function useEditorState() {
 
     const loadProjectData = async () => {
       try {
-        const { data: project, error } = await fetchProjectById(state.currentProjectId!);
+        const { data: project, error } = await fetchProjectById(
+          state.currentProjectId!,
+        );
 
         if (error) {
           console.error("Failed to load project data:", error);
@@ -850,15 +878,17 @@ export function useEditorState() {
         // Update state with loaded project data
         setState((prev) => {
           // Don't overwrite fileOverrides and customFiles if there are unsaved changes
-          const shouldPreserveFileData = prev.hasUnsavedChanges ||
+          const shouldPreserveFileData =
+            prev.hasUnsavedChanges ||
             Object.keys(prev.fileOverrides || {}).length > 0 ||
             Object.keys(prev.customFiles || {}).length > 0;
 
           console.log("Project data loading:", {
             hasUnsavedChanges: prev.hasUnsavedChanges,
-            currentFileOverridesCount: Object.keys(prev.fileOverrides || {}).length,
+            currentFileOverridesCount: Object.keys(prev.fileOverrides || {})
+              .length,
             currentCustomFilesCount: Object.keys(prev.customFiles || {}).length,
-            willPreserveFileData: shouldPreserveFileData
+            willPreserveFileData: shouldPreserveFileData,
           });
 
           return {
@@ -871,8 +901,12 @@ export function useEditorState() {
             siteTitle: project.siteTitle ?? "",
             siteLogoUrl: project.siteLogoUrl ?? "",
             // Only overwrite file data if there are no unsaved changes
-            fileOverrides: shouldPreserveFileData ? prev.fileOverrides || {} : project.file_overrides || {},
-            customFiles: shouldPreserveFileData ? prev.customFiles || {} : project.custom_files || {},
+            fileOverrides: shouldPreserveFileData
+              ? prev.fileOverrides || {}
+              : project.file_overrides || {},
+            customFiles: shouldPreserveFileData
+              ? prev.customFiles || {}
+              : project.custom_files || {},
           };
         });
       } catch (error) {
@@ -1189,14 +1223,14 @@ export function useEditorState() {
     localStorage.setItem("fulldev-ai-theme", theme);
   };
 
-  const handleViewModeChange = (viewMode: "design" | "code") => {
+  const handleViewModeChange = (viewMode: "design" | "code" | "ai") => {
     console.log("View mode changing to:", viewMode);
     // Set active editor mode based on view mode
     const activeMode = viewMode === "code" ? "code" : "canvas";
     setState((prev) => ({
       ...prev,
       viewMode,
-      activeEditorMode: activeMode
+      activeEditorMode: activeMode,
     }));
   };
 
@@ -1238,7 +1272,10 @@ export function useEditorState() {
       const user_id = session?.user?.id;
 
       console.log("Manual save - active editor mode:", state.activeEditorMode);
-      console.log("Saving file overrides:", Object.keys(state.fileOverrides || {}));
+      console.log(
+        "Saving file overrides:",
+        Object.keys(state.fileOverrides || {}),
+      );
       console.log("File override content:", state.fileOverrides);
 
       if (user_id) {
@@ -1248,14 +1285,18 @@ export function useEditorState() {
 
         // Only save file overrides if we're in code mode
         const shouldSaveFileOverrides = state.activeEditorMode === "code";
-        const hasFileOverrides = state.fileOverrides && Object.keys(state.fileOverrides).length > 0;
+        const hasFileOverrides =
+          state.fileOverrides && Object.keys(state.fileOverrides).length > 0;
 
         console.log("Save details:", {
           activeEditorMode: state.activeEditorMode,
           shouldSaveFileOverrides,
           hasFileOverrides,
-          fileOverridesCount: state.fileOverrides ? Object.keys(state.fileOverrides).length : 0,
-          is_override: shouldSaveFileOverrides && hasFileOverrides ? true : false
+          fileOverridesCount: state.fileOverrides
+            ? Object.keys(state.fileOverrides).length
+            : 0,
+          is_override:
+            shouldSaveFileOverrides && hasFileOverrides ? true : false,
         });
 
         const { error: saveError } = await saveProject({
@@ -1269,7 +1310,11 @@ export function useEditorState() {
           custom_files: shouldSaveFileOverrides ? state.customFiles : {},
         });
 
-        console.log("Save result - saved file overrides:", shouldSaveFileOverrides, saveError);
+        console.log(
+          "Save result - saved file overrides:",
+          shouldSaveFileOverrides,
+          saveError,
+        );
 
         if (!saveError) {
           await syncProjectComponents(
@@ -1285,7 +1330,9 @@ export function useEditorState() {
           lastSaved: new Date(),
         }));
 
-        console.log("Project saved successfully - resetting unsaved changes flag");
+        console.log(
+          "Project saved successfully - resetting unsaved changes flag",
+        );
       } else {
         setState((prev) => ({ ...prev, isSaving: false }));
       }
@@ -1941,14 +1988,14 @@ export function useEditorState() {
         component.name,
         component.component_json?.props?.description || "",
         component.component_json,
-        component.id // Pass the custom component ID
+        component.id, // Pass the custom component ID
       );
       if (error) throw error;
 
       // Update the custom component to set isPublic = 1
       const { error: updateError } = await updateCustomComponentPublicStatus(
         component.id,
-        true
+        true,
       );
       if (updateError) throw updateError;
     } catch (error) {

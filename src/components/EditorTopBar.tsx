@@ -27,6 +27,7 @@ import {
   Database,
   RotateCcw,
   Bot,
+  BrainIcon,
 } from "lucide-react";
 import { SaveIndicator } from "./SaveIndicator";
 import {
@@ -77,7 +78,6 @@ import { useNavigate } from "react-router-dom";
 import { getApiBaseUrl } from "../utils/apiConfig";
 import { AIMentorLogo } from "./AIMentorLogo";
 
-
 const API_URL =
   import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
 
@@ -86,8 +86,8 @@ const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testi
 const AI_SUGGESTION_PROBABILITY = 0.3; // Probability (0-1) of showing the suggestion
 
 interface EditorTopBarProps {
-  viewMode: "design" | "code";
-  onViewModeChange: (mode: "design" | "code") => void;
+  viewMode: "design" | "code" | "ai";
+  onViewModeChange: (mode: "design" | "code" | "ai") => void;
   onPublish: () => void;
   onShare: () => void;
   onPreview?: () => void;
@@ -279,7 +279,9 @@ export function EditorTopBar({
 }: EditorTopBarProps) {
   const navigate = useNavigate();
   const [showAISuggestion, setShowAISuggestion] = useState(false);
-  const [suggestionType, setSuggestionType] = useState<"improvement" | "simplification">("improvement");
+  const [suggestionType, setSuggestionType] = useState<
+    "improvement" | "simplification"
+  >("improvement");
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [tempProjectName, setTempProjectName] = useState(projectName);
   const projectNameRef = useRef<HTMLInputElement>(null);
@@ -378,7 +380,8 @@ export function EditorTopBar({
   useEffect(() => {
     // Show AI suggestion randomly if canvas is not empty
     if (!isCanvasEmpty && !showAISuggestion) {
-      const shouldShow = ALWAYS_SHOW_AI_SUGGESTION || Math.random() < AI_SUGGESTION_PROBABILITY;
+      const shouldShow =
+        ALWAYS_SHOW_AI_SUGGESTION || Math.random() < AI_SUGGESTION_PROBABILITY;
       if (shouldShow) {
         setShowAISuggestion(true);
       }
@@ -415,12 +418,21 @@ export function EditorTopBar({
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("supabaseKeysUpdated", handleStorageChange);
     window.addEventListener("userProjectConfigUpdated", handleStorageChange);
-    window.addEventListener("close-publish-site-modal", handleClosePublishSiteModal);
+    window.addEventListener(
+      "close-publish-site-modal",
+      handleClosePublishSiteModal,
+    );
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("supabaseKeysUpdated", handleStorageChange);
-      window.removeEventListener("userProjectConfigUpdated", handleStorageChange);
-      window.removeEventListener("close-publish-site-modal", handleClosePublishSiteModal);
+      window.removeEventListener(
+        "userProjectConfigUpdated",
+        handleStorageChange,
+      );
+      window.removeEventListener(
+        "close-publish-site-modal",
+        handleClosePublishSiteModal,
+      );
     };
   }, []);
 
@@ -607,20 +619,20 @@ export function EditorTopBar({
 
       const response = nextChecked
         ? await fetch(`${API_URL}/api/insert-template-data`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId, userId }),
-        })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectId, userId }),
+          })
         : await fetch(`${API_URL}/api/publish-template/${projectId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            published_template: false,
-            publishedTemplate: false,
-            isPublished: false,
-            ...(userId ? { userId } : {}),
-          }),
-        });
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              published_template: false,
+              publishedTemplate: false,
+              isPublished: false,
+              ...(userId ? { userId } : {}),
+            }),
+          });
 
       const data = await response
         .clone()
@@ -803,37 +815,37 @@ export function EditorTopBar({
         rows.forEach((row: any) => {
           const id = String(
             row?.user_id ??
-            row?.userId ??
-            row?.id ??
-            row?.member_id ??
-            row?.profile_id ??
-            row?.profiles?.user_id ??
-            "",
+              row?.userId ??
+              row?.id ??
+              row?.member_id ??
+              row?.profile_id ??
+              row?.profiles?.user_id ??
+              "",
           ).trim();
 
           const email = String(
             row?.email ??
-            row?.email_address ??
-            row?.user_email ??
-            row?.user?.email ??
-            row?.profile?.email ??
-            row?.profiles?.email ??
-            row?.profiles?.email_address ??
-            "",
+              row?.email_address ??
+              row?.user_email ??
+              row?.user?.email ??
+              row?.profile?.email ??
+              row?.profiles?.email ??
+              row?.profiles?.email_address ??
+              "",
           ).trim();
 
           const name = String(
             row?.full_name ??
-            row?.name ??
-            row?.display_name ??
-            row?.user?.full_name ??
-            row?.user?.name ??
-            row?.profile?.full_name ??
-            row?.profile?.name ??
-            row?.profiles?.full_name ??
-            row?.profiles?.name ??
-            email.split("@")[0] ??
-            "Collaborator",
+              row?.name ??
+              row?.display_name ??
+              row?.user?.full_name ??
+              row?.user?.name ??
+              row?.profile?.full_name ??
+              row?.profile?.name ??
+              row?.profiles?.full_name ??
+              row?.profiles?.name ??
+              email.split("@")[0] ??
+              "Collaborator",
           ).trim();
 
           const avatarUrl =
@@ -1491,10 +1503,11 @@ export function EditorTopBar({
                 variant="ghost"
                 size="sm"
                 onClick={() => onViewModeChange("design")}
-                className={`h-8 px-3 rounded transition-all ${viewMode === "design"
-                  ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`h-8 px-3 rounded transition-all ${
+                  viewMode === "design"
+                    ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
                 <Eye className="w-4 h-4" />
               </Button>
@@ -1509,23 +1522,44 @@ export function EditorTopBar({
                 variant="ghost"
                 size="sm"
                 onClick={() => onViewModeChange("code")}
-                className={`h-8 px-3 rounded transition-all ${viewMode === "code"
-                  ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
+                className={`h-8 px-3 rounded transition-all ${
+                  viewMode === "code"
+                    ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
                 <Code className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Code View</TooltipContent>
           </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                data-tour="design-mode"
+                variant="ghost"
+                size="sm"
+                onClick={() => onViewModeChange("ai")}
+                className={`h-8 px-3 rounded transition-all ${
+                  viewMode === "ai"
+                    ? "bg-background text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <BrainIcon className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>AI Mentor</TooltipContent>
+          </Tooltip>
         </TooltipProvider>
       </div>
 
-
-
       <div className="flex items-center gap-2">
-        <div className="hidden md:flex items-center gap-3" data-tour="save-progress">
+        <div
+          className="hidden md:flex items-center gap-3"
+          data-tour="save-progress"
+        >
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1538,16 +1572,28 @@ export function EditorTopBar({
                       className="h-8 px-3 bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded-full animate-bounce-subtle flex items-center gap-2"
                     >
                       <Bot className="w-3.5 h-3.5" />
-                      <span className="text-[11px] font-bold">I have suggestion</span>
+                      <span className="text-[11px] font-bold">
+                        I have suggestion
+                      </span>
                     </Button>
                   )}
-                  <AIMentorLogo isThinking={isAIThinking} className="scale-75 cursor-help" title="AI Mentor" />
+                  <AIMentorLogo
+                    isThinking={isAIThinking}
+                    className="scale-75 cursor-help"
+                    title="AI Mentor"
+                  />
                   {isAIThinking && (
-                    <span className="text-[10px] font-bold text-violet-500 animate-pulse hidden lg:inline">Thinking...</span>
+                    <span className="text-[10px] font-bold text-violet-500 animate-pulse hidden lg:inline">
+                      Thinking...
+                    </span>
                   )}
                 </div>
               </TooltipTrigger>
-              <TooltipContent>{isAIThinking ? "AI Mentor is thinking..." : "AI Mentor is ready"}</TooltipContent>
+              <TooltipContent>
+                {isAIThinking
+                  ? "AI Mentor is thinking..."
+                  : "AI Mentor is ready"}
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <SaveIndicator
@@ -1557,244 +1603,253 @@ export function EditorTopBar({
           />
         </div>
 
-
         {(isSupabaseConnected ||
           localStorage.getItem("supabase_integration_token")) && (
-            <>
-              <Popover onOpenChange={handleOpenPopover}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={
-                      localStorage.getItem("target_supabase_url")
-                        ? "outline"
-                        : "ghost"
-                    }
-                    size="sm"
-                    className={`h-9 px-3 gap-2 ${localStorage.getItem("target_supabase_url") ? "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-muted-foreground"}`}
-                  >
-                    <Database className="w-4 h-4" />
-                    {localStorage.getItem("target_supabase_url") ? (
-                      <span className="text-xs font-medium max-w-[100px] truncate">
-                        {
-                          new URL(localStorage.getItem("target_supabase_url")!)
-                            .hostname
-                        }
+          <>
+            <Popover onOpenChange={handleOpenPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={
+                    localStorage.getItem("target_supabase_url")
+                      ? "outline"
+                      : "ghost"
+                  }
+                  size="sm"
+                  className={`h-9 px-3 gap-2 ${localStorage.getItem("target_supabase_url") ? "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20" : "text-muted-foreground"}`}
+                >
+                  <Database className="w-4 h-4" />
+                  {localStorage.getItem("target_supabase_url") ? (
+                    <span className="text-xs font-medium max-w-[100px] truncate">
+                      {
+                        new URL(localStorage.getItem("target_supabase_url")!)
+                          .hostname
+                      }
+                    </span>
+                  ) : (
+                    <span className="text-xs">Connect DB</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4" align="end">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium leading-none">
+                      Database Connection
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Select a project to write data to.
+                    </p>
+                  </div>
+
+                  {targetSupabaseUrl && (
+                    <div className="flex items-center justify-between text-[10px] bg-green-100 dark:bg-green-900/30 px-2 py-1.5 rounded text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900">
+                      <span className="truncate max-w-[200px]">
+                        Target: {new URL(targetSupabaseUrl).hostname}
                       </span>
-                    ) : (
-                      <span className="text-xs">Connect DB</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="end">
-                  <div className="grid gap-4">
-                    <div className="space-y-2">
-                      <h4 className="font-medium leading-none">
-                        Database Connection
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Select a project to write data to.
-                      </p>
-                    </div>
-
-                    {targetSupabaseUrl && (
-                      <div className="flex items-center justify-between text-[10px] bg-green-100 dark:bg-green-900/30 px-2 py-1.5 rounded text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900">
-                        <span className="truncate max-w-[200px]">
-                          Target: {new URL(targetSupabaseUrl).hostname}
-                        </span>
-                        <button
-                          className="ml-2 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            localStorage.removeItem("target_supabase_url");
-                            localStorage.removeItem("target_supabase_key");
-                            localStorage.removeItem("target_supabase_service_key");
-                            setTargetSupabaseUrl(null);
-                            window.dispatchEvent(
-                              new CustomEvent("userProjectConfigUpdated", {
-                                detail: { supabaseUrl: "", supabaseKey: "", supabaseServiceKey: "" },
-                              }),
-                            );
-                            window.location.reload();
-                          }}
-                          title="Disconnect Target"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="grid gap-2">
-                      <Select
-                        value={selectedOrgId}
-                        onValueChange={setSelectedOrgId}
-                        disabled={
-                          !isSupabaseConnected && !supabaseIntegrationToken
-                        }
+                      <button
+                        className="ml-2 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          localStorage.removeItem("target_supabase_url");
+                          localStorage.removeItem("target_supabase_key");
+                          localStorage.removeItem(
+                            "target_supabase_service_key",
+                          );
+                          setTargetSupabaseUrl(null);
+                          window.dispatchEvent(
+                            new CustomEvent("userProjectConfigUpdated", {
+                              detail: {
+                                supabaseUrl: "",
+                                supabaseKey: "",
+                                supabaseServiceKey: "",
+                              },
+                            }),
+                          );
+                          window.location.reload();
+                        }}
+                        title="Disconnect Target"
                       >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Organization" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Organizations</SelectLabel>
-                            <SelectItem value="ALL">All Organizations</SelectItem>
-                            {organizations.map((org) => (
-                              <SelectItem key={org.id} value={org.id}>
-                                {org.name}
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid gap-2">
+                    <Select
+                      value={selectedOrgId}
+                      onValueChange={setSelectedOrgId}
+                      disabled={
+                        !isSupabaseConnected && !supabaseIntegrationToken
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Organizations</SelectLabel>
+                          <SelectItem value="ALL">All Organizations</SelectItem>
+                          {organizations.map((org) => (
+                            <SelectItem key={org.id} value={org.id}>
+                              {org.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={selectedSupabaseProjectId}
+                      onValueChange={(newProjectId: string) => {
+                        setSelectedSupabaseProjectId(newProjectId);
+                      }}
+                      disabled={
+                        (!isSupabaseConnected && !supabaseIntegrationToken) ||
+                        isLoadingSupabase
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Projects</SelectLabel>
+                          {supabaseProjects
+                            .filter(
+                              (p) =>
+                                !selectedOrgId ||
+                                selectedOrgId === "ALL" ||
+                                p.organization_id === selectedOrgId,
+                            )
+                            .map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
                               </SelectItem>
                             ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                          {supabaseProjects.length === 0 && (
+                            <SelectItem value="none" disabled>
+                              No projects found
+                            </SelectItem>
+                          )}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
 
-                      <Select
-                        value={selectedSupabaseProjectId}
-                        onValueChange={(newProjectId: string) => {
-                          setSelectedSupabaseProjectId(newProjectId);
-                        }}
-                        disabled={
-                          (!isSupabaseConnected && !supabaseIntegrationToken) ||
-                          isLoadingSupabase
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Projects</SelectLabel>
-                            {supabaseProjects
-                              .filter(
-                                (p) =>
-                                  !selectedOrgId ||
-                                  selectedOrgId === "ALL" ||
-                                  p.organization_id === selectedOrgId,
-                              )
-                              .map((project) => (
-                                <SelectItem key={project.id} value={project.id}>
-                                  {project.name}
-                                </SelectItem>
-                              ))}
-                            {supabaseProjects.length === 0 && (
-                              <SelectItem value="none" disabled>
-                                No projects found
-                              </SelectItem>
-                            )}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-8 text-xs bg-blue-600 hover:bg-blue-700 w-full"
+                      disabled={
+                        !selectedSupabaseProjectId ||
+                        selectedSupabaseProjectId === "none" ||
+                        isLoadingSupabase
+                      }
+                      onClick={async () => {
+                        const newProjectId = selectedSupabaseProjectId;
+                        if (!newProjectId || newProjectId === "none") return;
 
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-8 text-xs bg-blue-600 hover:bg-blue-700 w-full"
-                        disabled={
-                          !selectedSupabaseProjectId ||
-                          selectedSupabaseProjectId === "none" ||
-                          isLoadingSupabase
-                        }
-                        onClick={async () => {
-                          const newProjectId = selectedSupabaseProjectId;
-                          if (!newProjectId || newProjectId === "none") return;
+                        try {
+                          setIsLoadingSupabase(true);
+                          const token = localStorage.getItem(
+                            "supabase_integration_token",
+                          );
+                          const hostname = window.location.hostname;
+                          const isLocal =
+                            hostname === "localhost" ||
+                            hostname === "127.0.0.1";
+                          const backendBase = isLocal
+                            ? "http://localhost:4000"
+                            : hostname === "buildxdesigner.site"
+                              ? "https://buildxdesigner.duckdns.org"
+                              : "";
 
-                          try {
-                            setIsLoadingSupabase(true);
-                            const token = localStorage.getItem(
-                              "supabase_integration_token",
+                          const res = await fetch(
+                            `${backendBase}/api/supabase/projects/${newProjectId}/api-keys`,
+                            {
+                              headers: { Authorization: `Bearer ${token}` },
+                            },
+                          );
+
+                          if (!res.ok)
+                            throw new Error(
+                              "Failed to fetch project keys: " + res.status,
                             );
-                            const hostname = window.location.hostname;
-                            const isLocal =
-                              hostname === "localhost" ||
-                              hostname === "127.0.0.1";
-                            const backendBase = isLocal
-                              ? "http://localhost:4000"
-                              : hostname === "buildxdesigner.site"
-                                ? "https://buildxdesigner.duckdns.org"
-                                : "";
+                          const keysData = await res.json();
 
-                            const res = await fetch(
-                              `${backendBase}/api/supabase/projects/${newProjectId}/api-keys`,
+                          const anonKeyObj = keysData.find(
+                            (k: any) =>
+                              k.name === "anon" || k.tags?.includes("anon"),
+                          );
+
+                          if (anonKeyObj) {
+                            const newUrl = `https://${newProjectId}.supabase.co`;
+                            const newKey = anonKeyObj.api_key;
+
+                            console.log(
+                              "Switching TARGET to project:",
+                              newProjectId,
+                            );
+                            localStorage.setItem("target_supabase_url", newUrl);
+                            localStorage.setItem("target_supabase_key", newKey);
+                            window.dispatchEvent(
+                              new CustomEvent("userProjectConfigUpdated", {
+                                detail: {
+                                  supabaseUrl: newUrl,
+                                  supabaseKey: newKey,
+                                },
+                              }),
+                            );
+                            toast.success(
+                              `Successfully connected to: ${newProjectId}`,
                               {
-                                headers: { Authorization: `Bearer ${token}` },
+                                description:
+                                  "The connection will be used for data operations.",
+                                duration: 4000,
                               },
                             );
-
-                            if (!res.ok)
-                              throw new Error(
-                                "Failed to fetch project keys: " + res.status,
-                              );
-                            const keysData = await res.json();
-
-                            const anonKeyObj = keysData.find(
-                              (k: any) =>
-                                k.name === "anon" || k.tags?.includes("anon"),
+                            setTimeout(() => window.location.reload(), 1000);
+                          } else {
+                            toast.error(
+                              "Could not find 'anon' key for this project.",
+                              {
+                                description:
+                                  "Please check your project configuration.",
+                              },
                             );
-
-                            if (anonKeyObj) {
-                              const newUrl = `https://${newProjectId}.supabase.co`;
-                              const newKey = anonKeyObj.api_key;
-
-                              console.log(
-                                "Switching TARGET to project:",
-                                newProjectId,
-                              );
-                              localStorage.setItem("target_supabase_url", newUrl);
-                              localStorage.setItem("target_supabase_key", newKey);
-                              window.dispatchEvent(
-                                new CustomEvent("userProjectConfigUpdated", {
-                                  detail: { supabaseUrl: newUrl, supabaseKey: newKey },
-                                }),
-                              );
-                              toast.success(
-                                `Successfully connected to: ${newProjectId}`,
-                                {
-                                  description: "The connection will be used for data operations.",
-                                  duration: 4000,
-                                },
-                              );
-                              setTimeout(() => window.location.reload(), 1000);
-                            } else {
-                              toast.error(
-                                "Could not find 'anon' key for this project.",
-                                {
-                                  description:
-                                    "Please check your project configuration.",
-                                },
-                              );
-                            }
-                          } catch (err: any) {
-                            console.error("Failed to switch:", err);
-                            toast.error("Connection Failed", {
-                              description: err.message,
-                            });
-                          } finally {
-                            setIsLoadingSupabase(false);
                           }
-                        }}
-                      >
-                        Connect
-                      </Button>
-                    </div>
-
-                    <div className="pt-2 border-t flex justify-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-full max-w-[100px]"
-                        onClick={handleRefreshSupabaseData}
-                        title="Refresh Data"
-                        disabled={isLoadingSupabase}
-                      >
-                        <RotateCcw
-                          className={`w-3.5 h-3.5 ${isLoadingSupabase ? "animate-spin" : ""}`}
-                        />
-                      </Button>
-                    </div>
+                        } catch (err: any) {
+                          console.error("Failed to switch:", err);
+                          toast.error("Connection Failed", {
+                            description: err.message,
+                          });
+                        } finally {
+                          setIsLoadingSupabase(false);
+                        }
+                      }}
+                    >
+                      Connect
+                    </Button>
                   </div>
-                </PopoverContent>
-              </Popover>
-            </>
-          )}
+
+                  <div className="pt-2 border-t flex justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-full max-w-[100px]"
+                      onClick={handleRefreshSupabaseData}
+                      title="Refresh Data"
+                      disabled={isLoadingSupabase}
+                    >
+                      <RotateCcw
+                        className={`w-3.5 h-3.5 ${isLoadingSupabase ? "animate-spin" : ""}`}
+                      />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1824,7 +1879,10 @@ export function EditorTopBar({
             <DropdownMenuLabel className="text-xs text-muted-foreground">
               Template
             </DropdownMenuLabel>
-            <div data-tour="publish-marketplace" className="flex items-center justify-between px-2 py-2 gap-3">
+            <div
+              data-tour="publish-marketplace"
+              className="flex items-center justify-between px-2 py-2 gap-3"
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <Globe className="w-4 h-4 text-foreground/70" />
                 <div className="text-sm text-foreground truncate">
@@ -1904,7 +1962,6 @@ export function EditorTopBar({
           </Button>
         )}
 
-
         <Button
           data-tour="database-integration"
           variant="ghost"
@@ -1947,8 +2004,6 @@ export function EditorTopBar({
         >
           <span>Share</span>
         </Button>
-
-
 
         {resolvedAvatarUrl && !avatarLoadFailed ? (
           <img
@@ -2010,7 +2065,7 @@ export function EditorTopBar({
                 : 0,
               right: shareButtonRef.current
                 ? window.innerWidth -
-                shareButtonRef.current.getBoundingClientRect().right
+                  shareButtonRef.current.getBoundingClientRect().right
                 : 0,
             }}
             onClick={(e) => e.stopPropagation()}
@@ -2185,10 +2240,11 @@ export function EditorTopBar({
                 </h4>
                 <div className="relative">
                   <div
-                    className={`flex items-center justify-between p-3 border-2 border-blue-500 rounded-lg transition-colors ${currentUserIsOwner
-                      ? "cursor-pointer hover:bg-accent"
-                      : "cursor-not-allowed opacity-60"
-                      }`}
+                    className={`flex items-center justify-between p-3 border-2 border-blue-500 rounded-lg transition-colors ${
+                      currentUserIsOwner
+                        ? "cursor-pointer hover:bg-accent"
+                        : "cursor-not-allowed opacity-60"
+                    }`}
                     onClick={() => {
                       if (!currentUserIsOwner) return;
                       setShowVisibilityDropdown(!showVisibilityDropdown);
@@ -2208,8 +2264,9 @@ export function EditorTopBar({
                   {currentUserIsOwner && showVisibilityDropdown && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-card border-border rounded-lg shadow-lg z-10">
                       <div
-                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${shareVisibility === "private" ? "bg-blue-500/10" : ""
-                          }`}
+                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
+                          shareVisibility === "private" ? "bg-blue-500/10" : ""
+                        }`}
                         onClick={() =>
                           void applyShareVisibilityChange("private")
                         }
@@ -2222,8 +2279,9 @@ export function EditorTopBar({
                         </div>
                       </div>
                       <div
-                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${shareVisibility === "anyone" ? "bg-blue-500/10" : ""
-                          }`}
+                        className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
+                          shareVisibility === "anyone" ? "bg-blue-500/10" : ""
+                        }`}
                         onClick={() =>
                           void applyShareVisibilityChange("anyone")
                         }
@@ -2327,7 +2385,11 @@ export function EditorTopBar({
                   <span className="font-semibold block mb-1">
                     External Integrations
                   </span>
-                  Ready to go live? Connect your own <span className="font-medium text-indigo-900 dark:text-indigo-100">Supabase, Resend, and Paymongo</span> accounts to take full control of your data and payments.
+                  Ready to go live? Connect your own{" "}
+                  <span className="font-medium text-indigo-900 dark:text-indigo-100">
+                    Supabase, Resend, and Paymongo
+                  </span>{" "}
+                  accounts to take full control of your data and payments.
                 </p>
               </div>
 
