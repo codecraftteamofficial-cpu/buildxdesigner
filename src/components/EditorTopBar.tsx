@@ -85,6 +85,17 @@ const API_URL =
 const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testing
 const AI_SUGGESTION_PROBABILITY = 0.5; // Probability (0-1) of showing the suggestion
 
+const AI_SUGGESTION_MIN_CHANGES = 3;
+const AI_SUGGESTION_MAX_CHANGES = 5;
+
+const suggestionThresholdRef = useRef<number>(
+  Math.floor(
+    Math.random() * (AI_SUGGESTION_MAX_CHANGES - AI_SUGGESTION_MIN_CHANGES + 1),
+  ) + AI_SUGGESTION_MIN_CHANGES,
+);
+
+const changeCountRef = useRef<number>(0);
+
 interface EditorTopBarProps {
   viewMode: "design" | "code" | "ai";
   onViewModeChange: (mode: "design" | "code" | "ai") => void;
@@ -391,12 +402,31 @@ export function EditorTopBar({
       return;
     }
 
-    if (!hasUnsavedPrevRef.current && hasUnsavedChanges && !isCanvasEmpty) {
-      setShowAISuggestion(true);
-    }
-
     if (isCanvasEmpty && showAISuggestion) {
       setShowAISuggestion(false);
+    }
+
+    if (!hasUnsavedPrevRef.current && hasUnsavedChanges && !isCanvasEmpty) {
+      changeCountRef.current = (changeCountRef.current || 0) + 1;
+
+      if (ALWAYS_SHOW_AI_SUGGESTION) {
+        setShowAISuggestion(true);
+        changeCountRef.current = 0;
+        suggestionThresholdRef.current =
+          Math.floor(
+            Math.random() *
+              (AI_SUGGESTION_MAX_CHANGES - AI_SUGGESTION_MIN_CHANGES + 1),
+          ) + AI_SUGGESTION_MIN_CHANGES;
+      } else if (changeCountRef.current >= suggestionThresholdRef.current) {
+        setShowAISuggestion(true);
+
+        changeCountRef.current = 0;
+        suggestionThresholdRef.current =
+          Math.floor(
+            Math.random() *
+              (AI_SUGGESTION_MAX_CHANGES - AI_SUGGESTION_MIN_CHANGES + 1),
+          ) + AI_SUGGESTION_MIN_CHANGES;
+      }
     }
 
     hasUnsavedPrevRef.current = hasUnsavedChanges;
