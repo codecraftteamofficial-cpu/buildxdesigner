@@ -76,6 +76,7 @@ import { toast } from "sonner";
 import { PageSelector } from "./PageSelector";
 import { useNavigate } from "react-router-dom";
 import { getApiBaseUrl } from "../utils/apiConfig";
+import { AI_MENTOR_ENDPOINT } from "../utils/aiMentorConfig";
 import { AIMentorLogo } from "./AIMentorLogo";
 import { AI_MENTOR_ENDPOINT } from "../utils/aiMentorConfig";
 
@@ -369,6 +370,20 @@ export function EditorTopBar({
   );
 
   const [isAIThinking, setIsAIThinking] = useState(false);
+  const [aiSuggestionText, setAiSuggestionText] = useState<string | null>(null);
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [aiSuggestionError, setAiSuggestionError] = useState<string | null>(
+    null,
+  );
+  const changeCounterRef = useRef(0);
+  const AI_SUGGESTION_TRIGGER_COUNT = 5;
+
+  const previewAiText = (text: string | null, maxWords = 4) => {
+    if (!text) return null;
+    const words = String(text).trim().split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) return words.join(" ");
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
 
   // Background AI suggestion state
   const [aiSuggestionText, setAiSuggestionText] = useState<string | null>(null);
@@ -494,6 +509,67 @@ export function EditorTopBar({
     // it should remain visible as long as `aiSuggestionText` exists.
     window.dispatchEvent(new CustomEvent("switch-to-ai-mentor"));
   };
+
+  const fetchAiSuggestionInBackground = async () => {
+    if (aiSuggestionLoading) return;
+    setAiSuggestionLoading(true);
+    setAiSuggestionError(null);
+    try {
+      window.dispatchEvent(new CustomEvent("ai-thinking-start"));
+      const suggestionPrompt =
+        "How can I improve my design? Make it slightly detailed consisting of five paragraphs. Consider best practices and potential issues";
+
+      const res = await fetch(AI_MENTOR_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: suggestionPrompt }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `AI server responded ${res.status}`);
+      }
+
+      const data = await res.json().catch(() => null);
+      const content =
+        data?.generation ||
+        data?.answer ||
+        data?.response ||
+        data?.result ||
+        data?.output ||
+        data?.text ||
+        (typeof data === "string" ? data : null);
+
+      if (content) {
+        setAiSuggestionText(String(content));
+        setShowAISuggestion(true);
+      } else {
+        setAiSuggestionError("No suggestion available.");
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch AI suggestion:", err);
+      setAiSuggestionError(err?.message || "Failed to fetch suggestion.");
+    } finally {
+      setAiSuggestionLoading(false);
+      window.dispatchEvent(new CustomEvent("ai-thinking-stop"));
+    }
+  };
+
+  useEffect(() => {
+    const handler = () => {
+      changeCounterRef.current = (changeCounterRef.current || 0) + 1;
+      if (
+        changeCounterRef.current >= AI_SUGGESTION_TRIGGER_COUNT &&
+        !aiSuggestionText
+      ) {
+        changeCounterRef.current = 0;
+        void fetchAiSuggestionInBackground();
+      }
+    };
+
+    window.addEventListener("canvas-changed", handler);
+    return () => window.removeEventListener("canvas-changed", handler);
+  }, [aiSuggestionText]);
 
   useEffect(() => {
     // Removed auto-hide timer: suggestion bubble persists until replaced or cleared.

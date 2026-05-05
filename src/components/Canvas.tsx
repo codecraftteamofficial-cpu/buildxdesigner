@@ -159,6 +159,7 @@ export function Canvas({
     }
   });
   const [rulerScroll, setRulerScroll] = useState({ x: 0, y: 0 });
+  const componentsMountedRef = useRef(false);
 
   const handleCanvasScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
