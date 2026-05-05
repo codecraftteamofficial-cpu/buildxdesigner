@@ -230,6 +230,7 @@ export function AIAssistant({
     window.addEventListener("ai-mentor-suggest", handleSuggest);
     return () => window.removeEventListener("ai-mentor-suggest", handleSuggest);
   }, [isLoading, generateResponse]);
+  // test push
 
   useEffect(() => {
     if (typeof window !== "undefined") {
