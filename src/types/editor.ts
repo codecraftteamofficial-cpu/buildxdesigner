@@ -99,4 +99,5 @@ export interface EditorState {
   customComponents?: any[];
   fileOverrides?: Record<string, string>;
   customFiles?: Record<string, string>;
+  generatedFiles?: Record<string, string>;
 }

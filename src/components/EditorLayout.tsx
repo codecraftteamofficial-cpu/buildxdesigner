@@ -690,6 +690,11 @@ export function EditorLayout({
                       <AIAssistant
                         selectedComponentType={selectedComponentObject?.type}
                         projectId={state.currentProjectId || undefined}
+                        effectiveFiles={{
+                          ...(state.fileOverrides || {}),
+                          ...(state.generatedFiles || {}),
+                          ...(state.customFiles || {}),
+                        }}
                       />
                     </div>
                   )}
@@ -876,14 +881,16 @@ export function EditorLayout({
                       />
                     )}
 
-                    {state.rightSidebarTab === "ai-mentor" && (
-                      <div
-                        data-tour="ai-mentor-chat"
-                        className="h-full overflow-hidden"
-                      >
+                    {state.viewMode === "ai" && (
+                      <div className="flex-1 flex flex-col h-full overflow-hidden">
                         <AIAssistant
                           selectedComponentType={selectedComponentObject?.type}
-                          projectId={state.currentProjectId}
+                          projectId={state.currentProjectId || undefined}
+                          effectiveFiles={{
+                            ...(state.fileOverrides || {}),
+                            ...(state.generatedFiles || {}),
+                            ...(state.customFiles || {}),
+                          }}
                         />
                       </div>
                     )}
