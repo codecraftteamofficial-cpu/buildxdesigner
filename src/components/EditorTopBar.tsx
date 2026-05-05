@@ -83,7 +83,7 @@ const API_URL =
 
 // Developer Settings
 const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testing
-const AI_SUGGESTION_PROBABILITY = 0.8; // Probability (0-1) of showing the suggestion
+const AI_SUGGESTION_PROBABILITY = 0.5; // Probability (0-1) of showing the suggestion
 
 interface EditorTopBarProps {
   viewMode: "design" | "code" | "ai";
