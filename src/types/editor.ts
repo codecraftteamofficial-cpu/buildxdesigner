@@ -47,7 +47,7 @@ export interface EditorState {
   showTemplates: boolean;
   showAIGenerator: boolean;
   editorMode: "blocks" | "dual-pane";
-  viewMode: "design" | "code";
+  viewMode: "design" | "code" | "ai";
   leftSidebarWidth: number;
   rightSidebarWidth: number;
   isLeftSidebarVisible: boolean;
@@ -68,7 +68,7 @@ export interface EditorState {
   isSaving: boolean;
   hasUnsavedChanges: boolean;
   isFullscreen: boolean;
-  activeEditorMode: "canvas" | "code";
+  activeEditorMode: "canvas" | "code" | "ai";
   rightSidebarTab: "properties" | "ai-assistant";
   projectName: string;
   canvasBackgroundColor: string;
