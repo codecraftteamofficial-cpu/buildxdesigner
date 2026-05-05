@@ -77,6 +77,7 @@ import { PageSelector } from "./PageSelector";
 import { useNavigate } from "react-router-dom";
 import { getApiBaseUrl } from "../utils/apiConfig";
 import { AIMentorLogo } from "./AIMentorLogo";
+import { AI_MENTOR_ENDPOINT } from "../utils/aiMentorConfig";
 
 const API_URL =
   import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
@@ -281,7 +282,7 @@ export function EditorTopBar({
   const [showAISuggestion, setShowAISuggestion] = useState(false);
   const hasUnsavedPrevRef = useRef<boolean>(hasUnsavedChanges);
   const topbarMountedRef = useRef(false);
-  const suggestionHideTimerRef = useRef<number | null>(null);
+  // suggestionHideTimerRef removed — suggestions persist until replaced/cleared
   const [suggestionType, setSuggestionType] = useState<
     "improvement" | "simplification"
   >("improvement");
@@ -369,6 +370,92 @@ export function EditorTopBar({
 
   const [isAIThinking, setIsAIThinking] = useState(false);
 
+  // Background AI suggestion state
+  const [aiSuggestionText, setAiSuggestionText] = useState<string | null>(null);
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState(false);
+  const [aiSuggestionError, setAiSuggestionError] = useState<string | null>(
+    null,
+  );
+  const changeCounterRef = useRef(0);
+  const AI_SUGGESTION_TRIGGER_COUNT = 5;
+
+  const previewAiText = (text: string | null, maxWords = 4) => {
+    if (!text) return null;
+    const words = String(text).trim().split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) return words.join(" ");
+    return words.slice(0, maxWords).join(" ") + "...";
+  };
+
+  const fetchAiSuggestionInBackground = async () => {
+    if (aiSuggestionLoading) return;
+    setAiSuggestionLoading(true);
+    setAiSuggestionError(null);
+    try {
+      window.dispatchEvent(new CustomEvent("ai-thinking-start"));
+      const suggestionPrompt =
+        "How can I improve my design? Make it slightly detailed consisting of five paragraphs. Consider best practices and potential issues";
+
+      const res = await fetch(AI_MENTOR_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: suggestionPrompt }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `AI server responded ${res.status}`);
+      }
+
+      const data = await res.json().catch(() => null);
+      const content =
+        data?.generation ||
+        data?.answer ||
+        data?.response ||
+        data?.result ||
+        data?.output ||
+        data?.text ||
+        (typeof data === "string" ? data : null);
+
+      if (content) {
+        const str = String(content);
+        setAiSuggestionText(str);
+        setShowAISuggestion(true);
+        // Inject into AI panel so the chat contains the suggestion
+        try {
+          window.dispatchEvent(
+            new CustomEvent("ai-mentor-suggestion", {
+              detail: { content: str },
+            }),
+          );
+        } catch (e) {}
+      } else {
+        setAiSuggestionError("No suggestion available.");
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch AI suggestion:", err);
+      setAiSuggestionError(err?.message || "Failed to fetch suggestion.");
+    } finally {
+      setAiSuggestionLoading(false);
+      window.dispatchEvent(new CustomEvent("ai-thinking-stop"));
+    }
+  };
+
+  useEffect(() => {
+    const handler = () => {
+      changeCounterRef.current = (changeCounterRef.current || 0) + 1;
+      if (
+        changeCounterRef.current >= AI_SUGGESTION_TRIGGER_COUNT &&
+        !aiSuggestionText
+      ) {
+        changeCounterRef.current = 0;
+        void fetchAiSuggestionInBackground();
+      }
+    };
+
+    window.addEventListener("canvas-changed", handler);
+    return () => window.removeEventListener("canvas-changed", handler);
+  }, [aiSuggestionText]);
+
   useEffect(() => {
     const handleStart = () => setIsAIThinking(true);
     const handleStop = () => setIsAIThinking(false);
@@ -403,39 +490,14 @@ export function EditorTopBar({
   }, [hasUnsavedChanges, isCanvasEmpty]);
 
   const handleAISuggestionClick = () => {
-    if (suggestionHideTimerRef.current) {
-      clearTimeout(suggestionHideTimerRef.current);
-      suggestionHideTimerRef.current = null;
-    }
-    setShowAISuggestion(false);
+    // Only switch the view to the AI Mentor. Do not hide the suggestion here;
+    // it should remain visible as long as `aiSuggestionText` exists.
     window.dispatchEvent(new CustomEvent("switch-to-ai-mentor"));
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("ai-mentor-suggest"));
-    }, 100);
   };
 
   useEffect(() => {
-    if (showAISuggestion) {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-      }
-      suggestionHideTimerRef.current = window.setTimeout(() => {
-        setShowAISuggestion(false);
-        suggestionHideTimerRef.current = null;
-      }, 8000);
-    } else {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-        suggestionHideTimerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-        suggestionHideTimerRef.current = null;
-      }
-    };
+    // Removed auto-hide timer: suggestion bubble persists until replaced or cleared.
+    return;
   }, [showAISuggestion]);
 
   useEffect(() => {
@@ -1604,16 +1666,26 @@ export function EditorTopBar({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2">
-                  {showAISuggestion && !isCanvasEmpty && (
+                  {(aiSuggestionText || showAISuggestion) && !isCanvasEmpty && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleAISuggestionClick}
                       className="h-8 px-3 bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded-full animate-bounce-subtle flex items-center gap-2"
+                      title={
+                        aiSuggestionText ||
+                        (aiSuggestionLoading
+                          ? "AI is generating a suggestion"
+                          : "I have a suggestion")
+                      }
                     >
                       <Bot className="w-3.5 h-3.5" />
-                      <span className="text-[11px] font-bold">
-                        I have suggestion
+                      <span className="text-[11px] font-bold max-w-[200px] truncate">
+                        {aiSuggestionLoading
+                          ? "Thinking..."
+                          : aiSuggestionText
+                            ? previewAiText(aiSuggestionText, 4)
+                            : "I have suggestion"}
                       </span>
                     </Button>
                   )}
