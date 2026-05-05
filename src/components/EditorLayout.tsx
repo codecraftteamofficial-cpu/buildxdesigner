@@ -690,6 +690,11 @@ export function EditorLayout({
                       <AIAssistant
                         selectedComponentType={selectedComponentObject?.type}
                         projectId={state.currentProjectId || undefined}
+                        effectiveFiles={{
+                          ...(state.fileOverrides || {}),
+                          ...(state.generatedFiles || {}),
+                          ...(state.customFiles || {}),
+                        }}
                       />
                     </div>
                   )}
@@ -883,7 +888,12 @@ export function EditorLayout({
                       >
                         <AIAssistant
                           selectedComponentType={selectedComponentObject?.type}
-                          projectId={state.currentProjectId}
+                          projectId={state.currentProjectId || undefined}
+                          effectiveFiles={{
+                            ...(state.fileOverrides || {}),
+                            ...(state.generatedFiles || {}),
+                            ...(state.customFiles || {}),
+                          }}
                         />
                       </div>
                     )}

@@ -21,6 +21,7 @@ import {
 import { publishComponent } from "../supabase/data/publishedComponentService";
 import useCollaboration from "../services/useCollaboration";
 import { getApiBaseUrl } from "../utils/apiConfig";
+import { generateProjectFiles } from "../lib/code-generator";
 
 const API_URL =
   import.meta.env.VITE_API_URL || getApiBaseUrl() || "http://localhost:4000";
@@ -179,6 +180,7 @@ export function useEditorState() {
     customFiles: {} as Record<string, string>,
     siteTitle: "",
     siteLogoUrl: "",
+    generatedFiles: {} as Record<string, string>,
   });
 
   const {
@@ -373,6 +375,35 @@ export function useEditorState() {
 
     checkSession();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const files = generateProjectFiles(
+          state.components,
+          state.pages,
+          state.projectName,
+          state.userProjectConfig,
+          state.fileOverrides || {},
+        );
+        if (!cancelled)
+          setState((prev) => ({ ...prev, generatedFiles: files }));
+      } catch (err) {
+        console.error("generateProjectFiles failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    state.components,
+    state.pages,
+    state.projectName,
+    state.userProjectConfig,
+    state.fileOverrides,
+    state.customFiles,
+  ]);
 
   useEffect(() => {
     const syncViewFromPath = () => {
