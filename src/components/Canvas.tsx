@@ -342,10 +342,10 @@ export function Canvas({
     };
   }, []);
 
-  const componentsMountedRef = useRef(false);
+  const canvasComponentsMountedRef = useRef(false);
   useEffect(() => {
-    if (!componentsMountedRef.current) {
-      componentsMountedRef.current = true;
+    if (!canvasComponentsMountedRef.current) {
+      canvasComponentsMountedRef.current = true;
       return;
     }
     try {
