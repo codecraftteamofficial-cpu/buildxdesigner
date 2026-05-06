@@ -444,29 +444,8 @@ export function EditorTopBar({
     window.dispatchEvent(new CustomEvent("open-mentor-with-suggestion"));
   };
 
-  useEffect(() => {
-    if (showAISuggestion) {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-      }
-      suggestionHideTimerRef.current = window.setTimeout(() => {
-        setShowAISuggestion(false);
-        suggestionHideTimerRef.current = null;
-      }, 8000);
-    } else {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-        suggestionHideTimerRef.current = null;
-      }
-    }
-
-    return () => {
-      if (suggestionHideTimerRef.current) {
-        clearTimeout(suggestionHideTimerRef.current);
-        suggestionHideTimerRef.current = null;
-      }
-    };
-  }, [showAISuggestion]);
+  // Auto-hide timer removed: keep the "I have suggestion" chat bubble visible
+  // until the user interacts with it. Timer logic was intentionally deleted.
 
   useEffect(() => {
     setTargetSupabaseUrl(localStorage.getItem("target_supabase_url"));
