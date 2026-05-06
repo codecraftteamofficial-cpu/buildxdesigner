@@ -84,8 +84,8 @@ const API_URL =
 // Developer Settings
 const ALWAYS_SHOW_AI_SUGGESTION = false; // Set to true to always show for testing
 const AI_SUGGESTION_PROBABILITY = 0.5; // Probability (0-1) of showing the suggestion
-const AI_SUGGESTION_MIN_CHANGES = 3;
-const AI_SUGGESTION_MAX_CHANGES = 5;
+const AI_SUGGESTION_MIN_CHANGES = 2;
+const AI_SUGGESTION_MAX_CHANGES = 4;
 
 interface EditorTopBarProps {
   viewMode: "design" | "code" | "ai";
@@ -145,6 +145,7 @@ interface EditorTopBarProps {
   onStartPublishingBasics?: () => void;
   onOpenGettingStarted?: () => void;
   isCanvasEmpty?: boolean;
+  onToggleMentorMode?: () => void;
 }
 
 interface ProjectCollaborator {
@@ -248,6 +249,7 @@ export function EditorTopBar({
   onPreview,
   onExport,
   onGoToDashboard,
+  onToggleMentorMode,
   isSaving = false,
   lastSaved = null,
   hasUnsavedChanges = false,
@@ -438,10 +440,8 @@ export function EditorTopBar({
       suggestionHideTimerRef.current = null;
     }
     setShowAISuggestion(false);
-    window.dispatchEvent(new CustomEvent("switch-to-ai-mentor"));
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("ai-mentor-suggest"));
-    }, 100);
+    // Open the mentor overlay and request a single suggestion generation
+    window.dispatchEvent(new CustomEvent("open-mentor-with-suggestion"));
   };
 
   useEffect(() => {
@@ -1922,6 +1922,18 @@ export function EditorTopBar({
         )}
 
         <DropdownMenu>
+          {onToggleMentorMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleMentorMode()}
+              className="h-9 px-3 text-foreground/70 hover:text-foreground hover:bg-accent transition-colors"
+              title="Mentor mode"
+            >
+              <Bot className="w-4 h-4" />
+              <span className="hidden sm:inline ml-1 text-sm">Mentor</span>
+            </Button>
+          )}
           <DropdownMenuTrigger asChild>
             <Button
               data-tour="more-options"

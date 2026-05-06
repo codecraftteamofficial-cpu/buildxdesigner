@@ -59,6 +59,7 @@ import { SavingCollaboration } from "./Guides/SavingCollaboration";
 import { ComponentsLibrary } from "./Guides/ComponentsLibrary";
 import { CanvasArea as CanvasAreaTour } from "./Guides/CanvasArea";
 import { AIAssistant } from "./AIAssistant";
+import { AI_MENTOR_ENDPOINT } from "../utils/aiMentorConfig";
 
 interface EditorLayoutProps {
   editor: ReturnType<typeof useEditorState>;
@@ -167,6 +168,198 @@ export function EditorLayout({
     useState(false);
   const [showExportFilesTour, setShowExportFilesTour] = useState(false);
   const [guideRefreshKey, setGuideRefreshKey] = useState(0);
+
+  // Mentor mode state: shows a split view with an iframe (tables) on the left
+  // and the current project canvas on the right.
+  const [showMentorMode, setShowMentorMode] = useState(false);
+
+  const defaultMentorHtml = `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <style>
+        body{font-family:Inter,system-ui,Arial;padding:36px;background:#0f1720;color:#cfe8ff;display:flex;align-items:center;justify-content:center}
+        .box{max-width:720px;text-align:center}
+        .dot{height:10px;width:10px;margin:0 4px;background:#60a5fa;border-radius:50%;display:inline-block;animation:blink 1s infinite}
+        @keyframes blink{0%,80%,100%{opacity:0.15}40%{opacity:1}}
+        .msg{font-size:16px;margin-bottom:8px;color:#dbeafe}
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <div class="msg">Mentor is analyzing your work...</div>
+        <div><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      </div>
+    </body>
+  </html>`;
+
+  const [mentorSrcDoc, setMentorSrcDoc] = useState<string>(defaultMentorHtml);
+  const [mentorGenerated, setMentorGenerated] = useState(false);
+  const [isGeneratingMentor, setIsGeneratingMentor] = useState(false);
+
+  const escapeHtml = (str: string) =>
+    str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const markdownToHtml = (md: string) => {
+    if (!md) return "";
+    // Remove style blocks and any raw HTML tags from AI output
+    let cleaned = md.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
+    cleaned = cleaned.replace(/<[^>]+>/g, "");
+
+    const escaped = escapeHtml(cleaned);
+    const lines = escaped.split(/\r?\n/);
+    let out = "";
+    let inUl = false;
+    let inOl = false;
+
+    const closeLists = () => {
+      if (inUl) {
+        out += "</ul>";
+        inUl = false;
+      }
+      if (inOl) {
+        out += "</ol>";
+        inOl = false;
+      }
+    };
+
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
+      if (line === "") {
+        closeLists();
+        continue;
+      }
+
+      const ulMatch = line.match(/^[-*]\s+(.*)$/);
+      const olMatch = line.match(/^\d+\.\s+(.*)$/);
+
+      if (ulMatch) {
+        if (!inUl) {
+          closeLists();
+          out += "<ul>";
+          inUl = true;
+        }
+        out += `<li>${ulMatch[1].replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</li>`;
+        continue;
+      }
+
+      if (olMatch) {
+        if (!inOl) {
+          closeLists();
+          out += "<ol>";
+          inOl = true;
+        }
+        out += `<li>${olMatch[1].replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</li>`;
+        continue;
+      }
+
+      closeLists();
+      const paragraph = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      out += `<p>${paragraph}</p>`;
+    }
+
+    closeLists();
+    return out;
+  };
+
+  useEffect(() => {
+    const handleOpenMentor = async () => {
+      setShowMentorMode(true);
+
+      if (mentorGenerated || isGeneratingMentor) return;
+
+      setIsGeneratingMentor(true);
+
+      try {
+        const prompt = "How can I improve my deisgn?";
+
+        const resp = await fetch(AI_MENTOR_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: prompt,
+            project_id: state.currentProjectId,
+          }),
+        });
+
+        const data = await resp
+          .clone()
+          .json()
+          .catch(async () => ({ raw: await resp.text().catch(() => "") }));
+
+        const content =
+          data?.generation ||
+          data?.answer ||
+          data?.response ||
+          data?.result ||
+          data?.output ||
+          data?.text ||
+          (typeof data === "string" ? data : null) ||
+          data?.raw ||
+          "";
+
+        const raw = String(content || "No suggestion returned.");
+
+        // If AI returned full HTML/CSS, render it directly in the iframe.
+        const looksLikeHtml =
+          /<(?:!doctype|html|head|body|style|div|table|link|meta)\b/i.test(raw);
+
+        if (looksLikeHtml) {
+          // Render raw HTML/CSS as-is (note: iframe is sandboxed)
+          setMentorSrcDoc(raw);
+        } else {
+          const formatted = markdownToHtml(raw);
+          const html = `<!doctype html>
+            <html>
+              <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width,initial-scale=1"/>
+                <style>
+                  body{font-family:Inter,system-ui,Arial;padding:18px;background:#0f1720;color:#e6eef8}
+                  .container{max-width:1000px;margin:0 auto}
+                  h2{margin:0 0 12px 0;font-size:16px;color:#bcdffb}
+                  .content{background:#071026;padding:16px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);color:#dbeafe}
+                  .content p{margin:8px 0}
+                  .content ul,.content ol{margin:8px 0 8px 20px}
+                  .content li{margin:6px 0}
+                  .content strong{color:#fff}
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h2>AI Mentor Suggestion</h2>
+                  <div class="content">${formatted}</div>
+                </div>
+              </body>
+            </html>`;
+
+          setMentorSrcDoc(html);
+        }
+
+        setMentorGenerated(true);
+      } catch (err) {
+        console.error("Failed to generate mentor suggestion:", err);
+      } finally {
+        setIsGeneratingMentor(false);
+      }
+    };
+
+    window.addEventListener(
+      "open-mentor-with-suggestion",
+      handleOpenMentor as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "open-mentor-with-suggestion",
+        handleOpenMentor as EventListener,
+      );
+  }, [mentorGenerated, isGeneratingMentor, state.currentProjectId]);
 
   const ALL_STEP_KEYS = [
     "dashboard",
@@ -443,6 +636,7 @@ export function EditorLayout({
             onStartTour={onStartTour}
             onStartPublishingBasics={onStartPublishingBasics}
             onOpenGettingStarted={() => setShowGettingStartedGuideDialog(true)}
+            onToggleMentorMode={() => setShowMentorMode(true)}
             currentProject={{
               id: state.currentProjectId!,
               name: state.projectName,
@@ -902,6 +1096,78 @@ export function EditorLayout({
               )}
             </div>
           </div>
+
+          {showMentorMode && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowMentorMode(false)}
+              />
+
+              <div
+                className="relative bg-background rounded-lg shadow-xl"
+                style={{ width: "90vw", height: "90vh", overflow: "auto" }}
+              >
+                <div className="flex h-full w-full">
+                  <div
+                    className="border-r border-border overflow-auto p-3 bg-white"
+                    style={{ width: "45%", minWidth: "320px" }}
+                  >
+                    <div className="h-full">
+                      <iframe
+                        title="Mentor Tables"
+                        srcDoc={mentorSrcDoc}
+                        sandbox=""
+                        className="w-full h-full border-0"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className="overflow-auto p-3 bg-card"
+                    style={{ width: "55%", minWidth: "420px" }}
+                  >
+                    <div className="h-full min-h-[400px]">
+                      <div className="mb-2 flex justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowMentorMode(false)}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                      <div className="h-[calc(100%-40px)] overflow-auto">
+                        <Canvas
+                          components={state.components}
+                          selectedComponent={selectedComponentObject}
+                          onSelectComponent={selectComponent}
+                          onAddComponent={addComponent}
+                          onUpdateComponent={updateComponent}
+                          onDeleteComponent={deleteComponent}
+                          onReorderComponent={reorderComponent}
+                          onMoveLayer={moveLayer}
+                          canvasZoom={state.canvasZoom}
+                          onZoomChange={setCanvasZoom}
+                          projectId={state.currentProjectId}
+                          projectName={state.projectName}
+                          backgroundColor={state.canvasBackgroundColor}
+                          showGrid={state.showCanvasGrid}
+                          pages={state.pages}
+                          userProjectConfig={state.userProjectConfig}
+                          currentUser={state.currentUser}
+                          readOnly={!canEditProject}
+                          activePageId={state.activePageId}
+                          remoteCursors={remoteCursors}
+                          onCursorMove={setLocalCursor}
+                          onCursorLeave={clearLocalCursor}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <EditorFooter
             componentsCount={state.components.length}
