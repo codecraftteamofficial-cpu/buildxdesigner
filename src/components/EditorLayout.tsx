@@ -179,11 +179,11 @@ export function EditorLayout({
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width,initial-scale=1" />
       <style>
-        body{font-family:Inter,system-ui,Arial;padding:36px;background:#0f1720;color:#cfe8ff;display:flex;align-items:center;justify-content:center}
+        body{font-family:Inter,system-ui,Arial;padding:36px;background:#f6f7fb;color:#1f2937;display:flex;align-items:center;justify-content:center}
         .box{max-width:720px;text-align:center}
-        .dot{height:10px;width:10px;margin:0 4px;background:#60a5fa;border-radius:50%;display:inline-block;animation:blink 1s infinite}
+        .dot{height:10px;width:10px;margin:0 4px;background:#8b5cf6;border-radius:50%;display:inline-block;animation:blink 1s infinite}
         @keyframes blink{0%,80%,100%{opacity:0.15}40%{opacity:1}}
-        .msg{font-size:16px;margin-bottom:8px;color:#dbeafe}
+        .msg{font-size:16px;margin-bottom:8px;color:#8b5cf6}
       </style>
     </head>
     <body>
